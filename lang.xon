@@ -1,0 +1,12 @@
+; lang.xon -- what this bundle IS.
+
+(lang "coreutils")
+
+; RADON for File and Sys, self-contained like x-make: the tool tier
+; chains no dependencies.  One bundle, many applets -- the busybox
+; shape: `x -l coreutils -- sort -u file`.
+(dialect rn)
+
+(requires-release "v0.9.0")
+
+(entry "run.x")
