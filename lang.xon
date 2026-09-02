@@ -2,10 +2,15 @@
 
 (lang "coreutils")
 
-; RADON for File and Sys, self-contained like x-make: the tool tier
-; chains no dependencies.  One bundle, many applets -- the busybox
-; shape: `x -l coreutils -- sort -u file`.
-(dialect rn)
+; THE X DIALECT, NOT RADON -- measured (2026-09-02).  The doors these
+; applets need (File, Sys, Proc, Date) import on the plain dialect; the
+; radon dialect boots the whole numeric tower and JIT-compiles its
+; tokenizer analysers, none of which a tool uses, and that costs the
+; difference between a 12-second `ls` and a 3-second one.  A tool that
+; runs per file in a build cannot afford the tower.  Self-contained
+; like x-make: the tool tier chains no dependencies.  One bundle, many
+; applets -- the busybox shape: `x -l coreutils -- sort -u file`.
+(dialect x)
 
 (requires-release "v0.10.0")
 
