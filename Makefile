@@ -27,7 +27,7 @@ install: ## Install into <share>/langs/coreutils
 	cp -R $(PAYLOAD) "$(DEST)/"
 	printf '%s\n' '$(LANG_VERSION)' > "$(DEST)/version"
 	@echo "x-coreutils: installed to $(DEST)"
-	@echo "x-coreutils: try  x -l make"
+	@echo "x-coreutils: try  x -l coreutils"
 
 .PHONY: uninstall
 uninstall: ## Remove it again
