@@ -1,5 +1,7 @@
 # x-coreutils
 
+<p align="center"><img src="docs/bitwise-banner.svg" alt="x-coreutils, with Bitwise the owl" width="100%"></p>
+
 The small tools of the self-hosting arc's second tier, as APPLETS of
 one bundle -- the busybox shape:
 
@@ -59,3 +61,5 @@ That last line is a real pipeline of x tools, and it works today.
     cu/sha256.x       FIPS 180-4, in x
     cu/cli.x          the applet table, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
+
+<p align="center"><img src="docs/bitwise-mark.svg" alt="Bitwise" width="96"></p>
