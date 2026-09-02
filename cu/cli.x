@@ -69,6 +69,99 @@
             (self (rest es))))))
     (go %cu-applets)))
 
+; THE OPTION GUARD.  An applet only reads the flags it implements; a
+; flag it does not know must REFUSE, never fall through as a file
+; operand (`ls -l` once printed "-l").  The leading option tokens of
+; argv are checked against the applet's table before it runs: a token
+; is known when it matches exactly, when its two-character head is a
+; known flag carrying an attached argument (-d, -f1 -n5), or when it
+; is a cluster of known single-character flags (-rn).  Scanning stops
+; at the first operand, at `--`, and never touches `-` or a negative
+; number.  An applet absent from the table takes no options.
+(def %cu-known-flags
+  (list
+    (pair "sort" (list "-r" "-n" "-u"))
+    (pair "uniq" (list "-c"))
+    (pair "head" (list "-n"))
+    (pair "tail" (list "-n"))
+    (pair "wc" (list "-l" "-w" "-c"))
+    (pair "comm" (list "-1" "-2" "-3"))
+    (pair "tr" (list "-d" "-s"))
+    (pair "cut" (list "-d" "-f" "-c"))
+    (pair "rm" (list "-r" "-f"))
+    (pair "mkdir" (list "-p"))
+    (pair "echo" (list "-n" "-e"))
+    (pair "fold" (list "-w"))
+    (pair "paste" (list "-d"))
+    (pair "tee" (list "-a"))
+    (pair "ls" (list "-a"))
+    (pair "install" (list "-d" "-c" "-m"))
+    (pair "cmp" (list "-s"))
+    (pair "xargs" (list "-n"))
+    (pair "test" (list "-e" "-f" "-d" "-s" "-z" "-n"
+                   "-eq" "-ne" "-lt" "-le" "-gt" "-ge"))
+    (pair "[" (list "-e" "-f" "-d" "-s" "-z" "-n"
+                "-eq" "-ne" "-lt" "-le" "-gt" "-ge"))))
+
+(def %cu-flags-of
+  (fn (_ applet)
+    (def go (fn (self es)
+              (if (null? es) ()
+                (if (string=? (first (first es)) applet) (rest (first es))
+                  (self (rest es))))))
+    (go %cu-known-flags)))
+
+(def %cu-option-token?
+  (fn (_ s)
+    (if (< (byte-len s) 2) #f
+      (if (not (= (byte-at s 0) 45)) #f              ; -
+        (let ((c (byte-at s 1)))
+          (if (if (>= c 48) (<= c 57) #f) #f          ; -N: a number
+            #t))))))
+
+(def %cu-flag-known?
+  (fn (_ tok flags)
+    (def exact? (fn (self fs)
+                  (if (null? fs) #f
+                    (if (string=? (first fs) tok) #t (self (rest fs))))))
+    (def head2 (substring tok 0 2))
+    (def single? (fn (self fs ch)
+                   (if (null? fs) #f
+                     (if (if (= (byte-len (first fs)) 2)
+                           (= (byte-at (first fs) 1) ch) #f)
+                       #t (self (rest fs) ch)))))
+    (def cluster? (fn (self i)
+                    (if (>= i (byte-len tok)) #t
+                      (if (single? flags (byte-at tok i))
+                        (self (+ i 1)) #f))))
+    (if (exact? flags) #t
+      (let ((known-head (let ((go (fn (self2 fs)
+                                    (if (null? fs) #f
+                                      (if (string=? (first fs) head2) #t
+                                        (self2 (rest fs)))))))
+                          (go flags))))
+        (if known-head #t (cluster? 1))))))
+
+; answers () when argv's options are all known, else the offender
+(def %cu-unknown-option
+  (fn (_ applet argv)
+    (def flags (%cu-flags-of applet))
+    (def go (fn (self as)
+              (if (null? as) ()
+                (let ((t (first as)))
+                  (if (string=? t "--") ()
+                    (if (not (%cu-option-token? t)) ()
+                      (if (%cu-flag-known? t flags) (self (rest as)) t)))))))
+    (go argv)))
+
+(def %cu-refuse-option
+  (fn (_ applet tok)
+    (do (file-write 2
+          (string-append applet
+            (string-append ": unknown option "
+              (string-append tok "\n"))))
+        2)))
+
 (def cu-run
   (fn (_ argv input)
     (if (null? argv)
@@ -79,7 +172,10 @@
                 (string-append "coreutils: no such applet: "
                   (string-append (first argv) "\n")))
               2)
-          (h (rest argv) (fn (_) input)))))))
+          (let ((bad (%cu-unknown-option (first argv) (rest argv))))
+            (if (null? bad)
+              (h (rest argv) (fn (_) input))
+              (%cu-refuse-option (first argv) bad))))))))
 
 (def %cu-cli-engine-flag?
   (fn (_ s)
@@ -111,4 +207,7 @@
       (let ((h (%cu-find-applet (first argv))))
         (if (null? h)
           (sys-exit (cu-run argv ""))
-          (sys-exit (h (rest argv) stdin-thunk)))))))
+          (let ((bad (%cu-unknown-option (first argv) (rest argv))))
+            (if (null? bad)
+              (sys-exit (h (rest argv) stdin-thunk))
+              (sys-exit (%cu-refuse-option (first argv) bad)))))))))

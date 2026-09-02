@@ -230,6 +230,23 @@ string builder instead -- `write` shows the exact bytes.
 ---
     clean
 
+## the option guard
+
+### an unknown flag refuses instead of masquerading as a file
+
+`ls -l` once printed `-l`.  The dispatcher checks the leading option
+tokens against the applet's table: status 2 and a line on stderr.
+
+```cu
+(do (display (cu-run (list "ls" "-l" "/tmp") "")) (display " ") (display (cu-run (list "sort" "-rn") "3\n10\n")) )
+```
+---
+```output
+2 10
+3
+0
+```
+
 ## the system half
 
 ### true, false, and test's verdicts
