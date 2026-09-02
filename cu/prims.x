@@ -11,6 +11,9 @@
 
 (import x/sys/file)
 (import x/sys/proc)
+(import x/sys/date)
+(import x/type/vector)
+(import x/num/random)
 
 (provide cu/prims
   char->integer integer->char byte-at byte-len
@@ -19,7 +22,11 @@
   bit-and bit-or bit-xor bit-shl bit-shr
   file-read-all file-write-all file-exists? file-unlink file-mkdir
   file-open-write file-open-append file-close file-write file-read-fd
+  file-list-dir file-rename file-rmdir file-open-excl file-dir?
+  vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
+  sys-getcwd sys-environ sys-getenv sys-sleep
+  date-now-iso date-now-unix rng-make rng-int
   cu-stdin!)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
@@ -77,6 +84,38 @@
     (def buf (%str-make-raw n))
     (def r (File read fd buf n))
     (if (if (number? r) (> r 0) #f) (substring buf 0 r) "")))
+
+(def file-list-dir (fn (_ path) (File list-dir path)))
+(def file-rename (fn (_ a b) (File rename a b)))
+(def file-rmdir (fn (_ path) (File rmdir path)))
+; O_EXCL creation for mktemp: fails when the path exists
+(def file-open-excl
+  (fn (_ path)
+    (File open path (list (lit wronly) (lit creat) (lit excl)))))
+(def file-dir?
+  (fn (_ path)
+    (if (file-exists? path)
+      (let ((go (fn (self es)
+                  (if (null? es) #f
+                    (if (eq? (first (first es)) (lit kind))
+                      (eq? (rest (first es)) (lit dir))
+                      (self (rest es)))))))
+        (go (File stat path)))
+      #f)))
+
+(def vec-make (fn (_ n fill) (Vector make n fill)))
+(def vec-ref (fn (_ v i) (Vector ref i v)))
+(def vec-set! (fn (_ v i x) (Vector set! i x v)))
+
+(def sys-getcwd (fn (_) (Sys getcwd)))
+(def sys-environ (fn (_) (Sys environ)))
+(def sys-getenv (fn (_ n) (Sys getenv n)))
+(def sys-sleep (fn (_ n) (Sys sleep n)))
+
+(def date-now-iso (fn (_) (Date ->iso (Date now))))
+(def date-now-unix (fn (_) (Date to-unix (Date now))))
+(def rng-make (fn (_ seed) (Random sw seed)))
+(def rng-int (fn (_ r n) (r int n)))
 
 (def proc-run (fn (_ argv) (Proc run! argv)))
 (def sys-exit (fn (_ n) (Sys exit n)))

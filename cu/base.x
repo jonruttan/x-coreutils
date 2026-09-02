@@ -22,4 +22,8 @@
 (include-once "./trcut.x")
 (include-once "./fs.x")
 (include-once "./sha256.x")
+(include-once "./text2.x")
+(include-once "./fs2.x")
+(include-once "./sys2.x")
+(include-once "./diff.x")
 (include-once "./cli.x")
