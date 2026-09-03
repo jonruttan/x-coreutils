@@ -23,6 +23,7 @@
 (include-once "./fs.x")
 (include-once "./sha256.x")
 (include-once "./hash.x")
+(include-once "./sha512.x")
 (include-once "./text3.x")
 (include-once "./encode.x")
 (include-once "./expr.x")

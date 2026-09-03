@@ -46,6 +46,24 @@ f2090afe4177d6f288072a474804327d0f481ada  -
 0
 ```
 
+### sha512sum matches the reference vectors, across the 128-byte block
+
+The 64-bit lanes ride the engine's SIGNED machine words, so this is
+also the check that the sign-masked right shift is right.
+
+```cu
+(do (display (cu-run (list "sha512sum") "")) (newline) (display (cu-run (list "sha512sum") "hello world\n")) (newline) (display (cu-run (list "sha512sum") "abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz")))
+```
+---
+```output
+cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e  -
+0
+db3974a97f2407b7cae1ae637c0030687a11913274d578492558e39c16c017de84eacdc8c62fe34ee4e12b4b1428817f09b6a2760c3f8a664ceae94d2434a593  -
+0
+f59f923e98f923192853b6a5a03f58bb6a86f9b843c4352b4d71c2921b90593966ad9ef4bea650dbb4ebe2170b807ea1abb6f3cf549081ffb981c2c23f886d07  -
+0
+```
+
 ### cksum is the POSIX CRC-32, with the byte count
 
 ```cu

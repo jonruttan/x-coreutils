@@ -32,6 +32,7 @@
     (pair "sha256sum" %cu-sha256sum)
     (pair "md5sum" %cu-md5sum)
     (pair "sha1sum" %cu-sha1sum)
+    (pair "sha512sum" %cu-sha512sum)
     (pair "cksum" %cu-cksum)
     (pair "sum" %cu-sum)
     (pair "yes" %cu-yes)
