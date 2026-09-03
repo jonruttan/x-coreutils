@@ -13,6 +13,11 @@
 ; `x -l coreutils -- sort -u file`.
 (dialect he)
 
-(requires-release "v0.10.0")
+; v0.11.0, not v0.10.0: chmod, chown, ln, link, readlink, realpath,
+; df, uname, arch, nproc, mkfifo, id, whoami, groups, logname, sync
+; and nice all ride doors x-lang opened for this bundle (PR #607), and
+; `install -m` now APPLIES the mode it used to accept and ignore.  The
+; bundle does not load without them.
+(requires-release "v0.11.0")
 
 (entry "run.x")

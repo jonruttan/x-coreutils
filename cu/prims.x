@@ -25,6 +25,8 @@
   file-open-write file-open-append file-close file-write file-read-fd
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
   file-open-update
+  file-chmod file-chown file-link file-symlink file-readlink
+  file-utimes file-mkfifo file-statfs file-lstat-kind
   file-seek file-truncate file-open-read file-stat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
@@ -32,6 +34,8 @@
   cu-sigterm cu-sighup cu-sig-ign
   sys-getcwd sys-environ sys-getenv sys-sleep
   date-now-iso date-now-unix rng-make rng-int
+  sys-getuid sys-geteuid sys-getgid sys-getegid sys-getgroups
+  sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   cu-stdin!)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
@@ -207,3 +211,40 @@
             (self (pair chunk acc))
             (string-concat (reverse acc))))))
     (slurp ())))
+
+; --- the metadata doors (x-lang PR #607) --------------------------------------
+
+(def file-chmod (fn (_ path mode) (File chmod path mode)))
+(def file-chown (fn (_ path uid gid) (File chown path uid gid)))
+(def file-link (fn (_ target path) (File link target path)))
+(def file-symlink (fn (_ target path) (File symlink target path)))
+(def file-readlink (fn (_ path) (File readlink path)))
+(def file-utimes (fn (_ path) (File utimes path)))
+(def file-mkfifo (fn (_ path mode) (File mkfifo path mode)))
+(def file-statfs (fn (_ path) (File statfs path)))
+
+; the kind a path has WITHOUT following it: the one question ln,
+; readlink and realpath ask, and the one File stat cannot answer.  A
+; DANGLING link still has a kind, so the absence is caught from lstat
+; rather than pre-tested with exists? -- which follows the link, and
+; would call a dangling one missing.
+(def file-lstat-kind
+  (fn (_ path)
+    (guard (e (lit none))
+      (let ((go (fn (self es)
+                  (if (null? es) (lit unknown)
+                    (if (eq? (first (first es)) (lit kind)) (rest (first es))
+                      (self (rest es)))))))
+        (go (File lstat path))))))
+
+(def sys-getuid (fn (_) (Sys getuid)))
+(def sys-geteuid (fn (_) (Sys geteuid)))
+(def sys-getgid (fn (_) (Sys getgid)))
+(def sys-getegid (fn (_) (Sys getegid)))
+(def sys-getgroups (fn (_) (Sys getgroups)))
+(def sys-uname (fn (_) (Sys uname)))
+(def sys-cpu-count (fn (_) (Sys cpu-count)))
+(def sys-sync (fn (_) (Sys sync)))
+(def sys-fsync (fn (_ fd) (Sys fsync fd)))
+(def sys-nice (fn (_ n) (Sys nice n)))
+(def sys-chroot (fn (_ path) (Sys chroot path)))

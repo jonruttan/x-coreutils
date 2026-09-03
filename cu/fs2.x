@@ -11,16 +11,24 @@
 ; touch: create when missing; an existing file rewrites its own bytes
 ; -- content-identical, mtime bumped (there is no utime door; the
 ; rewrite is the honest stand-in, recorded divergence: ctime moves too)
+; touch: utimes(2) on a path that exists, an empty file when it does
+; not.  It used to REWRITE the bytes to bump the stamp -- the door
+; x-lang PR #607 opened retires that, and with it the risk of a large
+; file being read and written just to be dated.
 (def %cu-touch
   (fn (_ argv stdin-thunk)
+    (def c? (%cu-has-flag? argv "-c"))
+    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
     (def go
       (fn (self os)
         (if (null? os) 0
           (do (if (file-exists? (first os))
-                (file-write-all (first os) (file-read-all (first os)))
-                (file-write-all (first os) ""))
+                (file-utimes (first os))
+                (if c? () (file-write-all (first os) "")))
               (self (rest os))))))
-    (go argv)))
+    (if (null? ops)
+      (do (file-write 2 "touch: missing operand\n") 1)
+      (go ops))))
 
 (def %cu-ls-one
   (fn (_ path all?)
@@ -89,6 +97,14 @@
 ; install: -d makes directories (parents included); the copy form
 ; accepts and IGNORES -c and -m MODE -- there is no chmod door yet,
 ; the recorded divergence
+; the mode -m carries, or nil when the flag is absent
+(def %cu-install-mode
+  (fn (self as)
+    (if (null? as) ()
+      (if (string=? (first as) "-m")
+        (if (null? (rest as)) () (%cu-octal->int (first (rest as))))
+        (self (rest as))))))
+
 (def %cu-install
   (fn (_ argv stdin-thunk)
     (if (if (pair? argv) (string=? (first argv) "-d") #f)
@@ -96,13 +112,15 @@
                   (if (null? os) 0
                     (do (%cu-mkdir-p! (first os)) (self (rest os)))))))
         (go (rest argv)))
-      (let ((strip (fn (self as)
+      ; -m used to be accepted and IGNORED; File chmod now honours it
+      (let ((mode (%cu-install-mode argv)))
+        (def strip (fn (self as)
                      (if (null? as) ()
                        (if (string=? (first as) "-c")
                          (self (rest as))
                          (if (string=? (first as) "-m")
                            (self (rest (rest as)))
-                           as))))))
+                           as)))))
         (let ((ops (strip argv)))
           (if (if (pair? ops) (pair? (rest ops)) #f)
             (let ((dst (first (rest ops))))
@@ -113,6 +131,7 @@
                     (string-append "/" (%cu-base-of (first ops))))
                   dst))
               (do (file-write-all target (file-read-all (first ops)))
+                  (if (null? mode) () (file-chmod target mode))
                   0))
             (do (file-write 2 "install: usage: install [-c] [-m M] SRC DST | -d DIR...\n")
                 1)))))))
