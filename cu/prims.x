@@ -14,6 +14,7 @@
 (import x/sys/date)
 (import x/type/vector)
 (import x/num/random)
+(import x/type/struct)
 
 (provide cu/prims
   char->integer integer->char byte-at byte-len
@@ -23,8 +24,12 @@
   file-read-all file-write-all file-exists? file-unlink file-mkdir
   file-open-write file-open-append file-close file-write file-read-fd
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
+  file-open-update
+  file-seek file-truncate file-open-read file-stat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
+  sys-fork sys-wait sys-exec sys-kill sys-signal sys-isatty sys-usleep
+  cu-sigterm cu-sighup cu-sig-ign
   sys-getcwd sys-environ sys-getenv sys-sleep
   date-now-iso date-now-unix rng-make rng-int
   cu-stdin!)
@@ -89,6 +94,8 @@
 (def file-rename (fn (_ a b) (File rename a b)))
 (def file-rmdir (fn (_ path) (File rmdir path)))
 ; O_EXCL creation for mktemp: fails when the path exists
+(def file-open-update
+  (fn (_ path) (File open path (list (lit wronly) (lit creat)))))
 (def file-open-excl
   (fn (_ path)
     (File open path (list (lit wronly) (lit creat) (lit excl)))))
@@ -102,6 +109,62 @@
                       (self (rest es)))))))
         (go (File stat path)))
       #f)))
+
+(def file-seek (fn (_ fd off) (File seek fd off)))
+(def file-truncate (fn (_ fd n) (File truncate fd n)))
+(def file-open-read (fn (_ path) (File open path (lit rdonly))))
+
+; THE WIDE STAT.  File stat answers four fields (size mode kind mtime);
+; stat(1), du(1) and id(1) want the rest of the struct, so this decodes
+; the same buffer against the full per-OS layout.  Darwin is stat64
+; (mode u16@4, uid@16, size@96); Linux x86_64 is stat (mode u32@24,
+; uid@28, size@48) -- the two orders differ, so each gets its own spec
+; and the alist is assembled by name.  Answers () when the path is gone.
+(def %cu-stat-spec-darwin
+  (list (list (lit pad) 4) (list (lit mode) (lit u16))
+        (list (lit nlink) (lit u16)) (list (lit ino) (lit u64))
+        (list (lit uid) (lit u32)) (list (lit gid) (lit u32))
+        (list (lit rdev) (lit u32)) (list (lit pad) 4)
+        (list (lit atime) (lit i64)) (list (lit pad) 8)
+        (list (lit mtime) (lit i64)) (list (lit pad) 8)
+        (list (lit ctime) (lit i64)) (list (lit pad) 24)
+        (list (lit size) (lit i64)) (list (lit blocks) (lit i64))
+        (list (lit blksize) (lit u32))))
+
+(def %cu-stat-spec-linux
+  (list (list (lit pad) 8) (list (lit ino) (lit u64))
+        (list (lit nlink) (lit u64)) (list (lit mode) (lit u32))
+        (list (lit uid) (lit u32)) (list (lit gid) (lit u32))
+        (list (lit pad) 4) (list (lit rdev) (lit u64))
+        (list (lit size) (lit i64)) (list (lit blksize) (lit i64))
+        (list (lit blocks) (lit i64)) (list (lit atime) (lit i64))
+        (list (lit pad) 8) (list (lit mtime) (lit i64)) (list (lit pad) 8)
+        (list (lit ctime) (lit i64))))
+
+(def %cu-mode-kind
+  (fn (_ mode)
+    (let ((fmt (& mode 61440)))
+      (if (= fmt 32768) (lit file)
+        (if (= fmt 16384) (lit dir)
+          (if (= fmt 40960) (lit link)
+            (if (= fmt 8192) (lit char)
+              (if (= fmt 24576) (lit block)
+                (if (= fmt 4096) (lit fifo)
+                  (if (= fmt 49152) (lit socket) (lit unknown)))))))))))
+
+(def file-stat-full
+  (fn (_ path)
+    (def buf (%str-make-raw 160))
+    (def r (if os-darwin?
+             (syscall (syscall-id (lit stat64)) path buf)
+             (syscall (syscall-id (lit stat)) path buf)))
+    (if (< r 0) ()
+      (let ((d (Struct unpack
+                 (if os-darwin? %cu-stat-spec-darwin %cu-stat-spec-linux)
+                 buf)))
+        (pair (pair (lit kind)
+                (%cu-mode-kind (rest (Assoc entry (lit mode) d))))
+          d)))))
 
 (def vec-make (fn (_ n fill) (Vector make n fill)))
 (def vec-ref (fn (_ v i) (Vector ref i v)))
@@ -118,6 +181,16 @@
 (def rng-int (fn (_ r n) (r int n)))
 
 (def proc-run (fn (_ argv) (Proc run! argv)))
+(def sys-fork (fn (_) (Sys fork)))
+(def sys-wait (fn (_ pid) (Sys wait pid)))
+(def sys-exec (fn (_ name argv) (Sys exec name argv)))
+(def sys-kill (fn (_ pid sig) (Sys kill pid sig)))
+(def sys-signal (fn (_ sig how) (Sys signal sig how)))
+(def sys-isatty (fn (_ fd) (Sys isatty fd)))
+(def sys-usleep (fn (_ us) (Sys usleep us)))
+(def cu-sigterm 15)
+(def cu-sighup 1)
+(def cu-sig-ign 1)
 (def sys-exit (fn (_ n) (Sys exit n)))
 (def sys-dup2 (fn (_ a b) (Sys dup2 a b)))
 (def sys-close (fn (_ fd) (Sys close fd)))
