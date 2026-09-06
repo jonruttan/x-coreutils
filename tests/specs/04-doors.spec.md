@@ -227,3 +227,20 @@ same
 ```
 ---
     clean
+
+## clustered flags
+
+### a single-letter flag is found inside a cluster, the way it is typed
+
+The option guard admits `-sm` as a cluster of known letters; the applet
+must then SEE both, or it silently prints less than asked.
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-cl && mkdir -p /tmp/x-cu-cl")) (file-write-all "/tmp/x-cu-cl/f" "x") (file-write-all "/tmp/x-cu-cl/taken" "old") (def cu-out (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-cl/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-cl/.cap")))))) (def two (cu-out (list "uname" "-sm"))) (def one (cu-out (list "uname" "-s"))) (display (if (> (byte-len two) (byte-len one)) "sm>s" "sm=s")) (newline) (display (cu-run (list "ln" "-sf" "/tmp/x-cu-cl/f" "/tmp/x-cu-cl/taken") "")) (display (cu-run (list "readlink" "/tmp/x-cu-cl/taken") "")) (display (if (string=? (cu-out (list "id" "-un")) (cu-out (list "whoami"))) "un=whoami" "differ")) (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-cl")) ())
+```
+---
+```output
+sm>s
+0/tmp/x-cu-cl/f
+0un=whoami
+```
