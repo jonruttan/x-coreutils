@@ -74,6 +74,13 @@ Paired with x-lang v0.11.0 (`lang.xon` is the checkable row).
 
 That last line is a real pipeline of x tools, and it works today.
 
+## Options
+
+Applet parity is one axis; OPTION parity is the other.  `docs/options.md`
+is the generated matrix -- every busybox option per applet, which of them
+this bundle accepts, and what is missing.  `make options` regenerates it
+from `docs/busybox-options.x` and the option guard's live table.
+
 ## Tests
 
     make test           # the suite, loud on any failure
