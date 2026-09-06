@@ -1,0 +1,121 @@
+; docs/busybox-options.x -- what busybox's coreutils applets ACCEPT.
+;
+; The data half of the option matrix (tools/options-matrix.x renders it
+; against cu/cli.x's live option table).  Transcribed from busybox
+; 1.36's usage text; a row here is a claim about busybox, so correct it
+; against `busybox --help APPLET` rather than against this bundle.
+; Single-letter flags are spelled as one string per applet; test's
+; operators and dd's KEY=VALUE operands are listed whole.
+
+(def %letters
+  (fn (_ s)
+    (def end (byte-len s))
+    (def go (fn (self i acc)
+              (if (>= i end) (reverse acc)
+                (self (+ i 1)
+                  (pair (string-append "-" (substring s i (+ i 1))) acc)))))
+    (go 0 ())))
+
+(def busybox-options
+  (list
+    (list "arch" ())
+    (list "base64" (%letters "dw"))
+    (list "basename" (%letters "s"))
+    (list "cat" (%letters "nbvteA"))
+    (list "chgrp" (%letters "RhLHPcvf"))
+    (list "chmod" (%letters "Rcvf"))
+    (list "chown" (%letters "RhLHPcvf"))
+    (list "chroot" ())
+    (list "cksum" ())
+    (list "cmp" (%letters "lsn"))
+    (list "comm" (%letters "123"))
+    (list "cp" (%letters "arRPLHpfilsTu"))
+    (list "cut" (%letters "bcfdsn"))
+    (list "date" (append (%letters "udDsrRI") (list "+FMT")))
+    (list "dd" (list "if=" "of=" "bs=" "ibs=" "obs=" "count=" "skip=" "seek="
+                     "conv=" "status=" "iflag=" "oflag="))
+    (list "df" (%letters "PkmhTaiB"))
+    (list "diff" (%letters "abBdiNqrTstwLSU"))
+    (list "dirname" ())
+    (list "dos2unix" (%letters "ud"))
+    (list "du" (%letters "aHLdclsxhmk"))
+    (list "echo" (%letters "neE"))
+    (list "env" (%letters "iu0"))
+    (list "expand" (%letters "it"))
+    (list "expr" ())
+    (list "factor" ())
+    (list "false" ())
+    (list "fold" (%letters "bsw"))
+    (list "groups" ())
+    (list "head" (%letters "ncqv"))
+    (list "id" (%letters "ugGnr"))
+    (list "install" (%letters "cdDspogmt"))
+    (list "link" ())
+    (list "ln" (%letters "sfnbtv"))
+    (list "logname" ())
+    (list "ls" (%letters "1AaCxdLHRFplinshrSXvctuw"))
+    (list "md5sum" (%letters "csw"))
+    (list "mkdir" (%letters "mp"))
+    (list "mkfifo" (%letters "m"))
+    (list "mktemp" (%letters "dtpqu"))
+    (list "mv" (%letters "finT"))
+    (list "nice" (%letters "n"))
+    (list "nl" (%letters "bnswvi"))
+    (list "nohup" ())
+    (list "nproc" (list "--all" "--ignore=N"))
+    (list "od" (%letters "AjNtvbcdox"))
+    (list "paste" (%letters "ds"))
+    (list "printenv" ())
+    (list "printf" ())
+    (list "pwd" (%letters "LP"))
+    (list "readlink" (%letters "fnv"))
+    (list "realpath" ())
+    (list "rev" ())
+    (list "rm" (%letters "irRfv"))
+    (list "rmdir" (%letters "p"))
+    (list "seq" (%letters "ws"))
+    (list "sha1sum" (%letters "csw"))
+    (list "sha256sum" (%letters "csw"))
+    (list "sha512sum" (%letters "csw"))
+    (list "shred" (%letters "fnuz"))
+    (list "shuf" (%letters "einoz"))
+    (list "sleep" ())
+    (list "sort" (%letters "nrugMcszbdfiokt"))
+    (list "split" (%letters "bla"))
+    (list "stat" (%letters "Lftc"))
+    (list "sum" (%letters "rs"))
+    (list "sync" (%letters "df"))
+    (list "tac" ())
+    (list "tail" (%letters "cfnqsv"))
+    (list "tee" (%letters "ai"))
+    (list "test" (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
+                       "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
+                       "=" "!=" "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
+                       "-nt" "-ot" "-ef" "-a" "-o" "!" "(" ")"))
+    (list "timeout" (%letters "sk"))
+    (list "touch" (%letters "cdtr"))
+    (list "tr" (%letters "cds"))
+    (list "true" ())
+    (list "truncate" (%letters "cs"))
+    (list "tty" (%letters "s"))
+    (list "uname" (%letters "amnrspvio"))
+    (list "unexpand" (%letters "fat"))
+    (list "uniq" (%letters "cduifsw"))
+    (list "unix2dos" (%letters "ud"))
+    (list "unlink" ())
+    (list "usleep" ())
+    (list "uudecode" (%letters "o"))
+    (list "uuencode" (%letters "m"))
+    (list "wc" (%letters "cmlwL"))
+    (list "which" (%letters "a"))
+    (list "whoami" ())
+    (list "xargs" (%letters "0aEInprstx"))
+    (list "yes" ())
+    (list "[" (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
+                    "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
+                    "=" "!=" "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
+                    "-nt" "-ot" "-ef" "-a" "-o" "!" "(" ")"))
+    (list "[[" (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
+                     "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
+                     "=" "!=" "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
+                     "-nt" "-ot" "-ef" "-a" "-o" "!" "(" ")"))))
