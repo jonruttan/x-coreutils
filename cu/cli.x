@@ -142,7 +142,8 @@
     (pair "fold" (list "-w"))
     (pair "paste" (list "-d"))
     (pair "tee" (list "-a"))
-    (pair "ls" (list "-a"))
+    (pair "ls" (list "-1" "-A" "-a" "-d" "-L" "-H" "-R" "-F" "-p" "-l" "-i"
+                  "-n" "-s" "-h" "-r" "-S" "-X" "-v" "-c" "-t" "-u"))
     (pair "touch" (list "-c"))
     (pair "install" (list "-d" "-c" "-m"))
     (pair "cmp" (list "-s"))
