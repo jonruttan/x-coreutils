@@ -11,12 +11,29 @@
 ; and stat(1) and du(1) want uid, gid, links, inode and the block
 ; count as well.
 
-; does argv carry this exact flag anywhere before its operands?
+; does argv carry this flag?  A single-letter flag is also found INSIDE
+; a cluster -- `uname -sm`, `ln -sf`, `id -un` are how they are typed,
+; and the option guard already admits a cluster of known letters, so an
+; applet that then looked only for the exact token silently ignored it
+; (uname -sm printed the system and not the machine).  A longer flag
+; (-eq) still wants its exact spelling; a bare `-` and a negative number
+; are operands, not clusters.
 (def %cu-has-flag?
   (fn (_ argv flag)
+    (def letter (if (= (byte-len flag) 2) (byte-at flag 1) 0))
+    (def in-cluster?
+      (fn (_ tok)
+        (if (= letter 0) #f
+          (if (not (%cu-option-token? tok)) #f
+            (if (= (byte-at tok 1) 45) #f                       ; --long
+              (let ((go (fn (self i)
+                          (if (>= i (byte-len tok)) #f
+                            (if (= (byte-at tok i) letter) #t (self (+ i 1)))))))
+                (go 1)))))))
     (def go (fn (self as)
               (if (null? as) #f
-                (if (string=? (first as) flag) #t (self (rest as))))))
+                (if (string=? (first as) flag) #t
+                  (if (in-cluster? (first as)) #t (self (rest as)))))))
     (go argv)))
 
 (def %cu-stat-get
