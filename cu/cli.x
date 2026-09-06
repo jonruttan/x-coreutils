@@ -168,12 +168,15 @@
     (pair "shred" (list "-n" "-u"))
     (pair "timeout" (list "-s"))
     (pair "[[" (list "-e" "-f" "-d" "-s" "-z" "-n"
-                 "-eq" "-ne" "-lt" "-le" "-gt" "-ge"))
+                 "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
+                 "=" "!=" "!"))
     (pair "xargs" (list "-n"))
     (pair "test" (list "-e" "-f" "-d" "-s" "-z" "-n"
-                   "-eq" "-ne" "-lt" "-le" "-gt" "-ge"))
+                   "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
+                   "=" "!=" "!"))
     (pair "[" (list "-e" "-f" "-d" "-s" "-z" "-n"
-                "-eq" "-ne" "-lt" "-le" "-gt" "-ge"))))
+                "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
+                "=" "!=" "!"))))
 
 (def %cu-flags-of
   (fn (_ applet)
