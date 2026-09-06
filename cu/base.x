@@ -27,6 +27,8 @@
 (include-once "./text3.x")
 (include-once "./encode.x")
 (include-once "./expr.x")
+(include-once "./perm.x")
+(include-once "./who.x")
 (include-once "./text2.x")
 (include-once "./fs2.x")
 (include-once "./sys2.x")
