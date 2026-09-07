@@ -18,6 +18,6 @@
 ; and nice all ride doors x-lang opened for this bundle (PR #607), and
 ; `install -m` now APPLIES the mode it used to accept and ignore.  The
 ; bundle does not load without them.
-(requires-release "v0.11.0")
+(requires-release "v0.13.0")
 
 (entry "run.x")
