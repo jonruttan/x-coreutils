@@ -13,7 +13,7 @@ the work.  Applet parity is the other axis: see the README.
 | `arch` |  |  |  | - |
 | `base64` | -d -w | -d | -w | 50% |
 | `basename` | -s |  | -s | 0% |
-| `cat` | -n -b -v -t -e -A |  | -n -b -v -t -e -A | 0% |
+| `cat` | -n -b -v -t -e -A | -n -b -v -t -e -A |  | 100% |
 | `chgrp` | -R -h -L -H -P -c -v -f |  | -R -h -L -H -P -c -v -f | 0% |
 | `chmod` | -R -c -v -f | -R | -c -v -f | 25% |
 | `chown` | -R -h -L -H -P -c -v -f |  | -R -h -L -H -P -c -v -f | 0% |
@@ -21,7 +21,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cksum` |  |  |  | - |
 | `cmp` | -l -s -n | -s | -l -n | 33% |
 | `comm` | -1 -2 -3 | -1 -2 -3 |  | 100% |
-| `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u |  | -a -r -R -P -L -H -p -f -i -l -s -T -u | 0% |
+| `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -r -R -P -L -H -p -f -i -l -s -T -u |  | 100% |
 | `cut` | -b -c -f -d -s -n | -d -f -c | -b -s -n | 50% |
 | `date` | -u -d -D -s -r -R -I +FMT |  | -u -d -D -s -r -R -I +FMT | 0% |
 | `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= |  | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | 0% |
@@ -43,14 +43,14 @@ the work.  Applet parity is the other axis: see the README.
 | `install` | -c -d -D -s -p -o -g -m -t | -d -c -m | -D -s -p -o -g -t | 33% |
 | `join` | _not a busybox applet_ |  | | - |
 | `link` |  |  |  | - |
-| `ln` | -s -f -n -b -t -v | -s -f | -n -b -t -v | 33% |
+| `ln` | -s -f -n -b -t -v | -s -f -n -b -t -v |  | 100% |
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -A -a -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u | -C -x -w | 87% |
 | `md5sum` | -c -s -w |  | -c -s -w | 0% |
-| `mkdir` | -m -p | -p | -m | 50% |
+| `mkdir` | -m -p | -m -p |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
 | `mktemp` | -d -t -p -q -u |  | -d -t -p -q -u | 0% |
-| `mv` | -f -i -n -T |  | -f -i -n -T | 0% |
+| `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i |  | -b -n -s -w -v -i | 0% |
 | `nohup` |  |  |  | - |
@@ -63,8 +63,8 @@ the work.  Applet parity is the other axis: see the README.
 | `readlink` | -f -n -v | -f -e | -n -v | 33% |
 | `realpath` |  |  |  | - |
 | `rev` |  |  |  | - |
-| `rm` | -i -r -R -f -v | -r -f | -i -R -v | 40% |
-| `rmdir` | -p |  | -p | 0% |
+| `rm` | -i -r -R -f -v | -i -r -R -f -v |  | 100% |
+| `rmdir` | -p | -p |  | 100% |
 | `seq` | -w -s |  | -w -s | 0% |
 | `sha1sum` | -c -s -w |  | -c -s -w | 0% |
 | `sha256sum` | -c -s -w |  | -c -s -w | 0% |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -n | -0 -a -E -I -p -r -s -t -x | 10% |
 | `yes` |  |  |  | - |
 
-**Total: 144 of 426 busybox options accepted (33%).**
+**Total: 176 of 426 busybox options accepted (41%).**

@@ -36,6 +36,16 @@
                   (if (in-cluster? (first as)) #t (self (rest as)))))))
     (go argv)))
 
+; the value that follows a flag: `-m 755` -> "755", nil when absent
+(def %cu-flag-value
+  (fn (_ argv flag)
+    (def go (fn (self as)
+              (if (null? as) ()
+                (if (string=? (first as) flag)
+                  (if (null? (rest as)) () (first (rest as)))
+                  (self (rest as))))))
+    (go argv)))
+
 (def %cu-stat-get
   (fn (_ st key)
     (let ((e (Assoc entry key st)))
