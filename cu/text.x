@@ -161,9 +161,7 @@
 
 ; --- the applets -------------------------------------------------------------
 
-(def %cu-cat
-  (fn (_ argv stdin-thunk)
-    (do (display (%cu-gather argv stdin-thunk)) 0)))
+; cat moved to cu/fs.x with busybox's option set (-n -b -v -t -e -A).
 
 (def %cu-sort
   (fn (_ argv stdin-thunk)

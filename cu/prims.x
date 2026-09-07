@@ -26,7 +26,7 @@
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
   file-open-update
   file-chmod file-chown file-link file-symlink file-readlink
-  file-utimes file-mkfifo file-statfs file-lstat-kind
+  file-utimes file-mkfifo file-statfs file-lstat-kind file-copy
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
@@ -263,3 +263,8 @@
         (pair (pair (lit kind)
                 (%cu-mode-kind (rest (Assoc entry (lit mode) d))))
           d)))))
+
+; BINARY-SAFE copy: a 64K fd-level loop driven by raw byte counts.  cp
+; used read-all + write-all, and a string's observable bytes end at its
+; first NUL -- so copying anything but text silently truncated it.
+(def file-copy (fn (_ from to) (File copy from to)))

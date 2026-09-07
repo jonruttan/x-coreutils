@@ -33,32 +33,9 @@
   (fn (_ argv stdin-thunk)
     (do (display (string-append (sys-getcwd) "\n")) 0)))
 
-; mv: rename, with copy+unlink as the cross-device fallback
-(def %cu-mv
-  (fn (_ argv stdin-thunk)
-    (if (if (pair? argv) (pair? (rest argv)) #f)
-      (let ((r (file-rename (first argv) (first (rest argv)))))
-        (if (if (number? r) (< r 0) #f)
-          (do (file-write-all (first (rest argv))
-                (file-read-all (first argv)))
-              (file-unlink (first argv))
-              0)
-          0))
-      (do (file-write 2 "mv: usage: mv SRC DST\n") 1))))
+; mv moved to cu/fs.x with busybox's option set (-f -i -n -T).
 
-(def %cu-rmdir
-  (fn (_ argv stdin-thunk)
-    (def go
-      (fn (self os st)
-        (if (null? os) st
-          (let ((r (file-rmdir (first os))))
-            (if (if (number? r) (< r 0) #f)
-              (do (file-write 2
-                    (string-append "rmdir: failed: "
-                      (string-append (first os) "\n")))
-                  (self (rest os) 1))
-              (self (rest os) st))))))
-    (go argv 0)))
+; rmdir moved to cu/fs.x, which gives it -p.
 
 ; install: -d makes directories (parents included); the copy form
 ; accepts and IGNORES -c and -m MODE -- there is no chmod door yet,
