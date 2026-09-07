@@ -8,9 +8,6 @@
 ;
 ; touch ls pwd mv rmdir install mktemp cmp.
 
-; touch: create when missing; an existing file rewrites its own bytes
-; -- content-identical, mtime bumped (there is no utime door; the
-; rewrite is the honest stand-in, recorded divergence: ctime moves too)
 ; touch: utimes(2) on a path that exists, an empty file when it does
 ; not.  It used to REWRITE the bytes to bump the stamp -- the door
 ; x-lang PR #607 opened retires that, and with it the risk of a large
@@ -30,38 +27,7 @@
       (do (file-write 2 "touch: missing operand\n") 1)
       (go ops))))
 
-(def %cu-ls-one
-  (fn (_ path all?)
-    (if (file-dir? path)
-      (%cu-print-lines
-        (%cu-msort
-          (filter (fn (_ n)
-                    (if all? #t
-                      (if (> (byte-len n) 0)
-                        (not (= (byte-at n 0) 46))
-                        #f)))
-            (filter (fn (_ n)
-                      (if (string=? n ".") #f
-                        (not (string=? n ".."))))
-              (file-list-dir path)))
-          (fn (_ a b) (%cu-str< a b))))
-      (display (string-append path "\n")))))
-
-(def %cu-ls
-  (fn (_ argv stdin-thunk)
-    (def all? (if (pair? argv) (string=? (first argv) "-a") #f))
-    (def ops0 (if all? (rest argv) argv))
-    (def ops (if (null? ops0) (list ".") ops0))
-    (if (null? (rest ops))
-      (do (%cu-ls-one (first ops) all?) 0)
-      ; several operands: the dir: header form, blank line between
-      (let ((go (fn (self os first?)
-                  (if (null? os) 0
-                    (do (if first? () (display "\n"))
-                        (display (string-append (first os) ":\n"))
-                        (%cu-ls-one (first os) all?)
-                        (self (rest os) #f))))))
-        (go ops #t)))))
+; ls lives in cu/ls.x: the busybox option set is a module's worth.
 
 (def %cu-pwd
   (fn (_ argv stdin-thunk)
