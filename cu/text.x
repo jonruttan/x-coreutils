@@ -161,59 +161,11 @@
 
 ; --- the applets -------------------------------------------------------------
 
-(def %cu-cat
-  (fn (_ argv stdin-thunk)
-    (do (display (%cu-gather argv stdin-thunk)) 0)))
+; cat moved to cu/fs.x with busybox's option set (-n -b -v -t -e -A).
 
-(def %cu-sort
-  (fn (_ argv stdin-thunk)
-    (def fo (%cu-flags argv (list 114 110 117)))          ; r n u
-    (def flags (first fo))
-    (def lines (%cu-lines (%cu-gather (rest fo) stdin-thunk)))
-    (def numeric (%cu-flag? 110 flags))
-    (def less?
-      (if numeric
-        (fn (_ a b)
-          (let ((na (%cu-num-prefix a)) (nb (%cu-num-prefix b)))
-            (if (< na nb) #t
-              (if (> na nb) #f (%cu-str< a b)))))
-        (fn (_ a b) (%cu-str< a b))))
-    (def sorted (%cu-msort lines less?))
-    (def uniqd
-      (if (%cu-flag? 117 flags)
-        (let ((go (fn (self ls acc)
-                    (if (null? ls) (reverse acc)
-                      (self (rest ls)
-                        (if (if (pair? acc)
-                              (string=? (first ls) (first acc)) #f)
-                          acc
-                          (pair (first ls) acc)))))))
-          (go sorted ()))
-        sorted))
-    (do (%cu-print-lines
-          (if (%cu-flag? 114 flags) (reverse uniqd) uniqd))
-        0)))
+; sort moved to cu/sort.x: busybox's option set is a module's worth.
 
-(def %cu-uniq
-  (fn (_ argv stdin-thunk)
-    (def fo (%cu-flags argv (list 99)))                   ; c
-    (def count? (%cu-flag? 99 (first fo)))
-    (def lines (%cu-lines (%cu-gather (rest fo) stdin-thunk)))
-    (def emit
-      (fn (_ n line)
-        (if count?
-          (display (string-append (%cu-pad-left (%cu-int->str n) 4)
-                     (string-append " " (string-append line "\n"))))
-          (display (string-append line "\n")))))
-    (def go
-      (fn (self ls cur n)
-        (if (null? ls)
-          (if (null? cur) () (emit n cur))
-          (if (if (null? cur) #f (string=? (first ls) cur))
-            (self (rest ls) cur (+ n 1))
-            (do (if (null? cur) () (emit n cur))
-                (self (rest ls) (first ls) 1))))))
-    (do (go lines () 0) 0)))
+; uniq moved to cu/text4.x with -c -d -u -i -f -s -w.
 
 ; -n N, joined -nN, or bare; default 10
 (def %cu-count-arg

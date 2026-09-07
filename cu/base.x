@@ -33,5 +33,8 @@
 (include-once "./fs2.x")
 (include-once "./sys2.x")
 (include-once "./fs3.x")
+(include-once "./ls.x")
+(include-once "./sort.x")
+(include-once "./text4.x")
 (include-once "./diff.x")
 (include-once "./cli.x")

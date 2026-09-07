@@ -192,19 +192,7 @@
         0)))
 
 ; nl: %6d + TAB for nonempty lines; six spaces + TAB for empty ones
-(def %cu-nl
-  (fn (_ argv stdin-thunk)
-    (def go
-      (fn (self ls n)
-        (if (null? ls) 0
-          (if (= (byte-len (first ls)) 0)
-            (do (display "      \t\n") (self (rest ls) n))
-            (do (display
-                  (string-append (%cu-pad (%cu-int->str n) 6 #f)
-                    (string-append "\t"
-                      (string-append (first ls) "\n"))))
-                (self (rest ls) (+ n 1)))))))
-    (go (%cu-lines (%cu-gather argv stdin-thunk)) 1)))
+; nl moved to cu/sort.x's neighbours in cu/text4.x with -b -n -s -w -v -i.
 
 (def %cu-fold
   (fn (_ argv stdin-thunk)

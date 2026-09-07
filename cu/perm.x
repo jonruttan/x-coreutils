@@ -178,22 +178,7 @@
 
 ; --- ln, link, readlink, realpath ---------------------------------------------
 
-(def %cu-ln
-  (fn (_ argv stdin-thunk)
-    (def s? (%cu-has-flag? argv "-s"))
-    (def f? (%cu-has-flag? argv "-f"))
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
-    (if (null? (rest ops))
-      (do (file-write 2 "ln: need TARGET and a name\n") 1)
-      (let ((target (first ops)))
-        ; `ln target dir` puts the link INSIDE the directory
-        (def named (first (rest ops)))
-        (def name (if (file-dir? named)
-                    (%cu-path-join named (%cu-basename-of target))
-                    named))
-        (do (if (if f? (file-exists? name) #f) (file-unlink name) ())
-            (if s? (file-symlink target name) (file-link target name))
-            0)))))
+; ln moved to cu/fs.x with busybox's option set (-s -f -n -b -t -v).
 
 (def %cu-basename-of
   (fn (_ p)
