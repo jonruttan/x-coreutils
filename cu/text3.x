@@ -66,16 +66,7 @@
 
 ; --- expand / unexpand --------------------------------------------------------
 
-(def %cu-tab-width
-  (fn (_ argv)
-    (if (if (pair? argv) (string=? (first argv) "-t") #f)
-      (%cu-num-prefix (first (rest argv)))
-      8)))
-
-(def %cu-tab-rest
-  (fn (_ argv)
-    (if (if (pair? argv) (string=? (first argv) "-t") #f)
-      (rest (rest argv)) argv)))
+; expand and unexpand read -t off the declaration now.
 
 (def %cu-spaces
   (fn (self k) (if (<= k 0) "" (string-append " " (self (- k 1))))))
@@ -97,10 +88,11 @@
 
 (def %cu-expand
   (fn (_ argv stdin-thunk)
-    (def w (%cu-tab-width argv))
+    (def o (%cu-opts "expand" argv))
+    (def w (%cu-num-prefix (Opts value o "-t" "8")))
     (do (%cu-print-lines
           (map (fn (_ l) (%cu-expand-line l w))
-            (%cu-lines (%cu-gather (%cu-tab-rest argv) stdin-thunk))))
+            (%cu-lines (%cu-gather (Opts operands o) stdin-thunk))))
         0)))
 
 ; unexpand: the LEADING run of blanks becomes tabs plus a remainder
@@ -124,10 +116,11 @@
 
 (def %cu-unexpand
   (fn (_ argv stdin-thunk)
-    (def w (%cu-tab-width argv))
+    (def o (%cu-opts "unexpand" argv))
+    (def w (%cu-num-prefix (Opts value o "-t" "8")))
     (do (%cu-print-lines
           (map (fn (_ l) (%cu-unexpand-line l w))
-            (%cu-lines (%cu-gather (%cu-tab-rest argv) stdin-thunk))))
+            (%cu-lines (%cu-gather (Opts operands o) stdin-thunk))))
         0)))
 
 ; --- dos2unix / unix2dos ------------------------------------------------------

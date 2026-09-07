@@ -17,13 +17,16 @@
 ; a pipeline, and GNU cp reads EOF as "no" there, so -i declines unless
 ; a tty answers y -- the safe reading, and the one a script gets.
 
-(def %fs-flag? (fn (_ argv f) (%cu-has-flag? argv f)))
-(def %fs-ops (fn (_ argv) (filter (fn (_ x) (not (%cu-option-token? x))) argv)))
+; THE ONE PARSE, taken by the applet and passed down.  Every helper
+; below reads `o`, the record cu/cli.x's declaration produced -- not
+; argv, which it would have to re-interpret.  A value flag's argument
+; is not an operand, and remembering that was what each hand-rolled
+; operand filter here got to be wrong about separately.
 
 ; -i: ask, and take silence for no
 (def %fs-may-clobber?
-  (fn (_ argv path what)
-    (if (not (%fs-flag? argv "-i")) #t
+  (fn (_ o path what)
+    (if (not (Opts on? o "-i")) #t
       (if (not (file-exists? path)) #t
         (do (file-write 2
               (string-concat (list what ": overwrite '" path "'? ")))
@@ -58,10 +61,10 @@
                 (if (= low 127) "^?" (%cu-b->s low))))))))))
 
 (def %cat-render
-  (fn (_ s argv)
-    (def v? (if (%fs-flag? argv "-A") #t (%fs-flag? argv "-v")))
-    (def e? (if (%fs-flag? argv "-A") #t (%fs-flag? argv "-e")))
-    (def t? (if (%fs-flag? argv "-A") #t (%fs-flag? argv "-t")))
+  (fn (_ s o)
+    (def v? (if (Opts on? o "-A") #t (Opts on? o "-v")))
+    (def e? (if (Opts on? o "-A") #t (Opts on? o "-e")))
+    (def t? (if (Opts on? o "-A") #t (Opts on? o "-t")))
     (if (if v? #f (if e? #f (not t?))) s
       (let ((end (byte-len s)))
         (def go
@@ -78,9 +81,9 @@
 
 ; -n numbers every line, -b only the non-empty ones (and -b wins)
 (def %cat-number
-  (fn (_ text argv)
-    (def b? (%fs-flag? argv "-b"))
-    (if (if b? #f (not (%fs-flag? argv "-n"))) text
+  (fn (_ text o)
+    (def b? (Opts on? o "-b"))
+    (if (if b? #f (not (Opts on? o "-n"))) text
       (let ((ls (%cu-lines text)))
         (def go
           (fn (self xs n acc)
@@ -97,25 +100,26 @@
 
 (def %cu-cat
   (fn (_ argv stdin-thunk)
-    (def text (%cu-gather (%fs-ops argv) stdin-thunk))
+    (def o (%cu-opts "cat" argv))
+    (def text (%cu-gather (Opts operands o) stdin-thunk))
     ; numbering counts the SOURCE lines, so it runs before the rendering
     ; that may add a $ to each of them
-    (do (display (%cat-render (%cat-number text argv) argv)) 0)))
+    (do (display (%cat-render (%cat-number text o) o)) 0)))
 
 ; --- cp -----------------------------------------------------------------------
 
-(def %cp-recursive? (fn (_ argv)
-  (if (%fs-flag? argv "-r") #t (if (%fs-flag? argv "-R") #t (%fs-flag? argv "-a")))))
-(def %cp-preserve? (fn (_ argv)
-  (if (%fs-flag? argv "-p") #t (%fs-flag? argv "-a"))))
+(def %cp-recursive? (fn (_ o)
+  (if (Opts on? o "-r") #t (if (Opts on? o "-R") #t (Opts on? o "-a")))))
+(def %cp-preserve? (fn (_ o)
+  (if (Opts on? o "-p") #t (Opts on? o "-a"))))
 ; -a and -P keep a link a link; -L and -H follow one
-(def %cp-deref? (fn (_ argv)
-  (if (%fs-flag? argv "-L") #t
-    (if (%fs-flag? argv "-P") #f (if (%fs-flag? argv "-a") #f #t)))))
+(def %cp-deref? (fn (_ o)
+  (if (Opts on? o "-L") #t
+    (if (Opts on? o "-P") #f (if (Opts on? o "-a") #f #t)))))
 
 (def %cp-preserve!
-  (fn (_ src dst argv)
-    (if (not (%cp-preserve? argv)) ()
+  (fn (_ src dst o)
+    (if (not (%cp-preserve? o)) ()
       (let ((st (file-lstat-full src)))
         (if (null? st) ()
           (do (file-chmod dst (bit-and (%cu-stat-get st (lit mode)) 4095))
@@ -123,15 +127,15 @@
 
 ; one source to one full destination path
 (def %cp-one
-  (fn (self src dst argv)
-    (def st (if (%cp-deref? argv) (file-stat-full src) (file-lstat-full src)))
+  (fn (self src dst o)
+    (def st (if (%cp-deref? o) (file-stat-full src) (file-lstat-full src)))
     (if (null? st)
       (do (file-write 2
             (string-concat (list "cp: cannot stat '" src "'\n")))
           1)
       (let ((kind (%cu-stat-get st (lit kind))))
         (if (eq? kind (lit dir))
-          (if (not (%cp-recursive? argv))
+          (if (not (%cp-recursive? o))
             (do (file-write 2
                   (string-concat (list "cp: omitting directory '" src "'\n")))
                 1)
@@ -139,11 +143,11 @@
                 (let ((go (fn (self2 ns st2)
                             (if (null? ns) st2
                               (let ((r (self (%cu-path-join src (first ns))
-                                         (%cu-path-join dst (first ns)) argv)))
+                                         (%cu-path-join dst (first ns)) o)))
                                 (self2 (rest ns) (if (> r st2) r st2)))))))
                   (let ((r (go (filter (fn (_ n) (not (%cu-dot? n)))
                                  (file-list-dir src)) 0)))
-                    (do (%cp-preserve! src dst argv) r)))))
+                    (do (%cp-preserve! src dst o) r)))))
           ; a file onto an existing DIRECTORY is a refusal, not a raise:
           ; -T names the destination outright, and cp will not unmake a
           ; directory to honour it
@@ -153,27 +157,28 @@
                     (list "cp: cannot overwrite directory '" dst
                           "' with non-directory\n")))
                 1)
-          (if (not (%fs-may-clobber? argv dst "cp")) 0
-            (do (if (if (file-exists? dst) (%fs-flag? argv "-f") #f)
+          (if (not (%fs-may-clobber? o dst "cp")) 0
+            (do (if (if (file-exists? dst) (Opts on? o "-f") #f)
                   (file-unlink dst) ())
                 (if (eq? kind (lit link))
                   (file-symlink (file-readlink src) dst)
-                  (if (%fs-flag? argv "-l") (file-link src dst)
-                    (if (%fs-flag? argv "-s") (file-symlink src dst)
+                  (if (Opts on? o "-l") (file-link src dst)
+                    (if (Opts on? o "-s") (file-symlink src dst)
                       (file-copy src dst))))
-                (%cp-preserve! src dst argv)
+                (%cp-preserve! src dst o)
                 0))))))))
 
 ; SRC... DST: DST is a directory to copy into, unless -T says it is the
 ; name to write
 (def %cp-target
-  (fn (_ dst name argv)
-    (if (%fs-flag? argv "-T") dst
+  (fn (_ dst name o)
+    (if (Opts on? o "-T") dst
       (if (file-dir? dst) (%cu-path-join dst (%cu-basename-of name)) dst))))
 
 (def %cu-cp
   (fn (_ argv stdin-thunk)
-    (def ops (%fs-ops argv))
+    (def o (%cu-opts "cp" argv))
+    (def ops (Opts operands o))
     (if (< (length ops) 2)
       (do (file-write 2 "cp: usage: cp [-arRPLHpfilsTu] SRC... DST\n") 1)
       (let ((dst (%cu-last ops)) (srcs (%cu-drop-last ops)))
@@ -184,20 +189,20 @@
               1)
           (let ((go (fn (self ss st)
                       (if (null? ss) st
-                        (let ((target (%cp-target dst (first ss) argv)))
-                          (if (if (%fs-flag? argv "-u")
+                        (let ((target (%cp-target dst (first ss) o)))
+                          (if (if (Opts on? o "-u")
                                 (not (%fs-newer? (first ss) target)) #f)
                             (self (rest ss) st)
-                            (let ((r (%cp-one (first ss) target argv)))
+                            (let ((r (%cp-one (first ss) target o)))
                               (self (rest ss) (if (> r st) r st)))))))))
             (go srcs 0)))))))
 
 ; --- mv -----------------------------------------------------------------------
 
 (def %mv-one
-  (fn (_ src dst argv)
-    (if (if (%fs-flag? argv "-n") (file-exists? dst) #f) 0
-      (if (not (%fs-may-clobber? argv dst "mv")) 0
+  (fn (_ src dst o)
+    (if (if (Opts on? o "-n") (file-exists? dst) #f) 0
+      (if (not (%fs-may-clobber? o dst "mv")) 0
         (let ((r (file-rename src dst)))
           (if (if (number? r) (>= r 0) #t) 0
             ; across devices rename refuses: copy, then drop the original
@@ -205,14 +210,15 @@
 
 (def %cu-mv
   (fn (_ argv stdin-thunk)
-    (def ops (%fs-ops argv))
+    (def o (%cu-opts "mv" argv))
+    (def ops (Opts operands o))
     (if (< (length ops) 2)
       (do (file-write 2 "mv: usage: mv [-finT] SRC... DST\n") 1)
       (let ((dst (%cu-last ops)) (srcs (%cu-drop-last ops)))
         (let ((go (fn (self ss st)
                     (if (null? ss) st
-                      (let ((target (%cp-target dst (first ss) argv)))
-                        (let ((r (%mv-one (first ss) target argv)))
+                      (let ((target (%cp-target dst (first ss) o)))
+                        (let ((r (%mv-one (first ss) target o)))
                           (self (rest ss) (if (> r st) r st))))))))
           (go srcs 0))))))
 
@@ -221,55 +227,60 @@
 ; -r ONCE ACCEPTED AND DID NOTHING: the guard listed it, %cu-rm ignored
 ; it, and unlink on a directory simply failed.  It recurses now.
 (def %rm-one
-  (fn (self path argv)
+  (fn (self path o)
     (def kind (file-lstat-kind path))
     (if (eq? kind (lit none))
-      (if (%fs-flag? argv "-f") 0
+      (if (Opts on? o "-f") 0
         (do (file-write 2
               (string-concat
                 (list "rm: cannot remove '" path
                       "': No such file or directory\n")))
             1))
       (if (eq? kind (lit dir))
-        (if (not (%rm-recursive? argv))
+        (if (not (%rm-recursive? o))
           (do (file-write 2
                 (string-concat
                   (list "rm: cannot remove '" path "': Is a directory\n")))
               1)
           (let ((go (fn (self2 ns st)
                       (if (null? ns) st
-                        (let ((r (self (%cu-path-join path (first ns)) argv)))
+                        (let ((r (self (%cu-path-join path (first ns)) o)))
                           (self2 (rest ns) (if (> r st) r st)))))))
             (let ((r (go (filter (fn (_ n) (not (%cu-dot? n)))
                            (file-list-dir path)) 0)))
-              (do (file-rmdir path) (%rm-say path argv) r))))
-        (if (not (%fs-may-clobber? argv path "rm")) 0
-          (do (file-unlink path) (%rm-say path argv) 0))))))
+              (do (file-rmdir path) (%rm-say path o) r))))
+        (if (not (%fs-may-clobber? o path "rm")) 0
+          (do (file-unlink path) (%rm-say path o) 0))))))
 
-(def %rm-recursive? (fn (_ argv)
-  (if (%fs-flag? argv "-r") #t (%fs-flag? argv "-R"))))
+(def %rm-recursive? (fn (_ o)
+  (if (Opts on? o "-r") #t (Opts on? o "-R"))))
 
 (def %rm-say
-  (fn (_ path argv)
-    (if (%fs-flag? argv "-v")
+  (fn (_ path o)
+    (if (Opts on? o "-v")
       (display (string-concat (list "removed '" path "'\n"))) ())))
 
 (def %cu-rm
   (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "rm" argv))
     (def go
       (fn (self os st)
         (if (null? os) st
-          (let ((r (%rm-one (first os) argv)))
+          (let ((r (%rm-one (first os) o)))
             (self (rest os) (if (> r st) r st))))))
-    (go (%fs-ops argv) 0)))
+    (go (Opts operands o) 0)))
 
 ; --- mkdir, rmdir -------------------------------------------------------------
 
 (def %cu-mkdir
   (fn (_ argv stdin-thunk)
-    (def p? (%fs-flag? argv "-p"))
-    (def mode (if (%fs-flag? argv "-m")
-                (%cu-octal->int (%cu-flag-value argv "-m")) ()))
+    (def o (%cu-opts "mkdir" argv))
+    (def p? (Opts on? o "-p"))
+    ; -m TAKES A VALUE, so it lives in the record's values and not among
+    ; the flags: asking (Opts on? o "-m") is always false.  Its presence
+    ; is its value being there.
+    (def m (Opts value o "-m"))
+    (def mode (if (null? m) () (%cu-octal->int m)))
     (def stamp! (fn (_ path) (if (null? mode) () (file-chmod path mode))))
     (def go
       (fn (self os st)
@@ -285,7 +296,7 @@
                   (self (rest os) 1))
               (do (file-mkdir (first os)) (stamp! (first os))
                   (self (rest os) st)))))))
-    (go (%fs-ops argv) 0)))
+    (go (Opts operands o) 0)))
 
 ; -p removes each parent too, while they keep coming up empty.  File
 ; rmdir RAISES on a non-empty directory rather than answering a
@@ -301,7 +312,8 @@
 
 (def %cu-rmdir
   (fn (_ argv stdin-thunk)
-    (def p? (%fs-flag? argv "-p"))
+    (def o (%cu-opts "rmdir" argv))
+    (def p? (Opts on? o "-p"))
     (def go
       (fn (self os st)
         (if (null? os) st
@@ -312,18 +324,19 @@
                   (string-concat
                     (list "rmdir: failed to remove '" (first os) "'\n")))
                 (self (rest os) 1))))))
-    (go (%fs-ops argv) 0)))
+    (go (Opts operands o) 0)))
 
 ; --- ln -----------------------------------------------------------------------
 
 (def %cu-ln
   (fn (_ argv stdin-thunk)
-    (def s? (%fs-flag? argv "-s"))
-    (def f? (%fs-flag? argv "-f"))
-    (def ops0 (%fs-ops argv))
+    (def o (%cu-opts "ln" argv))
+    (def s? (Opts on? o "-s"))
+    (def f? (Opts on? o "-f"))
+    (def ops0 (Opts operands o))
     ; -t DIR names the directory the links go in, and then every
     ; operand is a target
-    (def dir (if (%fs-flag? argv "-t") (%cu-flag-value argv "-t") ()))
+    (def dir (Opts value o "-t"))
     (def ops (if (null? dir) ops0 ops0))
     (if (null? ops)
       (do (file-write 2 "ln: usage: ln [-sfnbtv] TARGET... [NAME]\n") 1)
@@ -343,13 +356,13 @@
                               into))))
                 (do
                   ; -b keeps what it displaces, as NAME~
-                  (if (if (%fs-flag? argv "-b") (file-exists? name) #f)
+                  (if (if (Opts on? o "-b") (file-exists? name) #f)
                     (do (file-rename name (string-append name "~")) ()) ())
                   (if (if f? (not (eq? (file-lstat-kind name) (lit none))) #f)
                     (file-unlink name) ())
                   (if s? (file-symlink (first ts) name)
                     (file-link (first ts) name))
-                  (if (%fs-flag? argv "-v")
+                  (if (Opts on? o "-v")
                     (display (string-concat
                                (list "'" name "' -> '" (first ts) "'\n"))) ())
                   (self (rest ts) st))))))

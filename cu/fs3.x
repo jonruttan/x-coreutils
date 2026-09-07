@@ -11,48 +11,11 @@
 ; and stat(1) and du(1) want uid, gid, links, inode and the block
 ; count as well.
 
-; does argv carry this flag?  A single-letter flag is also found INSIDE
-; a cluster -- `uname -sm`, `ln -sf`, `id -un` are how they are typed,
-; and the option guard already admits a cluster of known letters, so an
-; applet that then looked only for the exact token silently ignored it
-; (uname -sm printed the system and not the machine).  A longer flag
-; (-eq) still wants its exact spelling; a bare `-` and a negative number
-; are operands, not clusters.
-(def %cu-has-flag?
-  (fn (_ argv flag)
-    (def letter (if (= (byte-len flag) 2) (byte-at flag 1) 0))
-    (def in-cluster?
-      (fn (_ tok)
-        (if (= letter 0) #f
-          (if (not (%cu-option-token? tok)) #f
-            (if (= (byte-at tok 1) 45) #f                       ; --long
-              (let ((go (fn (self i)
-                          (if (>= i (byte-len tok)) #f
-                            (if (= (byte-at tok i) letter) #t (self (+ i 1)))))))
-                (go 1)))))))
-    (def go (fn (self as)
-              (if (null? as) #f
-                (if (string=? (first as) flag) #t
-                  (if (in-cluster? (first as)) #t (self (rest as)))))))
-    (go argv)))
-
-; the value a flag carries, in either spelling: `-k 2` and `-k2` both
-; answer "2".  The option guard already admits the ATTACHED form -- a
-; token whose two-character head is a known flag -- so a reader that
-; only knew the separated one made `sort -k2` and `sort -t,` silently
-; keyless.  Nil when the flag is absent, or is last with nothing after.
-(def %cu-flag-value
-  (fn (_ argv flag)
-    (def go (fn (self as)
-              (if (null? as) ()
-                (let ((a (first as)))
-                  (if (string=? a flag)
-                    (if (null? (rest as)) () (first (rest as)))
-                    (if (if (> (byte-len a) 2)
-                          (string=? (substring a 0 2) flag) #f)
-                      (substring a 2 (byte-len a))
-                      (self (rest as))))))))
-    (go argv)))
+;  THE PARSERS ARE GONE.  Nine of them lived here and across the
+; applets -- clustered letters, attached values, the -n count, one
+; operand filter per applet.  All of it is (Opts parse ...) against
+; cu/cli.x's declaration now, so the guard and the applet cannot
+; disagree about what a flag meant.
 
 (def %cu-stat-get
   (fn (_ st key)
@@ -215,9 +178,10 @@
 
 (def %cu-du
   (fn (_ argv stdin-thunk)
-    (def s? (%cu-has-flag? argv "-s"))
-    (def a? (%cu-has-flag? argv "-a"))
-    (def ops0 (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "du" argv))
+    (def s? (Opts on? o "-s"))
+    (def a? (Opts on? o "-a"))
+    (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list ".") ops0))
     (def emit
       (fn (_ n path)
@@ -298,9 +262,13 @@
 
 (def %cu-truncate
   (fn (_ argv stdin-thunk)
-    (if (not (%cu-has-flag? argv "-s"))
+    (def o (%cu-opts "truncate" argv))
+    ; -s TAKES A VALUE, and a value flag is not among the record's
+    ; standalone flags -- its presence IS its value being there.
+    (def size-arg (Opts value o "-s"))
+    (if (null? size-arg)
       (do (file-write 2 "truncate: need -s SIZE\n") 1)
-      (let ((size (%cu-num-prefix (first (rest argv)))))
+      (let ((size (%cu-num-prefix size-arg)))
         (def ops (rest (rest argv)))
         (def go
           (fn (self os)
@@ -337,11 +305,11 @@
 
 (def %cu-shred
   (fn (_ argv stdin-thunk)
-    (def n? (%cu-has-flag? argv "-n"))
-    (def passes (if n? (%cu-num-prefix (first (rest argv))) 3))
-    (def u? (%cu-has-flag? argv "-u"))
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x)))
-               (if n? (rest (rest argv)) argv)))
+    (def o (%cu-opts "shred" argv))
+    (def n-arg (Opts value o "-n"))
+    (def passes (if (null? n-arg) 3 (%cu-num-prefix n-arg)))
+    (def u? (Opts on? o "-u"))
+    (def ops (Opts operands o))
     (def r (rng-make (date-now-unix)))
     (def one
       (fn (_ path)
@@ -372,9 +340,10 @@
 ; the parent reaps both; a killed command reports 124, as timeout does.
 (def %cu-timeout
   (fn (_ argv stdin-thunk)
-    (def s? (%cu-has-flag? argv "-s"))
-    (def sig (if s? (%cu-num-prefix (first (rest argv))) cu-sigterm))
-    (def rest1 (if s? (rest (rest argv)) argv))
+    (def o (%cu-opts "timeout" argv))
+    (def sig-arg (Opts value o "-s"))
+    (def sig (if (null? sig-arg) cu-sigterm (%cu-num-prefix sig-arg)))
+    (def rest1 (Opts operands o))
     (if (null? (rest rest1))
       (do (file-write 2 "timeout: need SECONDS COMMAND\n") 1)
       (let ((secs (%cu-num-prefix (first rest1))))
@@ -418,24 +387,3 @@
       (if (not (string=? (%cu-last argv) "]]"))
         (do (file-write 2 "[[: missing ]]\n") 2)
         (%cu-test-eval (%cu-drop-last argv))))))
-
-; the operands, with every option token dropped AND the value that
-; follows a flag from `takes` -- `nl -w 3 file` has one operand, not
-; two.  The attached spelling (`-w3`) consumes nothing extra.
-(def %cu-value-operands
-  (fn (_ argv takes)
-    (def takes?
-      (fn (_ a)
-        (let ((go (fn (self ts)
-                    (if (null? ts) #f
-                      (if (string=? (first ts) a) #t (self (rest ts)))))))
-          (go takes))))
-    (def go
-      (fn (self as acc)
-        (if (null? as) (reverse acc)
-          (let ((a (first as)))
-            (if (takes? a)
-              (self (if (null? (rest as)) () (rest (rest as))) acc)
-              (if (%cu-option-token? a) (self (rest as) acc)
-                (self (rest as) (pair a acc))))))))
-    (go argv ())))

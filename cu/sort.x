@@ -168,8 +168,8 @@
 ; --- the comparison -----------------------------------------------------------
 
 (def %sort-opt?
-  (fn (_ argv spec letter)
-    (if (%cu-has-flag? argv letter) #t
+  (fn (_ o spec letter)
+    (if (Opts on? o letter) #t
       (if (null? spec) #f
         (let ((opts (%cu-nth 4 spec)))
           (let ((go (fn (self i)
@@ -179,69 +179,60 @@
             (go 0)))))))
 
 (def %sort-prepare
-  (fn (_ s argv spec)
-    (def t (if (%sort-opt? argv spec "-b") (%sort-trim-left s) s))
-    (def u (%sort-filter t (%sort-opt? argv spec "-d") (%sort-opt? argv spec "-i")))
-    (if (%sort-opt? argv spec "-f") (%sort-fold u) u)))
+  (fn (_ s o spec)
+    (def t (if (%sort-opt? o spec "-b") (%sort-trim-left s) s))
+    (def u (%sort-filter t (%sort-opt? o spec "-d") (%sort-opt? o spec "-i")))
+    (if (%sort-opt? o spec "-f") (%sort-fold u) u)))
 
 ; -1, 0 or 1 for one key, so the fallback can see a tie
 (def %sort-cmp
-  (fn (_ a b argv spec sep)
-    (def ka (%sort-prepare (%sort-key a spec sep) argv spec))
-    (def kb (%sort-prepare (%sort-key b spec sep) argv spec))
+  (fn (_ a b o spec sep)
+    (def ka (%sort-prepare (%sort-key a spec sep) o spec))
+    (def kb (%sort-prepare (%sort-key b spec sep) o spec))
     (def c
-      (if (%sort-opt? argv spec "-n")
+      (if (%sort-opt? o spec "-n")
         (%cu-cmp-int (%cu-num-prefix ka) (%cu-num-prefix kb))
-        (if (%sort-opt? argv spec "-g")
+        (if (%sort-opt? o spec "-g")
           (%cu-cmp-int (%sort-general ka) (%sort-general kb))
-          (if (%sort-opt? argv spec "-M")
+          (if (%sort-opt? o spec "-M")
             (%cu-cmp-int (%sort-month ka) (%sort-month kb))
             (if (string=? ka kb) 0 (if (%cu-str< ka kb) (- 0 1) 1))))))
-    (if (%sort-opt? argv spec "-r") (- 0 c) c)))
+    (if (%sort-opt? o spec "-r") (- 0 c) c)))
 
 (def %cu-cmp-int
   (fn (_ x y) (if (< x y) (- 0 1) (if (> x y) 1 0))))
 
 ; the whole line breaks a tie, unless -s asks for the input's order
 (def %sort-less
-  (fn (_ argv spec sep)
+  (fn (_ o spec sep)
     (fn (_ a b)
-      (let ((c (%sort-cmp a b argv spec sep)))
+      (let ((c (%sort-cmp a b o spec sep)))
         (if (not (= c 0)) (< c 0)
-          (if (%cu-has-flag? argv "-s") #f
-            (if (%cu-has-flag? argv "-r") (%cu-str< b a) (%cu-str< a b))))))))
+          (if (Opts on? o "-s") #f
+            (if (Opts on? o "-r") (%cu-str< b a) (%cu-str< a b))))))))
 
 ; --- the applet ---------------------------------------------------------------
 
 (def %cu-sort
   (fn (_ argv stdin-thunk)
-    (def sep (%cu-flag-value argv "-t"))
-    (def spec (%sort-spec (%cu-flag-value argv "-k")))
-    (def out (%cu-flag-value argv "-o"))
-    (def ops (%sort-operands argv))
+    (def o (%cu-opts "sort" argv))
+    (def sep (Opts value o "-t"))
+    (def spec (%sort-spec (Opts value o "-k")))
+    (def out (Opts value o "-o"))
+    (def ops (Opts operands o))
     (def lines (%cu-lines (%cu-gather ops stdin-thunk)))
-    (def less? (%sort-less argv spec sep))
-    (if (%cu-has-flag? argv "-c")
+    (def less? (%sort-less o spec sep))
+    (if (Opts on? o "-c")
       (%sort-check lines less? ops)
       (let ((sorted (%cu-msort lines less?)))
         (def final
-          (if (%cu-has-flag? argv "-u") (%sort-dedup sorted less?) sorted))
+          (if (Opts on? o "-u") (%sort-dedup sorted less?) sorted))
         (def text (string-concat (map (fn (_ l) (string-append l "\n")) final)))
         (if (null? out) (do (display text) 0)
           (do (file-write-all out text) 0))))))
 
-; -t -k -o take a value, and it is an operand to nobody
-(def %sort-operands
-  (fn (_ argv)
-    (def go
-      (fn (self as acc)
-        (if (null? as) (reverse acc)
-          (let ((a (first as)))
-            (if (if (string=? a "-t") #t (if (string=? a "-k") #t (string=? a "-o")))
-              (self (if (null? (rest as)) () (rest (rest as))) acc)
-              (if (%cu-option-token? a) (self (rest as) acc)
-                (self (rest as) (pair a acc))))))))
-    (go argv ())))
+; sort's operands come off the parse: a value flag's argument was
+; never an operand, and this used to have to say so itself.
 
 ; -u drops a line the comparison calls equal to the one before it
 (def %sort-dedup

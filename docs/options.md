@@ -43,11 +43,11 @@ the work.  Applet parity is the other axis: see the README.
 | `install` | -c -d -D -s -p -o -g -m -t | -d -c -m | -D -s -p -o -g -t | 33% |
 | `join` | _not a busybox applet_ |  | | - |
 | `link` |  |  |  | - |
-| `ln` | -s -f -n -b -t -v | -s -f -n -b -t -v |  | 100% |
+| `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -A -a -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u | -C -x -w | 87% |
 | `md5sum` | -c -s -w |  | -c -s -w | 0% |
-| `mkdir` | -m -p | -m -p |  | 100% |
+| `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
 | `mktemp` | -d -t -p -q -u |  | -d -t -p -q -u | 0% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
@@ -55,7 +55,7 @@ the work.  Applet parity is the other axis: see the README.
 | `nl` | -b -n -s -w -v -i | -b -n -s -w -v -i |  | 100% |
 | `nohup` |  |  |  | - |
 | `nproc` | --all --ignore=N |  | --all --ignore=N | 0% |
-| `od` | -A -j -N -t -v -b -c -d -o -x | -A -t -N -v -c -b -x -d -o | -j | 90% |
+| `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N | -j | 90% |
 | `paste` | -d -s | -d | -s | 50% |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
@@ -69,12 +69,12 @@ the work.  Applet parity is the other axis: see the README.
 | `sha1sum` | -c -s -w |  | -c -s -w | 0% |
 | `sha256sum` | -c -s -w |  | -c -s -w | 0% |
 | `sha512sum` | -c -s -w |  | -c -s -w | 0% |
-| `shred` | -f -n -u -z | -n -u | -f -z | 50% |
-| `shuf` | -e -i -n -o -z | -n -e | -i -o -z | 40% |
+| `shred` | -f -n -u -z | -u -n | -f -z | 50% |
+| `shuf` | -e -i -n -o -z | -e -n | -i -o -z | 40% |
 | `sleep` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -n -r -u -g -M -c -s -b -d -f -i -o -k -t | -z | 93% |
 | `split` | -b -l -a | -b -l | -a | 66% |
-| `stat` | -L -f -t -c | -c -L | -f -t | 50% |
+| `stat` | -L -f -t -c | -L -c | -f -t | 50% |
 | `sum` | -r -s | -s -r |  | 100% |
 | `sync` | -d -f |  | -d -f | 0% |
 | `tac` |  |  |  | - |
@@ -88,7 +88,7 @@ the work.  Applet parity is the other axis: see the README.
 | `truncate` | -c -s | -s | -c | 50% |
 | `tty` | -s |  | -s | 0% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -s -n -r -v -m | -p -i -o | 66% |
-| `unexpand` | -f -a -t | -t -a | -f | 66% |
+| `unexpand` | -f -a -t | -a -t | -f | 66% |
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d |  | -u -d | 0% |
 | `unlink` |  |  |  | - |

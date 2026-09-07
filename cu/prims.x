@@ -15,6 +15,7 @@
 (import x/type/vector)
 (import x/num/random)
 (import x/type/struct)
+(import x/sys/opts)
 
 (provide cu/prims
   char->integer integer->char byte-at byte-len

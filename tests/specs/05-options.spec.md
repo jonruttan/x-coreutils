@@ -454,3 +454,63 @@ xyz
 0001	a
 0
 ```
+
+
+## the declaration
+
+### the guard and the applet cannot disagree about a flag
+
+Both go through `%cu-opts` against the one row in `cu/cli.x`, so a flag
+the guard admits is a flag the applet reads.  These three spellings
+each broke a DIFFERENT hand-rolled reader before the library: a
+cluster, an attached value, and a value flag read as a flag.
+
+```cu
+(do (display (cu-run (list "uname" "-sm") "")) (newline) (display (cu-run (list "sort" "-k2" "-n") "b 2\na 10\n")) (newline) (display (cu-run (list "wc" "-lw") "a b\n")))
+```
+---
+```output
+Darwin arm64
+0
+b 2
+a 10
+0
+       1       2
+0
+```
+
+### comm's flags are DIGITS, and the declaration says so
+
+`-12` is two of comm's flags, not the number twelve.  v0.13.0's Opts
+decides by shape first, so comm reads its three digits itself until
+x-lang#650 ships; the guard and the operands still come off the parse.
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "printf 'a\nb\n' > /tmp/x-cu-c1 && printf 'b\nc\n' > /tmp/x-cu-c2")) (display (cu-run (list "comm" "-12" "/tmp/x-cu-c1" "/tmp/x-cu-c2") "")) (display (cu-run (list "comm" "-13" "/tmp/x-cu-c1" "/tmp/x-cu-c2") "")) (proc-run (list "/bin/sh" "-c" "rm -f /tmp/x-cu-c1 /tmp/x-cu-c2")) ())
+```
+---
+```output
+b
+0c
+0
+```
+
+### an undeclared flag is still refused, by the same parse
+
+```cu
+(do (display (cu-run (list "sort" "-Q") "a\n")) (display (cu-run (list "ls" "-Q") "")) (display (cu-run (list "cat" "-Q") "")))
+```
+---
+    222
+
+### an attached value, and a number that is nobody's flag
+
+```cu
+(do (display (cu-run (list "cut" "-d," "-f1") "a,b\n")) (display (cu-run (list "head" "-n1") "x\ny\n")))
+```
+---
+```output
+a
+0x
+0
+```

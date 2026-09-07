@@ -122,84 +122,39 @@
                         acc))))))
         (go operands ())))))
 
-; flag parsing for the simple applets: leading -x... bundles collect
-; into a symbol list, everything after is operands; answers
-; (flags . operands).  An applet with option ARGUMENTS parses by hand.
-(def %cu-flags
-  (fn (_ argv known)
-    (def known?
-      (fn (_ b)
-        (let ((go (fn (self ks)
-                    (if (null? ks) #f
-                      (if (= (first ks) b) #t (self (rest ks)))))))
-          (go known))))
-    (def go
-      (fn (self ops flags)
-        (if (null? ops) (pair flags ())
-          (let ((op (first ops)))
-            (if (if (>= (byte-len op) 2) (= (byte-at op 0) 45) #f)
-              (if (string=? op "-")
-                (pair flags ops)
-                (let ((go2 (fn (self2 i fs)
-                             (if (>= i (byte-len op)) fs
-                               (if (known? (byte-at op i))
-                                 (self2 (+ i 1) (pair (byte-at op i) fs))
-                                 (Err raise (lit cu)
-                                   (string-append "unknown option: " op)
-                                   ()))))))
-                  (self (rest ops) (go2 1 flags))))
-              (pair flags ops))))))
-    (go argv ())))
+; THE LAST HAND-ROLLED READ.  Everything reads its options off
+; cu/cli.x's declaration now -- except comm, whose flags are DIGITS:
+; v0.13.0's Opts decides `-12` is a negative number before it consults
+; the declaration, so the cluster never reaches the parse.  x-lang#650
+; makes the declaration win, and these two go when it ships.
+(def %cu-option-token-ish?
+  (fn (_ s) (if (< (byte-len s) 2) #f (= (byte-at s 0) 45))))
 
-(def %cu-flag?
-  (fn (_ b flags)
-    (def go
-      (fn (self fs)
-        (if (null? fs) #f
-          (if (= (first fs) b) #t (self (rest fs))))))
-    (go flags)))
-
-; --- the applets -------------------------------------------------------------
-
-; cat moved to cu/fs.x with busybox's option set (-n -b -v -t -e -A).
-
-; sort moved to cu/sort.x: busybox's option set is a module's worth.
-
-; uniq moved to cu/text4.x with -c -d -u -i -f -s -w.
-
-; -n N, joined -nN, or bare; default 10
-(def %cu-count-arg
-  (fn (_ argv)
-    (if (if (pair? argv) (string=? (first argv) "-n") #f)
-      (pair (%cu-num-prefix (first (rest argv))) (rest (rest argv)))
-      (if (if (pair? argv)
-            (if (> (byte-len (first argv)) 2)
-              (if (= (byte-at (first argv) 0) 45)
-                (= (byte-at (first argv) 1) 110)
-                #f)
-              #f)
-            #f)
-        (pair (%cu-num-prefix (substring (first argv) 2
-                                (byte-len (first argv))))
-          (rest argv))
-        (pair 10 argv)))))
+(def %cu-token-has?
+  (fn (_ tok d)
+    (let ((go (fn (self i)
+                (if (>= i (byte-len tok)) #f
+                  (if (= (byte-at tok i) d) #t (self (+ i 1)))))))
+      (go 1))))
 
 (def %cu-head
   (fn (_ argv stdin-thunk)
-    (def na (%cu-count-arg argv))
+    (def o (%cu-opts "head" argv))
+    (def n (%cu-num-prefix (Opts value o "-n" "10")))
     (def go
       (fn (self ls k)
         (if (null? ls) ()
           (if (<= k 0) ()
             (do (display (string-append (first ls) "\n"))
                 (self (rest ls) (- k 1)))))))
-    (do (go (%cu-lines (%cu-gather (rest na) stdin-thunk)) (first na)) 0)))
+    (do (go (%cu-lines (%cu-gather (Opts operands o) stdin-thunk)) n) 0)))
 
 (def %cu-tail
   (fn (_ argv stdin-thunk)
-    (def na (%cu-count-arg argv))
-    (def lines (%cu-lines (%cu-gather (rest na) stdin-thunk)))
-    (def drop-n (- (length lines) (first na)))
+    (def o (%cu-opts "tail" argv))
+    (def n (%cu-num-prefix (Opts value o "-n" "10")))
+    (def lines (%cu-lines (%cu-gather (Opts operands o) stdin-thunk)))
+    (def drop-n (- (length lines) n))
     (def go
       (fn (self ls k)
         (if (null? ls) ()
@@ -226,22 +181,21 @@
 
 (def %cu-wc
   (fn (_ argv stdin-thunk)
-    (def fo (%cu-flags argv (list 108 119 99)))           ; l w c
-    (def flags (first fo))
-    (def all (if (null? flags) (list 108 119 99) ()))
-    (def show?
-      (fn (_ b) (if (null? flags) #t (%cu-flag? b flags))))
+    (def o (%cu-opts "wc" argv))
+    (def any? (if (Opts on? o "-l") #t (if (Opts on? o "-w") #t (Opts on? o "-c"))))
+    ; with no flag at all, wc shows every column
+    (def show? (fn (_ f) (if any? (Opts on? o f) #t)))
     (def row
       (fn (_ counts name)
         (def parts
           (append
-            (if (show? 108)
+            (if (show? "-l")
               (list (%cu-pad-left (%cu-int->str (first counts)) 8)) ())
             (append
-              (if (show? 119)
+              (if (show? "-w")
                 (list (%cu-pad-left (%cu-int->str (first (rest counts))) 8))
                 ())
-              (if (show? 99)
+              (if (show? "-c")
                 (list (%cu-pad-left
                         (%cu-int->str (first (rest (rest counts)))) 8))
                 ()))))
@@ -249,7 +203,7 @@
           (string-append (%cu-join-sp parts)
             (if (null? name) "\n"
               (string-append " " (string-append name "\n")))))))
-    (if (null? (rest fo))
+    (if (null? (Opts operands o))
       (do (row (%cu-wc-counts (stdin-thunk)) ()) 0)
       (let ((go (fn (self ops)
                   (if (null? ops) 0
@@ -259,7 +213,7 @@
                                  (file-read-all (first ops))))
                           (first ops))
                         (self (rest ops)))))))
-        (go (rest fo))))))
+        (go (Opts operands o))))))
 
 (def %cu-join-sp
   (fn (self ws)
@@ -270,12 +224,24 @@
 ; comm: three columns over two sorted inputs; -1 -2 -3 suppress
 (def %cu-comm
   (fn (_ argv stdin-thunk)
-    (def fo (%cu-flags argv (list 49 50 51)))             ; 1 2 3
-    (def flags (first fo))
-    (def s1 (not (%cu-flag? 49 flags)))
-    (def s2 (not (%cu-flag? 50 flags)))
-    (def s3 (not (%cu-flag? 51 flags)))
-    (def ops (rest fo))
+    ; COMM'S FLAGS ARE DIGITS, and v0.13.0's Opts decides `-12` is a
+    ; negative number before it consults the declaration, so the cluster
+    ; never reaches the parse.  x-lang#650 makes the declaration win;
+    ; until that ships, comm reads its three digits itself.  Everything
+    ; else -- the operands, the guard -- still comes off the one parse.
+    (def o (%cu-opts "comm" argv))
+    (def digit?
+      (fn (_ d)
+        (let ((go (fn (self as)
+                    (if (null? as) #f
+                      (if (%cu-option-token-ish? (first as))
+                        (if (%cu-token-has? (first as) d) #t (self (rest as)))
+                        (self (rest as)))))))
+          (go argv))))
+    (def s1 (not (digit? 49)))
+    (def s2 (not (digit? 50)))
+    (def s3 (not (digit? 51)))
+    (def ops (filter (fn (_ a) (not (%cu-option-token-ish? a))) argv))
     (def read-op
       (fn (_ op) (if (string=? op "-") (stdin-thunk) (file-read-all op))))
     (def a (%cu-lines (read-op (first ops))))
