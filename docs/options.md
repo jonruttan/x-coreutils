@@ -52,7 +52,7 @@ the work.  Applet parity is the other axis: see the README.
 | `mktemp` | -d -t -p -q -u |  | -d -t -p -q -u | 0% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
 | `nice` | -n | -n |  | 100% |
-| `nl` | -b -n -s -w -v -i |  | -b -n -s -w -v -i | 0% |
+| `nl` | -b -n -s -w -v -i | -b -n -s -w -v -i |  | 100% |
 | `nohup` |  |  |  | - |
 | `nproc` | --all --ignore=N |  | --all --ignore=N | 0% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -A -t -N -v -c -b -x -d -o | -j | 90% |
@@ -72,7 +72,7 @@ the work.  Applet parity is the other axis: see the README.
 | `shred` | -f -n -u -z | -n -u | -f -z | 50% |
 | `shuf` | -e -i -n -o -z | -n -e | -i -o -z | 40% |
 | `sleep` |  |  |  | - |
-| `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -r -n -u | -g -M -c -s -z -b -d -f -i -o -k -t | 20% |
+| `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -n -r -u -g -M -c -s -b -d -f -i -o -k -t | -z | 93% |
 | `split` | -b -l -a | -b -l | -a | 66% |
 | `stat` | -L -f -t -c | -c -L | -f -t | 50% |
 | `sum` | -r -s | -s -r |  | 100% |
@@ -89,7 +89,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tty` | -s |  | -s | 0% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -s -n -r -v -m | -p -i -o | 66% |
 | `unexpand` | -f -a -t | -t -a | -f | 66% |
-| `uniq` | -c -d -u -i -f -s -w | -c | -d -u -i -f -s -w | 14% |
+| `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d |  | -u -d | 0% |
 | `unlink` |  |  |  | - |
 | `usleep` |  |  |  | - |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -n | -0 -a -E -I -p -r -s -t -x | 10% |
 | `yes` |  |  |  | - |
 
-**Total: 176 of 426 busybox options accepted (41%).**
+**Total: 199 of 426 busybox options accepted (46%).**

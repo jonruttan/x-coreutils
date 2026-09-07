@@ -128,8 +128,10 @@
 ; number.  An applet absent from the table takes no options.
 (def %cu-known-flags
   (list
-    (pair "sort" (list "-r" "-n" "-u"))
-    (pair "uniq" (list "-c"))
+    (pair "sort" (list "-n" "-r" "-u" "-g" "-M" "-c" "-s" "-b" "-d" "-f"
+                   "-i" "-o" "-k" "-t"))
+    (pair "uniq" (list "-c" "-d" "-u" "-i" "-f" "-s" "-w"))
+    (pair "nl" (list "-b" "-n" "-s" "-w" "-v" "-i"))
     (pair "head" (list "-n"))
     (pair "tail" (list "-n"))
     (pair "wc" (list "-l" "-w" "-c"))

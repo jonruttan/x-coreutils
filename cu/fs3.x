@@ -36,14 +36,22 @@
                   (if (in-cluster? (first as)) #t (self (rest as)))))))
     (go argv)))
 
-; the value that follows a flag: `-m 755` -> "755", nil when absent
+; the value a flag carries, in either spelling: `-k 2` and `-k2` both
+; answer "2".  The option guard already admits the ATTACHED form -- a
+; token whose two-character head is a known flag -- so a reader that
+; only knew the separated one made `sort -k2` and `sort -t,` silently
+; keyless.  Nil when the flag is absent, or is last with nothing after.
 (def %cu-flag-value
   (fn (_ argv flag)
     (def go (fn (self as)
               (if (null? as) ()
-                (if (string=? (first as) flag)
-                  (if (null? (rest as)) () (first (rest as)))
-                  (self (rest as))))))
+                (let ((a (first as)))
+                  (if (string=? a flag)
+                    (if (null? (rest as)) () (first (rest as)))
+                    (if (if (> (byte-len a) 2)
+                          (string=? (substring a 0 2) flag) #f)
+                      (substring a 2 (byte-len a))
+                      (self (rest as))))))))
     (go argv)))
 
 (def %cu-stat-get
@@ -410,3 +418,24 @@
       (if (not (string=? (%cu-last argv) "]]"))
         (do (file-write 2 "[[: missing ]]\n") 2)
         (%cu-test-eval (%cu-drop-last argv))))))
+
+; the operands, with every option token dropped AND the value that
+; follows a flag from `takes` -- `nl -w 3 file` has one operand, not
+; two.  The attached spelling (`-w3`) consumes nothing extra.
+(def %cu-value-operands
+  (fn (_ argv takes)
+    (def takes?
+      (fn (_ a)
+        (let ((go (fn (self ts)
+                    (if (null? ts) #f
+                      (if (string=? (first ts) a) #t (self (rest ts)))))))
+          (go takes))))
+    (def go
+      (fn (self as acc)
+        (if (null? as) (reverse acc)
+          (let ((a (first as)))
+            (if (takes? a)
+              (self (if (null? (rest as)) () (rest (rest as))) acc)
+              (if (%cu-option-token? a) (self (rest as) acc)
+                (self (rest as) (pair a acc))))))))
+    (go argv ())))

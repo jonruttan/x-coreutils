@@ -305,3 +305,152 @@ removed '/tmp/x-cu-fs/gone'
 ```
 ---
     clean
+
+## sort
+
+### -k names the key and -t the separator, in either spelling
+
+```cu
+(do (display (cu-run (list "sort" "-k2" "-n") "b 2\na 10\nc 1\n")) (display (cu-run (list "sort" "-k" "2" "-n") "b 2\na 10\nc 1\n")) (display (cu-run (list "sort" "-t," "-k2") "x,3\ny,1\nz,2\n")))
+```
+---
+```output
+c 1
+b 2
+a 10
+0c 1
+b 2
+a 10
+0y,1
+z,2
+x,3
+0
+```
+
+### the orderings: -f folds, -M is months, -g reads a decimal
+
+```cu
+(do (display (cu-run (list "sort" "-f") "b\nA\na\n")) (display (cu-run (list "sort" "-M") "Mar\nJan\nFeb\n")) (display (cu-run (list "sort" "-g") "1.5\n1.25\n10\n")))
+```
+---
+```output
+A
+a
+b
+0Jan
+Feb
+Mar
+01.25
+1.5
+10
+0
+```
+
+### -c answers whether the input was sorted, and names where it was not
+
+```cu
+(do (display (cu-run (list "sort" "-c") "a\nb\n")) (display (cu-run (list "sort" "-c") "b\na\n")))
+```
+---
+    01
+
+### -u drops what the comparison calls equal; -o writes it out
+
+```cu
+(do (display (cu-run (list "sort" "-u") "b\na\nb\n")) (display (cu-run (list "sort" "-o" "/tmp/x-cu-sorted") "b\na\n")) (display (file-read-all "/tmp/x-cu-sorted")) (file-unlink "/tmp/x-cu-sorted"))
+```
+---
+```output
+a
+b
+00a
+b
+```
+
+### -b ignores leading blanks, -r reverses
+
+```cu
+(do (display (cu-run (list "sort" "-b") "  b\n a\n")) (display (cu-run (list "sort" "-r") "a\nb\n")))
+```
+---
+```output
+ a
+  b
+0b
+a
+0
+```
+
+## uniq
+
+### -d keeps only what repeated, -u only what did not, -c counts
+
+```cu
+(do (display (cu-run (list "uniq" "-c") "a\na\nb\n")) (display (cu-run (list "uniq" "-d") "a\na\nb\n")) (display (cu-run (list "uniq" "-u") "a\na\nb\n")))
+```
+---
+```output
+   2 a
+   1 b
+0a
+0b
+0
+```
+
+### -i ignores case, -f skips fields, -w compares a prefix
+
+```cu
+(do (display (cu-run (list "uniq" "-i") "A\na\nB\n")) (display (cu-run (list "uniq" "-f1") "x a\ny a\nz b\n")) (display (cu-run (list "uniq" "-w1") "abc\nabd\nxyz\n")))
+```
+---
+```output
+A
+B
+0x a
+z b
+0abc
+xyz
+0
+```
+
+## nl
+
+### -b a numbers every line; the default leaves the empty ones blank
+
+```cu
+(do (display (cu-run (list "nl") "a\n\nb\n")) (display (cu-run (list "nl" "-ba" "-w3") "a\n\nb\n")))
+```
+---
+```output
+     1	a
+      	
+     2	b
+0  1	a
+  2	
+  3	b
+0
+```
+
+### -w -s -v -i set the width, the separator, the first number and the step
+
+```cu
+(display (cu-run (list "nl" "-ba" "-w3" "-s:" "-v10" "-i5") "a\nb\n"))
+```
+---
+```output
+ 10:a
+ 15:b
+0
+```
+
+### -n chooses left, right, or right with zeros
+
+```cu
+(do (display (cu-run (list "nl" "-n" "ln" "-w3") "a\n")) (display (cu-run (list "nl" "-n" "rz" "-w3") "a\n")))
+```
+---
+```output
+1  	a
+0001	a
+0
+```
