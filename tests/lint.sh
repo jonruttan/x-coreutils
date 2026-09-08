@@ -22,9 +22,19 @@ BUNDLE="$(cd "$(dirname "$0")/.." && pwd)"
 X="${X:-x}"
 
 KIT="${X_LANG_KIT:-$("$X" --share-dir)/tools/lang-kit}"
+
+# A GATE THE PLATFORM CANNOT RUN YET SKIPS; it does not fail the build.
+# tests/spec-gate.sh exits 2 on a missing kit, and that is right for a
+# file every x has shipped for months -- but the kit linter is NEW, no
+# released x carries it, and `check` depends on this.  Hard-failing here
+# would break `make check` on every x that exists until a release lands,
+# which is a cadence this bundle does not set.  The notice names the
+# exact missing file, and the day an x ships it the gate is hard
+# everywhere with no edit here.
 [ -f "$KIT/lint.sh" ] || {
-	echo "x-coreutils: no linter in the lang kit at $KIT -- upgrade x" >&2
-	exit 2
+	echo "x-coreutils: SKIPPING lint -- no $KIT/lint.sh in this x." >&2
+	echo "x-coreutils: it arrives with the lang kit's linter; upgrade x to gate on it." >&2
+	exit 0
 }
 
 # THE FRAGMENTS, not the assembled unit.  cu/base.x is nothing but
