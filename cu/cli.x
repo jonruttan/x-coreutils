@@ -117,124 +117,101 @@
             (self (rest es))))))
     (go %cu-applets)))
 
-; THE OPTION GUARD.  An applet only reads the flags it implements; a
-; flag it does not know must REFUSE, never fall through as a file
-; operand (`ls -l` once printed "-l").  The leading option tokens of
-; argv are checked against the applet's table before it runs: a token
-; is known when it matches exactly, when its two-character head is a
-; known flag carrying an attached argument (-d, -f1 -n5), or when it
-; is a cluster of known single-character flags (-rn).  Scanning stops
-; at the first operand, at `--`, and never touches `-` or a negative
-; number.  An applet absent from the table takes no options.
-(def %cu-known-flags
-  (list
-    (pair "sort" (list "-n" "-r" "-u" "-g" "-M" "-c" "-s" "-b" "-d" "-f"
-                   "-i" "-o" "-k" "-t"))
-    (pair "uniq" (list "-c" "-d" "-u" "-i" "-f" "-s" "-w"))
-    (pair "nl" (list "-b" "-n" "-s" "-w" "-v" "-i"))
-    (pair "head" (list "-n"))
-    (pair "tail" (list "-n"))
-    (pair "wc" (list "-l" "-w" "-c"))
-    (pair "comm" (list "-1" "-2" "-3"))
-    (pair "tr" (list "-d" "-s"))
-    (pair "cut" (list "-d" "-f" "-c"))
-    (pair "rm" (list "-i" "-r" "-R" "-f" "-v"))
-    (pair "echo" (list "-n" "-e"))
-    (pair "fold" (list "-w"))
-    (pair "paste" (list "-d"))
-    (pair "tee" (list "-a"))
-    (pair "cat" (list "-n" "-b" "-v" "-t" "-e" "-A"))
-    (pair "cp" (list "-a" "-r" "-R" "-P" "-L" "-H" "-p" "-f" "-i" "-l" "-s" "-T" "-u"))
-    (pair "mv" (list "-f" "-i" "-n" "-T"))
-    (pair "mkdir" (list "-m" "-p"))
-    (pair "rmdir" (list "-p"))
-    (pair "ls" (list "-1" "-A" "-a" "-d" "-L" "-H" "-R" "-F" "-p" "-l" "-i"
-                  "-n" "-s" "-h" "-r" "-S" "-X" "-v" "-c" "-t" "-u"))
-    (pair "touch" (list "-c"))
-    (pair "install" (list "-d" "-c" "-m"))
-    (pair "cmp" (list "-s"))
-    (pair "sum" (list "-s" "-r"))
-    (pair "expand" (list "-t"))
-    (pair "unexpand" (list "-t" "-a"))
-    (pair "split" (list "-b" "-l"))
-    (pair "shuf" (list "-n" "-e"))
-    (pair "base64" (list "-d"))
-    (pair "stat" (list "-c" "-L"))
-    (pair "du" (list "-s" "-a" "-k"))
-    (pair "truncate" (list "-s"))
-    (pair "od" (list "-A" "-t" "-N" "-v" "-c" "-b" "-x" "-d" "-o"))
-    (pair "uuencode" (list "-m"))
-    (pair "chmod" (list "-R"))
-    (pair "ln" (list "-s" "-f" "-n" "-b" "-t" "-v"))
-    (pair "readlink" (list "-f" "-e"))
-    (pair "mkfifo" (list "-m"))
-    (pair "df" (list "-h" "-k"))
-    (pair "id" (list "-u" "-g" "-G" "-n"))
-    (pair "uname" (list "-a" "-s" "-n" "-r" "-v" "-m"))
-    (pair "nice" (list "-n"))
-    (pair "shred" (list "-n" "-u"))
-    (pair "timeout" (list "-s"))
-    (pair "[[" (list "-e" "-f" "-d" "-s" "-z" "-n"
-                 "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
-                 "=" "!=" "!"))
-    (pair "xargs" (list "-n"))
-    (pair "test" (list "-e" "-f" "-d" "-s" "-z" "-n"
-                   "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
-                   "=" "!=" "!"))
-    (pair "[" (list "-e" "-f" "-d" "-s" "-z" "-n"
-                "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
-                "=" "!=" "!"))))
+; THE OPTION DECLARATION.  One row per applet: the flags that stand
+; alone, the flags that take an argument, and -- for an applet whose
+; operands can themselves look like flags -- the word `leading`, which
+; stops the parse at the first operand so that `echo hi -n` prints
+; `hi -n` and `timeout 5 prog -x` leaves -x to prog.
+;
+; THE GUARD AND THE APPLET READ THE SAME ROW.  They used to disagree:
+; the guard admitted `-sm`, `-k2` and `-r` while the applets behind it
+; compared whole tokens, knew only the separated spelling, and in one
+; case ignored the flag entirely -- three defects, each a flag accepted
+; and then not read.  Both sides now go through %cu-opts, so an
+; accepted-but-unread flag is not a bug to find, it is unspellable.
+;
+; An applet absent from this table takes no options at all.
+(def %cu-test-operators
+  (list "-e" "-f" "-d" "-s" "-z" "-n"
+        "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
+        "=" "!=" "!"))
 
-(def %cu-flags-of
+(def %cu-option-spec
+  (list
+    (pair "sort" (list (list "-n" "-r" "-u" "-g" "-M" "-c" "-s" "-b" "-d" "-f" "-i")
+                       (list "-o" "-k" "-t")))
+    (pair "uniq" (list (list "-c" "-d" "-u" "-i") (list "-f" "-s" "-w")))
+    (pair "nl" (list () (list "-b" "-n" "-s" "-w" "-v" "-i")))
+    (pair "head" (list () (list "-n")))
+    (pair "tail" (list () (list "-n")))
+    (pair "wc" (list (list "-l" "-w" "-c") ()))
+    (pair "comm" (list (list "-1" "-2" "-3") ()))
+    (pair "tr" (list (list "-d" "-s") ()))
+    (pair "cut" (list () (list "-d" "-f" "-c")))
+    (pair "cat" (list (list "-n" "-b" "-v" "-t" "-e" "-A") ()))
+    (pair "cp" (list (list "-a" "-r" "-R" "-P" "-L" "-H" "-p" "-f" "-i" "-l" "-s" "-T" "-u") ()))
+    (pair "mv" (list (list "-f" "-i" "-n" "-T") ()))
+    (pair "rm" (list (list "-i" "-r" "-R" "-f" "-v") ()))
+    (pair "mkdir" (list (list "-p") (list "-m")))
+    (pair "rmdir" (list (list "-p") ()))
+    (pair "ln" (list (list "-s" "-f" "-n" "-b" "-v") (list "-t")))
+    (pair "echo" (list (list "-n" "-e") () (lit leading)))
+    (pair "fold" (list () (list "-w")))
+    (pair "paste" (list () (list "-d")))
+    (pair "tee" (list (list "-a") ()))
+    (pair "ls" (list (list "-1" "-A" "-a" "-d" "-L" "-H" "-R" "-F" "-p" "-l"
+                       "-i" "-n" "-s" "-h" "-r" "-S" "-X" "-v" "-c" "-t" "-u") ()))
+    (pair "touch" (list (list "-c") ()))
+    (pair "install" (list (list "-d" "-c") (list "-m")))
+    (pair "cmp" (list (list "-s") ()))
+    (pair "sum" (list (list "-s" "-r") ()))
+    (pair "expand" (list () (list "-t")))
+    (pair "unexpand" (list (list "-a") (list "-t")))
+    (pair "split" (list () (list "-b" "-l")))
+    (pair "shuf" (list (list "-e") (list "-n")))
+    (pair "base64" (list (list "-d") ()))
+    (pair "stat" (list (list "-L") (list "-c")))
+    (pair "du" (list (list "-s" "-a" "-k") ()))
+    (pair "truncate" (list () (list "-s")))
+    (pair "od" (list (list "-v" "-c" "-b" "-x" "-d" "-o") (list "-A" "-t" "-N")))
+    (pair "uuencode" (list (list "-m") ()))
+    (pair "chmod" (list (list "-R") ()))
+    (pair "readlink" (list (list "-f" "-e") ()))
+    (pair "mkfifo" (list () (list "-m")))
+    (pair "df" (list (list "-h" "-k") ()))
+    (pair "id" (list (list "-u" "-g" "-G" "-n") ()))
+    (pair "uname" (list (list "-a" "-s" "-n" "-r" "-v" "-m") ()))
+    (pair "nice" (list () (list "-n") (lit leading)))
+    (pair "shred" (list (list "-u") (list "-n")))
+    (pair "timeout" (list () (list "-s") (lit leading)))
+    (pair "xargs" (list () (list "-n") (lit leading)))
+    ; test and its spellings are an EXPRESSION, not an option list:
+    ; the operators are declared so the guard knows them, and the
+    ; applet parses the expression itself.
+    (pair "test" (list %cu-test-operators () (lit leading)))
+    (pair "[" (list %cu-test-operators () (lit leading)))
+    (pair "[[" (list %cu-test-operators () (lit leading)))))
+
+(def %cu-spec-of
   (fn (_ applet)
     (def go (fn (self es)
               (if (null? es) ()
                 (if (string=? (first (first es)) applet) (rest (first es))
                   (self (rest es))))))
-    (go %cu-known-flags)))
+    (go %cu-option-spec)))
 
-(def %cu-option-token?
-  (fn (_ s)
-    (if (< (byte-len s) 2) #f
-      (if (not (= (byte-at s 0) 45)) #f              ; -
-        (let ((c (byte-at s 1)))
-          (if (if (>= c 48) (<= c 57) #f) #f          ; -N: a number
-            #t))))))
-
-(def %cu-flag-known?
-  (fn (_ tok flags)
-    (def exact? (fn (self fs)
-                  (if (null? fs) #f
-                    (if (string=? (first fs) tok) #t (self (rest fs))))))
-    (def head2 (substring tok 0 2))
-    (def single? (fn (self fs ch)
-                   (if (null? fs) #f
-                     (if (if (= (byte-len (first fs)) 2)
-                           (= (byte-at (first fs) 1) ch) #f)
-                       #t (self (rest fs) ch)))))
-    (def cluster? (fn (self i)
-                    (if (>= i (byte-len tok)) #t
-                      (if (single? flags (byte-at tok i))
-                        (self (+ i 1)) #f))))
-    (if (exact? flags) #t
-      (let ((known-head (let ((go (fn (self2 fs)
-                                    (if (null? fs) #f
-                                      (if (string=? (first fs) head2) #t
-                                        (self2 (rest fs)))))))
-                          (go flags))))
-        (if known-head #t (cluster? 1))))))
-
-; answers () when argv's options are all known, else the offender
-(def %cu-unknown-option
+; THE ONE PARSE.  Every applet and the guard reach their options
+; through this, so both read the row that was declared for the applet.
+(def %cu-opts
   (fn (_ applet argv)
-    (def flags (%cu-flags-of applet))
-    (def go (fn (self as)
-              (if (null? as) ()
-                (let ((t (first as)))
-                  (if (string=? t "--") ()
-                    (if (not (%cu-option-token? t)) ()
-                      (if (%cu-flag-known? t flags) (self (rest as)) t)))))))
-    (go argv)))
+    (def spec (%cu-spec-of applet))
+    (def flags (if (null? spec) () (first spec)))
+    (def values (if (null? spec) () (first (rest spec))))
+    (def mode (if (null? spec) ()
+                (if (null? (rest (rest spec))) () (first (rest (rest spec))))))
+    (if (eq? mode (lit leading))
+      (Opts parse-leading flags values argv)
+      (Opts parse flags values argv))))
 
 (def %cu-refuse-option
   (fn (_ applet tok)
@@ -254,7 +231,7 @@
                 (string-append "coreutils: no such applet: "
                   (string-append (first argv) "\n")))
               2)
-          (let ((bad (%cu-unknown-option (first argv) (rest argv))))
+          (let ((bad (Opts unknown (%cu-opts (first argv) (rest argv)))))
             (if (null? bad)
               (h (rest argv) (fn (_) input))
               (%cu-refuse-option (first argv) bad))))))))
@@ -289,7 +266,7 @@
       (let ((h (%cu-find-applet (first argv))))
         (if (null? h)
           (sys-exit (cu-run argv ""))
-          (let ((bad (%cu-unknown-option (first argv) (rest argv))))
+          (let ((bad (Opts unknown (%cu-opts (first argv) (rest argv)))))
             (if (null? bad)
               (sys-exit (h (rest argv) stdin-thunk))
               (sys-exit (%cu-refuse-option (first argv) bad)))))))))

@@ -64,16 +64,17 @@
 ; asking for names where a name can be found
 (def %cu-id
   (fn (_ argv stdin-thunk)
-    (def n? (%cu-has-flag? argv "-n"))
+    (def o (%cu-opts "id" argv))
+    (def n? (Opts on? o "-n"))
     (def uid (sys-geteuid))
     (def gid (sys-getegid))
-    (if (%cu-has-flag? argv "-u")
+    (if (Opts on? o "-u")
       (do (display
             (string-append (if n? (%cu-user-name uid) (%cu-int->str uid)) "\n"))
           0)
-      (if (%cu-has-flag? argv "-g")
+      (if (Opts on? o "-g")
         (do (display (string-append (%cu-int->str gid) "\n")) 0)
-        (if (%cu-has-flag? argv "-G")
+        (if (Opts on? o "-G")
           (do (display
                 (string-append
                   (%cu-join-with
@@ -99,11 +100,12 @@
 
 (def %cu-uname
   (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "uname" argv))
     (def u (sys-uname))
-    (def a? (%cu-has-flag? argv "-a"))
+    (def a? (Opts on? o "-a"))
     (def want
       (fn (_ flag key)
-        (if (if a? #t (%cu-has-flag? argv flag))
+        (if (if a? #t (Opts on? o flag))
           (list (%cu-uname-field u key)) ())))
     (def parts
       (append (want "-s" (lit sysname))
@@ -136,10 +138,10 @@
 ; then becomes the command
 (def %cu-nice
   (fn (_ argv stdin-thunk)
-    (def n? (%cu-has-flag? argv "-n"))
-    (def inc (if n? (%cu-num-prefix (first (rest argv))) 10))
-    (def cmd (filter (fn (_ x) (not (%cu-option-token? x)))
-               (if n? (rest (rest argv)) argv)))
+    (def o (%cu-opts "nice" argv))
+    (def inc (let ((v (Opts value o "-n")))
+               (if (null? v) 10 (%cu-num-prefix v))))
+    (def cmd (Opts operands o))
     (if (null? cmd)
       (do (display (string-append (%cu-int->str (sys-nice 0)) "\n")) 0)
       (do (sys-nice inc)

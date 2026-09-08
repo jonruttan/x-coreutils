@@ -119,8 +119,9 @@
 
 (def %cu-chmod
   (fn (_ argv stdin-thunk)
-    (def r? (%cu-has-flag? argv "-R"))
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "chmod" argv))
+    (def r? (Opts on? o "-R"))
+    (def ops (Opts operands o))
     (if (null? (rest ops))
       (do (file-write 2 "chmod: need MODE and a path\n") 1)
       (let ((spec (first ops)))
@@ -147,8 +148,8 @@
       (if (= (byte-len g) 0) (- 0 1) (%cu-num-prefix g)))))
 
 (def %cu-chown-with
-  (fn (_ ids argv)
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+  (fn (_ ids o)
+    (def ops (Opts operands o))
     (def go
       (fn (self ps st)
         (if (null? ps) st
@@ -163,18 +164,19 @@
 
 (def %cu-chown
   (fn (_ argv stdin-thunk)
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "chown" argv))
+    (def ops (Opts operands o))
     (if (null? (rest ops))
       (do (file-write 2 "chown: need OWNER and a path\n") 1)
-      (%cu-chown-with (%cu-owner-pair (first ops)) (rest ops)))))
+      (%cu-chown-with (%cu-owner-pair (first ops)) o))))
 
 (def %cu-chgrp
   (fn (_ argv stdin-thunk)
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "chgrp" argv))
+    (def ops (Opts operands o))
     (if (null? (rest ops))
       (do (file-write 2 "chgrp: need GROUP and a path\n") 1)
-      (%cu-chown-with (pair (- 0 1) (%cu-num-prefix (first ops)))
-        (rest ops)))))
+      (%cu-chown-with (pair (- 0 1) (%cu-num-prefix (first ops))) o))))
 
 ; --- ln, link, readlink, realpath ---------------------------------------------
 
@@ -207,8 +209,9 @@
 
 (def %cu-readlink
   (fn (_ argv stdin-thunk)
-    (def f? (if (%cu-has-flag? argv "-f") #t (%cu-has-flag? argv "-e")))
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "readlink" argv))
+    (def f? (if (Opts on? o "-f") #t (Opts on? o "-e")))
+    (def ops (Opts operands o))
     (if (null? ops)
       (do (file-write 2 "readlink: missing operand\n") 1)
       (let ((p (first ops)))
@@ -283,10 +286,10 @@
 
 (def %cu-mkfifo
   (fn (_ argv stdin-thunk)
-    (def m? (%cu-has-flag? argv "-m"))
-    (def mode (if m? (%cu-octal->int (first (rest argv))) 420))
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x)))
-               (if m? (rest (rest argv)) argv)))
+    (def o (%cu-opts "mkfifo" argv))
+    (def m (Opts value o "-m"))
+    (def mode (if (null? m) 420 (%cu-octal->int m)))
+    (def ops (Opts operands o))
     (if (null? ops)
       (do (file-write 2 "mkfifo: missing operand\n") 1)
       (let ((go (fn (self ps)
@@ -330,8 +333,9 @@
 
 (def %cu-df
   (fn (_ argv stdin-thunk)
-    (def h? (%cu-has-flag? argv "-h"))
-    (def ops0 (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "df" argv))
+    (def h? (Opts on? o "-h"))
+    (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list (sys-getcwd)) ops0))
     (do (display
           (string-concat

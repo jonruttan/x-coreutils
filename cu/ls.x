@@ -19,7 +19,10 @@
 ; Divergences, loud: uid and gid print as NUMBERS (no passwd door, so
 ; -n and -l are the same line), and the date column is UTC.
 
-(def %ls-flag? (fn (_ argv f) (%cu-has-flag? argv f)))
+; ls reads its options off the record cu/cli.x's declaration produced;
+; the listing walk carries that record, not o, so a -R descent
+; never re-derives what the flags were.
+(def %ls-flag? (fn (_ o f) (Opts on? o f)))
 
 ; --- entries ------------------------------------------------------------------
 
@@ -47,10 +50,10 @@
 
 ; a directory's entries: dotfiles need -a or -A, and . .. need -a
 (def %ls-children
-  (fn (_ dir argv)
-    (def a? (%ls-flag? argv "-a"))
-    (def A? (%ls-flag? argv "-A"))
-    (def follow? (%ls-flag? argv "-L"))
+  (fn (_ dir o)
+    (def a? (%ls-flag? o "-a"))
+    (def A? (%ls-flag? o "-A"))
+    (def follow? (%ls-flag? o "-L"))
     ; the dir door lists neither . nor ..; -a wants both, so they are
     ; added rather than filtered in
     (def listed (file-list-dir dir))
@@ -66,9 +69,9 @@
 ; --- order --------------------------------------------------------------------
 
 (def %ls-time-key
-  (fn (_ argv)
-    (if (%ls-flag? argv "-c") (lit ctime)
-      (if (%ls-flag? argv "-u") (lit atime) (lit mtime)))))
+  (fn (_ o)
+    (if (%ls-flag? o "-c") (lit ctime)
+      (if (%ls-flag? o "-u") (lit atime) (lit mtime)))))
 
 (def %ls-ext
   (fn (_ n)
@@ -114,26 +117,26 @@
       (if (< kx ky) #f (%cu-str< (%ls-name x) (%ls-name y))))))
 
 (def %ls-less
-  (fn (_ argv)
-    (def tk (%ls-time-key argv))
-    (if (%ls-flag? argv "-t")
+  (fn (_ o)
+    (def tk (%ls-time-key o))
+    (if (%ls-flag? o "-t")
       ; ties fall back to the name, as ls orders them
       (fn (_ x y) (%ls-desc-then-name (%ls-get x tk) (%ls-get y tk) x y))
-      (if (%ls-flag? argv "-S")
+      (if (%ls-flag? o "-S")
         (fn (_ x y) (%ls-desc-then-name (%ls-get x (lit size)) (%ls-get y (lit size)) x y))
-        (if (%ls-flag? argv "-X")
+        (if (%ls-flag? o "-X")
           (fn (_ x y)
             (let ((ex (%ls-ext (%ls-name x))) (ey (%ls-ext (%ls-name y))))
               (if (string=? ex ey) (%cu-str< (%ls-name x) (%ls-name y))
                 (%cu-str< ex ey))))
-          (if (%ls-flag? argv "-v")
+          (if (%ls-flag? o "-v")
             (fn (_ x y) (%ls-natural< (%ls-name x) (%ls-name y)))
             (fn (_ x y) (%cu-str< (%ls-name x) (%ls-name y)))))))))
 
 (def %ls-order
-  (fn (_ es argv)
-    (let ((sorted (%cu-msort es (%ls-less argv))))
-      (if (%ls-flag? argv "-r") (reverse sorted) sorted))))
+  (fn (_ es o)
+    (let ((sorted (%cu-msort es (%ls-less o))))
+      (if (%ls-flag? o "-r") (reverse sorted) sorted))))
 
 ; --- one line -----------------------------------------------------------------
 
@@ -173,23 +176,23 @@
     (go n (list "" "K" "M" "G" "T"))))
 
 (def %ls-suffix
-  (fn (_ e argv)
+  (fn (_ e o)
     (def k (%ls-get e (lit kind)))
-    (if (eq? k (lit dir)) (if (if (%ls-flag? argv "-F") #t (%ls-flag? argv "-p")) "/" "")
-      (if (not (%ls-flag? argv "-F")) ""
+    (if (eq? k (lit dir)) (if (if (%ls-flag? o "-F") #t (%ls-flag? o "-p")) "/" "")
+      (if (not (%ls-flag? o "-F")) ""
         (if (eq? k (lit link)) "@"
           (if (eq? k (lit fifo)) "|"
             (if (eq? k (lit socket)) "="
               (if (= 0 (bit-and (%ls-get e (lit mode)) 73)) "" "*"))))))))
 
 (def %ls-size-str
-  (fn (_ e argv)
-    (if (%ls-flag? argv "-h") (%ls-human (%ls-get e (lit size)))
+  (fn (_ e o)
+    (if (%ls-flag? o "-h") (%ls-human (%ls-get e (lit size)))
       (%cu-int->str (%ls-get e (lit size))))))
 
 ; the widths a listing's long lines share, so the columns line up
 (def %ls-widths
-  (fn (_ es argv)
+  (fn (_ es o)
     (def w (fn (_ f) (let ((go (fn (self xs m)
                                  (if (null? xs) m
                                    (let ((n (byte-len (f (first xs)))))
@@ -198,20 +201,20 @@
     (list (w (fn (_ e) (%cu-int->str (%ls-get e (lit nlink)))))
           (w (fn (_ e) (%cu-int->str (%ls-get e (lit uid)))))
           (w (fn (_ e) (%cu-int->str (%ls-get e (lit gid)))))
-          (w (fn (_ e) (%ls-size-str e argv)))
+          (w (fn (_ e) (%ls-size-str e o)))
           (w (fn (_ e) (%cu-int->str (%ls-get e (lit ino)))))
           (w (fn (_ e) (%cu-int->str (%cu-du-blocks (%ls-st e))))))))
 
 (def %ls-line
-  (fn (_ e argv ws now)
-    (def long? (if (%ls-flag? argv "-l") #t (%ls-flag? argv "-n")))
+  (fn (_ e o ws now)
+    (def long? (if (%ls-flag? o "-l") #t (%ls-flag? o "-n")))
     (def st (%ls-st e))
-    (def name (string-append (%ls-name e) (%ls-suffix e argv)))
+    (def name (string-append (%ls-name e) (%ls-suffix e o)))
     (string-concat
       (list
-        (if (%ls-flag? argv "-i")
+        (if (%ls-flag? o "-i")
           (string-append (%cu-pad-left (%cu-int->str (%ls-get e (lit ino))) (%cu-nth 4 ws)) " ") "")
-        (if (%ls-flag? argv "-s")
+        (if (%ls-flag? o "-s")
           (string-append (%cu-pad-left (%cu-int->str (%cu-du-blocks st)) (%cu-nth 5 ws)) " ") "")
         (if (not long?) name
           (string-concat
@@ -219,8 +222,8 @@
                   (%cu-pad-left (%cu-int->str (%ls-get e (lit nlink))) (%cu-nth 0 ws)) " "
                   (%cu-pad-left (%cu-int->str (%ls-get e (lit uid))) (%cu-nth 1 ws)) " "
                   (%cu-pad-left (%cu-int->str (%ls-get e (lit gid))) (%cu-nth 2 ws)) " "
-                  (%cu-pad-left (%ls-size-str e argv) (%cu-nth 3 ws)) " "
-                  (%ls-date (%ls-get e (%ls-time-key argv)) now) " "
+                  (%cu-pad-left (%ls-size-str e o) (%cu-nth 3 ws)) " "
+                  (%ls-date (%ls-get e (%ls-time-key o)) now) " "
                   name
                   (if (eq? (%ls-get e (lit kind)) (lit link))
                     (string-append " -> " (file-readlink (%ls-path e)))
@@ -230,22 +233,22 @@
 ; --- a listing ----------------------------------------------------------------
 
 (def %ls-print
-  (fn (_ es argv now dir?)
-    (def ordered (%ls-order es argv))
-    (def ws (%ls-widths ordered argv))
-    (def long? (if (%ls-flag? argv "-l") #t (%ls-flag? argv "-n")))
+  (fn (_ es o now dir?)
+    (def ordered (%ls-order es o))
+    (def ws (%ls-widths ordered o))
+    (def long? (if (%ls-flag? o "-l") #t (%ls-flag? o "-n")))
     (def blocks
       (let ((go (fn (self xs acc)
                   (if (null? xs) acc
                     (self (rest xs) (+ acc (%cu-du-blocks (%ls-st (first xs)))))))))
         (go ordered 0)))
     ; `total` heads a DIRECTORY listing only, as ls prints it
-    (do (if (if dir? (if long? #t (%ls-flag? argv "-s")) #f)
+    (do (if (if dir? (if long? #t (%ls-flag? o "-s")) #f)
           (display (string-append "total " (string-append (%cu-int->str blocks) "\n")))
           ())
         (let ((go (fn (self xs)
                     (if (null? xs) ()
-                      (do (display (%ls-line (first xs) argv ws now))
+                      (do (display (%ls-line (first xs) o ws now))
                           (self (rest xs)))))))
           (go ordered))
         ordered)))
@@ -253,17 +256,17 @@
 ; a directory, and under -R every directory below it, each with its
 ; header; the header is printed whenever more than one listing appears
 (def %ls-dir
-  (fn (self dir argv now header?)
-    (def es (%ls-children dir argv))
+  (fn (self dir o now header?)
+    (def es (%ls-children dir o))
     (do (if header? (display (string-append dir ":\n")) ())
-        (let ((ordered (%ls-print es argv now #t)))
-          (if (%ls-flag? argv "-R")
+        (let ((ordered (%ls-print es o now #t)))
+          (if (%ls-flag? o "-R")
             (let ((go (fn (self2 xs)
                         (if (null? xs) ()
                           (do (if (if (%ls-dir? (first xs))
                                     (not (%cu-dot? (%ls-name (first xs)))) #f)
                                 (do (display "\n")
-                                    (self (%ls-path (first xs)) argv now #t))
+                                    (self (%ls-path (first xs)) o now #t))
                                 ())
                               (self2 (rest xs)))))))
               (go ordered))
@@ -271,17 +274,18 @@
 
 (def %cu-ls
   (fn (_ argv stdin-thunk)
-    (def ops0 (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "ls" argv))
+    (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list ".") ops0))
     (def now (date-now-unix))
-    (def d? (%ls-flag? argv "-d"))
-    (def follow-ops? (if (%ls-flag? argv "-L") #t (%ls-flag? argv "-H")))
+    (def d? (%ls-flag? o "-d"))
+    (def follow-ops? (if (%ls-flag? o "-L") #t (%ls-flag? o "-H")))
     (def entries (map (fn (_ p) (%ls-entry p p follow-ops?)) ops))
     (def missing (filter (fn (_ e) (null? (%ls-st e))) entries))
     (def present (filter (fn (_ e) (not (null? (%ls-st e)))) entries))
     (def files (filter (fn (_ e) (if d? #t (not (%ls-dir? e)))) present))
     (def dirs (filter (fn (_ e) (if d? #f (%ls-dir? e))) present))
-    (def many? (if (%ls-flag? argv "-R") #t (> (+ (length files) (length dirs)) 1)))
+    (def many? (if (%ls-flag? o "-R") #t (> (+ (length files) (length dirs)) 1)))
     (do
       (let ((go (fn (self ms)
                   (if (null? ms) ()
@@ -291,11 +295,11 @@
                                   ": No such file or directory\n")))
                         (self (rest ms)))))))
         (go missing))
-      (if (null? files) () (%ls-print files argv now #f))
+      (if (null? files) () (%ls-print files o now #f))
       (let ((go (fn (self ds first?)
                   (if (null? ds) ()
                     (do (if (if first? (null? files) #f) () (display "\n"))
-                        (%ls-dir (%ls-path (first ds)) argv now many?)
+                        (%ls-dir (%ls-path (first ds)) o now many?)
                         (self (rest ds) #f))))))
-        (go (%ls-order dirs argv) #t))
+        (go (%ls-order dirs o) #t))
       (if (null? missing) 0 1))))

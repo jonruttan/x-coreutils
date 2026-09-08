@@ -79,7 +79,9 @@ That last line is a real pipeline of x tools, and it works today.
 Applet parity is one axis; OPTION parity is the other.  `docs/options.md`
 is the generated matrix -- every busybox option per applet, which of them
 this bundle accepts, and what is missing.  `make options` regenerates it
-from `docs/busybox-options.x` and the option guard's live table.
+from `docs/busybox-options.x` and the option DECLARATION in `cu/cli.x`
+-- the one row per applet that the guard checks and the applet reads,
+parsed by x-lang's `Opts`.
 
 ## Tests
 

@@ -8,8 +8,9 @@
 ;
 ; Applet parity was the first axis; OPTION parity is the second, and
 ; this is its scoreboard.  Busybox's side is docs/busybox-options.x
-; (data, transcribed); ours is read LIVE from cu/cli.x's option guard
-; table, so the matrix cannot drift from what the applets accept.
+; (data, transcribed); ours is read LIVE from cu/cli.x's option
+; DECLARATION -- the same row the guard checks and the applets read --
+; so the matrix cannot drift from what the applets accept.
 ;
 ;   x -l coreutils -f tools/options-matrix.x > docs/options.md
 ;   make options
@@ -46,7 +47,12 @@
 (def %mx-row
   (fn (_ name)
     (def bb (%mx-lookup name busybox-options))
-    (def ours (%cu-flags-of name))
+    ; OURS COMES OFF THE DECLARATION cu/cli.x hands the guard and the
+    ; applets alike -- both lists, since a value-taking flag is just as
+    ; accepted as one that stands alone.
+    (def spec (%cu-spec-of name))
+    (def ours (if (null? spec) ()
+                (append (first spec) (first (rest spec)))))
     (if (eq? bb (lit none))
       (do (display (string-concat
                      (list "| `" name "` | _not a busybox applet_ | "

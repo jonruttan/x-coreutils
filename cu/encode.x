@@ -243,8 +243,9 @@
 
 (def %cu-uuencode
   (fn (_ argv stdin-thunk)
-    (def m? (%cu-has-flag? argv "-m"))
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "uuencode" argv))
+    (def m? (Opts on? o "-m"))
+    (def ops (Opts operands o))
     ; uuencode NAME, or uuencode FILE NAME
     (def name (if (null? ops) "-" (%cu-last ops)))
     (def src (if (pair? (rest ops)) (list (first ops)) ()))

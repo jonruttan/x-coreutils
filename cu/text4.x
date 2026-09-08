@@ -15,12 +15,12 @@
 ; what uniq actually compares: the line past -f fields and -s chars,
 ; cut to -w, folded when -i asks
 (def %uniq-key
-  (fn (_ line argv)
-    (def skip-f (let ((v (%cu-flag-value argv "-f")))
+  (fn (_ line o)
+    (def skip-f (let ((v (Opts value o "-f")))
                   (if (null? v) 0 (%cu-num-prefix v))))
-    (def skip-s (let ((v (%cu-flag-value argv "-s")))
+    (def skip-s (let ((v (Opts value o "-s")))
                   (if (null? v) 0 (%cu-num-prefix v))))
-    (def width (let ((v (%cu-flag-value argv "-w")))
+    (def width (let ((v (Opts value o "-w")))
                  (if (null? v) (- 0 1) (%cu-num-prefix v))))
     (def after-fields
       (if (= skip-f 0) line
@@ -37,22 +37,23 @@
     (def cut (substring after-fields from end))
     (def sized (if (< width 0) cut
                  (if (> width (byte-len cut)) cut (substring cut 0 width))))
-    (if (%cu-has-flag? argv "-i") (%sort-fold sized) sized)))
+    (if (Opts on? o "-i") (%sort-fold sized) sized)))
 
 ; -d prints only what repeated, -u only what did not; neither is both
 (def %uniq-show?
-  (fn (_ n argv)
-    (if (%cu-has-flag? argv "-d") (> n 1)
-      (if (%cu-has-flag? argv "-u") (= n 1) #t))))
+  (fn (_ n o)
+    (if (Opts on? o "-d") (> n 1)
+      (if (Opts on? o "-u") (= n 1) #t))))
 
 (def %cu-uniq
   (fn (_ argv stdin-thunk)
-    (def count? (%cu-has-flag? argv "-c"))
-    (def ops (%cu-value-operands argv (list "-f" "-s" "-w")))
+    (def o (%cu-opts "uniq" argv))
+    (def count? (Opts on? o "-c"))
+    (def ops (Opts operands o))
     (def lines (%cu-lines (%cu-gather ops stdin-thunk)))
     (def emit
       (fn (_ n line)
-        (if (not (%uniq-show? n argv)) ()
+        (if (not (%uniq-show? n o)) ()
           (display
             (if count?
               (string-concat
@@ -62,7 +63,7 @@
       (fn (self ls cur key n)
         (if (null? ls)
           (if (null? cur) () (emit n cur))
-          (let ((k (%uniq-key (first ls) argv)))
+          (let ((k (%uniq-key (first ls) o)))
             (if (if (null? cur) #f (string=? k key))
               (self (rest ls) cur key (+ n 1))
               (do (if (null? cur) () (emit n cur))
@@ -73,18 +74,18 @@
 
 ; -b a numbers every line, t only the non-empty (the default), n none
 (def %nl-number?
-  (fn (_ line argv)
-    (def style (let ((v (%cu-flag-value argv "-b"))) (if (null? v) "t" v)))
+  (fn (_ line o)
+    (def style (let ((v (Opts value o "-b"))) (if (null? v) "t" v)))
     (if (string=? style "a") #t
       (if (string=? style "n") #f
         (> (byte-len line) 0)))))
 
 ; -n ln left, rn right (the default), rz right with zeros
 (def %nl-format
-  (fn (_ n argv)
-    (def width (let ((v (%cu-flag-value argv "-w")))
+  (fn (_ n o)
+    (def width (let ((v (Opts value o "-w")))
                  (if (null? v) 6 (%cu-num-prefix v))))
-    (def style (let ((v (%cu-flag-value argv "-n"))) (if (null? v) "rn" v)))
+    (def style (let ((v (Opts value o "-n"))) (if (null? v) "rn" v)))
     (def s (%cu-int->str n))
     (if (string=? style "ln") (%cu-pad s width #t)
       (if (string=? style "rz") (%cu-pad-zero s width)
@@ -92,24 +93,25 @@
 
 (def %cu-nl
   (fn (_ argv stdin-thunk)
-    (def sep (let ((v (%cu-flag-value argv "-s"))) (if (null? v) "\t" v)))
-    (def start (let ((v (%cu-flag-value argv "-v")))
+    (def o (%cu-opts "nl" argv))
+    (def sep (let ((v (Opts value o "-s"))) (if (null? v) "\t" v)))
+    (def start (let ((v (Opts value o "-v")))
                  (if (null? v) 1 (%cu-num-prefix v))))
-    (def step (let ((v (%cu-flag-value argv "-i")))
+    (def step (let ((v (Opts value o "-i")))
                 (if (null? v) 1 (%cu-num-prefix v))))
-    (def width (let ((v (%cu-flag-value argv "-w")))
+    (def width (let ((v (Opts value o "-w")))
                  (if (null? v) 6 (%cu-num-prefix v))))
-    (def ops (%cu-value-operands argv (list "-b" "-n" "-s" "-w" "-v" "-i")))
+    (def ops (Opts operands o))
     (def blank (let ((go (fn (self k acc)
                            (if (<= k 0) acc (self (- k 1) (string-append " " acc))))))
                  (go width "")))
     (def go
       (fn (self ls n)
         (if (null? ls) 0
-          (if (%nl-number? (first ls) argv)
+          (if (%nl-number? (first ls) o)
             (do (display
                   (string-concat
-                    (list (%nl-format n argv) sep (first ls) "\n")))
+                    (list (%nl-format n o) sep (first ls) "\n")))
                 (self (rest ls) (+ n step)))
             (do (display (string-concat (list blank sep (first ls) "\n")))
                 (self (rest ls) n))))))

@@ -14,8 +14,9 @@
 ; file being read and written just to be dated.
 (def %cu-touch
   (fn (_ argv stdin-thunk)
-    (def c? (%cu-has-flag? argv "-c"))
-    (def ops (filter (fn (_ x) (not (%cu-option-token? x))) argv))
+    (def o (%cu-opts "touch" argv))
+    (def c? (Opts on? o "-c"))
+    (def ops (Opts operands o))
     (def go
       (fn (self os)
         (if (null? os) 0
@@ -40,23 +41,17 @@
 ; install: -d makes directories (parents included); the copy form
 ; accepts and IGNORES -c and -m MODE -- there is no chmod door yet,
 ; the recorded divergence
-; the mode -m carries, or nil when the flag is absent
-(def %cu-install-mode
-  (fn (self as)
-    (if (null? as) ()
-      (if (string=? (first as) "-m")
-        (if (null? (rest as)) () (%cu-octal->int (first (rest as))))
-        (self (rest as))))))
-
 (def %cu-install
   (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "install" argv))
     (if (if (pair? argv) (string=? (first argv) "-d") #f)
       (let ((go (fn (self os)
                   (if (null? os) 0
                     (do (%cu-mkdir-p! (first os)) (self (rest os)))))))
         (go (rest argv)))
       ; -m used to be accepted and IGNORED; File chmod now honours it
-      (let ((mode (%cu-install-mode argv)))
+      (let ((mode (let ((m (Opts value o "-m")))
+                    (if (null? m) () (%cu-octal->int m)))))
         (def strip (fn (self as)
                      (if (null? as) ()
                        (if (string=? (first as) "-c")
