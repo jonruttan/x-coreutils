@@ -157,8 +157,11 @@
 (def %cu-dot?
   (fn (_ n) (if (string=? n ".") #t (string=? n ".."))))
 
+; LEVEL is how deep this path sits below the operand, and LIMIT is
+; -d's ceiling on what gets PRINTED -- the walk still descends past it,
+; because the totals above depend on what is below.
 (def %cu-du-walk
-  (fn (self path all? show-dirs? emit)
+  (fn (self path all? show-dirs? emit level limit)
     (def st (file-stat-full path))
     (if (null? st) 0
       (if (eq? (%cu-stat-get st (lit kind)) (lit dir))
@@ -170,33 +173,51 @@
                 (self2 (rest ns)
                   (+ acc
                     (self (%cu-path-join path (first ns))
-                      all? show-dirs? emit))))))
+                      all? show-dirs? emit (+ level 1) limit))))))
           (let ((total (+ (%cu-du-blocks st) (sub kids 0))))
-            (do (if show-dirs? (emit total path) ()) total)))
+            (do (if (if show-dirs? (%cu-du-deep? level limit) #f)
+                  (emit total path) ())
+                total)))
         (let ((n (%cu-du-blocks st)))
-          (do (if all? (emit n path) ()) n))))))
+          (do (if (if all? (%cu-du-deep? level limit) #f) (emit n path) ())
+              n))))))
+
+(def %cu-du-deep?
+  (fn (_ level limit) (if (< limit 0) #t (<= level limit))))
+
+; du: -s totals only, -a every file, -d N stops the printing below a
+; depth, -c adds a grand total, -h and -m choose the unit (-k, the
+; default here, is 1024-byte blocks), -H -L follow links, -x and -l
+; are accepted and named below.
+(def %cu-du-show
+  (fn (_ n o)
+    (if (Opts on? o "-h") (%ls-human n)
+      (if (Opts on? o "-m")
+        (%cu-int->str (/ (- n (% n 1024)) 1024))
+        (%cu-int->str n)))))
 
 (def %cu-du
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "du" argv))
     (def s? (Opts on? o "-s"))
     (def a? (Opts on? o "-a"))
+    (def depth (let ((v (Opts value o "-d"))) (if (null? v) (- 0 1) (%cu-num-prefix v))))
     (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list ".") ops0))
     (def emit
       (fn (_ n path)
         (display
-          (string-append (%cu-int->str n)
-            (string-append "\t" (string-append path "\n"))))))
+          (string-concat (list (%cu-du-show n o) "\t" path "\n")))))
     (def quiet (fn (_ n path) ()))
     (def go
-      (fn (self os)
-        (if (null? os) 0
-          (let ((total (%cu-du-walk (first os) (if s? #f a?)
-                         (not s?) (if s? quiet emit))))
-            (do (if s? (emit total (first os)) ())
-                (self (rest os)))))))
-    (go ops)))
+      (fn (self os total)
+        (if (null? os) total
+          (let ((n (%cu-du-walk (first os) (if s? #f a?)
+                     (not s?) (if s? quiet emit) 0 depth)))
+            (do (if s? (emit n (first os)) ())
+                (self (rest os) (+ total n)))))))
+    (def grand (go ops 0))
+    (do (if (Opts on? o "-c") (emit grand "total") ()) 0)))
 
 ; --- dd -----------------------------------------------------------------------
 

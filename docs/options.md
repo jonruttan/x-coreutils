@@ -14,9 +14,9 @@ the work.  Applet parity is the other axis: see the README.
 | `base64` | -d -w | -d | -w | 50% |
 | `basename` | -s |  | -s | 0% |
 | `cat` | -n -b -v -t -e -A | -n -b -v -t -e -A |  | 100% |
-| `chgrp` | -R -h -L -H -P -c -v -f |  | -R -h -L -H -P -c -v -f | 0% |
-| `chmod` | -R -c -v -f | -R | -c -v -f | 25% |
-| `chown` | -R -h -L -H -P -c -v -f |  | -R -h -L -H -P -c -v -f | 0% |
+| `chgrp` | -R -h -L -H -P -c -v -f | -R -h -L -H -P -c -v -f |  | 100% |
+| `chmod` | -R -c -v -f | -R -c -v -f |  | 100% |
+| `chown` | -R -h -L -H -P -c -v -f | -R -h -L -H -P -c -v -f |  | 100% |
 | `chroot` |  |  |  | - |
 | `cksum` |  |  |  | - |
 | `cmp` | -l -s -n | -s | -l -n | 33% |
@@ -25,11 +25,11 @@ the work.  Applet parity is the other axis: see the README.
 | `cut` | -b -c -f -d -s -n | -d -f -c | -b -s -n | 50% |
 | `date` | -u -d -D -s -r -R -I +FMT |  | -u -d -D -s -r -R -I +FMT | 0% |
 | `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= count= skip= seek= status= | ibs= obs= conv= iflag= oflag= | 58% |
-| `df` | -P -k -m -h -T -a -i -B | -h -k | -P -m -T -a -i -B | 25% |
+| `df` | -P -k -m -h -T -a -i -B | -h -k -P -m -i -B | -T -a | 75% |
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U |  | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | 0% |
 | `dirname` |  |  |  | - |
 | `dos2unix` | -u -d |  | -u -d | 0% |
-| `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k | -H -L -d -c -l -x -h -m | 27% |
+| `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k -c -h -m -x -l -H -L -d |  | 100% |
 | `echo` | -n -e -E | -n -e | -E | 66% |
 | `env` | -i -u -0 |  | -i -u -0 | 0% |
 | `expand` | -i -t | -t | -i | 50% |
@@ -38,9 +38,9 @@ the work.  Applet parity is the other axis: see the README.
 | `false` |  |  |  | - |
 | `fold` | -b -s -w | -w | -b -s | 33% |
 | `groups` |  |  |  | - |
-| `head` | -n -c -q -v | -n | -c -q -v | 25% |
+| `head` | -n -c -q -v | -q -v -n -c |  | 100% |
 | `id` | -u -g -G -n -r | -u -g -G -n | -r | 80% |
-| `install` | -c -d -D -s -p -o -g -m -t | -d -c -m | -D -s -p -o -g -t | 33% |
+| `install` | -c -d -D -s -p -o -g -m -t | -d -c -D -p -m -o -g -t | -s | 88% |
 | `join` | _not a busybox applet_ |  | | - |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
@@ -49,7 +49,7 @@ the work.  Applet parity is the other axis: see the README.
 | `md5sum` | -c -s -w |  | -c -s -w | 0% |
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
-| `mktemp` | -d -t -p -q -u |  | -d -t -p -q -u | 0% |
+| `mktemp` | -d -t -p -q -u | -d -t -q -u -p |  | 100% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -n -s -w -v -i |  | 100% |
@@ -78,16 +78,16 @@ the work.  Applet parity is the other axis: see the README.
 | `sum` | -r -s | -s -r |  | 100% |
 | `sync` | -d -f |  | -d -f | 0% |
 | `tac` |  |  |  | - |
-| `tail` | -c -f -n -q -s -v | -n | -c -f -q -s -v | 16% |
+| `tail` | -c -f -n -q -s -v | -q -v -n -c | -f -s | 66% |
 | `tee` | -a -i | -a | -i | 50% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `timeout` | -s -k | -s | -k | 50% |
-| `touch` | -c -d -t -r | -c | -d -t -r | 25% |
+| `touch` | -c -d -t -r | -c -r -d -t |  | 100% |
 | `tr` | -c -d -s | -d -s | -c | 66% |
 | `true` |  |  |  | - |
 | `truncate` | -c -s | -s | -c | 50% |
 | `tty` | -s |  | -s | 0% |
-| `uname` | -a -m -n -r -s -p -v -i -o | -a -s -n -r -v -m | -p -i -o | 66% |
+| `uname` | -a -m -n -r -s -p -v -i -o | -a -s -n -r -v -m -p -i -o |  | 100% |
 | `unexpand` | -f -a -t | -a -t | -f | 66% |
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d |  | -u -d | 0% |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -n | -0 -a -E -I -p -r -s -t -x | 10% |
 | `yes` |  |  |  | - |
 
-**Total: 266 of 426 busybox options accepted (62%).**
+**Total: 319 of 426 busybox options accepted (74%).**

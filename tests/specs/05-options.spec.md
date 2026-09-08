@@ -514,3 +514,129 @@ a
 0x
 0
 ```
+
+## the file-metadata tools
+
+### fixtures
+
+```cu
+(do (def cu-out (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-fm/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-fm/.cap")))))) (def %cu-first-line (fn (_ s) (first (%cu-lines s)))) (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-fm && mkdir -p /tmp/x-cu-fm/sub && printf 'a\nb\nc\nd\ne\n' > /tmp/x-cu-fm/five && printf x > /tmp/x-cu-fm/sub/one")) (display "made"))
+```
+---
+    made
+
+### head and tail take -c bytes as well as -n lines
+
+```cu
+(do (display (cu-run (list "head" "-c" "3") "a\nb\nc\n")) (display (cu-run (list "tail" "-c" "2") "a\nb\n")) (display (cu-run (list "head" "-n" "1") "a\nb\n")) (display (cu-run (list "tail" "-n" "1") "a\nb\n")))
+```
+---
+```output
+a
+b0b
+0a
+0b
+0
+```
+
+### a header per operand when there are several; -v forces, -q suppresses
+
+```cu
+(do (display (cu-run (list "head" "-n1" "/tmp/x-cu-fm/five" "/tmp/x-cu-fm/sub/one") "")) (display (cu-run (list "head" "-n1" "-q" "/tmp/x-cu-fm/five" "/tmp/x-cu-fm/sub/one") "")) (display (cu-run (list "head" "-n1" "-v" "/tmp/x-cu-fm/five") "")))
+```
+---
+```output
+==> /tmp/x-cu-fm/five <==
+a
+
+==> /tmp/x-cu-fm/sub/one <==
+x
+0a
+x
+0==> /tmp/x-cu-fm/five <==
+a
+0
+```
+
+### du -d limits what is PRINTED, not what is counted; -c adds the total
+
+```cu
+(do (display (cu-run (list "du" "-d" "0" "/tmp/x-cu-fm") "")) (display (cu-run (list "du" "-c" "-s" "/tmp/x-cu-fm") "")))
+```
+---
+```output
+8	/tmp/x-cu-fm
+08	/tmp/x-cu-fm
+8	total
+0
+```
+
+### mktemp -u names without creating; -d makes a directory
+
+```cu
+(do (display (if (file-exists? (%cu-first-line (cu-out (list "mktemp" "-u")))) "created" "named only")) (newline) (def d (%cu-first-line (cu-out (list "mktemp" "-d")))) (display (if (file-dir? d) "dir" "not a dir")) (file-rmdir d))
+```
+---
+```output
+named only
+dir
+```
+
+### chown -v says what it changed, and -R reaches into a directory
+
+```cu
+(do (display (cu-run (list "chown" "-R" "-v" (%cu-int->str (sys-geteuid)) "/tmp/x-cu-fm/sub") "")))
+```
+---
+```output
+changed ownership of '/tmp/x-cu-fm/sub'
+changed ownership of '/tmp/x-cu-fm/sub/one'
+0
+```
+
+### uname says `unknown` for what it cannot ask
+
+`-p` and `-i` are sysctl and `-o` is a string busybox compiles in;
+none has a door, and printing the machine instead would be worse.
+
+```cu
+(do (display (cu-run (list "uname" "-p") "")) (display (cu-run (list "uname" "-o") "")))
+```
+---
+```output
+unknown
+0unknown
+0
+```
+
+### df counts blocks, or inodes under -i, in the unit -m and -B choose
+
+```cu
+(do (def row (fn (_ flag) (first (rest (%cu-lines (cu-out (list "df" flag "/tmp"))))))) (display (if (> (%cu-num-prefix (row "-k")) (%cu-num-prefix (row "-m"))) "k>m" "wrong")) (newline) (display (first (%cu-lines (cu-out (list "df" "-i" "/tmp"))))))
+```
+---
+```output
+k>m
+    Inodes     IUsed     IFree IUse% Mounted on
+```
+
+### install honours the mode, makes parents under -D, and -t names a directory
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-in && mkdir -p /tmp/x-cu-in/into && printf body > /tmp/x-cu-in/src")) (cu-run (list "install" "-m" "750" "/tmp/x-cu-in/src" "/tmp/x-cu-in/dst") "") (display (cu-run (list "stat" "-c" "%a" "/tmp/x-cu-in/dst") "")) (cu-run (list "install" "-D" "-m" "700" "/tmp/x-cu-in/src" "/tmp/x-cu-in/a/b/dst") "") (display (cu-run (list "stat" "-c" "%a" "/tmp/x-cu-in/a/b/dst") "")) (cu-run (list "install" "-t" "/tmp/x-cu-in/into" "/tmp/x-cu-in/src") "") (display (if (file-exists? "/tmp/x-cu-in/into/src") "into" "missing")) (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-in")) ())
+```
+---
+```output
+750
+0700
+0into
+```
+
+### cleanup
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-fm")) (display "clean"))
+```
+---
+    clean
+

@@ -147,20 +147,55 @@
     (pair (if (= (byte-len u) 0) (- 0 1) (%cu-num-prefix u))
       (if (= (byte-len g) 0) (- 0 1) (%cu-num-prefix g)))))
 
+; -R descends; -h changes the LINK rather than what it points at, and
+; -L/-H/-P say whether the descent follows one (-P, not following, is
+; the default and the only one a chown of a link can honour without a
+; lchown door -- -h is that door's absence made loud).
+(def %cu-chown-one
+  (fn (self path ids o name)
+    (def kind (file-lstat-kind path))
+    (if (eq? kind (lit none))
+      (do (if (Opts on? o "-f") ()
+            (file-write 2
+              (string-concat
+                (list name ": cannot access '" path "'\n"))))
+          (if (Opts on? o "-f") 0 1))
+      (do
+        ; a symlink is skipped unless -h asks for the link itself; there
+        ; is no lchown door, so -h REFUSES rather than changing the
+        ; target behind the caller's back
+        (if (eq? kind (lit link))
+          (if (Opts on? o "-h")
+            (do (file-write 2
+                  (string-concat
+                    (list name ": no lchown door: cannot change '"
+                          path "' itself\n")))
+                ())
+            ())
+          (do (file-chown path (first ids) (rest ids))
+              (if (Opts on? o "-v")
+                (display (string-concat
+                           (list "changed ownership of '" path "'\n")))
+                ())))
+        (if (if (Opts on? o "-R") (eq? kind (lit dir)) #f)
+          (let ((go (fn (self2 ns st)
+                      (if (null? ns) st
+                        (let ((r (self (%cu-path-join path (first ns))
+                                   ids o name)))
+                          (self2 (rest ns) (if (> r st) r st)))))))
+            (go (filter (fn (_ n) (not (%cu-dot? n)))
+                  (file-list-dir path)) 0))
+          0)))))
+
+; the first operand is the owner spec; the rest are the paths
 (def %cu-chown-with
-  (fn (_ ids o)
-    (def ops (Opts operands o))
+  (fn (_ ids paths o name)
     (def go
       (fn (self ps st)
         (if (null? ps) st
-          (if (not (file-exists? (first ps)))
-            (do (file-write 2
-                  (string-concat
-                    (list "chown: cannot access '" (first ps) "'\n")))
-                (self (rest ps) 1))
-            (do (file-chown (first ps) (first ids) (rest ids))
-                (self (rest ps) st))))))
-    (go ops 0)))
+          (let ((r (%cu-chown-one (first ps) ids o name)))
+            (self (rest ps) (if (> r st) r st))))))
+    (go paths 0)))
 
 (def %cu-chown
   (fn (_ argv stdin-thunk)
@@ -168,7 +203,7 @@
     (def ops (Opts operands o))
     (if (null? (rest ops))
       (do (file-write 2 "chown: need OWNER and a path\n") 1)
-      (%cu-chown-with (%cu-owner-pair (first ops)) o))))
+      (%cu-chown-with (%cu-owner-pair (first ops)) (rest ops) o "chown"))))
 
 (def %cu-chgrp
   (fn (_ argv stdin-thunk)
@@ -176,7 +211,7 @@
     (def ops (Opts operands o))
     (if (null? (rest ops))
       (do (file-write 2 "chgrp: need GROUP and a path\n") 1)
-      (%cu-chown-with (pair (- 0 1) (%cu-num-prefix (first ops))) o))))
+      (%cu-chown-with (pair (- 0 1) (%cu-num-prefix (first ops))) (rest ops) o "chgrp"))))
 
 ; --- ln, link, readlink, realpath ---------------------------------------------
 
@@ -300,49 +335,69 @@
 ; df: one row per operand (the mount a path sits on), in 1024-byte
 ; blocks.  There is no mount-table door, so a bare `df` measures the
 ; working directory rather than listing every filesystem.
+; the unit a row counts in, in 1024-byte blocks: -k (the default), -m,
+; -B SIZE, or -h which formats instead of scaling.
+(def %cu-df-unit
+  (fn (_ o)
+    (let ((b (Opts value o "-B")))
+      (if (not (null? b))
+        (let ((n (%cu-num-prefix b)))
+          (if (< n 1024) 1 (/ (- n (% n 1024)) 1024)))
+        (if (Opts on? o "-m") 1024 1)))))
+
+(def %cu-df-show
+  (fn (_ blocks o)
+    (if (Opts on? o "-h") (%cu-human blocks)
+      (%cu-int->str (let ((u (%cu-df-unit o)))
+                      (/ (- blocks (% blocks u)) u))))))
+
+; -i counts INODES rather than blocks: statfs answers files and ffree,
+; so the same row shape carries both.
 (def %cu-df-row
-  (fn (_ path human?)
+  (fn (_ path o)
     (let ((s (file-statfs path)))
+      (def inodes? (Opts on? o "-i"))
       (def bsize (%cu-stat-get s (lit bsize)))
       (def per-k (/ (- bsize (% bsize 1024)) 1024))
-      (def total (* (%cu-stat-get s (lit blocks)) per-k))
-      (def avail (* (%cu-stat-get s (lit bavail)) per-k))
+      (def total (if inodes? (%cu-stat-get s (lit files))
+                   (* (%cu-stat-get s (lit blocks)) per-k)))
+      (def avail (if inodes? (%cu-stat-get s (lit ffree))
+                   (* (%cu-stat-get s (lit bavail)) per-k)))
       (def used (- total avail))
       (def pct (if (= total 0) 0
                  (let ((n (* used 100)))
                    (/ (- n (% n total)) total))))
+      (def show (fn (_ v) (if inodes? (%cu-int->str v) (%cu-df-show v o))))
       (display
         (string-concat
-          (list (%cu-pad-left (if human? (%cu-human total) (%cu-int->str total)) 10)
-                (%cu-pad-left (if human? (%cu-human used) (%cu-int->str used)) 10)
-                (%cu-pad-left (if human? (%cu-human avail) (%cu-int->str avail)) 10)
-                (%cu-pad-left (string-append (%cu-int->str pct) "%") 5)
+          (list (%cu-pad-left (show total) 10)
+                (%cu-pad-left (show used) 10)
+                (%cu-pad-left (show avail) 10)
+                (%cu-pad-left (string-append (%cu-int->str pct) "%")
+                  (if inodes? 6 5))
                 " " path "\n"))))))
 
-; a size in kilobytes, printed the way -h does: the largest unit whose
-; value is still a whole number of digits
-(def %cu-human
-  (fn (_ k)
-    (if (< k 1024) (string-append (%cu-int->str k) "K")
-      (let ((m (/ (- k (% k 1024)) 1024)))
-        (if (< m 1024) (string-append (%cu-int->str m) "M")
-          (let ((g (/ (- m (% m 1024)) 1024)))
-            (if (< g 1024) (string-append (%cu-int->str g) "G")
-              (string-append
-                (%cu-int->str (/ (- g (% g 1024)) 1024)) "T"))))))))
+; the heading names the unit the rows are counted in
+(def %cu-df-heading
+  (fn (_ o)
+    (let ((u (%cu-df-unit o)))
+      (if (= u 1) "1K-blocks"
+        (string-append (%cu-int->str u) "K-blocks")))))
 
 (def %cu-df
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "df" argv))
     (def h? (Opts on? o "-h"))
+    (def i? (Opts on? o "-i"))
     (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list (sys-getcwd)) ops0))
     (do (display
           (string-concat
-            (list (%cu-pad-left (if h? "Size" "1K-blocks") 10)
-                  (%cu-pad-left "Used" 10)
-                  (%cu-pad-left "Avail" 10)
-                  (%cu-pad-left "Use%" 5)
+            (list (%cu-pad-left
+                    (if i? "Inodes" (if h? "Size" (%cu-df-heading o))) 10)
+                  (%cu-pad-left (if i? "IUsed" "Used") 10)
+                  (%cu-pad-left (if i? "IFree" "Avail") 10)
+                  (%cu-pad-left (if i? "IUse%" "Use%") (if i? 6 5))
                   " Mounted on\n")))
         (let ((go (fn (self ps st)
                     (if (null? ps) st
@@ -351,7 +406,7 @@
                               (string-concat
                                 (list "df: " (first ps) ": No such file\n")))
                             (self (rest ps) 1))
-                        (do (%cu-df-row (first ps) h?)
+                        (do (%cu-df-row (first ps) o)
                             (self (rest ps) st)))))))
           (go ops 0)))))
 

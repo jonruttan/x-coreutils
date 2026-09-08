@@ -28,6 +28,24 @@
 (def %cu-lines
   (fn (_ s) (%cu-lines-go s (byte-len s) 0 0 ())))
 
+; run BODY over each operand in turn, with `-` and the empty list
+; standing for stdin -- the shape head and tail share once they print
+; a header per file.
+(def %cu-each-operand
+  (fn (_ ops stdin-thunk body)
+    (if (null? ops) (body "standard input" (stdin-thunk) #t)
+      (let ((go (fn (self os first?)
+                  (if (null? os) ()
+                    (do (body (first os)
+                          (if (string=? (first os) "-") (stdin-thunk)
+                            (file-read-all (first os)))
+                          first?)
+                        (self (rest os) #f))))))
+        (go ops #t)))))
+
+(def %cu-drop
+  (fn (self l k) (if (<= k 0) l (if (null? l) l (self (rest l) (- k 1))))))
+
 (def %cu-print-lines
   (fn (self ls)
     (if (null? ls) ()
@@ -140,28 +158,49 @@
 (def %cu-head
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "head" argv))
+    (def ops (Opts operands o))
+    (def bytes (Opts value o "-c"))
     (def n (%cu-num-prefix (Opts value o "-n" "10")))
-    (def go
-      (fn (self ls k)
-        (if (null? ls) ()
-          (if (<= k 0) ()
-            (do (display (string-append (first ls) "\n"))
-                (self (rest ls) (- k 1)))))))
-    (do (go (%cu-lines (%cu-gather (Opts operands o) stdin-thunk)) n) 0)))
+    ; a header per operand when there is more than one, as head does;
+    ; -v forces it and -q suppresses it
+    (def head?
+      (if (Opts on? o "-q") #f
+        (if (Opts on? o "-v") #t (> (length ops) 1))))
+    (def one
+      (fn (_ name text first?)
+        (do (if head?
+              (display (string-concat
+                         (list (if first? "" "\n") "==> " name " <==\n")))
+              ())
+            (if (null? bytes)
+              (%cu-print-lines (%cu-take (%cu-lines text) n))
+              (let ((k (%cu-num-prefix bytes)))
+                (display (substring text 0
+                           (if (> k (byte-len text)) (byte-len text) k))))))))
+    (do (%cu-each-operand ops stdin-thunk one) 0)))
 
 (def %cu-tail
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "tail" argv))
+    (def ops (Opts operands o))
+    (def bytes (Opts value o "-c"))
     (def n (%cu-num-prefix (Opts value o "-n" "10")))
-    (def lines (%cu-lines (%cu-gather (Opts operands o) stdin-thunk)))
-    (def drop-n (- (length lines) n))
-    (def go
-      (fn (self ls k)
-        (if (null? ls) ()
-          (if (> k 0) (self (rest ls) (- k 1))
-            (do (display (string-append (first ls) "\n"))
-                (self (rest ls) 0))))))
-    (do (go lines drop-n) 0)))
+    (def head?
+      (if (Opts on? o "-q") #f
+        (if (Opts on? o "-v") #t (> (length ops) 1))))
+    (def one
+      (fn (_ name text first?)
+        (do (if head?
+              (display (string-concat
+                         (list (if first? "" "\n") "==> " name " <==\n")))
+              ())
+            (if (null? bytes)
+              (let ((ls (%cu-lines text)))
+                (%cu-print-lines (%cu-drop ls (- (length ls) n))))
+              (let ((k (%cu-num-prefix bytes)))
+                (def end (byte-len text))
+                (display (substring text (if (> k end) 0 (- end k)) end)))))))
+    (do (%cu-each-operand ops stdin-thunk one) 0)))
 
 ; counts for one text: (lines words bytes)
 (def %cu-wc-counts
