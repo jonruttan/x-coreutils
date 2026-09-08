@@ -42,11 +42,12 @@
       (fn (self i acc)
         (if (>= i stop) (if (= acc 0) 448 acc)         ; bare op means u
           (let ((b (byte-at s i)))
-            (if (= b 117) (self (+ i 1) (bit-or acc 448))     ; u
-              (if (= b 103) (self (+ i 1) (bit-or acc 56))    ; g
-                (if (= b 111) (self (+ i 1) (bit-or acc 7))   ; o
-                  (if (= b 97) (self (+ i 1) (bit-or acc 511)) ; a
-                    (if (= acc 0) 448 acc)))))))))
+            (match
+              ((= b 117) (self (+ i 1) (bit-or acc 448)))     ; u
+              ((= b 103) (self (+ i 1) (bit-or acc 56)))      ; g
+              ((= b 111) (self (+ i 1) (bit-or acc 7)))       ; o
+              ((= b 97)  (self (+ i 1) (bit-or acc 511)))     ; a
+              (#t (if (= acc 0) 448 acc)))))))
     (go 0 0)))
 
 ; the [rwx] letters, spread across all three triples; the who mask
@@ -58,10 +59,11 @@
       (fn (self i acc)
         (if (>= i end) acc
           (let ((b (byte-at s i)))
-            (if (= b 114) (self (+ i 1) (bit-or acc 292))     ; r: 0444
-              (if (= b 119) (self (+ i 1) (bit-or acc 146))   ; w: 0222
-                (if (= b 120) (self (+ i 1) (bit-or acc 73))  ; x: 0111
-                  (self (+ i 1) acc))))))))
+            (match
+              ((= b 114) (self (+ i 1) (bit-or acc 292)))     ; r: 0444
+              ((= b 119) (self (+ i 1) (bit-or acc 146)))     ; w: 0222
+              ((= b 120) (self (+ i 1) (bit-or acc 73)))      ; x: 0111
+              (#t (self (+ i 1) acc)))))))
     (go from 0)))
 
 (def %cu-mode-op-at
@@ -83,9 +85,10 @@
       (let ((who (%cu-mode-who spec at)))
         (def bits (bit-and (%cu-mode-bits spec (+ at 1)) who))
         (def op (byte-at spec at))
-        (if (= op 43) (bit-or mode bits)                       ; +
-          (if (= op 45) (bit-and mode (bit-xor bits 4095))     ; -
-            (bit-or (bit-and mode (bit-xor who 4095)) bits))))))) ; =
+        (match
+          ((= op 43) (bit-or mode bits))                       ; +
+          ((= op 45) (bit-and mode (bit-xor bits 4095)))       ; -
+          (#t (bit-or (bit-and mode (bit-xor who 4095)) bits))))))) ; =
 
 (def %cu-mode-of
   (fn (_ spec current)

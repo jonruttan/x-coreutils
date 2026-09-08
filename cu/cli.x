@@ -244,9 +244,11 @@
 
 (def %cu-cli-engine-flag?
   (fn (_ s)
-    (if (string=? s "--quiet") #t
-      (if (string=? s "--batch") #t
-        (if (string=? s "--no-color") #t (string=? s "--verbose"))))))
+    (match
+      ((string=? s "--quiet")    #t)
+      ((string=? s "--batch")    #t)
+      ((string=? s "--no-color") #t)
+      (#t (string=? s "--verbose")))))
 
 (def cu-argv
   (fn (_ raw)

@@ -97,49 +97,47 @@
 
 (def %t-unary
   (fn (_ op v)
-    (if (string=? op "-e") (file-exists? v)
-      (if (string=? op "-f") (%t-kind? v (lit file))
-        (if (string=? op "-d") (%t-kind? v (lit dir))
-          (if (string=? op "-L") (%t-link? v)
-            (if (string=? op "-h") (%t-link? v)
-              (if (string=? op "-b") (%t-kind? v (lit block))
-                (if (string=? op "-c") (%t-kind? v (lit char))
-                  (if (string=? op "-p") (%t-kind? v (lit fifo))
-                    (if (string=? op "-S") (%t-kind? v (lit socket))
-                      (%t-unary2 op v))))))))))))
-
-(def %t-unary2
-  (fn (_ op v)
-    (if (string=? op "-s")
-      (let ((st (%t-stat v)))
-        (if (null? st) #f (> (%cu-stat-get st (lit size)) 0)))
-      (if (string=? op "-z") (= (byte-len v) 0)
-        (if (string=? op "-n") (> (byte-len v) 0)
-          (if (string=? op "-r") (%t-permitted? v 4)
-            (if (string=? op "-w") (%t-permitted? v 2)
-              (if (string=? op "-x") (%t-permitted? v 1)
-                (if (string=? op "-k") (%t-mode-bit? v 512)      ; sticky
-                  (if (string=? op "-u") (%t-mode-bit? v 2048)   ; setuid
-                    (if (string=? op "-g") (%t-mode-bit? v 1024) ; setgid
-                      (if (string=? op "-t") (sys-isatty (%cu-num-prefix v))
-                        #f))))))))))))
+    (match
+      ((string=? op "-e") (file-exists? v))
+      ((string=? op "-f") (%t-kind? v (lit file)))
+      ((string=? op "-d") (%t-kind? v (lit dir)))
+      ((string=? op "-b") (%t-kind? v (lit block)))
+      ((string=? op "-c") (%t-kind? v (lit char)))
+      ((string=? op "-p") (%t-kind? v (lit fifo)))
+      ((string=? op "-S") (%t-kind? v (lit socket)))
+      ((string=? op "-L") (%t-link? v))
+      ((string=? op "-h") (%t-link? v))
+      ((string=? op "-s")
+        (let ((st (%t-stat v)))
+          (if (null? st) #f (> (%cu-stat-get st (lit size)) 0))))
+      ((string=? op "-z") (= (byte-len v) 0))
+      ((string=? op "-n") (> (byte-len v) 0))
+      ((string=? op "-r") (%t-permitted? v 4))
+      ((string=? op "-w") (%t-permitted? v 2))
+      ((string=? op "-x") (%t-permitted? v 1))
+      ((string=? op "-k") (%t-mode-bit? v 512))       ; sticky
+      ((string=? op "-u") (%t-mode-bit? v 2048))      ; setuid
+      ((string=? op "-g") (%t-mode-bit? v 1024))      ; setgid
+      ((string=? op "-t") (sys-isatty (%cu-num-prefix v)))
+      (#t #f))))
 
 (def %t-binary
   (fn (_ a op b)
     (def na (%cu-num-prefix a))
     (def nb (%cu-num-prefix b))
-    (if (string=? op "=") (string=? a b)
-      (if (string=? op "==") (string=? a b)
-        (if (string=? op "!=") (not (string=? a b))
-          (if (string=? op "-eq") (= na nb)
-            (if (string=? op "-ne") (not (= na nb))
-              (if (string=? op "-lt") (< na nb)
-                (if (string=? op "-le") (<= na nb)
-                  (if (string=? op "-gt") (> na nb)
-                    (if (string=? op "-ge") (>= na nb)
-                      (if (string=? op "-nt") (> (%t-mtime a) (%t-mtime b))
-                        (if (string=? op "-ot") (< (%t-mtime a) (%t-mtime b))
-                          (%t-same-file? a b))))))))))))))
+    (match
+      ((string=? op "=")   (string=? a b))
+      ((string=? op "==")  (string=? a b))
+      ((string=? op "!=")  (not (string=? a b)))
+      ((string=? op "-eq") (= na nb))
+      ((string=? op "-ne") (not (= na nb)))
+      ((string=? op "-lt") (< na nb))
+      ((string=? op "-le") (<= na nb))
+      ((string=? op "-gt") (> na nb))
+      ((string=? op "-ge") (>= na nb))
+      ((string=? op "-nt") (> (%t-mtime a) (%t-mtime b)))
+      ((string=? op "-ot") (< (%t-mtime a) (%t-mtime b)))
+      (#t (%t-same-file? a b)))))
 
 ; --- the grammar --------------------------------------------------------------
 ;

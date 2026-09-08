@@ -22,10 +22,11 @@
               (let ((b (byte-at s i)))
                 (if (if (= b 92) (< (+ i 1) end) #f)
                   (let ((e (byte-at s (+ i 1))))
-                    (if (= e 110) (self (+ i 2) (pair "\n" acc))
-                      (if (= e 116) (self (+ i 2) (pair "\t" acc))
-                        (if (= e 92) (self (+ i 2) (pair "\\" acc))
-                          (self (+ i 1) (pair "\\" acc))))))
+                    (match
+                      ((= e 110) (self (+ i 2) (pair "\n" acc)))
+                      ((= e 116) (self (+ i 2) (pair "\t" acc)))
+                      ((= e 92)  (self (+ i 2) (pair "\\" acc)))
+                      (#t (self (+ i 1) (pair "\\" acc)))))
                   (self (+ i 1) (pair (%cu-b->s b) acc)))))))
         (go 0 ())))
     (def joined (%cu-join-with ops " "))
@@ -44,10 +45,11 @@
           (let ((b (byte-at s i)))
             (if (if (= b 92) (< (+ i 1) end) #f)
               (let ((e (byte-at s (+ i 1))))
-                (if (= e 110) (self (+ i 2) (pair "\n" acc))
-                  (if (= e 116) (self (+ i 2) (pair "\t" acc))
-                    (if (= e 92) (self (+ i 2) (pair "\\" acc))
-                      (self (+ i 2) (pair (%cu-b->s e) acc))))))
+                (match
+                  ((= e 110) (self (+ i 2) (pair "\n" acc)))
+                  ((= e 116) (self (+ i 2) (pair "\t" acc)))
+                  ((= e 92)  (self (+ i 2) (pair "\\" acc)))
+                  (#t (self (+ i 2) (pair (%cu-b->s e) acc)))))
               (self (+ i 1) (pair (%cu-b->s b) acc)))))))
     (go 0 ())))
 
@@ -109,33 +111,26 @@
                 (def c (if (< j end) (byte-at fmt j) 0))
                 (def arg (if (null? as) "" (first as)))
                 (def as2 (if (null? as) () (rest as)))
-                (if (= c 37)
-                  (self (+ j 1) as used (pair "%" acc))
-                  (if (= c 115)                            ; s
+                (match
+                  ((= c 37) (self (+ j 1) as used (pair "%" acc)))
+                  ((= c 115)                                 ; s
+                    (self (+ j 1) as2 #t (pair (%cu-pad arg w left) acc)))
+                  ((= c 100)                                 ; d
                     (self (+ j 1) as2 #t
-                      (pair (%cu-pad arg w left) acc))
-                    (if (= c 100)                          ; d
-                      (self (+ j 1) as2 #t
-                        (pair (%cu-pad
-                                (%cu-int->str (%cu-num-prefix arg))
-                                w left)
-                          acc))
-                      (if (= c 120)                        ; x
-                        (self (+ j 1) as2 #t
-                          (pair (%cu-hexs (%cu-num-prefix arg)) acc))
-                        (if (= c 111)                      ; o
-                          (self (+ j 1) as2 #t
-                            (pair (%cu-oct->str (%cu-num-prefix arg))
-                              acc))
-                          (if (= c 99)                     ; c
-                            (self (+ j 1) as2 #t
-                              (pair
-                                (if (> (byte-len arg) 0)
-                                  (substring arg 0 1) "")
-                                acc))
-                            (Err raise (lit cu)
-                              "printf: only %s %d %x %o %c %%"
-                              ())))))))))))))
+                      (pair (%cu-pad (%cu-int->str (%cu-num-prefix arg)) w left)
+                        acc)))
+                  ((= c 120)                                 ; x
+                    (self (+ j 1) as2 #t
+                      (pair (%cu-hexs (%cu-num-prefix arg)) acc)))
+                  ((= c 111)                                 ; o
+                    (self (+ j 1) as2 #t
+                      (pair (%cu-oct->str (%cu-num-prefix arg)) acc)))
+                  ((= c 99)                                  ; c
+                    (self (+ j 1) as2 #t
+                      (pair (if (> (byte-len arg) 0) (substring arg 0 1) "")
+                        acc)))
+                  (#t (Err raise (lit cu)
+                        "printf: only %s %d %x %o %c %%" ())))))))))
     (go 0 args #f ())))
 
 (def %cu-printf
@@ -158,9 +153,10 @@
     (def step
       (if (= n 3) (%cu-num-prefix (first (rest argv))) 1))
     (def z (%cu-num-prefix
-             (if (= n 1) (first argv)
-               (if (= n 2) (first (rest argv))
-                 (first (rest (rest argv)))))))
+             (match
+               ((= n 1) (first argv))
+               ((= n 2) (first (rest argv)))
+               (#t (first (rest (rest argv)))))))
     (def go
       (fn (self i)
         (if (if (> step 0) (> i z) (< i z))

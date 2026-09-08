@@ -211,7 +211,7 @@
         (if (>= i end)
           (list nl (if in-word (+ nw 1) nw) end)
           (let ((b (byte-at s i)))
-            (def ws (if (= b 32) #t (if (= b 9) #t (= b 10))))
+            (def ws (match ((= b 32) #t) ((= b 9) #t) (#t (= b 10))))
             (self (+ i 1)
               (if (= b 10) (+ nl 1) nl)
               (if (if in-word ws #f) (+ nw 1) nw)

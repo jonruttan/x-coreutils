@@ -29,21 +29,25 @@
 
 (def %cu-kind-letter
   (fn (_ kind)
-    (if (eq? kind (lit dir)) "d"
-      (if (eq? kind (lit link)) "l"
-        (if (eq? kind (lit char)) "c"
-          (if (eq? kind (lit block)) "b"
-            (if (eq? kind (lit fifo)) "p"
-              (if (eq? kind (lit socket)) "s" "-"))))))))
+    (match
+      ((eq? kind (lit dir))    "d")
+      ((eq? kind (lit link))   "l")
+      ((eq? kind (lit char))   "c")
+      ((eq? kind (lit block))  "b")
+      ((eq? kind (lit fifo))   "p")
+      ((eq? kind (lit socket)) "s")
+      (#t "-"))))
 
 (def %cu-kind-word
   (fn (_ kind)
-    (if (eq? kind (lit dir)) "directory"
-      (if (eq? kind (lit link)) "symbolic link"
-        (if (eq? kind (lit char)) "character special file"
-          (if (eq? kind (lit block)) "block special file"
-            (if (eq? kind (lit fifo)) "fifo"
-              (if (eq? kind (lit socket)) "socket" "regular file"))))))))
+    (match
+      ((eq? kind (lit dir))    "directory")
+      ((eq? kind (lit link))   "symbolic link")
+      ((eq? kind (lit char))   "character special file")
+      ((eq? kind (lit block))  "block special file")
+      ((eq? kind (lit fifo))   "fifo")
+      ((eq? kind (lit socket)) "socket")
+      (#t "regular file"))))
 
 ; rwx for one octal digit; the sticky and setid bits are not spelled
 (def %cu-rwx
@@ -67,23 +71,25 @@
   (fn (_ c name st)
     (def kind (%cu-stat-get st (lit kind)))
     (def mode (%cu-stat-get st (lit mode)))
-    (if (= c 110) name                                       ; n
-      (if (= c 115) (%cu-int->str (%cu-stat-get st (lit size)))    ; s
-        (if (= c 98) (%cu-int->str (%cu-stat-get st (lit blocks))) ; b
-          (if (= c 66) "512"                                       ; B
-            (if (= c 102) (%cu-hexs mode)                          ; f
-              (if (= c 97) (%cu-mode-octal mode)                   ; a
-                (if (= c 65) (%cu-perm-string kind mode)           ; A
-                  (if (= c 117) (%cu-int->str (%cu-stat-get st (lit uid)))   ; u
-                    (if (= c 103) (%cu-int->str (%cu-stat-get st (lit gid))) ; g
-                      (if (= c 104) (%cu-int->str (%cu-stat-get st (lit nlink))) ; h
-                        (if (= c 105) (%cu-int->str (%cu-stat-get st (lit ino)))  ; i
-                          (if (= c 70) (%cu-kind-word kind)        ; F
-                            (if (= c 88) (%cu-int->str (%cu-stat-get st (lit atime)))  ; X
-                              (if (= c 89) (%cu-int->str (%cu-stat-get st (lit mtime))) ; Y
-                                (if (= c 90) (%cu-int->str (%cu-stat-get st (lit ctime))) ; Z
-                                  (if (= c 111) (%cu-int->str (%cu-stat-get st (lit blksize))) ; o
-                                    (string-append "%" (%cu-b->s c))))))))))))))))))))
+    (def num (fn (_ key) (%cu-int->str (%cu-stat-get st key))))
+    (match
+      ((= c 110) name)                          ; n
+      ((= c 115) (num (lit size)))              ; s
+      ((= c 98)  (num (lit blocks)))            ; b
+      ((= c 66)  "512")                         ; B
+      ((= c 102) (%cu-hexs mode))               ; f
+      ((= c 97)  (%cu-mode-octal mode))         ; a
+      ((= c 65)  (%cu-perm-string kind mode))   ; A
+      ((= c 117) (num (lit uid)))               ; u
+      ((= c 103) (num (lit gid)))               ; g
+      ((= c 104) (num (lit nlink)))             ; h
+      ((= c 105) (num (lit ino)))               ; i
+      ((= c 70)  (%cu-kind-word kind))          ; F
+      ((= c 88)  (num (lit atime)))             ; X
+      ((= c 89)  (num (lit mtime)))             ; Y
+      ((= c 90)  (num (lit ctime)))             ; Z
+      ((= c 111) (num (lit blksize)))           ; o
+      (#t (string-append "%" (%cu-b->s c))))))
 
 (def %cu-stat-format
   (fn (_ fmt name st)

@@ -70,19 +70,21 @@
     (def end (byte-len pat))
     (if (>= i end) (pair (reverse acc) i)
       (let ((b (byte-at pat i)))
-        (if (= b 92) (%cu-re-parse-escape self pat i closing? acc)
-          (if (if (= b 36) (= (+ i 1) end) #f)                 ; $ at the end
-            (self pat (+ i 1) closing? (pair (list (lit eol) 0 #f) acc))
-            (if (= b 91)                                       ; [
-              (let ((c (%cu-re-class pat (+ i 1))))
-                (self pat (%cu-re-after (rest c) pat) closing?
-                  (pair (list (lit cls) (first c)
-                          (%cu-re-starred? pat (rest c)))
-                    acc)))
-              (self pat (%cu-re-after (+ i 1) pat) closing?
-                (pair (list (if (= b 46) (lit any) (lit ch)) b
-                        (%cu-re-starred? pat (+ i 1)))
-                  acc)))))))))
+        (match
+          ((= b 92) (%cu-re-parse-escape self pat i closing? acc))
+          ((if (= b 36) (= (+ i 1) end) #f)                    ; $ at the end
+            (self pat (+ i 1) closing? (pair (list (lit eol) 0 #f) acc)))
+          ((= b 91)                                            ; [
+            (let ((c (%cu-re-class pat (+ i 1))))
+              (self pat (%cu-re-after (rest c) pat) closing?
+                (pair (list (lit cls) (first c)
+                        (%cu-re-starred? pat (rest c)))
+                  acc))))
+          (#t
+            (self pat (%cu-re-after (+ i 1) pat) closing?
+              (pair (list (if (= b 46) (lit any) (lit ch)) b
+                      (%cu-re-starred? pat (+ i 1)))
+                acc))))))))
 
 ; \( opens a group, \) closes the one being parsed, and anything else
 ; escaped is the literal byte
@@ -125,10 +127,11 @@
     (if (>= i (byte-len s)) #f
       (let ((k (%cu-re-kind a)))
         (def b (byte-at s i))
-        (if (eq? k (lit ch)) (= b (%cu-re-data a))
-          (if (eq? k (lit any)) #t
-            (if (eq? k (lit cls)) (%cu-re-in-class? (%cu-re-data a) b)
-              #f)))))))
+        (match
+          ((eq? k (lit ch))  (= b (%cu-re-data a)))
+          ((eq? k (lit any)) #t)
+          ((eq? k (lit cls)) (%cu-re-in-class? (%cu-re-data a) b))
+          (#t #f))))))
 
 (def %cu-re-run
   (fn (self a s i n)
@@ -168,16 +171,15 @@
     (if (null? atoms) (list i gs ge)
       (let ((a (first atoms)))
         (def k (%cu-re-kind a))
-        (if (eq? k (lit rep)) (%cu-re-rep atoms s i gs ge)
-          (if (eq? k (lit gopen)) (self (rest atoms) s i i ge)
-            (if (eq? k (lit gclose)) (self (rest atoms) s i gs i)
-              (if (eq? k (lit eol))
-                (if (= i (byte-len s)) (self (rest atoms) s i gs ge) ())
-                (if (%cu-re-star? a)
-                  (%cu-re-star-try atoms s i gs ge)
-                  (if (%cu-re-one? a s i)
-                    (self (rest atoms) s (+ i 1) gs ge)
-                    ()))))))))))))
+        (match
+          ((eq? k (lit rep))    (%cu-re-rep atoms s i gs ge))
+          ((eq? k (lit gopen))  (self (rest atoms) s i i ge))
+          ((eq? k (lit gclose)) (self (rest atoms) s i gs i))
+          ((eq? k (lit eol))
+            (if (= i (byte-len s)) (self (rest atoms) s i gs ge) ()))
+          ((%cu-re-star? a) (%cu-re-star-try atoms s i gs ge))
+          ((%cu-re-one? a s i) (self (rest atoms) s (+ i 1) gs ge))
+          (#t ())))))))
 
 ; a capture is either a spliced group or a starred one
 (def %cu-re-has-group?
@@ -224,13 +226,13 @@
   (fn (_ op a b)
     (def x (%cu-expr-int a))
     (def y (%cu-expr-int b))
-    (if (string=? op "+") (%cu-int->str (+ x y))
-      (if (string=? op "-") (%cu-int->str (- x y))
-        (if (string=? op "*") (%cu-int->str (* x y))
-          (if (= y 0) (Err raise (lit cu) "expr: division by zero" ())
-            (if (string=? op "/")
-              (%cu-int->str (/ (- x (% x y)) y))
-              (%cu-int->str (% x y)))))))))
+    (match
+      ((string=? op "+") (%cu-int->str (+ x y)))
+      ((string=? op "-") (%cu-int->str (- x y)))
+      ((string=? op "*") (%cu-int->str (* x y)))
+      ((= y 0) (Err raise (lit cu) "expr: division by zero" ()))
+      ((string=? op "/") (%cu-int->str (/ (- x (% x y)) y)))
+      (#t (%cu-int->str (% x y))))))
 
 ; a comparison is numeric when BOTH sides look like numbers, and a
 ; byte-wise string comparison otherwise
@@ -243,24 +245,28 @@
           (if (< x y) (- 0 1) (if (> x y) 1 0)))
         (if (string=? a b) 0 (if (%cu-str< a b) (- 0 1) 1))))
     (def yes
-      (if (string=? op "=") (= c 0)
-        (if (string=? op "==") (= c 0)
-          (if (string=? op "!=") (not (= c 0))
-            (if (string=? op "<") (< c 0)
-              (if (string=? op "<=") (<= c 0)
-                (if (string=? op ">") (> c 0) (>= c 0))))))))
+      (match
+        ((string=? op "=")  (= c 0))
+        ((string=? op "==") (= c 0))
+        ((string=? op "!=") (not (= c 0)))
+        ((string=? op "<")  (< c 0))
+        ((string=? op "<=") (<= c 0))
+        ((string=? op ">")  (> c 0))
+        (#t (>= c 0))))
     (if yes "1" "0")))
 
 ; --- the grammar ---------------------------------------------------------------
 
 (def %cu-expr-cmp-op?
   (fn (_ s)
-    (if (string=? s "<") #t
-      (if (string=? s "<=") #t
-        (if (string=? s "=") #t
-          (if (string=? s "==") #t
-            (if (string=? s "!=") #t
-              (if (string=? s ">=") #t (string=? s ">")))))))))
+    (match
+      ((string=? s "<")  #t)
+      ((string=? s "<=") #t)
+      ((string=? s "=")  #t)
+      ((string=? s "==") #t)
+      ((string=? s "!=") #t)
+      ((string=? s ">=") #t)
+      (#t (string=? s ">")))))
 
 (def %cu-expr-or
   (fn (_ ts)
@@ -346,14 +352,15 @@
   (fn (_ ts)
     (if (null? ts) (pair "" ())
       (let ((t (first ts)))
-        (if (string=? t "(") (%cu-expr-group (rest ts))
-          (if (string=? t "length")
+        (match
+          ((string=? t "(") (%cu-expr-group (rest ts)))
+          ((string=? t "length")
             (let ((r (%cu-expr-prim (rest ts))))
-              (pair (%cu-int->str (byte-len (first r))) (rest r)))
-            (if (string=? t "match") (%cu-expr-match-op (rest ts))
-              (if (string=? t "substr") (%cu-expr-substr (rest ts))
-                (if (string=? t "index") (%cu-expr-index (rest ts))
-                  (pair t (rest ts)))))))))))
+              (pair (%cu-int->str (byte-len (first r))) (rest r))))
+          ((string=? t "match")  (%cu-expr-match-op (rest ts)))
+          ((string=? t "substr") (%cu-expr-substr (rest ts)))
+          ((string=? t "index")  (%cu-expr-index (rest ts)))
+          (#t (pair t (rest ts))))))))
 
 (def %cu-expr-group
   (fn (_ ts)
