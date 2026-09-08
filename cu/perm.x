@@ -350,7 +350,10 @@
 
 (def %cu-df-show
   (fn (_ blocks o)
-    (if (Opts on? o "-h") (%cu-human blocks)
+    ; %ls-human formats BYTES -- it is ls's -h -- and a df row counts
+    ; 1024-byte blocks, so the count is scaled before it is formatted.
+    ; Unscaled, a 926G filesystem printed as 926M.
+    (if (Opts on? o "-h") (%ls-human (* blocks 1024))
       (%cu-int->str (let ((u (%cu-df-unit o)))
                       (/ (- blocks (% blocks u)) u))))))
 

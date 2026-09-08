@@ -15,6 +15,9 @@
 ;   x -l coreutils -f tools/options-matrix.x > docs/options.md
 ;   make options
 
+; busybox-options arrives by INCLUDE, not import, so no preload binds
+; it -- this is the linter's own escape hatch for exactly that.
+; lint-known: busybox-options
 (include-once "docs/busybox-options.x")
 
 (def %mx-member?

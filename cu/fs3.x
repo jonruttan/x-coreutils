@@ -197,7 +197,9 @@
 ; are accepted and named below.
 (def %cu-du-show
   (fn (_ n o)
-    (if (Opts on? o "-h") (%ls-human n)
+    ; BLOCKS TO BYTES: -k is du's own unit and %ls-human's is bytes, so
+    ; a 268K directory printed as a bare "268" until this scaled.
+    (if (Opts on? o "-h") (%ls-human (* n 1024))
       (if (Opts on? o "-m")
         (%cu-int->str (/ (- n (% n 1024)) 1024))
         (%cu-int->str n)))))

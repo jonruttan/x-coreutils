@@ -620,6 +620,24 @@ k>m
     Inodes     IUsed     IFree IUse% Mounted on
 ```
 
+### -h scales blocks to bytes: du and df count 1024-byte blocks, %ls-human formats bytes
+
+`%ls-human` is `ls -h`'s formatter and takes BYTES.  Both `du -h` and
+`df -h` handed it their own block counts unscaled, so a 256K directory
+printed as a bare `256` and a 926G filesystem as `926M` -- a thousandfold
+under-report that reads as a plausible number.  The check is relational,
+so it holds on any machine: the `-h` field must be what `%ls-human` makes
+of the `-k` count scaled to bytes.
+
+```cu
+(do (def kb (%cu-num-prefix (cu-out (list "du" "-k" "-s" "/tmp/x-cu-fm")))) (display (if (string=? (cu-out (list "du" "-h" "-s" "/tmp/x-cu-fm")) (string-concat (list (%ls-human (* 1024 kb)) "\t/tmp/x-cu-fm\n"))) "du-h-scaled" "du-h-wrong")) (newline) (def hrow (first (rest (%cu-lines (cu-out (list "df" "-h" "/tmp")))))) (def krow (first (rest (%cu-lines (cu-out (list "df" "-k" "/tmp")))))) (display (if (string=? (substring hrow 0 10) (%cu-pad-left (%ls-human (* 1024 (%cu-num-prefix krow))) 10)) "df-h-scaled" "df-h-wrong")))
+```
+---
+```output
+du-h-scaled
+df-h-scaled
+```
+
 ### install honours the mode, makes parents under -D, and -t names a directory
 
 ```cu
