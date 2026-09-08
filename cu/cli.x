@@ -131,10 +131,13 @@
 ; accepted-but-unread flag is not a bug to find, it is unspellable.
 ;
 ; An applet absent from this table takes no options at all.
+; test's whole vocabulary -- the guard needs to know every dash-word
+; the grammar accepts, or it would refuse an operator as an option.
 (def %cu-test-operators
-  (list "-e" "-f" "-d" "-s" "-z" "-n"
-        "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
-        "=" "!=" "!"))
+  (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
+        "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
+        "-eq" "-ne" "-lt" "-le" "-gt" "-ge" "-nt" "-ot" "-ef"
+        "-a" "-o" "=" "==" "!=" "!" "(" ")"))
 
 (def %cu-option-spec
   (list

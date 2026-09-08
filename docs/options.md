@@ -8,8 +8,8 @@ the work.  Applet parity is the other axis: see the README.
 
 | applet | busybox accepts | ours | missing | coverage |
 |---|---|---|---|---|
-| `[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -eq -ne -lt -le -gt -ge = != ! | -r -w -x -L -h -b -c -p -S -k -u -g -t -nt -ot -ef -a -o ( ) | 42% |
-| `[[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -eq -ne -lt -le -gt -ge = != ! | -r -w -x -L -h -b -c -p -S -k -u -g -t -nt -ot -ef -a -o ( ) | 42% |
+| `[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
+| `[[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `arch` |  |  |  | - |
 | `base64` | -d -w | -d | -w | 50% |
 | `basename` | -s |  | -s | 0% |
@@ -24,7 +24,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -r -R -P -L -H -p -f -i -l -s -T -u |  | 100% |
 | `cut` | -b -c -f -d -s -n | -d -f -c | -b -s -n | 50% |
 | `date` | -u -d -D -s -r -R -I +FMT |  | -u -d -D -s -r -R -I +FMT | 0% |
-| `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= |  | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | 0% |
+| `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= count= skip= seek= status= | ibs= obs= conv= iflag= oflag= | 58% |
 | `df` | -P -k -m -h -T -a -i -B | -h -k | -P -m -T -a -i -B | 25% |
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U |  | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | 0% |
 | `dirname` |  |  |  | - |
@@ -80,7 +80,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tac` |  |  |  | - |
 | `tail` | -c -f -n -q -s -v | -n | -c -f -q -s -v | 16% |
 | `tee` | -a -i | -a | -i | 50% |
-| `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -eq -ne -lt -le -gt -ge = != ! | -r -w -x -L -h -b -c -p -S -k -u -g -t -nt -ot -ef -a -o ( ) | 42% |
+| `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `timeout` | -s -k | -s | -k | 50% |
 | `touch` | -c -d -t -r | -c | -d -t -r | 25% |
 | `tr` | -c -d -s | -d -s | -c | 66% |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -n | -0 -a -E -I -p -r -s -t -x | 10% |
 | `yes` |  |  |  | - |
 
-**Total: 199 of 426 busybox options accepted (46%).**
+**Total: 266 of 426 busybox options accepted (62%).**
