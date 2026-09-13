@@ -140,11 +140,11 @@
                         acc))))))
         (go operands ())))))
 
-; THE LAST HAND-ROLLED READ.  Everything reads its options off
-; cu/cli.x's declaration now -- except comm, whose flags are DIGITS:
-; v0.13.0's Opts decides `-12` is a negative number before it consults
-; the declaration, so the cluster never reaches the parse.  x-lang#650
-; makes the declaration win, and these two go when it ships.
+; The last hand-rolled option read: everything reads its options off cu/cli.x's
+; declaration except comm, whose flags are digits -- v0.13.0's Opts decides
+; `-12` is a negative number before consulting the declaration, so the cluster
+; never reaches the parse. x-lang#650 makes the declaration win, and these two
+; go when it ships.
 (def %cu-option-token-ish?
   (fn (_ s) (if (< (byte-len s) 2) #f (= (byte-at s 0) 45))))
 
@@ -263,11 +263,9 @@
 ; comm: three columns over two sorted inputs; -1 -2 -3 suppress
 (def %cu-comm
   (fn (_ argv stdin-thunk)
-    ; COMM'S FLAGS ARE DIGITS, and v0.13.0's Opts decides `-12` is a
-    ; negative number before it consults the declaration, so the cluster
-    ; never reaches the parse.  x-lang#650 makes the declaration win;
-    ; until that ships, comm reads its three digits itself.  Everything
-    ; else -- the operands, the guard -- still comes off the one parse.
+    ; comm's flags are digits, and v0.13.0's Opts decides `-12` is a negative
+    ; number before consulting the declaration, so comm reads its three digits
+    ; itself until x-lang#650 ships. Everything else comes off the one parse.
     (def o (%cu-opts "comm" argv))
     (def digit?
       (fn (_ d)

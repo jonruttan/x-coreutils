@@ -11,11 +11,9 @@
 ; and stat(1) and du(1) want uid, gid, links, inode and the block
 ; count as well.
 
-;  THE PARSERS ARE GONE.  Nine of them lived here and across the
-; applets -- clustered letters, attached values, the -n count, one
-; operand filter per applet.  All of it is (Opts parse ...) against
-; cu/cli.x's declaration now, so the guard and the applet cannot
-; disagree about what a flag meant.
+; Options come off (Opts parse ...) against cu/cli.x's declaration, so the guard
+; and the applet cannot disagree about what a flag meant -- the hand-rolled
+; per-applet parsers that lived here and across the applets are gone.
 
 (def %cu-stat-get
   (fn (_ st key)
@@ -65,8 +63,8 @@
 
 ; --- stat ---------------------------------------------------------------------
 
-; -c FMT: the GNU specifiers busybox carries.  Anything else is copied
-; through, so a format is never silently eaten.
+; -c FMT: the GNU specifiers busybox carries. Anything else is copied through,
+; so a format is never silently eaten.
 (def %cu-stat-spec
   (fn (_ c name st)
     (def kind (%cu-stat-get st (lit kind)))
@@ -198,8 +196,8 @@
 ; are accepted and named below.
 (def %cu-du-show
   (fn (_ n o)
-    ; BLOCKS TO BYTES: -k is du's own unit and %ls-human's is bytes, so
-    ; a 268K directory printed as a bare "268" until this scaled.
+    ; Blocks to bytes: -k is du's own unit and %ls-human's is bytes, so a 268K
+    ; directory would print as a bare "268" without this scaling.
     (if (Opts on? o "-h") (%ls-human (* n 1024))
       (if (Opts on? o "-m")
         (%cu-int->str (/ (- n (% n 1024)) 1024))

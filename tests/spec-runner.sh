@@ -3,14 +3,14 @@
 #
 # ## tests/spec-runner.sh -- the bundle's runner
 #
-# @description Sources the PLATFORM's spec runner; vendors nothing.
+# @description Sources the platform's spec runner; vendors nothing.
 # @author [Jon Ruttan](jonruttan@gmail.com)
 # @copyright 2026 Jon Ruttan
 # @license MIT No Attribution (MIT-0)
 #
-# NOT ONE PATH INTO THE X-LANG SOURCE TREE.  Everything here comes from x
-# itself: --share-dir says which tree x reads from (repo root in a checkout,
-# share/x installed) and --engine-path says where the engine is.
+# No path reaches into an x-lang source tree; everything comes from x itself:
+# --share-dir says which tree x reads from (repo root in a checkout, share/x
+# when installed) and --engine-path says where the engine is.
 #
 # Set X to point at a particular x; otherwise the one on PATH is used.
 set -e
@@ -26,8 +26,9 @@ command -v "$X" >/dev/null 2>&1 || {
 X_ROOT="$("$X" --share-dir)"
 X_BIN="${X_BIN:-$("$X" --engine-path)}"
 
-# REQUIRED FROM AN INSTALLED TREE: the runner finds its harness from the
-# directory holding the ENGINE, which is only true in a checkout.
+# The platform runner locates its harness relative to the engine binary, which
+# sits beside tests/ only in a checkout; a sourced script cannot portably find
+# its own path, so the caller sets this.
 SPEC_RUNNER_DIR="$X_ROOT/tests"
 export SPEC_RUNNER_DIR
 
@@ -39,15 +40,11 @@ LANG_LIB="$BUNDLE/tests/lib/harness.gen.x"
 # SPEC_PATH is env-overridable so a single spec file can be run in isolation.
 SPEC_PATH="${SPEC_PATH:-$BUNDLE/tests/specs}"
 
-# THE SEAM COLLECT IS BACK ON.  It was off for x-lang#568/#572, where
-# the per-seam heap collect killed x-ash's and x-python's suites -- a
-# real defect, and x-lang#599's, both closed by v0.12.0 (engine v0.2.8).
-# Leaving the knob at 0 after that had a cost nobody was paying
-# attention to: x has no automatic GC, so a file's allocations
-# accumulate across every one of its snippets, and 06-test.spec.md hit
-# the allocation ceiling on nothing heavier than stat calls.  Still
-# overridable, so the next suite to suspect the collect can measure it
-# rather than inherit a knob.
+# The seam collect is on. It was off for x-lang#568/#572 (where the per-seam
+# collect killed the x-ash and x-python suites), both closed by v0.12.0; leaving
+# it off then had a cost, since x has no automatic GC and a file's allocations
+# accumulate across its snippets until the ceiling. Still overridable, so a
+# suite that suspects the collect can measure rather than inherit the knob.
 export SPEC_SEAM_COLLECT="${SPEC_SEAM_COLLECT:-1}"
 
 . "$X_ROOT/tests/spec-runner.sh"

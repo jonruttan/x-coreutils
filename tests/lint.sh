@@ -3,17 +3,14 @@
 #
 # ## tests/lint.sh -- shim onto the lang kit's linter
 #
-# @description Sources the PLATFORM's lint; vendors nothing.  --strict
-#   fails on the advisory rules, which is how this bundle wants them.
+# @description Sources the platform's lint; vendors nothing.  --strict fails
+#   on the advisory rules, which is how this bundle wants them.
 # @author [Jon Ruttan](jonruttan@gmail.com)
 # @copyright 2026 Jon Ruttan
 # @license MIT No Attribution (MIT-0)
 #
-# THE BUNDLE WAS SWEPT BY NOTHING.  x-lang's `make lint-x` covers lib/
-# and apps/; a lang under languages/ was covered by neither, so every
-# rule the linter knows was advice this bundle never heard -- and it
-# accumulated twenty-one `ladder` findings, nested if chains branching
-# on one variable, all written after that rule shipped.
+# A lang under languages/ is not covered by x-lang's `make lint-x` (which sweeps
+# lib/ and apps/), so this shim runs the same linter over this bundle.
 #
 # Set X to point at a particular x; X_LANG_KIT overrides the kit.
 set -e
@@ -23,14 +20,11 @@ X="${X:-x}"
 
 KIT="${X_LANG_KIT:-$("$X" --share-dir)/tools/lang-kit}"
 
-# A GATE THE PLATFORM CANNOT RUN YET SKIPS; it does not fail the build.
-# tests/spec-gate.sh exits 2 on a missing kit, and that is right for a
-# file every x has shipped for months -- but the kit linter is NEW, no
-# released x carries it, and `check` depends on this.  Hard-failing here
-# would break `make check` on every x that exists until a release lands,
-# which is a cadence this bundle does not set.  The notice names the
-# exact missing file, and the day an x ships it the gate is hard
-# everywhere with no edit here.
+# A gate the platform cannot run yet skips; it does not fail the build. The kit
+# linter is new, so no released x carries it, and hard-failing here would break
+# `make check` on every existing x until a release lands. The notice names the
+# missing file, and the day an x ships it the gate is hard everywhere with no
+# edit here.
 [ -f "$KIT/lint.sh" ] || {
 	echo "x-coreutils: SKIPPING lint -- no $KIT/lint.sh in this x." >&2
 	echo "x-coreutils: it arrives with the lang kit's linter; upgrade x to gate on it." >&2

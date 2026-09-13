@@ -63,19 +63,13 @@
 
 ; --- CU-WS: a run of spaces and tabs -----------------------------------------
 ;
-; ONE TYPE, THREE ANSWERS: the run reads as nothing under -w, as a single
-; space under -b, and as itself otherwise.  A line's tokens concatenate
-; to its normal form, so "reads as nothing" is the empty string and the
-; words on either side close up.
-;
-; A NEGATIVE SCORE WOULD BE THE OTHER WAY TO DROP IT, and it does work --
-; measured: a type with no `read` handler and a score of -1 produces no
-; token at all, which is how PY-WS and the other bundles discard
-; whitespace.  It does NOT work for this type, because a type that has a
-; `read` handler produces that handler's value whatever the score is,
-; and -b needs a handler to answer " ".  So the handler decides all
-; three, and the score stays positive rather than claiming a mechanism
-; that is not the one doing the work.
+; One type, three answers: the run reads as nothing under -w, as a single space
+; under -b, and as itself otherwise. A line's tokens concatenate to its normal
+; form, so "reads as nothing" is the empty string and the words close up. The
+; handler decides all three: a negative-score type with no read handler would
+; drop the run (how other bundles discard whitespace), but -b needs a handler
+; to answer " ", and a type with a read handler produces its value whatever the
+; score.
 (def %cu-dl-ws-more ())
 (set! %cu-dl-ws-more
   (fn (_ buffer score chr)

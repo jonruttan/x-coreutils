@@ -8,12 +8,11 @@
 ;
 ; id whoami groups logname uname arch nproc nice chroot.
 ;
-; THE NAME PROBLEM.  There is no passwd or group door -- nothing here
-; can turn uid 501 into "jon".  Two answers are available and both are
-; used: /etc/passwd is read when it holds the id (true on Linux, and
-; for the system accounts on macOS), and $USER or $LOGNAME stands in
-; when it does not.  The numeric id is the last resort, and is never
-; wrong.  `id -u` and friends never need a name at all.
+; The name problem: there is no passwd or group door, so nothing here turns uid
+; 501 into "jon". /etc/passwd is read when it holds the id (true on Linux, and
+; for system accounts on macOS), and $USER or $LOGNAME stands in otherwise; the
+; numeric id is the last resort and is never wrong. `id -u` and friends need no
+; name at all.
 
 (def %cu-passwd-name
   (fn (_ uid)
@@ -107,10 +106,9 @@
       (fn (_ flag key)
         (if (if a? #t (Opts on? o flag))
           (list (%cu-uname-field u key)) ())))
-    ; -p -i -o have no door: the processor type and the "operating
-    ; system" string are sysctl and a constant busybox compiles in.
-    ; They answer `unknown`, which is what uname does when it cannot
-    ; tell -- silently printing the machine would be worse.
+    ; -p -i -o have no door: the processor type and the "operating system"
+    ; string are sysctl and a busybox compile-time constant. They answer
+    ; `unknown`, as uname does when it cannot tell.
     (def parts
       (append (want "-s" (lit sysname))
         (append (want "-n" (lit nodename))

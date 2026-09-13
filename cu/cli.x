@@ -117,22 +117,15 @@
             (self (rest es))))))
     (go %cu-applets)))
 
-; THE OPTION DECLARATION.  One row per applet: the flags that stand
-; alone, the flags that take an argument, and -- for an applet whose
-; operands can themselves look like flags -- the word `leading`, which
-; stops the parse at the first operand so that `echo hi -n` prints
-; `hi -n` and `timeout 5 prog -x` leaves -x to prog.
+; The option declaration. One row per applet: the flags that stand alone, the
+; flags that take an argument, and -- for an applet whose operands can look like
+; flags -- the word `leading`, which stops the parse at the first operand so
+; `echo hi -n` prints `hi -n` and `timeout 5 prog -x` leaves -x to prog.
 ;
-; THE GUARD AND THE APPLET READ THE SAME ROW.  They used to disagree:
-; the guard admitted `-sm`, `-k2` and `-r` while the applets behind it
-; compared whole tokens, knew only the separated spelling, and in one
-; case ignored the flag entirely -- three defects, each a flag accepted
-; and then not read.  Both sides now go through %cu-opts, so an
-; accepted-but-unread flag is not a bug to find, it is unspellable.
-;
-; An applet absent from this table takes no options at all.
-; test's whole vocabulary -- the guard needs to know every dash-word
-; the grammar accepts, or it would refuse an operator as an option.
+; The guard and the applet read the same row (both through %cu-opts), so a flag
+; that is accepted but never read is unspellable rather than a bug to find. An
+; applet absent from this table takes no options; test's whole vocabulary is
+; here because the guard must know every dash-word the grammar accepts.
 (def %cu-test-operators
   (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
         "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"

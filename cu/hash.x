@@ -237,11 +237,10 @@
 
 ; --- the digest applets -------------------------------------------------------
 
-; md5sum/sha1sum/sha256sum share one shape: DIGEST then two spaces then
-; the name, with `-` standing for stdin.
-; A DIGEST IS COMPARED CASE-INSENSITIVELY, and not by lowering the whole
-; string first: a checksum file may spell its hex either way, and the
-; comparison is the only place that cares.
+; md5sum/sha1sum/sha256sum share one shape: DIGEST then two spaces then the
+; name, with `-` for stdin. A digest is compared case-insensitively -- a
+; checksum file may spell its hex either way -- and only at the comparison,
+; not by lowering the whole string first.
 (def %cu-lc-byte
   (fn (_ b) (if (if (>= b 65) (<= b 90) #f) (+ b 32) b)))
 
