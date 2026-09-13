@@ -58,19 +58,16 @@
                   (self (rest os) st)))))))
     (each argv 0)))
 
-; xargs: stdin words append to the command (default echo); -n N batches
+; xargs: stdin words append to the command (default echo); -n N batches.
 ; --- xargs -------------------------------------------------------------------
 ;
-; TWO OF BUSYBOX'S NINE ARE NOT DECLARED, and the reason is the rule this
-; bundle keeps: an option the guard accepts and the applet does not read
-; is how every option bug here got in.
+; Two of busybox's nine flags are not declared, because an option the guard
+; accepts and the applet does not read is how option bugs get in:
 ;
-;   -0  input items separated by NUL.  The input cannot REACH the applet:
-;       a NUL truncates an x string at every door -- file-read-all on a
-;       six-byte file with NULs answers 2, and a raw file-read-fd answers
-;       2 as well.  Declaring -0 would accept a flag whose input is
-;       unrepresentable.
-;   -p  prompt before each command.  A prompt wants a tty, and the applet
+;   -0  input items separated by NUL. The input cannot reach the applet -- a
+;       NUL truncates an x string at every door, so declaring -0 would accept a
+;       flag whose input is unrepresentable.
+;   -p  prompt before each command. A prompt wants a tty, and the applet
 ;       protocol hands an applet one string of stdin and nothing else.
 ;
 ; The other seven are here.

@@ -231,8 +231,8 @@
         (if (null? out) (do (display text) 0)
           (do (file-write-all out text) 0))))))
 
-; sort's operands come off the parse: a value flag's argument was
-; never an operand, and this used to have to say so itself.
+; sort's operands come off the parse: a value flag's argument is not an
+; operand.
 
 ; -u drops a line the comparison calls equal to the one before it
 (def %sort-dedup

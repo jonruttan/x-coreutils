@@ -44,11 +44,10 @@
         2944078676154940804 3659926193048069267 4368137639120453308 4836135668995329356
         5532061633213252278 6448918945643986474 6902733635092675308 7801388544844847127))
 
-; THE LOW-BITS MASK, built without arithmetic.  (- (<< 1 63) 1) is the
-; obvious spelling and it is WRONG on a host that loads the numeric
-; tower: the subtraction overflows int64 and promotes, and the bitwise
-; ops then refuse the bigint.  Shifting -1 up and flipping it never
-; leaves the machine word.
+; The low-bits mask, built without arithmetic. (- (<< 1 63) 1) is the obvious
+; spelling and is wrong on a host that loads the numeric tower: the subtraction
+; overflows int64 and promotes, and the bitwise ops then refuse the bigint.
+; Shifting -1 up and flipping it never leaves the machine word.
 (def %cu-low-mask
   (fn (_ w) (bit-xor (bit-shl (- 0 1) w) (- 0 1))))
 

@@ -6,16 +6,12 @@
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)
 ;
-; The tools that MOVE bytes and names around, and the options busybox
-; gives them.  Two rules hold across all of them.
-;
-; Bytes go through file-copy, never read-all + write-all: a string's
-; observable bytes end at its first NUL, so the old spelling silently
-; truncated anything that was not text.
-;
-; An overwrite is a QUESTION when -i asks it.  There is no terminal in
-; a pipeline, and GNU cp reads EOF as "no" there, so -i declines unless
-; a tty answers y -- the safe reading, and the one a script gets.
+; The tools that move bytes and names around, with busybox's option sets. Two
+; rules hold across all of them. Bytes go through file-copy, never
+; read-all + write-all: a string's observable bytes end at its first NUL, so
+; read-all would truncate anything that is not text. An overwrite is a question
+; when -i asks it, and there is no terminal in a pipeline, so -i declines unless
+; a tty answers y (the safe reading, and the one a script gets).
 
 ; THE ONE PARSE, taken by the applet and passed down.  Every helper
 ; below reads `o`, the record cu/cli.x's declaration produced -- not

@@ -6,24 +6,22 @@
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)
 ;
-; busybox: test EXPR, and the [ / [[ spellings that want a closer.
-; This is a GRAMMAR, not an option list -- `-a` and `-o` join terms,
-; parentheses group them, and every other dash-word is an operator on
-; one or two arguments:
+; busybox: test EXPR, and the [ / [[ spellings that want a closer. This is a
+; grammar, not an option list -- `-a` and `-o` join terms, parentheses group
+; them, and every other dash-word is an operator on one or two arguments:
 ;
 ;   expr   := term (-o term)*
 ;   term   := factor (-a factor)*
 ;   factor := ! factor | ( expr ) | UNARY arg | arg BINARY arg | arg
 ;
-; A bare argument is true when it is not the empty string, which is
-; what makes `test "$x"` the idiom it is.
+; A bare argument is true when it is not the empty string, which is what makes
+; `test "$x"` the idiom it is.
 ;
-; THE PERMISSION TESTS ARE COMPUTED, NOT ASKED.  There is no access(2)
-; door, so -r -w -x read the mode against our own ids: the owner
-; triple when the uid matches, the group triple when a group does,
-; the other triple otherwise.  That is what access answers for an
-; ordinary process; it does not model ACLs, and root is not special-
-; cased -- both are recorded divergences.
+; The permission tests are computed, not asked: there is no access(2) door, so
+; -r -w -x read the mode against our own ids -- the owner triple when the uid
+; matches, the group triple when a group does, the other triple otherwise. That
+; is what access answers for an ordinary process; it does not model ACLs, and
+; root is not special-cased (both recorded divergences).
 
 (def %t-stat (fn (_ p) (file-stat-full p)))
 (def %t-lstat (fn (_ p) (file-lstat-full p)))

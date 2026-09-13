@@ -33,7 +33,7 @@ is a line LCS by DP; `timeout` forks the command AND a watchdog,
 because there is no alarm door.  Self-contained: no `(requires-lang
 ...)`.
 
-## Known limits, loud not silent
+## Known limits
 
   - **No name service.** There is no passwd or group door, so `id`,
     `whoami` and `logname` read /etc/passwd when it holds the id and
@@ -61,7 +61,7 @@ because there is no alarm door.  Self-contained: no `(requires-lang
     `who` (utmpx), `stty` (ioctl), `hostid` (gethostid), `mknod`
     (device numbers), and `sha3sum`.
 
-Paired with x-lang v0.11.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.13.0 (`lang.xon` is the checkable row).
 
 ## Try it
 

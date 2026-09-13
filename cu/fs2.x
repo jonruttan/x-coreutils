@@ -8,10 +8,9 @@
 ;
 ; touch ls pwd mv rmdir install mktemp cmp.
 
-; touch: utimes(2) on a path that exists, an empty file when it does
-; not.  It used to REWRITE the bytes to bump the stamp -- the door
-; x-lang PR #607 opened retires that, and with it the risk of a large
-; file being read and written just to be dated.
+; touch: utimes(2) on a path that exists, an empty file when it does not. It
+; bumps the stamp through the door x-lang PR #607 opened, rather than rewriting
+; the bytes.
 (def %cu-touch
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "touch" argv))

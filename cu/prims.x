@@ -267,7 +267,7 @@
                 (%cu-mode-kind (rest (Assoc entry (lit mode) d))))
           d)))))
 
-; BINARY-SAFE copy: a 64K fd-level loop driven by raw byte counts.  cp
-; used read-all + write-all, and a string's observable bytes end at its
-; first NUL -- so copying anything but text silently truncated it.
+; Binary-safe copy: a 64K fd-level loop driven by raw byte counts, because a
+; string's observable bytes end at its first NUL, so a read-all + write-all copy
+; would truncate anything but text.
 (def file-copy (fn (_ from to) (File copy from to)))

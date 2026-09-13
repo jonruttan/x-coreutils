@@ -11,30 +11,20 @@
 ; NORMAL format: XdY, XaY, XcY with < --- > bodies.  Status 0 same,
 ; 1 different.
 
-; TWO OF THESE FLAGS DO NOTHING, AND THAT IS THE CORRECT BEHAVIOUR.
+; Two of these flags do nothing, and that is correct:
 ;
-;   -a  "treat all files as text".  The alternative it turns off is
-;       binary detection -- GNU answers "Binary files A and B differ"
-;       and compares nothing.  This diff has no such mode: it is always
-;       line-based, which is exactly what -a asks for.  Accepting it and
-;       behaving identically HONOURS it; that is not the same defect as
-;       accepting a flag whose behaviour would differ.
-;   -d  "try hard to find a smaller set of changes".  The LCS below is
-;       already minimal by construction, so there is no larger answer to
-;       try harder than.
+;   -a  "treat all files as text" turns off binary detection; this diff has no
+;       such mode -- it is always line-based, which is what -a asks for.
+;   -d  "try hard to find a smaller set of changes"; the LCS below is already
+;       minimal, so there is nothing to try harder than.
 ;
-; The seven still missing -- -r -N -S -T -t -U -L -- are the directory
-; walk and the unified format, and they are not declared until they are
-; read.
+; The seven still missing (-r -N -S -T -t -U -L) are the directory walk and the
+; unified format, and are not declared until they are read.
 ;
-; WHAT COUNTS AS THE SAME LINE IS A LEXICAL QUESTION, and cu/diff-lex.x
-; answers it on a reader base of its own: -w makes a run of spaces read
-; as nothing, -b as one space, -i folds a word as it is read.  The walk
-; that used to live here -- a byte loop per line per file, carrying its
-; own case table because it had no byte->string door -- is gone.
-;
-; -t and -T are NOT lexical and stay below: they shape a line on the way
-; OUT, and a reader base reads.
+; What counts as the same line is a lexical question, answered in cu/diff-lex.x
+; on a reader base of its own: -w makes a run of spaces read as nothing, -b as
+; one space, -i folds a word as it is read. -t and -T are not lexical and stay
+; below: they shape a line on the way out, and a reader base reads.
 
 (def %cu-diff-lcs
   (fn (_ av bv n m)
@@ -105,10 +95,9 @@
 
 ; --- the edit script, and the two ways to print it ---------------------------
 ;
-; ONE WALK, TWO RENDERERS.  The walk answers a list of (TAG AI BI) in
-; order -- eq, del or add, with the indices the op consumed -- and the
-; normal and unified printers both read that.  Writing the second format
-; as a second walk is how the two would drift.
+; One walk, two renderers. The walk answers a list of (TAG AI BI) in order --
+; eq, del or add, with the indices the op consumed -- and the normal and
+; unified printers both read that, rather than drifting as two walks.
 
 (def %cu-diff-ops
   (fn (_ avn bvn n m at)
@@ -158,10 +147,10 @@
 
 ; --- unified -----------------------------------------------------------------
 ;
-; A HUNK IS A RUN OF CHANGES PLUS CTX LINES EITHER SIDE, and two runs
-; close enough to share context become one hunk rather than two that
-; overlap.  The header counts LINES, not ops: a hunk's a-count is its eq
-; and del ops, its b-count is its eq and add ops.
+; A hunk is a run of changes plus context lines either side; two runs close
+; enough to share context become one hunk rather than two that overlap. The
+; header counts lines, not ops: a hunk's a-count is its eq and del ops, its
+; b-count its eq and add ops.
 
 (def %cu-diff-count
   (fn (self ops want-a?)
@@ -294,18 +283,16 @@
     (load! bv b 0)
     (load! avn an 0)
     (load! bvn bn 0)
-    ; THE LCS RUNS ON THE NORMALISED COPY, the hunks quote the original.
+    ; The LCS runs on the normalised copy; the hunks quote the original.
     (def t (%cu-diff-lcs avn bvn n m))
     (def at (fn (_ i j) (vec-ref t (+ (* i (+ m 1)) j))))
     (def ops (%cu-diff-ops avn bvn n m at))
     ; -B: a change of nothing but blank lines is not a change.
     ;
-    ; BLANKNESS IS READ FROM THE LINE AS IT IS, not as -w or -b left it.
-    ; A line holding one space is not blank, and stays not blank under
-    ; -w even though -w compares it equal to an empty one -- measured
-    ; against /usr/bin/diff, which answers 1 for `-B -w` there.  Reading
-    ; it from the normalised copy is the intuitive rule and the wrong
-    ; one; I had it that way, and shipped a comment defending it.
+    ; Blankness is read from the line as it is, not as -w or -b left it. A line
+    ; holding one space is not blank, and stays not blank under -w even though
+    ; -w compares it equal to an empty one -- which matches /usr/bin/diff,
+    ; answering 1 for `-B -w`.
     (def blank-op?
       (fn (_ op)
         (= (byte-len
@@ -384,9 +371,9 @@
 (def %cu-diff-uni-head
   (fn (_ paths o)
     (def labels (Opts values o "-L"))
-    ; THE LENGTH IS CHECKED FIRST, and not because it is tidier: (first
-    ; ()) SEGFAULTS this engine, so %cu-nth past the end takes the whole
-    ; process down rather than answering nil.  Filed as x-lang#688.
+    ; The length is checked first because (first ()) crashes this engine, so
+    ; %cu-nth past the end would take the process down rather than answer nil.
+    ; Filed as x-lang#688.
     (def pick
       (fn (_ k dflt)
         (if (> (length labels) k) (%cu-nth k labels) dflt)))
@@ -397,17 +384,15 @@
 
 ; --- directories -------------------------------------------------------------
 ;
-; diff DIR DIR compares the files the two have in common, names a file
-; only one of them holds, and -- without -r -- reports a subdirectory
-; they share as common rather than looking inside it.  Entries are
-; walked in sorted order, which is the order the report comes out in.
+; diff DIR DIR compares the files the two have in common, names a file only one
+; holds, and -- without -r -- reports a shared subdirectory as common rather
+; than looking inside it. Entries are walked in sorted order, which is the
+; order the report comes out in.
 ;
-; -S STARTS THE WALK AT A NAME, and only at the TOP LEVEL: "start with
-; FILE when comparing directories" is one directory, not each.  The BSD
-; diff on this machine applies it at every level instead, so `-S sub`
-; there hides sub/deep.txt as well -- measured, and not followed, because
-; a flag that silently drops files in directories it was never pointed at
-; is a surprise rather than a feature.
+; -S starts the walk at a name, and only at the top level: "start with FILE when
+; comparing directories" is one directory, not each. The BSD diff here applies
+; it at every level, which hides files in directories it was never pointed at;
+; not followed.
 
 (def %cu-diff-path
   (fn (_ dir name)
@@ -518,9 +503,9 @@
     (def ops (Opts operands o))
     (def pa (first ops))
     (def pb (first (rest ops)))
-    ; A DIRECTORY ON EITHER SIDE CHANGES WHAT THE COMPARISON IS.  Two of
-    ; them is a walk; one of them names the entry inside it that matches
-    ; the other's name.
+    ; A directory on either side changes what the comparison is: two of them is
+    ; a walk; one of them names the entry inside it that matches the other's
+    ; name.
     (if (if (file-dir? pa) (file-dir? pb) #f)
       (let ((d (%cu-diff-dir o (%cu-diff-flags argv) pa pb (Opts value o "-S"))))
         (do (display (first d)) (rest d)))
@@ -535,8 +520,8 @@
       (fn (_ op) (if (string=? op "-") (stdin-thunk) (file-read-all op))))
     (def r (%cu-diff-texts o ops (read-op pa) (read-op pb)))
     (def differ? (> (rest r) 0))
-    ; -q and -s replace the body with one line about it; -q says nothing
-    ; when the files match, which is why they are not one flag.
+    ; -q and -s replace the body with one line about it; -q says nothing when
+    ; the files match, which is why they are not one flag.
     (if (Opts on? o "-q")
       (do (if differ?
             (display (%cu-diff-pair-text ops "differ"))
