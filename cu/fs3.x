@@ -378,12 +378,3 @@
       (do (sys-signal cu-sighup cu-sig-ign)
           (sys-exec (first argv) (rest argv))
           127))))
-
-; --- [[ -----------------------------------------------------------------------
-
-(def %cu-dbracket
-  (fn (_ argv stdin-thunk)
-    (if (null? argv) 2
-      (if (not (string=? (%cu-last argv) "]]"))
-        (do (file-write 2 "[[: missing ]]\n") 2)
-        (%cu-test-eval (%cu-drop-last argv))))))

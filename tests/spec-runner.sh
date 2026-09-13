@@ -39,9 +39,15 @@ LANG_LIB="$BUNDLE/tests/lib/harness.gen.x"
 # SPEC_PATH is env-overridable so a single spec file can be run in isolation.
 SPEC_PATH="${SPEC_PATH:-$BUNDLE/tests/specs}"
 
-# NO COLLECT AT THE SNIPPET SEAM (x-lang#568/#572): the per-seam heap collect
-# killed x-ash's and x-python's suites; x-coreutils sets the same knob for the same
-# reason rather than rediscovering it.
-export SPEC_SEAM_COLLECT=0
+# THE SEAM COLLECT IS BACK ON.  It was off for x-lang#568/#572, where
+# the per-seam heap collect killed x-ash's and x-python's suites -- a
+# real defect, and x-lang#599's, both closed by v0.12.0 (engine v0.2.8).
+# Leaving the knob at 0 after that had a cost nobody was paying
+# attention to: x has no automatic GC, so a file's allocations
+# accumulate across every one of its snippets, and 06-test.spec.md hit
+# the allocation ceiling on nothing heavier than stat calls.  Still
+# overridable, so the next suite to suspect the collect can measure it
+# rather than inherit a knob.
+export SPEC_SEAM_COLLECT="${SPEC_SEAM_COLLECT:-1}"
 
 . "$X_ROOT/tests/spec-runner.sh"

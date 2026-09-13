@@ -86,59 +86,7 @@
                           (if (> st2 st) st2 st))))))))
         (go words 0)))))
 
-; test / [ : unary -e -f -d -s -z -n, string = !=, integer -eq -ne
-; -lt -le -gt -ge, ! negation.  The [ spelling wants its closing ].
-(def %cu-test-eval
-  (fn (self args)
-    (if (null? args) 1
-      (if (string=? (first args) "!")
-        (if (= (self (rest args)) 0) 1 0)
-        (if (null? (rest args))
-          ; one operand: true when nonempty
-          (if (> (byte-len (first args)) 0) 0 1)
-          (if (null? (rest (rest args)))
-            ; unary operator
-            (let ((op (first args)))
-              (def v (first (rest args)))
-              (if (string=? op "-e") (if (file-exists? v) 0 1)
-                (if (string=? op "-f")
-                  (if (if (file-exists? v) (not (file-dir? v)) #f) 0 1)
-                  (if (string=? op "-d") (if (file-dir? v) 0 1)
-                    (if (string=? op "-s")
-                      (if (if (file-exists? v)
-                            (> (byte-len (file-read-all v)) 0) #f)
-                        0 1)
-                      (if (string=? op "-z")
-                        (if (= (byte-len v) 0) 0 1)
-                        (if (string=? op "-n")
-                          (if (> (byte-len v) 0) 0 1)
-                          2)))))))
-            ; binary operator
-            (let ((a (first args)))
-              (def op (first (rest args)))
-              (def b (first (rest (rest args))))
-              (def na (%cu-num-prefix a))
-              (def nb (%cu-num-prefix b))
-              (if (string=? op "=") (if (string=? a b) 0 1)
-                (if (string=? op "!=") (if (string=? a b) 1 0)
-                  (if (string=? op "-eq") (if (= na nb) 0 1)
-                    (if (string=? op "-ne") (if (= na nb) 1 0)
-                      (if (string=? op "-lt") (if (< na nb) 0 1)
-                        (if (string=? op "-le") (if (<= na nb) 0 1)
-                          (if (string=? op "-gt") (if (> na nb) 0 1)
-                            (if (string=? op "-ge") (if (>= na nb) 0 1)
-                              2)))))))))))))))
-
-(def %cu-test
-  (fn (_ argv stdin-thunk) (%cu-test-eval argv)))
-
-(def %cu-bracket
-  (fn (_ argv stdin-thunk)
-    (def n (length argv))
-    (if (= n 0) 2
-      (if (not (string=? (%cu-last argv) "]"))
-        (do (file-write 2 "[: missing ]\n") 2)
-        (%cu-test-eval (%cu-drop-last argv))))))
+; test, [ and [[ moved to cu/test.x, which parses the whole grammar.
 
 (def %cu-last
   (fn (self l) (if (null? (rest l)) (first l) (self (rest l)))))

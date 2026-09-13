@@ -32,6 +32,7 @@
 (include-once "./text2.x")
 (include-once "./fs2.x")
 (include-once "./sys2.x")
+(include-once "./test.x")
 (include-once "./fs3.x")
 (include-once "./ls.x")
 (include-once "./sort.x")

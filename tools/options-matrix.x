@@ -24,6 +24,18 @@
 (def %mx-minus
   (fn (_ xs ys) (filter (fn (_ x) (not (%mx-member? x ys))) xs)))
 
+; SOME APPLETS TAKE NON-OPTION ARGUMENTS that busybox's usage text
+; lists among the options: dd's operands are KEY=VALUE and never begin
+; with a dash, so the option declaration cannot name them and the guard
+; never sees them.  They are still accepted, so the matrix counts them
+; -- from here, because there is nowhere else honest to read them from.
+; the (NAME OPTIONS) shape %mx-lookup reads -- a pair here handed it a
+; STRING where it wanted a list, and the append that followed
+; SEGFAULTED rather than raising.
+(def %mx-extra
+  (list
+    (list "dd" (list "if=" "of=" "bs=" "count=" "skip=" "seek=" "status="))))
+
 (def %mx-lookup
   (fn (self name es)
     (if (null? es) (lit none)
@@ -51,8 +63,11 @@
     ; applets alike -- both lists, since a value-taking flag is just as
     ; accepted as one that stands alone.
     (def spec (%cu-spec-of name))
-    (def ours (if (null? spec) ()
-                (append (first spec) (first (rest spec)))))
+    (def declared (if (null? spec) ()
+                    (append (first spec) (first (rest spec)))))
+    (def extra (let ((e (%mx-lookup name %mx-extra)))
+                 (if (eq? e (lit none)) () e)))
+    (def ours (append declared extra))
     (if (eq? bb (lit none))
       (do (display (string-concat
                      (list "| `" name "` | _not a busybox applet_ | "

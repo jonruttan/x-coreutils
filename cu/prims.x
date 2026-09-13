@@ -126,7 +126,7 @@
 ; uid@28, size@48) -- the two orders differ, so each gets its own spec
 ; and the alist is assembled by name.  Answers () when the path is gone.
 (def %cu-stat-spec-darwin
-  (list (list (lit pad) 4) (list (lit mode) (lit u16))
+  (list (list (lit dev) (lit u32)) (list (lit mode) (lit u16))
         (list (lit nlink) (lit u16)) (list (lit ino) (lit u64))
         (list (lit uid) (lit u32)) (list (lit gid) (lit u32))
         (list (lit rdev) (lit u32)) (list (lit pad) 4)
@@ -137,7 +137,7 @@
         (list (lit blksize) (lit u32))))
 
 (def %cu-stat-spec-linux
-  (list (list (lit pad) 8) (list (lit ino) (lit u64))
+  (list (list (lit dev) (lit u64)) (list (lit ino) (lit u64))
         (list (lit nlink) (lit u64)) (list (lit mode) (lit u32))
         (list (lit uid) (lit u32)) (list (lit gid) (lit u32))
         (list (lit pad) 4) (list (lit rdev) (lit u64))
