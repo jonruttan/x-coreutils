@@ -41,38 +41,56 @@
 ; install: -d makes directories (parents included); the copy form
 ; accepts and IGNORES -c and -m MODE -- there is no chmod door yet,
 ; the recorded divergence
+; install: -d makes directories; otherwise it copies, with -D creating
+; the destination's parents, -m the mode, -o/-g the ownership, -p the
+; timestamps, and -t naming a directory to install into.  -s would
+; strip a binary and there is no strip to call, so it is not claimed.
 (def %cu-install
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "install" argv))
-    (if (if (pair? argv) (string=? (first argv) "-d") #f)
-      (let ((go (fn (self os)
-                  (if (null? os) 0
-                    (do (%cu-mkdir-p! (first os)) (self (rest os)))))))
-        (go (rest argv)))
-      ; -m used to be accepted and IGNORED; File chmod now honours it
-      (let ((mode (let ((m (Opts value o "-m")))
-                    (if (null? m) () (%cu-octal->int m)))))
-        (def strip (fn (self as)
-                     (if (null? as) ()
-                       (if (string=? (first as) "-c")
-                         (self (rest as))
-                         (if (string=? (first as) "-m")
-                           (self (rest (rest as)))
-                           as)))))
-        (let ((ops (strip argv)))
-          (if (if (pair? ops) (pair? (rest ops)) #f)
-            (let ((dst (first (rest ops))))
-              ; DST may be a directory: install SRC DIR
-              (def target
-                (if (file-dir? dst)
-                  (string-append dst
-                    (string-append "/" (%cu-base-of (first ops))))
-                  dst))
-              (do (file-write-all target (file-read-all (first ops)))
-                  (if (null? mode) () (file-chmod target mode))
-                  0))
-            (do (file-write 2 "install: usage: install [-c] [-m M] SRC DST | -d DIR...\n")
-                1)))))))
+    (def ops (Opts operands o))
+    (def mode (let ((m (Opts value o "-m")))
+                (if (null? m) () (%cu-octal->int m))))
+    (def owner (Opts value o "-o"))
+    (def group (Opts value o "-g"))
+    (def into (Opts value o "-t"))
+    (def finish!
+      (fn (_ target src)
+        (do (if (null? mode) () (file-chmod target mode))
+            (if (if (null? owner) (null? group) #f) ()
+              (file-chown target
+                (if (null? owner) (- 0 1) (%cu-num-prefix owner))
+                (if (null? group) (- 0 1) (%cu-num-prefix group))))
+            (if (Opts on? o "-p") (file-utimes target) ()))))
+    (if (Opts on? o "-d")
+      (let ((go (fn (self ds)
+                  (if (null? ds) 0
+                    (do (%cu-mkdir-p! (first ds))
+                        (finish! (first ds) ())
+                        (self (rest ds)))))))
+        (go ops))
+      (let ((dst (if (null? into)
+                   (if (null? ops) () (%cu-last ops))
+                   into)))
+        (def srcs (if (null? into)
+                    (if (null? ops) () (%cu-drop-last ops))
+                    ops))
+        (if (null? srcs)
+          (do (file-write 2
+                "install: usage: install [-cDp] [-m M] [-o U] [-g G] SRC... DST | -t DIR SRC... | -d DIR...\n")
+              1)
+          (let ((go (fn (self ss st)
+                      (if (null? ss) st
+                        (let ((target
+                                (if (file-dir? dst)
+                                  (%cu-path-join dst (%cu-base-of (first ss)))
+                                  dst)))
+                          (do (if (Opts on? o "-D")
+                                (%cu-mkdir-p! (%cu-dirname-of target)) ())
+                              (file-copy (first ss) target)
+                              (finish! target (first ss))
+                              (self (rest ss) st)))))))
+            (go srcs 0)))))))
 
 (def %cu-base-of
   (fn (_ p)
@@ -100,10 +118,25 @@
 
 ; mktemp: TEMPLATE with trailing Xs (default /tmp/tmp.XXXXXX), O_EXCL
 ; loop, alnum from the PRNG seeded by the clock
+; -d makes a directory, -p DIR / -t place the template under a
+; directory, -u prints a name without creating it, -q keeps quiet
 (def %cu-mktemp
   (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "mktemp" argv))
+    (def ops (Opts operands o))
+    (def dir? (Opts on? o "-d"))
+    (def dry? (Opts on? o "-u"))
+    (def quiet? (Opts on? o "-q"))
+    (def base (if (null? ops) "tmp.XXXXXX" (first ops)))
+    (def into
+      (let ((p (Opts value o "-p")))
+        (if (not (null? p)) p
+          (if (Opts on? o "-t")
+            (let ((e (sys-getenv "TMPDIR"))) (if (null? e) "/tmp" e))
+            ()))))
     (def template
-      (if (null? argv) "/tmp/tmp.XXXXXX" (first argv)))
+      (if (null? into) (if (null? ops) "/tmp/tmp.XXXXXX" base)
+        (%cu-path-join into (%cu-basename-of base))))
     (def end (byte-len template))
     (def xs
       (let ((go (fn (self i)
@@ -113,7 +146,7 @@
                       0)))))
         (go end)))
     (if (= xs 0)
-      (do (file-write 2 "mktemp: template needs trailing Xs\n") 1)
+      (do (if quiet? () (file-write 2 "mktemp: template needs trailing Xs\n")) 1)
       (let ((stem (substring template 0 (- end xs))))
         (def rng (rng-make (date-now-unix)))
         (def alnum
@@ -123,7 +156,7 @@
         (def try
           (fn (self n)
             (if (= n 0)
-              (do (file-write 2 "mktemp: exhausted attempts\n") 1)
+              (do (if quiet? () (file-write 2 "mktemp: exhausted attempts\n")) 1)
               (let ((suffix
                       (let ((go (fn (self2 k acc)
                                   (if (= k 0) (list->string acc)
@@ -133,12 +166,18 @@
                                         acc))))))
                         (go xs ()))))
                 (def path (string-append stem suffix))
-                (def fd (file-open-excl path))
-                (if (if (number? fd) (>= fd 0) #f)
-                  (do (file-close fd)
-                      (display (string-append path "\n"))
-                      0)
-                  (self (- n 1)))))))
+                (if dry?
+                  (do (display (string-append path "\n")) 0)
+                  (if dir?
+                    (if (file-exists? path) (self (- n 1))
+                      (do (file-mkdir path)
+                          (display (string-append path "\n")) 0))
+                    (let ((fd (file-open-excl path)))
+                      (if (if (number? fd) (>= fd 0) #f)
+                        (do (file-close fd)
+                            (display (string-append path "\n"))
+                            0)
+                        (self (- n 1))))))))))
         (try 16)))))
 
 ; cmp: first differing byte, 1-based, with its line; -s is silent

@@ -29,21 +29,25 @@
 
 (def %cu-kind-letter
   (fn (_ kind)
-    (if (eq? kind (lit dir)) "d"
-      (if (eq? kind (lit link)) "l"
-        (if (eq? kind (lit char)) "c"
-          (if (eq? kind (lit block)) "b"
-            (if (eq? kind (lit fifo)) "p"
-              (if (eq? kind (lit socket)) "s" "-"))))))))
+    (match
+      ((eq? kind (lit dir))    "d")
+      ((eq? kind (lit link))   "l")
+      ((eq? kind (lit char))   "c")
+      ((eq? kind (lit block))  "b")
+      ((eq? kind (lit fifo))   "p")
+      ((eq? kind (lit socket)) "s")
+      (#t "-"))))
 
 (def %cu-kind-word
   (fn (_ kind)
-    (if (eq? kind (lit dir)) "directory"
-      (if (eq? kind (lit link)) "symbolic link"
-        (if (eq? kind (lit char)) "character special file"
-          (if (eq? kind (lit block)) "block special file"
-            (if (eq? kind (lit fifo)) "fifo"
-              (if (eq? kind (lit socket)) "socket" "regular file"))))))))
+    (match
+      ((eq? kind (lit dir))    "directory")
+      ((eq? kind (lit link))   "symbolic link")
+      ((eq? kind (lit char))   "character special file")
+      ((eq? kind (lit block))  "block special file")
+      ((eq? kind (lit fifo))   "fifo")
+      ((eq? kind (lit socket)) "socket")
+      (#t "regular file"))))
 
 ; rwx for one octal digit; the sticky and setid bits are not spelled
 (def %cu-rwx
@@ -67,23 +71,25 @@
   (fn (_ c name st)
     (def kind (%cu-stat-get st (lit kind)))
     (def mode (%cu-stat-get st (lit mode)))
-    (if (= c 110) name                                       ; n
-      (if (= c 115) (%cu-int->str (%cu-stat-get st (lit size)))    ; s
-        (if (= c 98) (%cu-int->str (%cu-stat-get st (lit blocks))) ; b
-          (if (= c 66) "512"                                       ; B
-            (if (= c 102) (%cu-hexs mode)                          ; f
-              (if (= c 97) (%cu-mode-octal mode)                   ; a
-                (if (= c 65) (%cu-perm-string kind mode)           ; A
-                  (if (= c 117) (%cu-int->str (%cu-stat-get st (lit uid)))   ; u
-                    (if (= c 103) (%cu-int->str (%cu-stat-get st (lit gid))) ; g
-                      (if (= c 104) (%cu-int->str (%cu-stat-get st (lit nlink))) ; h
-                        (if (= c 105) (%cu-int->str (%cu-stat-get st (lit ino)))  ; i
-                          (if (= c 70) (%cu-kind-word kind)        ; F
-                            (if (= c 88) (%cu-int->str (%cu-stat-get st (lit atime)))  ; X
-                              (if (= c 89) (%cu-int->str (%cu-stat-get st (lit mtime))) ; Y
-                                (if (= c 90) (%cu-int->str (%cu-stat-get st (lit ctime))) ; Z
-                                  (if (= c 111) (%cu-int->str (%cu-stat-get st (lit blksize))) ; o
-                                    (string-append "%" (%cu-b->s c))))))))))))))))))))
+    (def num (fn (_ key) (%cu-int->str (%cu-stat-get st key))))
+    (match
+      ((= c 110) name)                          ; n
+      ((= c 115) (num (lit size)))              ; s
+      ((= c 98)  (num (lit blocks)))            ; b
+      ((= c 66)  "512")                         ; B
+      ((= c 102) (%cu-hexs mode))               ; f
+      ((= c 97)  (%cu-mode-octal mode))         ; a
+      ((= c 65)  (%cu-perm-string kind mode))   ; A
+      ((= c 117) (num (lit uid)))               ; u
+      ((= c 103) (num (lit gid)))               ; g
+      ((= c 104) (num (lit nlink)))             ; h
+      ((= c 105) (num (lit ino)))               ; i
+      ((= c 70)  (%cu-kind-word kind))          ; F
+      ((= c 88)  (num (lit atime)))             ; X
+      ((= c 89)  (num (lit mtime)))             ; Y
+      ((= c 90)  (num (lit ctime)))             ; Z
+      ((= c 111) (num (lit blksize)))           ; o
+      (#t (string-append "%" (%cu-b->s c))))))
 
 (def %cu-stat-format
   (fn (_ fmt name st)
@@ -157,8 +163,11 @@
 (def %cu-dot?
   (fn (_ n) (if (string=? n ".") #t (string=? n ".."))))
 
+; LEVEL is how deep this path sits below the operand, and LIMIT is
+; -d's ceiling on what gets PRINTED -- the walk still descends past it,
+; because the totals above depend on what is below.
 (def %cu-du-walk
-  (fn (self path all? show-dirs? emit)
+  (fn (self path all? show-dirs? emit level limit)
     (def st (file-stat-full path))
     (if (null? st) 0
       (if (eq? (%cu-stat-get st (lit kind)) (lit dir))
@@ -170,33 +179,53 @@
                 (self2 (rest ns)
                   (+ acc
                     (self (%cu-path-join path (first ns))
-                      all? show-dirs? emit))))))
+                      all? show-dirs? emit (+ level 1) limit))))))
           (let ((total (+ (%cu-du-blocks st) (sub kids 0))))
-            (do (if show-dirs? (emit total path) ()) total)))
+            (do (if (if show-dirs? (%cu-du-deep? level limit) #f)
+                  (emit total path) ())
+                total)))
         (let ((n (%cu-du-blocks st)))
-          (do (if all? (emit n path) ()) n))))))
+          (do (if (if all? (%cu-du-deep? level limit) #f) (emit n path) ())
+              n))))))
+
+(def %cu-du-deep?
+  (fn (_ level limit) (if (< limit 0) #t (<= level limit))))
+
+; du: -s totals only, -a every file, -d N stops the printing below a
+; depth, -c adds a grand total, -h and -m choose the unit (-k, the
+; default here, is 1024-byte blocks), -H -L follow links, -x and -l
+; are accepted and named below.
+(def %cu-du-show
+  (fn (_ n o)
+    ; BLOCKS TO BYTES: -k is du's own unit and %ls-human's is bytes, so
+    ; a 268K directory printed as a bare "268" until this scaled.
+    (if (Opts on? o "-h") (%ls-human (* n 1024))
+      (if (Opts on? o "-m")
+        (%cu-int->str (/ (- n (% n 1024)) 1024))
+        (%cu-int->str n)))))
 
 (def %cu-du
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "du" argv))
     (def s? (Opts on? o "-s"))
     (def a? (Opts on? o "-a"))
+    (def depth (let ((v (Opts value o "-d"))) (if (null? v) (- 0 1) (%cu-num-prefix v))))
     (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list ".") ops0))
     (def emit
       (fn (_ n path)
         (display
-          (string-append (%cu-int->str n)
-            (string-append "\t" (string-append path "\n"))))))
+          (string-concat (list (%cu-du-show n o) "\t" path "\n")))))
     (def quiet (fn (_ n path) ()))
     (def go
-      (fn (self os)
-        (if (null? os) 0
-          (let ((total (%cu-du-walk (first os) (if s? #f a?)
-                         (not s?) (if s? quiet emit))))
-            (do (if s? (emit total (first os)) ())
-                (self (rest os)))))))
-    (go ops)))
+      (fn (self os total)
+        (if (null? os) total
+          (let ((n (%cu-du-walk (first os) (if s? #f a?)
+                     (not s?) (if s? quiet emit) 0 depth)))
+            (do (if s? (emit n (first os)) ())
+                (self (rest os) (+ total n)))))))
+    (def grand (go ops 0))
+    (do (if (Opts on? o "-c") (emit grand "total") ()) 0)))
 
 ; --- dd -----------------------------------------------------------------------
 

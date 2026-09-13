@@ -24,16 +24,17 @@
 ; else is three octal digits
 (def %cu-od-char
   (fn (_ b)
-    (if (= b 0) "\\0"
-      (if (= b 7) "\\a"
-        (if (= b 8) "\\b"
-          (if (= b 9) "\\t"
-            (if (= b 10) "\\n"
-              (if (= b 11) "\\v"
-                (if (= b 12) "\\f"
-                  (if (= b 13) "\\r"
-                    (if (if (>= b 32) (<= b 126) #f) (%cu-b->s b)
-                      (%cu-zero-pad (%cu-oct->str b) 3))))))))))))
+    (match
+      ((= b 0)  "\\0")
+      ((= b 7)  "\\a")
+      ((= b 8)  "\\b")
+      ((= b 9)  "\\t")
+      ((= b 10) "\\n")
+      ((= b 11) "\\v")
+      ((= b 12) "\\f")
+      ((= b 13) "\\r")
+      ((if (>= b 32) (<= b 126) #f) (%cu-b->s b))
+      (#t (%cu-zero-pad (%cu-oct->str b) 3)))))
 
 ; a word of `size` bytes, LITTLE-endian, from position i
 (def %cu-od-word
@@ -57,28 +58,27 @@
 ; one field, padded to the width its type prints
 (def %cu-od-field
   (fn (_ s i kind size)
+    (def w (fn (_ one two four)
+             (match ((= size 1) one) ((= size 2) two) (#t four))))
     (if (eq? kind (lit c)) (%cu-pad-left (%cu-od-char (byte-at s i)) 4)
       (let ((v (%cu-od-word s i size)))
-        (if (eq? kind (lit o))
-          (string-append " "
-            (%cu-zero-pad (%cu-oct->str v)
-              (if (= size 1) 3 (if (= size 2) 6 11))))
-          (if (eq? kind (lit x))
-            (string-append " "
-              (%cu-zero-pad (%cu-hexs v)
-                (if (= size 1) 2 (if (= size 2) 4 8))))
-            (if (eq? kind (lit u))
-              (%cu-pad-left (%cu-int->str v)
-                (if (= size 1) 4 (if (= size 2) 6 11)))
-              (%cu-pad-left (%cu-int->str (%cu-od-signed v size))
-                (if (= size 1) 5 (if (= size 2) 7 12))))))))))
+        (match
+          ((eq? kind (lit o))
+            (string-append " " (%cu-zero-pad (%cu-oct->str v) (w 3 6 11))))
+          ((eq? kind (lit x))
+            (string-append " " (%cu-zero-pad (%cu-hexs v) (w 2 4 8))))
+          ((eq? kind (lit u))
+            (%cu-pad-left (%cu-int->str v) (w 4 6 11)))
+          (#t (%cu-pad-left (%cu-int->str (%cu-od-signed v size))
+                (w 5 7 12))))))))
 
 (def %cu-od-address
   (fn (_ n radix)
-    (if (eq? radix (lit n)) ""
-      (if (eq? radix (lit d)) (%cu-zero-pad (%cu-int->str n) 7)
-        (if (eq? radix (lit x)) (%cu-zero-pad (%cu-hexs n) 7)
-          (%cu-zero-pad (%cu-oct->str n) 7))))))
+    (match
+      ((eq? radix (lit n)) "")
+      ((eq? radix (lit d)) (%cu-zero-pad (%cu-int->str n) 7))
+      ((eq? radix (lit x)) (%cu-zero-pad (%cu-hexs n) 7))
+      (#t (%cu-zero-pad (%cu-oct->str n) 7)))))
 
 ; -t's argument is a letter and an optional size: o2, x1, c, d4
 (def %cu-od-type
@@ -88,10 +88,12 @@
       (if (> (byte-len spec) 1) (%cu-num-prefix (substring spec 1 (byte-len spec)))
         (if (= c 99) 1 (if (= c 97) 1 2))))
     (pair
-      (if (= c 111) (lit o)
-        (if (= c 120) (lit x)
-          (if (= c 100) (lit d)
-            (if (= c 117) (lit u) (lit c)))))
+      (match
+        ((= c 111) (lit o))
+        ((= c 120) (lit x))
+        ((= c 100) (lit d))
+        ((= c 117) (lit u))
+        (#t (lit c)))
       size)))
 
 (def %cu-od-line
@@ -105,9 +107,11 @@
 (def %cu-od-radix
   (fn (_ s)
     (let ((c (byte-at s 0)))
-      (if (= c 110) (lit n)
-        (if (= c 100) (lit d)
-          (if (= c 120) (lit x) (lit o)))))))
+      (match
+        ((= c 110) (lit n))
+        ((= c 100) (lit d))
+        ((= c 120) (lit x))
+        (#t (lit o))))))
 
 ; the settings a scan collects, read back with a default
 (def %cu-od-opt
@@ -123,28 +127,30 @@
   (fn (self as st)
     (if (null? as) st
       (let ((a (first as)))
-        (if (string=? a "-A")
-          (self (rest (rest as))
-            (pair (pair (lit radix) (%cu-od-radix (first (rest as)))) st))
-          (if (string=? a "-t")
+        (match
+          ((string=? a "-A")
             (self (rest (rest as))
-              (pair (pair (lit type) (%cu-od-type (first (rest as)))) st))
-            (if (string=? a "-N")
-              (self (rest (rest as))
-                (pair (pair (lit limit) (%cu-num-prefix (first (rest as)))) st))
-              (if (string=? a "-v")
-                (self (rest as) (pair (pair (lit verbose) #t) st))
-                (self (rest as) (pair (%cu-od-short a) st))))))))))
+              (pair (pair (lit radix) (%cu-od-radix (first (rest as)))) st)))
+          ((string=? a "-t")
+            (self (rest (rest as))
+              (pair (pair (lit type) (%cu-od-type (first (rest as)))) st)))
+          ((string=? a "-N")
+            (self (rest (rest as))
+              (pair (pair (lit limit) (%cu-num-prefix (first (rest as)))) st)))
+          ((string=? a "-v")
+            (self (rest as) (pair (pair (lit verbose) #t) st)))
+          (#t (self (rest as) (pair (%cu-od-short a) st))))))))
 
 ; a shorthand letter, or the operand it turns out to be
 (def %cu-od-short
   (fn (_ a)
-    (if (string=? a "-c") (pair (lit type) (pair (lit c) 1))
-      (if (string=? a "-b") (pair (lit type) (pair (lit o) 1))
-        (if (string=? a "-x") (pair (lit type) (pair (lit x) 2))
-          (if (string=? a "-d") (pair (lit type) (pair (lit u) 2))
-            (if (string=? a "-o") (pair (lit type) (pair (lit o) 2))
-              (pair (lit op) a))))))))
+    (match
+      ((string=? a "-c") (pair (lit type) (pair (lit c) 1)))
+      ((string=? a "-b") (pair (lit type) (pair (lit o) 1)))
+      ((string=? a "-x") (pair (lit type) (pair (lit x) 2)))
+      ((string=? a "-d") (pair (lit type) (pair (lit u) 2)))
+      ((string=? a "-o") (pair (lit type) (pair (lit o) 2)))
+      (#t (pair (lit op) a)))))
 
 ; a line repeated from the one before collapses to `*`, unless -v
 (def %cu-od-dump

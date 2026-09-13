@@ -38,8 +38,12 @@ uninstall: ## Remove it again
 test: ## Run the spec suite (every failure is loud)
 	X="$(X)" sh tests/spec-runner.sh
 
+.PHONY: lint
+lint: ## Lint the bundle's own sources -- advisory rules included, and gated
+	X="$(X)" sh tests/lint.sh
+
 .PHONY: check
-check: ## Run the suite against tests/contract/known-failures.txt -- what CI gates on
+check: lint ## Lint, then run the suite against tests/contract/known-failures.txt -- what CI gates on
 	X="$(X)" sh tests/spec-gate.sh
 
 .PHONY: bundle

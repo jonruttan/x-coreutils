@@ -149,13 +149,15 @@
 (def %cu-mode-kind
   (fn (_ mode)
     (let ((fmt (& mode 61440)))
-      (if (= fmt 32768) (lit file)
-        (if (= fmt 16384) (lit dir)
-          (if (= fmt 40960) (lit link)
-            (if (= fmt 8192) (lit char)
-              (if (= fmt 24576) (lit block)
-                (if (= fmt 4096) (lit fifo)
-                  (if (= fmt 49152) (lit socket) (lit unknown)))))))))))
+      (match
+        ((= fmt 32768) (lit file))
+        ((= fmt 16384) (lit dir))
+        ((= fmt 40960) (lit link))
+        ((= fmt 8192)  (lit char))
+        ((= fmt 24576) (lit block))
+        ((= fmt 4096)  (lit fifo))
+        ((= fmt 49152) (lit socket))
+        (#t (lit unknown))))))
 
 (def file-stat-full
   (fn (_ path)

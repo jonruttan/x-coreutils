@@ -107,12 +107,19 @@
       (fn (_ flag key)
         (if (if a? #t (Opts on? o flag))
           (list (%cu-uname-field u key)) ())))
+    ; -p -i -o have no door: the processor type and the "operating
+    ; system" string are sysctl and a constant busybox compiles in.
+    ; They answer `unknown`, which is what uname does when it cannot
+    ; tell -- silently printing the machine would be worse.
     (def parts
       (append (want "-s" (lit sysname))
         (append (want "-n" (lit nodename))
           (append (want "-r" (lit release))
             (append (want "-v" (lit version))
-              (want "-m" (lit machine)))))))
+              (append (want "-m" (lit machine))
+                (append (if (Opts on? o "-p") (list "unknown") ())
+                  (append (if (Opts on? o "-i") (list "unknown") ())
+                    (if (Opts on? o "-o") (list "unknown") ())))))))))
     ; bare uname is uname -s
     (do (display
           (string-append

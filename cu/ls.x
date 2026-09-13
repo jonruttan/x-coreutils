@@ -119,19 +119,21 @@
 (def %ls-less
   (fn (_ o)
     (def tk (%ls-time-key o))
-    (if (%ls-flag? o "-t")
-      ; ties fall back to the name, as ls orders them
-      (fn (_ x y) (%ls-desc-then-name (%ls-get x tk) (%ls-get y tk) x y))
-      (if (%ls-flag? o "-S")
-        (fn (_ x y) (%ls-desc-then-name (%ls-get x (lit size)) (%ls-get y (lit size)) x y))
-        (if (%ls-flag? o "-X")
-          (fn (_ x y)
-            (let ((ex (%ls-ext (%ls-name x))) (ey (%ls-ext (%ls-name y))))
-              (if (string=? ex ey) (%cu-str< (%ls-name x) (%ls-name y))
-                (%cu-str< ex ey))))
-          (if (%ls-flag? o "-v")
-            (fn (_ x y) (%ls-natural< (%ls-name x) (%ls-name y)))
-            (fn (_ x y) (%cu-str< (%ls-name x) (%ls-name y)))))))))
+    ; ties fall back to the name, as ls orders them
+    (match
+      ((%ls-flag? o "-t")
+        (fn (_ x y) (%ls-desc-then-name (%ls-get x tk) (%ls-get y tk) x y)))
+      ((%ls-flag? o "-S")
+        (fn (_ x y)
+          (%ls-desc-then-name (%ls-get x (lit size)) (%ls-get y (lit size)) x y)))
+      ((%ls-flag? o "-X")
+        (fn (_ x y)
+          (let ((ex (%ls-ext (%ls-name x))) (ey (%ls-ext (%ls-name y))))
+            (if (string=? ex ey) (%cu-str< (%ls-name x) (%ls-name y))
+              (%cu-str< ex ey)))))
+      ((%ls-flag? o "-v")
+        (fn (_ x y) (%ls-natural< (%ls-name x) (%ls-name y))))
+      (#t (fn (_ x y) (%cu-str< (%ls-name x) (%ls-name y)))))))
 
 (def %ls-order
   (fn (_ es o)
@@ -178,12 +180,15 @@
 (def %ls-suffix
   (fn (_ e o)
     (def k (%ls-get e (lit kind)))
-    (if (eq? k (lit dir)) (if (if (%ls-flag? o "-F") #t (%ls-flag? o "-p")) "/" "")
-      (if (not (%ls-flag? o "-F")) ""
-        (if (eq? k (lit link)) "@"
-          (if (eq? k (lit fifo)) "|"
-            (if (eq? k (lit socket)) "="
-              (if (= 0 (bit-and (%ls-get e (lit mode)) 73)) "" "*"))))))))
+    (match
+      ((eq? k (lit dir))
+        (if (if (%ls-flag? o "-F") #t (%ls-flag? o "-p")) "/" ""))
+      ((not (%ls-flag? o "-F")) "")
+      ((eq? k (lit link))   "@")
+      ((eq? k (lit fifo))   "|")
+      ((eq? k (lit socket)) "=")
+      ((= 0 (bit-and (%ls-get e (lit mode)) 73)) "")
+      (#t "*"))))
 
 (def %ls-size-str
   (fn (_ e o)
