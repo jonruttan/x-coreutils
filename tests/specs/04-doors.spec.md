@@ -81,12 +81,16 @@ a shell uses it.
 
 ### ln -s writes a link readlink reads back
 
+stat describes the link and -L describes what it points at, which is what the
+system stat answers here.
+
 ```cu
-(do (cu-run (list "ln" "-s" "/tmp/x-cu-dr/f" "/tmp/x-cu-dr/l") "") (display (cu-run (list "readlink" "/tmp/x-cu-dr/l") "")) (display (cu-run (list "stat" "-c" "%F" "/tmp/x-cu-dr/l") "")))
+(do (cu-run (list "ln" "-s" "/tmp/x-cu-dr/f" "/tmp/x-cu-dr/l") "") (display (cu-run (list "readlink" "/tmp/x-cu-dr/l") "")) (display (cu-run (list "stat" "-c" "%F" "/tmp/x-cu-dr/l") "")) (display (cu-run (list "stat" "-L" "-c" "%F" "/tmp/x-cu-dr/l") "")))
 ```
 ---
 ```output
 /tmp/x-cu-dr/f
+0symbolic link
 0regular file
 0
 ```

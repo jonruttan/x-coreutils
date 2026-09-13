@@ -29,12 +29,7 @@
 
 ; date: ISO-8601 UTC by default (a recorded divergence from the locale
 ; format), +%s for unix seconds
-(def %cu-date
-  (fn (_ argv stdin-thunk)
-    (if (if (pair? argv) (string=? (first argv) "+%s") #f)
-      (do (display (string-append (%cu-int->str (date-now-unix)) "\n"))
-          0)
-      (do (display (string-append (date-now-iso) "\n")) 0))))
+; date moved to cu/date.x, which is where its strftime lives.
 
 ; which: the PATH walk; existence is the test (there is no access(X_OK)
 ; door -- the recorded divergence)

@@ -38,6 +38,8 @@
 (include-once "./sort.x")
 (include-once "./text4.x")
 (include-once "./walk.x")
+(include-once "./fmt-lex.x")
+(include-once "./date.x")
 (include-once "./diff-lex.x")
 (include-once "./diff.x")
 (include-once "./cli.x")

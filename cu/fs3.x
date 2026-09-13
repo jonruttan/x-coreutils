@@ -89,18 +89,25 @@
       ((= c 111) (num (lit blksize)))           ; o
       (#t (string-append "%" (%cu-b->s c))))))
 
+; The scanning is cu/fmt-lex.x's; %cu-stat-spec below is stat's.
 (def %cu-stat-format
   (fn (_ fmt name st)
-    (def end (byte-len fmt))
     (def go
-      (fn (self i acc)
-        (if (>= i end) (string-concat (reverse acc))
-          (let ((b (byte-at fmt i)))
-            (if (if (= b 37) (< (+ i 1) end) #f)              ; %
-              (self (+ i 2)
-                (pair (%cu-stat-spec (byte-at fmt (+ i 1)) name st) acc))
-              (self (+ i 1) (pair (%cu-b->s b) acc)))))))
-    (go 0 ())))
+      (fn (self ts acc)
+        (if (null? ts) (string-concat (reverse acc))
+          (let ((t (first ts)))
+            (self (rest ts)
+              (pair
+                (if (%cu-fmt-dir? t)
+                  (let ((conv (%cu-fmt-conv t)))
+                    ; %% is a %, and so is a format ending in a bare one
+                    (match
+                      ((= (byte-len conv) 0) "%")
+                      ((string=? conv "%") "%")
+                      (#t (%cu-stat-spec (byte-at conv 0) name st))))
+                  t)
+                acc))))))
+    (go (%cu-fmt-parse fmt #f) ())))
 
 ; the default block.  The user and group are NUMERIC: there is no
 ; passwd door, so the name column real stat(1) prints is not available.
@@ -123,13 +130,21 @@
 
 (def %cu-stat
   (fn (_ argv stdin-thunk)
-    (def c? (if (pair? argv) (string=? (first argv) "-c") #f))
-    (def fmt (if c? (first (rest argv)) ()))
-    (def ops (if c? (rest (rest argv)) argv))
+    ; Read through the declaration, so -c may follow its operands and -L is
+    ; reached at all.
+    (def o (%cu-opts "stat" argv))
+    (def fmt (Opts value o "-c"))
+    (def c? (not (null? fmt)))
+    (def ops (Opts operands o))
+    ; -L follows the link; not following it is the default, since stat
+    ; describes the name it was given and for a symlink that is the link.
+    (def stat-of
+      (fn (_ path)
+        (if (Opts on? o "-L") (file-stat-full path) (file-lstat-full path))))
     (def go
       (fn (self os st)
         (if (null? os) st
-          (let ((s (file-stat-full (first os))))
+          (let ((s (stat-of (first os))))
             (if (null? s)
               (do (file-write 2
                     (string-concat
