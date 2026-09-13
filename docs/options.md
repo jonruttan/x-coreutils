@@ -98,7 +98,7 @@ the work.  Applet parity is the other axis: see the README.
 | `wc` | -c -m -l -w -L | -l -w -c | -m -L | 60% |
 | `which` | -a |  | -a | 0% |
 | `whoami` |  |  |  | - |
-| `xargs` | -0 -a -E -I -n -p -r -s -t -x | -n | -0 -a -E -I -p -r -s -t -x | 10% |
+| `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 331 of 426 busybox options accepted (77%).**
+**Total: 338 of 426 busybox options accepted (79%).**

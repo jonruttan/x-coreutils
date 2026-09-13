@@ -195,7 +195,9 @@
     (pair "nice" (list () (list "-n") (lit leading)))
     (pair "shred" (list (list "-u") (list "-n")))
     (pair "timeout" (list () (list "-s") (lit leading)))
-    (pair "xargs" (list () (list "-n") (lit leading)))
+    ; -0 and -p are NOT here on purpose; cu/sys2.x says why
+    (pair "xargs" (list (list "-r" "-t" "-x")
+                        (list "-n" "-a" "-E" "-I" "-s") (lit leading)))
     ; test and its spellings are an EXPRESSION, not an option list:
     ; the operators are declared so the guard knows them, and the
     ; applet parses the expression itself.
