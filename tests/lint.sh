@@ -44,9 +44,10 @@ KIT="${X_LANG_KIT:-$("$X" --share-dir)/tools/lang-kit}"
 # definitions are in the fragments, so the fragments are what gets
 # linted.  What the fragments lack is each other's names: only base.x
 # and prims.x carry a (provide ...), and the %cu-* names are shared
-# across the whole rather than exported.  The kit's preload closes
-# that -- a sibling with no provide is include-once'd exactly as its own
-# module includes it, so a fragment is linted with the whole in scope.
+# across the whole rather than exported.  The kit's preload closes that
+# by including the ASSEMBLER whole -- base.x, which pulls its fragments
+# in the order the bundle really loads -- so a fragment is linted with
+# the whole in scope, base.x's own un-exported top level included.
 if [ $# -gt 0 ]; then
 	BUNDLE="$BUNDLE" X="$X" sh "$KIT/lint.sh" --strict "$@"
 else
