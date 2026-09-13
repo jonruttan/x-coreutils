@@ -171,8 +171,9 @@
     (def st (file-stat-full path))
     (if (null? st) 0
       (if (eq? (%cu-stat-get st (lit kind)) (lit dir))
-        (let ((kids (filter (fn (_ n) (not (%cu-dot? n)))
-                      (file-list-dir path))))
+        ; du SUMS rather than folding a status, so it takes the names
+        ; and keeps its own loop -- the listing is the shared part.
+        (let ((kids (%cu-walk-names path)))
           (def sub
             (fn (self2 ns acc)
               (if (null? ns) acc

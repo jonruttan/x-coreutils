@@ -415,24 +415,6 @@
       (string-append "/" name)
       (string-append dir (string-append "/" name)))))
 
-(def %cu-diff-names
-  (fn (_ dir) (%cu-msort (file-list-dir dir) %cu-str<)))
-
-; the sorted union of two sorted name lists
-(def %cu-diff-union
-  (fn (self as bs)
-    (if (null? as) bs
-      (if (null? bs) as
-        (if (string=? (first as) (first bs))
-          (pair (first as) (self (rest as) (rest bs)))
-          (if (%cu-str< (first as) (first bs))
-            (pair (first as) (self (rest as) bs))
-            (pair (first bs) (self as (rest bs)))))))))
-
-(def %cu-diff-member?
-  (fn (self n l)
-    (if (null? l) #f (if (string=? n (first l)) #t (self n (rest l))))))
-
 ; `diff FLAGS A B`, the line the report puts above a body -- the flags as
 ; they were given, which is what the header is FOR: it is the command
 ; that would show this one file.
@@ -455,57 +437,47 @@
   (fn (self o flags a b start)
     (def recurse? (Opts on? o "-r"))
     (def absent? (Opts on? o "-N"))
-    (def an (%cu-diff-names a))
-    (def bn (%cu-diff-names b))
-    (def names
-      (let ((all (%cu-diff-union an bn)))
-        (if (null? start) all
-          (let ((go (fn (self2 l)
-                      (if (null? l) ()
-                        (if (%cu-str< (first l) start) (self2 (rest l)) l)))))
-            (go all)))))
+    ; The walk answers a status; the report is collected here, because a
+    ; walker that also concatenated output would be a walker with an
+    ; opinion about what its callers produce.
+    (def out (list ()))
+    (def emit!
+      (fn (_ r)
+        (do (set-first! out (pair (first r) (first out))) (rest r))))
     (def one
-      (fn (_ n)
+      (fn (_ n ina inb)
         (def pa (%cu-diff-path a n))
         (def pb (%cu-diff-path b n))
-        (def ina (%cu-diff-member? n an))
-        (def inb (%cu-diff-member? n bn))
         (match
           ((if ina (not inb) #f)
             (if absent?
-              (%cu-diff-one-file o flags pa pb (file-read-all pa) "")
-              (pair (string-append "Only in "
-                      (string-append a (string-append ": "
-                        (string-append n "\n")))) 1)))
+              (emit! (%cu-diff-one-file o flags pa pb (file-read-all pa) ""))
+              (emit! (pair (string-append "Only in "
+                             (string-append a (string-append ": "
+                               (string-append n "\n")))) 1))))
           ((if inb (not ina) #f)
             (if absent?
-              (%cu-diff-one-file o flags pa pb "" (file-read-all pb))
-              (pair (string-append "Only in "
-                      (string-append b (string-append ": "
-                        (string-append n "\n")))) 1)))
+              (emit! (%cu-diff-one-file o flags pa pb "" (file-read-all pb)))
+              (emit! (pair (string-append "Only in "
+                             (string-append b (string-append ": "
+                               (string-append n "\n")))) 1))))
           ((if (file-dir? pa) (file-dir? pb) #f)
             (if recurse?
               ; a nested walk starts at the beginning: -S named a place in
               ; the directory it was given, not in every directory under it
-              (self o flags pa pb ())
-              (pair (string-append "Common subdirectories: "
-                      (string-append pa (string-append " and "
-                        (string-append pb "\n")))) 0)))
+              (emit! (self o flags pa pb ()))
+              (emit! (pair (string-append "Common subdirectories: "
+                             (string-append pa (string-append " and "
+                               (string-append pb "\n")))) 0))))
           ; a directory against a file is not something to compare
           ((if (file-dir? pa) #t (file-dir? pb))
-            (pair (string-append "File "
-                    (string-append (if (file-dir? pa) pb pa)
-                      " is not a directory\n")) 1))
-          (#t (%cu-diff-one-file o flags pa pb
-                (file-read-all pa) (file-read-all pb))))))
-    (def go
-      (fn (self2 l out st)
-        (if (null? l)
-          (pair (string-concat (reverse out)) st)
-          (let ((r (one (first l))))
-            (self2 (rest l) (pair (first r) out)
-              (if (> (rest r) st) (rest r) st))))))
-    (go names () 0)))
+            (emit! (pair (string-append "File "
+                           (string-append (if (file-dir? pa) pb pa)
+                             " is not a directory\n")) 1)))
+          (#t (emit! (%cu-diff-one-file o flags pa pb
+                       (file-read-all pa) (file-read-all pb)))))))
+    (let ((st (%cu-walk-pair a b start one)))
+      (pair (string-concat (reverse (first out))) st))))
 
 ; The two names a report names.  "-" is stdin, and diff calls it that.
 (def %cu-diff-pair-text

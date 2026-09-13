@@ -113,12 +113,9 @@
 
 (def %cu-chmod-kids
   (fn (_ spec dir)
-    (def go
-      (fn (self ns)
-        (if (null? ns) ()
-          (do (%cu-chmod-one spec (%cu-path-join dir (first ns)) #t)
-              (self (rest ns))))))
-    (go (filter (fn (_ n) (not (%cu-dot? n))) (file-list-dir dir)))))
+    (%cu-walk-status dir
+      (fn (_ n)
+        (do (%cu-chmod-one spec (%cu-path-join dir n) #t) 0)))))
 
 (def %cu-chmod
   (fn (_ argv stdin-thunk)
@@ -181,13 +178,8 @@
                            (list "changed ownership of '" path "'\n")))
                 ())))
         (if (if (Opts on? o "-R") (eq? kind (lit dir)) #f)
-          (let ((go (fn (self2 ns st)
-                      (if (null? ns) st
-                        (let ((r (self (%cu-path-join path (first ns))
-                                   ids o name)))
-                          (self2 (rest ns) (if (> r st) r st)))))))
-            (go (filter (fn (_ n) (not (%cu-dot? n)))
-                  (file-list-dir path)) 0))
+          (%cu-walk-status path
+            (fn (_ n) (self (%cu-path-join path n) ids o name)))
           0)))))
 
 ; the first operand is the owner spec; the rest are the paths
