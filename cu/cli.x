@@ -149,9 +149,10 @@
     (pair "tail" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "wc" (list (list "-l" "-w" "-c") ()))
     ; -a and -d are HONOURED no-ops here; cu/diff.x says why each is one.
-    ; The seven not declared -- -r -N -S -T -t -U -L -- are the directory
-    ; walk and the unified format, and they wait until they are read.
-    (pair "diff" (list (list "-i" "-b" "-w" "-B" "-q" "-s" "-a" "-d") ()))
+    ; The three not declared -- -r -N -S -- are the directory walk.
+    (pair "diff" (list (list "-i" "-b" "-w" "-B" "-q" "-s" "-a" "-d"
+                         "-T" "-t")
+                       (list "-U" "-L")))
     ; the checksum family shares one driver, so it shares one option set
     (pair "md5sum" (list (list "-c" "-s" "-w") ()))
     (pair "sha1sum" (list (list "-c" "-s" "-w") ()))
