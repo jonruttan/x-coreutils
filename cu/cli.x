@@ -141,6 +141,13 @@
     (pair "head" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "tail" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "wc" (list (list "-l" "-w" "-c") ()))
+    ; -s is NOT declared; cu/date.x says why.  -I's SPEC is attached and
+    ; optional, which Opts has no way to say, so the five spellings are
+    ; declared outright -- the declaration then lists exactly what is
+    ; accepted, which is the point of having one.
+    (pair "date" (list (list "-u" "-R" "-I" "-Idate" "-Ihours"
+                         "-Iminutes" "-Iseconds" "-Ins")
+                       (list "-d" "-D" "-r")))
     ; -a and -d are HONOURED no-ops here; cu/diff.x says why each is one.
     (pair "diff" (list (list "-i" "-b" "-w" "-B" "-q" "-s" "-a" "-d"
                          "-T" "-t" "-r" "-N")
