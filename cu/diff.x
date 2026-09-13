@@ -262,10 +262,11 @@
           (slice lo hi)))
       groups)))
 
-(def %cu-diff-str
-  (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "diff" argv))
-    (def paths (Opts operands o))
+; The two texts compared, with the options already parsed.  Split out so
+; a directory walk can compare a file against "" for -N without inventing
+; a path that does not exist.
+(def %cu-diff-texts
+  (fn (_ o paths atext btext)
     (def fold? (Opts on? o "-i"))
     (def squeeze? (Opts on? o "-b"))
     (def strip? (Opts on? o "-w"))
@@ -273,11 +274,6 @@
     (def untab? (Opts on? o "-t"))
     (def tab? (Opts on? o "-T"))
     (def uni (Opts value o "-U"))
-    (def read-op
-      (fn (_ op) (if (string=? op "-") (stdin-thunk)
-                   (file-read-all op))))
-    (def atext (read-op (first paths)))
-    (def btext (read-op (first (rest paths))))
     (def a (%cu-lines atext))
     (def b (%cu-lines btext))
     ; the SAME text read twice: once as it is, once as diff compares it
@@ -339,6 +335,17 @@
                     hs))))
             status))))))
 
+(def %cu-diff-str
+  (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "diff" argv))
+    (def paths (Opts operands o))
+    (def read-op
+      (fn (_ op) (if (string=? op "-") (stdin-thunk)
+                   (file-read-all op))))
+    (%cu-diff-texts o paths
+      (read-op (first paths))
+      (read-op (first (rest paths))))))
+
 ; --- normal ------------------------------------------------------------------
 ;
 ; The same hunks the emitter always printed, read off the op list rather
@@ -388,6 +395,90 @@
         (string-append "\n+++ "
           (string-append (pick 1 (first (rest paths))) "\n"))))))
 
+; --- directories -------------------------------------------------------------
+;
+; diff DIR DIR compares the files the two have in common, names a file
+; only one of them holds, and -- without -r -- reports a subdirectory
+; they share as common rather than looking inside it.  Entries are
+; walked in sorted order, which is the order the report comes out in.
+;
+; -S STARTS THE WALK AT A NAME, and only at the TOP LEVEL: "start with
+; FILE when comparing directories" is one directory, not each.  The BSD
+; diff on this machine applies it at every level instead, so `-S sub`
+; there hides sub/deep.txt as well -- measured, and not followed, because
+; a flag that silently drops files in directories it was never pointed at
+; is a surprise rather than a feature.
+
+(def %cu-diff-path
+  (fn (_ dir name)
+    (if (string=? dir "/")
+      (string-append "/" name)
+      (string-append dir (string-append "/" name)))))
+
+; `diff FLAGS A B`, the line the report puts above a body -- the flags as
+; they were given, which is what the header is FOR: it is the command
+; that would show this one file.
+(def %cu-diff-header
+  (fn (_ flags pa pb)
+    (string-append "diff"
+      (string-append (if (null? flags) "" (string-append " " (%cu-join-with flags " ")))
+        (string-append " "
+          (string-append pa (string-append " " (string-append pb "\n"))))))))
+
+(def %cu-diff-one-file
+  (fn (_ o flags pa pb atext btext)
+    (let ((r (%cu-diff-texts o (list pa pb) atext btext)))
+      (if (= (byte-len (first r)) 0)
+        (pair "" (rest r))
+        (pair (string-append (%cu-diff-header flags pa pb) (first r))
+          (rest r))))))
+
+(def %cu-diff-dir
+  (fn (self o flags a b start)
+    (def recurse? (Opts on? o "-r"))
+    (def absent? (Opts on? o "-N"))
+    ; The walk answers a status; the report is collected here, because a
+    ; walker that also concatenated output would be a walker with an
+    ; opinion about what its callers produce.
+    (def out (list ()))
+    (def emit!
+      (fn (_ r)
+        (do (set-first! out (pair (first r) (first out))) (rest r))))
+    (def one
+      (fn (_ n ina inb)
+        (def pa (%cu-diff-path a n))
+        (def pb (%cu-diff-path b n))
+        (match
+          ((if ina (not inb) #f)
+            (if absent?
+              (emit! (%cu-diff-one-file o flags pa pb (file-read-all pa) ""))
+              (emit! (pair (string-append "Only in "
+                             (string-append a (string-append ": "
+                               (string-append n "\n")))) 1))))
+          ((if inb (not ina) #f)
+            (if absent?
+              (emit! (%cu-diff-one-file o flags pa pb "" (file-read-all pb)))
+              (emit! (pair (string-append "Only in "
+                             (string-append b (string-append ": "
+                               (string-append n "\n")))) 1))))
+          ((if (file-dir? pa) (file-dir? pb) #f)
+            (if recurse?
+              ; a nested walk starts at the beginning: -S named a place in
+              ; the directory it was given, not in every directory under it
+              (emit! (self o flags pa pb ()))
+              (emit! (pair (string-append "Common subdirectories: "
+                             (string-append pa (string-append " and "
+                               (string-append pb "\n")))) 0))))
+          ; a directory against a file is not something to compare
+          ((if (file-dir? pa) #t (file-dir? pb))
+            (emit! (pair (string-append "File "
+                           (string-append (if (file-dir? pa) pb pa)
+                             " is not a directory\n")) 1)))
+          (#t (emit! (%cu-diff-one-file o flags pa pb
+                       (file-read-all pa) (file-read-all pb)))))))
+    (let ((st (%cu-walk-pair a b start one)))
+      (pair (string-concat (reverse (first out))) st))))
+
 ; The two names a report names.  "-" is stdin, and diff calls it that.
 (def %cu-diff-pair-text
   (fn (_ ops verb)
@@ -398,11 +489,51 @@
             (string-append " " (string-append verb "\n"))))))))
 
 ; the applet: display the output, answer the status
+; The last path segment, for `diff FILE DIR` -- which compares FILE with
+; the entry of that name inside DIR, as every diff does.
+(def %cu-diff-tail
+  (fn (_ p)
+    (def end (byte-len p))
+    (def go
+      (fn (self i)
+        (if (< i 0) p
+          (if (= (byte-at p i) 47) (substring p (+ i 1) end) (self (- i 1))))))
+    (go (- end 1))))
+
+; The options as they were GIVEN, which is what a directory report's
+; header line repeats.  diff takes exactly two operands, so everything
+; before them is flags.
+(def %cu-diff-flags
+  (fn (_ argv)
+    (def n (length argv))
+    (def go
+      (fn (self l k acc)
+        (if (>= k (- n 2)) (reverse acc)
+          (self (rest l) (+ k 1) (pair (first l) acc)))))
+    (if (< n 3) () (go argv 0 ()))))
+
 (def %cu-diff
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "diff" argv))
     (def ops (Opts operands o))
-    (def r (%cu-diff-str argv stdin-thunk))
+    (def pa (first ops))
+    (def pb (first (rest ops)))
+    ; A DIRECTORY ON EITHER SIDE CHANGES WHAT THE COMPARISON IS.  Two of
+    ; them is a walk; one of them names the entry inside it that matches
+    ; the other's name.
+    (if (if (file-dir? pa) (file-dir? pb) #f)
+      (let ((d (%cu-diff-dir o (%cu-diff-flags argv) pa pb (Opts value o "-S"))))
+        (do (display (first d)) (rest d)))
+      (%cu-diff-files o argv stdin-thunk
+        (if (file-dir? pa) (%cu-diff-path pa (%cu-diff-tail pb)) pa)
+        (if (file-dir? pb) (%cu-diff-path pb (%cu-diff-tail pa)) pb)))))
+
+(def %cu-diff-files
+  (fn (_ o argv stdin-thunk pa pb)
+    (def ops (list pa pb))
+    (def read-op
+      (fn (_ op) (if (string=? op "-") (stdin-thunk) (file-read-all op))))
+    (def r (%cu-diff-texts o ops (read-op pa) (read-op pb)))
     (def differ? (> (rest r) 0))
     ; -q and -s replace the body with one line about it; -q says nothing
     ; when the files match, which is why they are not one flag.

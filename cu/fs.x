@@ -140,14 +140,10 @@
                   (string-concat (list "cp: omitting directory '" src "'\n")))
                 1)
             (do (if (file-exists? dst) () (file-mkdir dst))
-                (let ((go (fn (self2 ns st2)
-                            (if (null? ns) st2
-                              (let ((r (self (%cu-path-join src (first ns))
-                                         (%cu-path-join dst (first ns)) o)))
-                                (self2 (rest ns) (if (> r st2) r st2)))))))
-                  (let ((r (go (filter (fn (_ n) (not (%cu-dot? n)))
-                                 (file-list-dir src)) 0)))
-                    (do (%cp-preserve! src dst o) r)))))
+                (let ((r (%cu-walk-status src
+                           (fn (_ n) (self (%cu-path-join src n)
+                                       (%cu-path-join dst n) o)))))
+                  (do (%cp-preserve! src dst o) r))))
           ; a file onto an existing DIRECTORY is a refusal, not a raise:
           ; -T names the destination outright, and cp will not unmake a
           ; directory to honour it
@@ -242,13 +238,9 @@
                 (string-concat
                   (list "rm: cannot remove '" path "': Is a directory\n")))
               1)
-          (let ((go (fn (self2 ns st)
-                      (if (null? ns) st
-                        (let ((r (self (%cu-path-join path (first ns)) o)))
-                          (self2 (rest ns) (if (> r st) r st)))))))
-            (let ((r (go (filter (fn (_ n) (not (%cu-dot? n)))
-                           (file-list-dir path)) 0)))
-              (do (file-rmdir path) (%rm-say path o) r))))
+          (let ((r (%cu-walk-status path
+                     (fn (_ n) (self (%cu-path-join path n) o)))))
+            (do (file-rmdir path) (%rm-say path o) r)))
         (if (not (%fs-may-clobber? o path "rm")) 0
           (do (file-unlink path) (%rm-say path o) 0))))))
 

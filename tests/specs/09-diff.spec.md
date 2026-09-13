@@ -307,10 +307,130 @@ no clock a spec can pin.
 ---
     0
 
+## directories
+
+### fixtures
+
+```cu
+(do (proc-run (list "/bin/sh" "-c"
+      "rm -rf /tmp/x-cu-dd && mkdir -p /tmp/x-cu-dd/A/sub /tmp/x-cu-dd/B/sub"))
+    (file-write-all "/tmp/x-cu-dd/A/same.txt" "same\n")
+    (file-write-all "/tmp/x-cu-dd/B/same.txt" "same\n")
+    (file-write-all "/tmp/x-cu-dd/A/diff.txt" "one\n")
+    (file-write-all "/tmp/x-cu-dd/B/diff.txt" "two\n")
+    (file-write-all "/tmp/x-cu-dd/A/onlyA.txt" "only A\n")
+    (file-write-all "/tmp/x-cu-dd/B/onlyB.txt" "only B\n")
+    (file-write-all "/tmp/x-cu-dd/A/sub/deep.txt" "deep a\n")
+    (file-write-all "/tmp/x-cu-dd/B/sub/deep.txt" "deep b\n")
+    ; the walk's output as a string.  Asserted in x rather than quoted:
+    ; a body carries "> " lines and the runner strips a literal "> "
+    ; prompt from captured stdout.
+    (def %cu-dd
+      (fn (_ flags start)
+        (first (%cu-diff-dir
+                 (%cu-opts "diff" (append flags
+                                    (list "/tmp/x-cu-dd/A" "/tmp/x-cu-dd/B")))
+                 flags "/tmp/x-cu-dd/A" "/tmp/x-cu-dd/B" start))))
+    (def %cu-dd-has?
+      (fn (_ hay needle)
+        (def hn (byte-len hay))
+        (def nn (byte-len needle))
+        (def go
+          (fn (self i)
+            (if (> (+ i nn) hn) #f
+              (if (string=? (substring hay i (+ i nn)) needle) #t
+                (self (+ i 1))))))
+        (go 0)))
+    (display "made"))
+```
+---
+    made
+
+### a file only one side has is named, not compared
+
+```cu
+(do (def out (%cu-dd () ()))
+    (display (%cu-dd-has? out "Only in /tmp/x-cu-dd/A: onlyA.txt\n"))
+    (display (%cu-dd-has? out "Only in /tmp/x-cu-dd/B: onlyB.txt\n")))
+```
+---
+    #t#t
+
+### a shared subdirectory is common, until -r
+
+```cu
+(do (display (%cu-dd-has? (%cu-dd () ())
+       "Common subdirectories: /tmp/x-cu-dd/A/sub and /tmp/x-cu-dd/B/sub\n"))
+    (display (%cu-dd-has? (%cu-dd (list "-r") ())
+       "Common subdirectories")))
+```
+---
+    #t#f
+
+### -r looks inside it, and the header repeats the flags
+
+The header is the command that would show that one file, so it carries
+the flags as they were given.
+
+```cu
+(display (%cu-dd-has? (%cu-dd (list "-r") ())
+  "diff -r /tmp/x-cu-dd/A/sub/deep.txt /tmp/x-cu-dd/B/sub/deep.txt\n"))
+```
+---
+    #t
+
+### -N compares an absent file as an empty one
+
+The name that was only on one side is no longer merely named: it is
+compared, against nothing.
+
+```cu
+(do (def out (%cu-dd (list "-r" "-N") ()))
+    (display (%cu-dd-has? out "Only in"))
+    (display (%cu-dd-has? out
+      "diff -r -N /tmp/x-cu-dd/A/onlyA.txt /tmp/x-cu-dd/B/onlyA.txt\n1d0\n")))
+```
+---
+    #f#t
+
+### -S starts the walk at a name, in the ORDER the walk uses
+
+```cu
+(do (def out (%cu-dd (list "-r" "-S" "same.txt") "same.txt"))
+    (display (%cu-dd-has? out "diff.txt"))
+    (display (%cu-dd-has? out "sub/deep.txt")))
+```
+---
+    #f#t
+
+### and -S applies to the directory it was given, not to each one under it
+
+`sub/deep.txt` is still compared when the walk starts at `same.txt`,
+because the nested walk starts at its own beginning.  The BSD diff on
+this machine filters every level instead, so `-S sub` there hides
+`sub/deep.txt` -- measured, and not followed: a flag that silently drops
+files in directories it was never pointed at is a surprise, not a
+feature.
+
+```cu
+(display (%cu-dd-has? (%cu-dd (list "-r" "-S" "sub") "sub") "deep.txt"))
+```
+---
+    #t
+
+### diff FILE DIR compares FILE with the entry of that name
+
+```cu
+(display (cu-run (list "diff" "/tmp/x-cu-dd/A/same.txt" "/tmp/x-cu-dd/B") ""))
+```
+---
+    0
+
 ### cleanup
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -f /tmp/x-cu-df-*")) (display "clean"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-df-* /tmp/x-cu-dd"))
+    (display "clean"))
 ```
 ---
     clean
