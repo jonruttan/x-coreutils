@@ -148,6 +148,15 @@
     (pair "head" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "tail" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "wc" (list (list "-l" "-w" "-c") ()))
+    ; -a and -d are HONOURED no-ops here; cu/diff.x says why each is one.
+    ; The seven not declared -- -r -N -S -T -t -U -L -- are the directory
+    ; walk and the unified format, and they wait until they are read.
+    (pair "diff" (list (list "-i" "-b" "-w" "-B" "-q" "-s" "-a" "-d") ()))
+    ; the checksum family shares one driver, so it shares one option set
+    (pair "md5sum" (list (list "-c" "-s" "-w") ()))
+    (pair "sha1sum" (list (list "-c" "-s" "-w") ()))
+    (pair "sha256sum" (list (list "-c" "-s" "-w") ()))
+    (pair "sha512sum" (list (list "-c" "-s" "-w") ()))
     (pair "comm" (list (list "-1" "-2" "-3") ()))
     (pair "tr" (list (list "-d" "-s") ()))
     (pair "cut" (list () (list "-d" "-f" "-c")))
@@ -190,7 +199,9 @@
     (pair "nice" (list () (list "-n") (lit leading)))
     (pair "shred" (list (list "-u") (list "-n")))
     (pair "timeout" (list () (list "-s") (lit leading)))
-    (pair "xargs" (list () (list "-n") (lit leading)))
+    ; -0 and -p are NOT here on purpose; cu/sys2.x says why
+    (pair "xargs" (list (list "-r" "-t" "-x")
+                        (list "-n" "-a" "-E" "-I" "-s") (lit leading)))
     ; test and its spellings are an EXPRESSION, not an option list:
     ; the operators are declared so the guard knows them, and the
     ; applet parses the expression itself.

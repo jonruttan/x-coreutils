@@ -26,7 +26,7 @@ the work.  Applet parity is the other axis: see the README.
 | `date` | -u -d -D -s -r -R -I +FMT |  | -u -d -D -s -r -R -I +FMT | 0% |
 | `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= count= skip= seek= status= | ibs= obs= conv= iflag= oflag= | 58% |
 | `df` | -P -k -m -h -T -a -i -B | -h -k -P -m -i -B | -T -a | 75% |
-| `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U |  | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | 0% |
+| `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -i -b -w -B -q -s -a -d | -N -r -T -t -L -S -U | 53% |
 | `dirname` |  |  |  | - |
 | `dos2unix` | -u -d |  | -u -d | 0% |
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k -c -h -m -x -l -H -L -d |  | 100% |
@@ -46,7 +46,7 @@ the work.  Applet parity is the other axis: see the README.
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -A -a -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u | -C -x -w | 87% |
-| `md5sum` | -c -s -w |  | -c -s -w | 0% |
+| `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
 | `mktemp` | -d -t -p -q -u | -d -t -q -u -p |  | 100% |
@@ -66,9 +66,9 @@ the work.  Applet parity is the other axis: see the README.
 | `rm` | -i -r -R -f -v | -i -r -R -f -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
 | `seq` | -w -s |  | -w -s | 0% |
-| `sha1sum` | -c -s -w |  | -c -s -w | 0% |
-| `sha256sum` | -c -s -w |  | -c -s -w | 0% |
-| `sha512sum` | -c -s -w |  | -c -s -w | 0% |
+| `sha1sum` | -c -s -w | -c -s -w |  | 100% |
+| `sha256sum` | -c -s -w | -c -s -w |  | 100% |
+| `sha512sum` | -c -s -w | -c -s -w |  | 100% |
 | `shred` | -f -n -u -z | -u -n | -f -z | 50% |
 | `shuf` | -e -i -n -o -z | -e -n | -i -o -z | 40% |
 | `sleep` |  |  |  | - |
@@ -98,7 +98,7 @@ the work.  Applet parity is the other axis: see the README.
 | `wc` | -c -m -l -w -L | -l -w -c | -m -L | 60% |
 | `which` | -a |  | -a | 0% |
 | `whoami` |  |  |  | - |
-| `xargs` | -0 -a -E -I -n -p -r -s -t -x | -n | -0 -a -E -I -p -r -s -t -x | 10% |
+| `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 319 of 426 busybox options accepted (74%).**
+**Total: 346 of 426 busybox options accepted (81%).**

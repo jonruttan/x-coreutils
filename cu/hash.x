@@ -239,31 +239,169 @@
 
 ; md5sum/sha1sum/sha256sum share one shape: DIGEST then two spaces then
 ; the name, with `-` standing for stdin.
+; A DIGEST IS COMPARED CASE-INSENSITIVELY, and not by lowering the whole
+; string first: a checksum file may spell its hex either way, and the
+; comparison is the only place that cares.
+(def %cu-lc-byte
+  (fn (_ b) (if (if (>= b 65) (<= b 90) #f) (+ b 32) b)))
+
+(def %cu-hex=?
+  (fn (_ a b)
+    (def n (byte-len a))
+    (if (not (= n (byte-len b)))
+      #f
+      (let ((go (fn (self i)
+                  (if (>= i n) #t
+                    (if (= (%cu-lc-byte (byte-at a i))
+                           (%cu-lc-byte (byte-at b i)))
+                      (self (+ i 1))
+                      #f)))))
+        (go 0)))))
+
+; One line of a checksum file -> (DIGEST . NAME), or nil when the line is
+; not one.  This family WRITES "DIGEST  NAME" -- digest, two spaces, name
+; -- and GNU's binary form spells the separator " *" instead; busybox
+; reads both, so both are read here.  Anything else is an IMPROPERLY
+; FORMATTED line, which is skipped and reported only under -w, the flag
+; that exists to ask about them.
+(def %cu-sum-parse-line
+  (fn (_ line)
+    (def end (byte-len line))
+    (def sp
+      (let ((go (fn (self i)
+                  (if (>= i end) ()
+                    (if (= (byte-at line i) 32) i (self (+ i 1)))))))
+        (go 0)))
+    (if (null? sp)
+      ()
+      (if (= sp 0)
+        ()
+        (if (>= (+ sp 2) end)
+          ()
+          (let ((c2 (byte-at line (+ sp 1))))
+            (if (if (= c2 32) #t (= c2 42))
+              (pair (substring line 0 sp) (substring line (+ sp 2) end))
+              ())))))))
+
+; -c: read the checksum lines back and recompute.  Returns 1 when
+; anything failed, which is the whole point of the mode -- a checker
+; whose status does not move is a checker nobody can script.
+(def %cu-sum-check
+  (fn (_ name digest ops stdin-thunk status? warn?)
+    (def nfail (list 0))   ; read, and did not match
+    (def nopen (list 0))   ; could not be read at all
+    (def nbad (list 0))    ; not a checksum line
+    (def nok (list 0))
+    (def bump!
+      (fn (_ cell) (set-first! cell (+ (first cell) 1))))
+    (def check-line
+      (fn (_ line)
+        (if (= (byte-len line) 0)
+          ()
+          (let ((row (%cu-sum-parse-line line)))
+            (if (null? row)
+              (do (bump! nbad)
+                  (if warn?
+                    (file-write 2
+                      (string-append name
+                        ": improperly formatted checksum line\n"))
+                    ()))
+              (let ((want (first row)) (path (rest row)))
+                (if (not (file-exists? path))
+                  (do (bump! nopen)
+                      (if status? ()
+                        (display
+                          (string-append path ": FAILED open or read\n"))))
+                  (if (%cu-hex=? (digest (file-read-all path)) want)
+                    (do (bump! nok)
+                        (if status? ()
+                          (display (string-append path ": OK\n"))))
+                    (do (bump! nfail)
+                        (if status? ()
+                          (display (string-append path ": FAILED\n"))))))))))))
+    (def walk
+      (fn (self lines)
+        (if (null? lines) ()
+          (do (check-line (first lines)) (self (rest lines))))))
+    (def each-source
+      (fn (self srcs)
+        (if (null? srcs) ()
+          (do
+            (if (if (string=? (first srcs) "-") #t
+                  (file-exists? (first srcs)))
+              (walk (%cu-lines
+                      (if (string=? (first srcs) "-")
+                        (stdin-thunk)
+                        (file-read-all (first srcs)))))
+              (do (bump! nfail)
+                  (file-write 2
+                    (string-append name
+                      (string-append ": can't open "
+                        (string-append (first srcs) "\n"))))))
+            (self (rest srcs))))))
+    (do
+      (each-source (if (null? ops) (list "-") ops))
+      ; -s asks for the STATUS ONLY, and that covers the summary too:
+      ; a caller who wanted no output does not want a warning either.
+      (if status? ()
+        (do
+          (if (> (first nbad) 0)
+            (file-write 2
+              (string-append name
+                (string-append ": WARNING: "
+                  (string-append (%cu-int->str (first nbad))
+                    " improperly formatted checksum line(s)\n"))))
+            ())
+          (if (> (first nopen) 0)
+            (file-write 2
+              (string-append name
+                (string-append ": WARNING: "
+                  (string-append (%cu-int->str (first nopen))
+                    " listed file(s) could not be read\n"))))
+            ())
+          (if (> (first nfail) 0)
+            (file-write 2
+              (string-append name
+                (string-append ": WARNING: "
+                  (string-append (%cu-int->str (first nfail))
+                    " computed checksum(s) did NOT match\n"))))
+            ())))
+      (if (> (+ (first nfail) (first nopen)) 0)
+        1
+        ; every line unreadable is a failure even when none MISMATCHED:
+        ; a check that verified nothing must not answer success.
+        (if (= (first nok) 0) 1 0)))))
+
 (def %cu-sum-applet
-  (fn (_ digest argv stdin-thunk)
+  (fn (_ name digest argv stdin-thunk)
+    (def o (%cu-opts name argv))
+    (def ops (Opts operands o))
     (def one
-      (fn (_ name text)
+      (fn (_ path text)
         (display
           (string-append (digest text)
-            (string-append "  " (string-append name "\n"))))))
-    (if (null? argv)
-      (do (one "-" (stdin-thunk)) 0)
-      (let ((go (fn (self ops)
-                  (if (null? ops) 0
-                    (do (one (first ops)
-                          (if (string=? (first ops) "-")
-                            (stdin-thunk)
-                            (file-read-all (first ops))))
-                        (self (rest ops)))))))
-        (go argv)))))
+            (string-append "  " (string-append path "\n"))))))
+    (if (Opts on? o "-c")
+      (%cu-sum-check name digest ops stdin-thunk
+        (Opts on? o "-s") (Opts on? o "-w"))
+      (if (null? ops)
+        (do (one "-" (stdin-thunk)) 0)
+        (let ((go (fn (self rest-ops)
+                    (if (null? rest-ops) 0
+                      (do (one (first rest-ops)
+                            (if (string=? (first rest-ops) "-")
+                              (stdin-thunk)
+                              (file-read-all (first rest-ops))))
+                          (self (rest rest-ops)))))))
+          (go ops))))))
 
 (def %cu-md5sum
   (fn (_ argv stdin-thunk)
-    (%cu-sum-applet (fn (_ t) (cu-md5 t)) argv stdin-thunk)))
+    (%cu-sum-applet "md5sum" (fn (_ t) (cu-md5 t)) argv stdin-thunk)))
 
 (def %cu-sha1sum
   (fn (_ argv stdin-thunk)
-    (%cu-sum-applet (fn (_ t) (cu-sha1 t)) argv stdin-thunk)))
+    (%cu-sum-applet "sha1sum" (fn (_ t) (cu-sha1 t)) argv stdin-thunk)))
 
 ; --- cksum: the POSIX CRC-32 --------------------------------------------------
 
