@@ -81,12 +81,19 @@ a shell uses it.
 
 ### ln -s writes a link readlink reads back
 
+STAT DESCRIBES THE LINK, and -L describes what it points at.  This case
+used to expect "regular file" with no -L, because stat followed every
+link and its -L was accepted and never read -- so the spec pinned that.
+The system stat answers "Symbolic Link" here and "Regular File" under
+-L, which is what these two lines now assert.
+
 ```cu
-(do (cu-run (list "ln" "-s" "/tmp/x-cu-dr/f" "/tmp/x-cu-dr/l") "") (display (cu-run (list "readlink" "/tmp/x-cu-dr/l") "")) (display (cu-run (list "stat" "-c" "%F" "/tmp/x-cu-dr/l") "")))
+(do (cu-run (list "ln" "-s" "/tmp/x-cu-dr/f" "/tmp/x-cu-dr/l") "") (display (cu-run (list "readlink" "/tmp/x-cu-dr/l") "")) (display (cu-run (list "stat" "-c" "%F" "/tmp/x-cu-dr/l") "")) (display (cu-run (list "stat" "-L" "-c" "%F" "/tmp/x-cu-dr/l") "")))
 ```
 ---
 ```output
 /tmp/x-cu-dr/f
+0symbolic link
 0regular file
 0
 ```

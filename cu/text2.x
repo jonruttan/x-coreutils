@@ -36,22 +36,8 @@
 
 ; printf(1): the format REUSES until the arguments run out; %s %d %c
 ; %x %o %% with optional width and the - flag; \n \t \\ in the format
-(def %cu-printf-esc
-  (fn (_ s)
-    (def end (byte-len s))
-    (def go
-      (fn (self i acc)
-        (if (>= i end) (string-concat (reverse acc))
-          (let ((b (byte-at s i)))
-            (if (if (= b 92) (< (+ i 1) end) #f)
-              (let ((e (byte-at s (+ i 1))))
-                (match
-                  ((= e 110) (self (+ i 2) (pair "\n" acc)))
-                  ((= e 116) (self (+ i 2) (pair "\t" acc)))
-                  ((= e 92)  (self (+ i 2) (pair "\\" acc)))
-                  (#t (self (+ i 2) (pair (%cu-b->s e) acc)))))
-              (self (+ i 1) (pair (%cu-b->s b) acc)))))))
-    (go 0 ())))
+; the escapes are cu/fmt-lex.x's now, and so is the % scanning; what
+; stays here is the table of what a conversion MEANS to printf.
 
 (def %cu-oct->str
   (fn (_ n)
@@ -85,62 +71,56 @@
 ; one pass of the format over the argument list; answers (consumed-any?
 ; . rest-args)
 (def %cu-printf-once
-  (fn (_ fmt args)
-    (def end (byte-len fmt))
+  (fn (_ toks args)
     (def go
-      (fn (self i as used acc)
-        (if (>= i end)
+      (fn (self ts as used acc)
+        (if (null? ts)
           (do (display (string-concat (reverse acc)))
               (pair used as))
-          (let ((b (byte-at fmt i)))
-            (if (not (= b 37))                             ; %
-              (self (+ i 1) as used (pair (%cu-b->s b) acc))
-              (let ((left (if (< (+ i 1) end)
-                            (= (byte-at fmt (+ i 1)) 45) #f)))
-                (def j0 (if left (+ i 2) (+ i 1)))
-                (def wr (let ((go2 (fn (self2 j acc2)
-                                     (if (>= j end) (pair acc2 j)
-                                       (let ((d (byte-at fmt j)))
-                                         (if (if (>= d 48) (<= d 57) #f)
-                                           (self2 (+ j 1)
-                                             (+ (* acc2 10) (- d 48)))
-                                           (pair acc2 j)))))))
-                          (go2 j0 0)))
-                (def w (first wr))
-                (def j (rest wr))
-                (def c (if (< j end) (byte-at fmt j) 0))
+          (let ((t (first ts)))
+            (if (not (%cu-fmt-dir? t))
+              (self (rest ts) as used (pair t acc))
+              (let ((conv (%cu-fmt-conv t))
+                    (w (%cu-fmt-width t))
+                    (left (%cu-fmt-left? t)))
                 (def arg (if (null? as) "" (first as)))
                 (def as2 (if (null? as) () (rest as)))
                 (match
-                  ((= c 37) (self (+ j 1) as used (pair "%" acc)))
-                  ((= c 115)                                 ; s
-                    (self (+ j 1) as2 #t (pair (%cu-pad arg w left) acc)))
-                  ((= c 100)                                 ; d
-                    (self (+ j 1) as2 #t
+                  ; a format ending in a bare % kept it as a directive
+                  ; with no conversion, and a bare % is a %
+                  ((= (byte-len conv) 0) (self (rest ts) as used (pair "%" acc)))
+                  ((string=? conv "%") (self (rest ts) as used (pair "%" acc)))
+                  ((string=? conv "s")
+                    (self (rest ts) as2 #t (pair (%cu-pad arg w left) acc)))
+                  ((string=? conv "d")
+                    (self (rest ts) as2 #t
                       (pair (%cu-pad (%cu-int->str (%cu-num-prefix arg)) w left)
                         acc)))
-                  ((= c 120)                                 ; x
-                    (self (+ j 1) as2 #t
+                  ((string=? conv "x")
+                    (self (rest ts) as2 #t
                       (pair (%cu-hexs (%cu-num-prefix arg)) acc)))
-                  ((= c 111)                                 ; o
-                    (self (+ j 1) as2 #t
+                  ((string=? conv "o")
+                    (self (rest ts) as2 #t
                       (pair (%cu-oct->str (%cu-num-prefix arg)) acc)))
-                  ((= c 99)                                  ; c
-                    (self (+ j 1) as2 #t
+                  ((string=? conv "c")
+                    (self (rest ts) as2 #t
                       (pair (if (> (byte-len arg) 0) (substring arg 0 1) "")
                         acc)))
                   (#t (Err raise (lit cu)
                         "printf: only %s %d %x %o %c %%" ())))))))))
-    (go 0 args #f ())))
+    (go toks args #f ())))
 
 (def %cu-printf
   (fn (_ argv stdin-thunk)
     (if (null? argv)
       (do (file-write 2 "printf: need a format\n") 1)
-      (let ((fmt (%cu-printf-esc (first argv))))
+      ; PARSED ONCE, walked per argument group: printf repeats its format
+      ; until the arguments run out, and re-scanning it each time was the
+      ; only reason the scan had to be cheap.
+      (let ((toks (%cu-fmt-parse (first argv) #t)))
         (def go
           (fn (self as)
-            (let ((r (%cu-printf-once fmt as)))
+            (let ((r (%cu-printf-once toks as)))
               (if (if (first r) (pair? (rest r)) #f)
                 (self (rest r))
                 0))))

@@ -127,22 +127,30 @@
       ; stray % survives unharmed without a byte->string door here
       (#t ""))))
 
+; THE SCANNING IS cu/fmt-lex.x's; the table above is the part that is
+; date's.  Escapes are OFF: the system date prints "a\nb" for the format
+; "a\nb", and so does this.
 (def %cu-date-fmt
   (fn (_ fmt d secs)
-    (def end (byte-len fmt))
     (def go
-      (fn (self i acc)
-        (if (>= i end) acc
-          (if (if (= (byte-at fmt i) 37) (< (+ i 1) end) #f)
-            (self (+ i 2)
-              (string-append acc
-                (let ((c (byte-at fmt (+ i 1))))
-                  (if (%cu-date-known? c)
-                    (%cu-date-one c d secs)
-                    (substring fmt i (+ i 2))))))
-            (self (+ i 1)
-              (string-append acc (substring fmt i (+ i 1))))))))
-    (go 0 "")))
+      (fn (self ts acc)
+        (if (null? ts) acc
+          (self (rest ts)
+            (string-append acc
+              (if (%cu-fmt-dir? (first ts))
+                (%cu-date-directive (%cu-fmt-conv (first ts)) d secs)
+                (first ts)))))))
+    (go (%cu-fmt-parse fmt #f) "")))
+
+(def %cu-date-directive
+  (fn (_ conv d secs)
+    ; a format ending in a bare % kept it as a directive with no
+    ; conversion, and a bare % is a %
+    (if (= (byte-len conv) 0) "%"
+      (let ((c (byte-at conv 0)))
+        (if (%cu-date-known? c)
+          (%cu-date-one c d secs)
+          (string-append "%" conv))))))
 
 (def %cu-date-known?
   (fn (_ c)
@@ -178,27 +186,35 @@
           (if (= got 0) () (pair acc k)))))
     (go i 0 0)))
 
+; READING a time is the same format, walked against an input instead of
+; an output: the same tokens, and a literal run must MATCH rather than
+; be emitted.
 (def %cu-date-scan
   (fn (_ fmt s)
-    ; FORMAT against STRING -> a date alist, or nil when it does not fit
-    (def fend (byte-len fmt))
     (def send (byte-len s))
+    (def lit-match
+      (fn (self t si k)
+        ; -> the position after T, or nil if the input does not carry it
+        (if (>= k (byte-len t)) si
+          (if (if (< si send) (= (byte-at s si) (byte-at t k)) #f)
+            (self t (+ si 1) (+ k 1))
+            ()))))
     (def go
-      (fn (self fi si acc)
-        (if (>= fi fend)
-          acc
-          (if (if (= (byte-at fmt fi) 37) (< (+ fi 1) fend) #f)
-            (let ((c (byte-at fmt (+ fi 1))))
-              (let ((r (%cu-date-digits s si
-                         (if (= c 89) 4 2))))
-                (if (null? r) ()
-                  (self (+ fi 2) (rest r)
-                    (pair (pair (%cu-date-field c) (first r)) acc)))))
-            (if (if (< si send)
-                  (= (byte-at s si) (byte-at fmt fi)) #f)
-              (self (+ fi 1) (+ si 1) acc)
-              ())))))
-    (go 0 0 ())))
+      (fn (self ts si acc)
+        (if (null? ts) acc
+          (let ((t (first ts)))
+            (if (%cu-fmt-dir? t)
+              (let ((conv (%cu-fmt-conv t)))
+                (if (= (byte-len conv) 0) ()
+                  (let ((r (%cu-date-digits s si
+                             (if (= (byte-at conv 0) 89) 4 2))))
+                    (if (null? r) ()
+                      (self (rest ts) (rest r)
+                        (pair (pair (%cu-date-field (byte-at conv 0))
+                                (first r)) acc))))))
+              (let ((si2 (lit-match t si 0)))
+                (if (null? si2) () (self (rest ts) si2 acc))))))))
+    (go (%cu-fmt-parse fmt #f) 0 ())))
 
 (def %cu-date-field
   (fn (_ c)
