@@ -27,60 +27,14 @@
 ; walk and the unified format, and they are not declared until they are
 ; read.
 ;
-; --- what counts as the same line ---------------------------------------------
+; WHAT COUNTS AS THE SAME LINE IS A LEXICAL QUESTION, and cu/diff-lex.x
+; answers it on a reader base of its own: -w makes a run of spaces read
+; as nothing, -b as one space, -i folds a word as it is read.  The walk
+; that used to live here -- a byte loop per line per file, carrying its
+; own case table because it had no byte->string door -- is gone.
 ;
-; -i, -b and -w do not change what is PRINTED, only what is COMPARED, so
-; every line is carried twice: once as it reads, once normalised.  The
-; LCS and the walk run on the normalised copy and the hunks quote the
-; original, which is what diff has always done and the only arrangement
-; that can show a case change while ignoring it.
-
-(def %cu-diff-lc
-  (fn (_ b) (if (if (>= b 65) (<= b 90) #f) (+ b 32) b)))
-
-(def %cu-diff-space?
-  (fn (_ b) (if (= b 32) #t (= b 9))))
-
-; One character of LINE as a string, lowered when it is an ASCII capital.
-; The table is a substring of a literal rather than a byte->string door,
-; which this bundle does not have and does not need one of for this.
-(def %cu-diff-lower-alpha "abcdefghijklmnopqrstuvwxyz")
-(def %cu-diff-lc-str
-  (fn (_ line i)
-    (let ((b (byte-at line i)))
-      (if (if (>= b 65) (<= b 90) #f)
-        (substring %cu-diff-lower-alpha (- b 65) (- b 64))
-        (substring line i (+ i 1))))))
-
-; -w drops every space and tab; -b keeps ONE for any run of them and
-; drops those at the ends, which is the difference between "all
-; whitespace" and "changes in the amount of it".
-(def %cu-diff-norm
-  (fn (_ line fold-case? squeeze? strip?)
-    (def end (byte-len line))
-    (def go
-      (fn (self i acc gap?)
-        (if (>= i end)
-          acc
-          (let ((raw (byte-at line i)))
-            (if (%cu-diff-space? raw)
-                (if strip?
-                  (self (+ i 1) acc gap?)
-                  (if squeeze?
-                    (self (+ i 1) acc (> (byte-len acc) 0))
-                    (self (+ i 1) (string-append acc (substring line i (+ i 1)))
-                      #f)))
-              (self (+ i 1)
-                (string-append (if gap? (string-append acc " ") acc)
-                  (if fold-case?
-                    (%cu-diff-lc-str line i)
-                    (substring line i (+ i 1))))
-                #f))))))
-    ; no flag asked for anything: the line IS its own normal form, and
-    ; walking it would only cost a copy per line of both files.
-    (if (if fold-case? #t (if squeeze? #t strip?))
-      (go 0 "" #f)
-      line)))
+; -t and -T are NOT lexical and stay below: they shape a line on the way
+; OUT, and a reader base reads.
 
 (def %cu-diff-lcs
   (fn (_ av bv n m)
@@ -319,13 +273,16 @@
     (def untab? (Opts on? o "-t"))
     (def tab? (Opts on? o "-T"))
     (def uni (Opts value o "-U"))
-    (def norm
-      (fn (_ line) (%cu-diff-norm line fold? squeeze? strip?)))
     (def read-op
       (fn (_ op) (if (string=? op "-") (stdin-thunk)
                    (file-read-all op))))
-    (def a (%cu-lines (read-op (first paths))))
-    (def b (%cu-lines (read-op (first (rest paths)))))
+    (def atext (read-op (first paths)))
+    (def btext (read-op (first (rest paths))))
+    (def a (%cu-lines atext))
+    (def b (%cu-lines btext))
+    ; the SAME text read twice: once as it is, once as diff compares it
+    (def an (%cu-dl-lines atext fold? squeeze? strip?))
+    (def bn (%cu-dl-lines btext fold? squeeze? strip?))
     (def n (length a))
     (def m (length b))
     (def av (vec-make (+ n 1) ""))
@@ -333,25 +290,32 @@
     (def avn (vec-make (+ n 1) ""))
     (def bvn (vec-make (+ m 1) ""))
     (def load!
-      (fn (self v vn ls i)
+      (fn (self v ls i)
         (if (null? ls) ()
           (do (vec-set! v i (first ls))
-              (vec-set! vn i (norm (first ls)))
-              (self v vn (rest ls) (+ i 1))))))
-    (load! av avn a 0)
-    (load! bv bvn b 0)
+              (self v (rest ls) (+ i 1))))))
+    (load! av a 0)
+    (load! bv b 0)
+    (load! avn an 0)
+    (load! bvn bn 0)
     ; THE LCS RUNS ON THE NORMALISED COPY, the hunks quote the original.
     (def t (%cu-diff-lcs avn bvn n m))
     (def at (fn (_ i j) (vec-ref t (+ (* i (+ m 1)) j))))
     (def ops (%cu-diff-ops avn bvn n m at))
-    ; -B: a change of nothing but blank lines is not a change.  Blankness
-    ; is read AFTER normalising, so a line of spaces is blank under -w.
+    ; -B: a change of nothing but blank lines is not a change.
+    ;
+    ; BLANKNESS IS READ FROM THE LINE AS IT IS, not as -w or -b left it.
+    ; A line holding one space is not blank, and stays not blank under
+    ; -w even though -w compares it equal to an empty one -- measured
+    ; against /usr/bin/diff, which answers 1 for `-B -w` there.  Reading
+    ; it from the normalised copy is the intuitive rule and the wrong
+    ; one; I had it that way, and shipped a comment defending it.
     (def blank-op?
       (fn (_ op)
         (= (byte-len
              (if (eq? (%cu-diff-tag op) (lit del))
-               (vec-ref avn (%cu-diff-ai op))
-               (vec-ref bvn (%cu-diff-bi op))))
+               (vec-ref av (%cu-diff-ai op))
+               (vec-ref bv (%cu-diff-bi op))))
            0)))
     (def change?
       (fn (_ op)
@@ -363,7 +327,7 @@
           (if (change? (first l)) #t (self (rest l))))))
     (def status (if (any-change? ops) 1 0))
     (if (null? uni)
-      (pair (%cu-diff-normal av bv ops change? ) status)
+      (pair (%cu-diff-normal av bv ops change?) status)
       (let ((ctx (%cu-num-prefix uni)))
         (let ((hs (%cu-diff-hunks ops ctx change?)))
           (pair

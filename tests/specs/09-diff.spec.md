@@ -109,7 +109,38 @@ a body and a body cannot be quoted here.
 ---
     0
 
+### a space-only line is not blank, even under -w
+
+```cu
+(do (file-write-all "/tmp/x-cu-df-b1" "x\n \ny\n")
+    (file-write-all "/tmp/x-cu-df-b2" "x\ny\n")
+    (display (cu-run (list "diff" "-B" "-w"
+                       "/tmp/x-cu-df-b1" "/tmp/x-cu-df-b2") "")))
+```
+---
+    1
+
+### -b ignores whitespace at the end of a line entirely
+
+Not the rule it applies in the middle: `"a  "` and `"a"` are the same
+line, while `"  a"` and `"a"` are not.
+
+```cu
+(do (file-write-all "/tmp/x-cu-df-e1" "a  \n")
+    (file-write-all "/tmp/x-cu-df-e2" "a\n")
+    (file-write-all "/tmp/x-cu-df-e3" "  a\n")
+    (display (rest (%cu-diff-str (list "-b" "/tmp/x-cu-df-e1" "/tmp/x-cu-df-e2") "")))
+    (display (rest (%cu-diff-str (list "-b" "/tmp/x-cu-df-e3" "/tmp/x-cu-df-e2") ""))))
+```
+---
+    01
+
 ### -B ignores a change that is only blank lines
+
+Blank means EMPTY, read from the line as it is -- a line holding one
+space is not blank, and stays not blank under `-w` even though `-w`
+compares it equal to an empty one.  That is what /usr/bin/diff answers,
+and it is not the intuitive rule.
 
 ```cu
 (do (display (cu-run (list "diff" "/tmp/x-cu-df-7" "/tmp/x-cu-df-8") ""))
