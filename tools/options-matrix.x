@@ -41,7 +41,8 @@
 ; otherwise count a supported thing as missing.
 (def %mx-extra
   (list
-    (list "dd" (list "if=" "of=" "bs=" "count=" "skip=" "seek=" "status="))
+    (list "dd" (list "if=" "of=" "bs=" "ibs=" "obs=" "count=" "skip=" "seek="
+                     "status=" "conv=" "iflag=" "oflag="))
     (list "date" (list "+FMT"))))
 
 (def %mx-lookup
