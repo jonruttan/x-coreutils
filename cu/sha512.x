@@ -204,4 +204,4 @@
 
 (def %cu-sha512sum
   (fn (_ argv stdin-thunk)
-    (%cu-sum-applet (fn (_ t) (cu-sha512 t)) argv stdin-thunk)))
+    (%cu-sum-applet "sha512sum" (fn (_ t) (cu-sha512 t)) argv stdin-thunk)))

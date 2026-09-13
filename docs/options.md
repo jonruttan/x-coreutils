@@ -46,7 +46,7 @@ the work.  Applet parity is the other axis: see the README.
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -A -a -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u | -C -x -w | 87% |
-| `md5sum` | -c -s -w |  | -c -s -w | 0% |
+| `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
 | `mktemp` | -d -t -p -q -u | -d -t -q -u -p |  | 100% |
@@ -66,9 +66,9 @@ the work.  Applet parity is the other axis: see the README.
 | `rm` | -i -r -R -f -v | -i -r -R -f -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
 | `seq` | -w -s |  | -w -s | 0% |
-| `sha1sum` | -c -s -w |  | -c -s -w | 0% |
-| `sha256sum` | -c -s -w |  | -c -s -w | 0% |
-| `sha512sum` | -c -s -w |  | -c -s -w | 0% |
+| `sha1sum` | -c -s -w | -c -s -w |  | 100% |
+| `sha256sum` | -c -s -w | -c -s -w |  | 100% |
+| `sha512sum` | -c -s -w | -c -s -w |  | 100% |
 | `shred` | -f -n -u -z | -u -n | -f -z | 50% |
 | `shuf` | -e -i -n -o -z | -e -n | -i -o -z | 40% |
 | `sleep` |  |  |  | - |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -n | -0 -a -E -I -p -r -s -t -x | 10% |
 | `yes` |  |  |  | - |
 
-**Total: 319 of 426 busybox options accepted (74%).**
+**Total: 331 of 426 busybox options accepted (77%).**

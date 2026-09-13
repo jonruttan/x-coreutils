@@ -170,20 +170,10 @@
     (def hs (blocks padded %cu-sha-h))
     (string-concat (map (fn (_ w) (%cu-word-hex w)) hs))))
 
+; THE SHARED DRIVER, not a second copy of it.  This was a byte-identical
+; twin of %cu-sum-applet's emit loop, which is how sha256sum came to be
+; the one member of the family that would not have grown -c with the
+; others.
 (def %cu-sha256sum
   (fn (_ argv stdin-thunk)
-    (def one
-      (fn (_ name text)
-        (display
-          (string-append (cu-sha256 text)
-            (string-append "  " (string-append name "\n"))))))
-    (if (null? argv)
-      (do (one "-" (stdin-thunk)) 0)
-      (let ((go (fn (self ops)
-                  (if (null? ops) 0
-                    (do (one (first ops)
-                          (if (string=? (first ops) "-")
-                            (stdin-thunk)
-                            (file-read-all (first ops))))
-                        (self (rest ops)))))))
-        (go argv)))))
+    (%cu-sum-applet "sha256sum" (fn (_ t) (cu-sha256 t)) argv stdin-thunk)))

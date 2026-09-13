@@ -148,6 +148,11 @@
     (pair "head" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "tail" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "wc" (list (list "-l" "-w" "-c") ()))
+    ; the checksum family shares one driver, so it shares one option set
+    (pair "md5sum" (list (list "-c" "-s" "-w") ()))
+    (pair "sha1sum" (list (list "-c" "-s" "-w") ()))
+    (pair "sha256sum" (list (list "-c" "-s" "-w") ()))
+    (pair "sha512sum" (list (list "-c" "-s" "-w") ()))
     (pair "comm" (list (list "-1" "-2" "-3") ()))
     (pair "tr" (list (list "-d" "-s") ()))
     (pair "cut" (list () (list "-d" "-f" "-c")))
