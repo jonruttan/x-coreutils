@@ -36,8 +36,8 @@
 
 ; printf(1): the format REUSES until the arguments run out; %s %d %c
 ; %x %o %% with optional width and the - flag; \n \t \\ in the format
-; the escapes are cu/fmt-lex.x's now, and so is the % scanning; what
-; stays here is the table of what a conversion MEANS to printf.
+; The escapes and the % scanning are cu/fmt-lex.x's; what stays here is the
+; table of what a conversion means to printf.
 
 (def %cu-oct->str
   (fn (_ n)
@@ -86,8 +86,8 @@
                 (def arg (if (null? as) "" (first as)))
                 (def as2 (if (null? as) () (rest as)))
                 (match
-                  ; a format ending in a bare % kept it as a directive
-                  ; with no conversion, and a bare % is a %
+                  ; a format ending in a bare % keeps it as a directive
+                  ; with no conversion
                   ((= (byte-len conv) 0) (self (rest ts) as used (pair "%" acc)))
                   ((string=? conv "%") (self (rest ts) as used (pair "%" acc)))
                   ((string=? conv "s")
@@ -114,9 +114,8 @@
   (fn (_ argv stdin-thunk)
     (if (null? argv)
       (do (file-write 2 "printf: need a format\n") 1)
-      ; PARSED ONCE, walked per argument group: printf repeats its format
-      ; until the arguments run out, and re-scanning it each time was the
-      ; only reason the scan had to be cheap.
+      ; Parsed once, walked per argument group: printf repeats its format
+      ; until the arguments run out.
       (let ((toks (%cu-fmt-parse (first argv) #t)))
         (def go
           (fn (self as)

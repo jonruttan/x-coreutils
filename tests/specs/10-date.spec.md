@@ -2,17 +2,15 @@
 
 date, and the strftime it grew.
 
-EVERY BLOCK PINS THE TIME with `-d @SECONDS`.  A spec that read the
-clock would pass until midnight somewhere.
+Every block pins the time with `-d @SECONDS`; a spec that read the clock would
+pass until midnight somewhere.
 
-The calendar itself is the platform's -- `x/sys/date.x` splits unix
-seconds into year, month, day, hour, minute, second and weekday, and
-puts them back -- so what is exercised here is the FORMATTING, plus the
-one sum this applet does for itself: the day of the year.
+The calendar is `x/sys/date.x`'s, so what is exercised here is the formatting,
+plus the one sum this applet owns: the day of the year.
 
 ## the directives
 
-### the default format is busybox's, not the ISO stamp this used to print
+### the default format is busybox's
 
 ```cu
 (display (cu-run (list "date" "-d" "@1757796602") ""))
@@ -84,8 +82,8 @@ Sat|Saturday|Sep|Sep|September|PM|6|6|256
 
 ### it counts the leap day, and does not count one that is not there
 
-2000 is a leap year and 2100 is not, so March 1st is day 61 in one and
-day 60 in the other.
+2000 is a leap year and 2100 is not, so March 1st is day 61 in one and 60 in
+the other.
 
 ```cu
 (do (display (cu-run (list "date" "-d" "@951868800" "+%j") ""))
@@ -122,7 +120,7 @@ day 60 in the other.
 0
 ```
 
-### a -d that will not parse is an error, not a quiet fall back to now
+### a -d that will not parse is an error, not a fall back to now
 
 ```cu
 (display (cu-run (list "date" "-d" "not a date") ""))
@@ -160,9 +158,8 @@ Sat, 13 Sep 2025 20:50:02 +0000
 
 ### -I is the date, and its SPEC attaches
 
-`-I`'s argument is optional and attached, which Opts cannot declare, so
-the five spellings are declared outright.  `date -I -d @N` used to read
-`-d` AS the spec and then report the wrong day.
+`-I`'s argument is optional and attached, which Opts cannot declare, so the
+five spellings are declared outright.
 
 ```cu
 (do (display (cu-run (list "date" "-I" "-d" "@1757796602") ""))

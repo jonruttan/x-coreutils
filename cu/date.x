@@ -12,27 +12,20 @@
 ;     (   )
 ;      " "
 ;
-; ## THE CALENDAR IS THE PLATFORM'S
+; The calendar is x/sys/date.x's: it splits unix seconds into year, month, day,
+; hour, minute, second and weekday by Hinnant's days/civil algorithms, and puts
+; them back. Nothing here does calendar arithmetic -- %cu-date-fmt formats that
+; alist, and the only sums it owns are a day-of-year and a twelve-hour clock.
 ;
-; x/sys/date.x already splits unix seconds into a civil date -- year,
-; month, day, hour, minute, second, weekday -- by Howard Hinnant's
-; days/civil algorithms, and puts them back.  So nothing here does
-; calendar arithmetic: %cu-date-fmt is a FORMATTER over that alist, and
-; the only sums it does are a day-of-year and a twelve-hour clock.
+; Everything is UTC, including without -u. The platform's date is UTC only
+; ("No timezones, no locale -- boundary code converts at the edge"), so `date`
+; and `date -u` print the same thing. -u is declared because asking for UTC and
+; getting it honours the flag; the divergence is the other way, since a caller
+; wanting local time gets UTC and is not told. That wants a timezone door in
+; the platform.
 ;
-; ## EVERYTHING HERE IS UTC, INCLUDING WITHOUT -u
-;
-; The platform's date is UTC only and says so: "No timezones, no locale
-; -- boundary code converts at the edge."  There is no door to a local
-; time, so `date` prints UTC and `date -u` prints the same thing.  -u is
-; declared because asking for UTC and getting UTC is honouring the flag;
-; the DIVERGENCE is the other way round -- a caller expecting local time
-; gets UTC and is not told.  That is worth a timezone door in the
-; platform, and is not something this applet can fix.
-;
-; -s IS NOT DECLARED.  Setting the clock needs a syscall this platform
-; exposes on no arch it runs on here, and root besides.  A flag the
-; applet cannot honour is the defect this bundle keeps re-learning.
+; -s is not declared: setting the clock needs a syscall exposed on no arch this
+; runs on here, and root besides.
 
 (def %cu-date-wday-abbr
   (list "Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat"))
@@ -76,9 +69,9 @@
 (def %cu-date-hour12
   (fn (_ h) (let ((r (% h 12))) (if (= r 0) 12 r))))
 
-; ONE DIRECTIVE.  The compound ones (%D %F %T %R %r) expand to a format
-; and come back through the formatter, so their parts cannot drift from
-; the parts spelled out.
+; One directive. The compound ones (%D %F %T %R %r) expand to a format and come
+; back through the formatter, so their parts cannot drift from the spelled-out
+; ones.
 (def %cu-date-one
   (fn (_ c d secs)
     (match
@@ -127,9 +120,8 @@
       ; stray % survives unharmed without a byte->string door here
       (#t ""))))
 
-; THE SCANNING IS cu/fmt-lex.x's; the table above is the part that is
-; date's.  Escapes are OFF: the system date prints "a\nb" for the format
-; "a\nb", and so does this.
+; The scanning is cu/fmt-lex.x's; the table above is date's. Escapes are off:
+; the system date prints "a\nb" for the format "a\nb", and so does this.
 (def %cu-date-fmt
   (fn (_ fmt d secs)
     (def go
@@ -144,8 +136,7 @@
 
 (def %cu-date-directive
   (fn (_ conv d secs)
-    ; a format ending in a bare % kept it as a directive with no
-    ; conversion, and a bare % is a %
+    ; a format ending in a bare % keeps it as a directive with no conversion
     (if (= (byte-len conv) 0) "%"
       (let ((c (byte-at conv 0)))
         (if (%cu-date-known? c)
@@ -167,10 +158,9 @@
 
 ; --- reading a time ----------------------------------------------------------
 ;
-; -d takes what busybox takes here: @SECONDS, and an ISO stamp the
-; platform already parses.  -D hands it a FORMAT instead, and that is
-; read by the same directive vocabulary the formatter writes -- %Y %m %d
-; %H %M %S and literals -- so the two cannot drift apart.
+; -d takes @SECONDS or an ISO stamp the platform already parses. -D hands it a
+; format instead, read by the same directives the formatter writes (%Y %m %d %H
+; %M %S and literals), so the two cannot drift apart.
 
 (def %cu-date-digits
   (fn (_ s i n)
@@ -186,9 +176,8 @@
           (if (= got 0) () (pair acc k)))))
     (go i 0 0)))
 
-; READING a time is the same format, walked against an input instead of
-; an output: the same tokens, and a literal run must MATCH rather than
-; be emitted.
+; Reading a time walks the same tokens against an input instead of an output:
+; a literal run must match rather than be emitted.
 (def %cu-date-scan
   (fn (_ fmt s)
     (def send (byte-len s))
@@ -235,14 +224,14 @@
         (if (if (> (byte-len spec) 1) (= (byte-at spec 0) 64) #f)
           (let ((r (%cu-date-digits spec 1 20)))
             (if (null? r) () (first r)))
-          ; from-iso RAISES on anything that is not a stamp, and a bad
-          ; -d is a message and an exit status, not a traceback
+          ; from-iso raises on anything that is not a stamp; a bad -d is a
+          ; message and an exit status
           (guard (e ())
             (let ((d (Date from-iso spec)))
               (if (null? d) () (Date to-unix d)))))))))
 
-; A scanned date is only the fields the format named; to-unix wants a
-; day and a month at least, so the missing ones take the epoch's.
+; A scanned date holds only the fields the format named; to-unix wants a day
+; and a month at least, so the missing ones take the epoch's.
 (def %cu-date-whole
   (fn (_ d)
     (list (pair (lit year) (Assoc get-or 1970 (lit year) d))
@@ -254,13 +243,11 @@
 
 ; --- the applet --------------------------------------------------------------
 
-; -I's SPEC IS ATTACHED AND OPTIONAL -- `-I`, `-Iseconds` -- and Opts
-; knows only flags and options that take an argument.  Declared as one
-; that takes an argument, `-I` swallows the next token: `date -I -d @X`
-; read -d as the spec and then reported the wrong day, silently.  So the
-; five spellings are declared as flags instead, which the parser matches
-; whole before it tries to read them as a cluster.  Answers nil when no
-; spelling was given.
+; -I's spec is attached and optional (`-I`, `-Iseconds`), and Opts knows only
+; flags and options that take an argument. Declared as the latter, -I swallows
+; the next token, so `date -I -d @X` reads -d as the spec. The five spellings
+; are declared as flags instead, which the parser matches whole before trying
+; them as a cluster. Answers nil when no spelling was given.
 (def %cu-date-iso-fmt
   (fn (_ o)
     (match
@@ -285,9 +272,8 @@
     (def ops (Opts operands o))
     (def rfile (Opts value o "-r"))
     (def dspec (Opts value o "-d"))
-    ; A -d THAT WILL NOT PARSE IS AN ERROR, not a silent fall back to now:
-    ; the two cases are told apart by whether -d was given at all, which
-    ; is why the parse's nil is not simply defaulted away here.
+    ; A -d that will not parse is an error, not a fall back to now; the two
+    ; cases are told apart by whether -d was given at all.
     (def secs
       (match
         ((not (null? rfile))
@@ -304,8 +290,6 @@
                   ((Opts on? o "-R") "%a, %d %b %Y %H:%M:%S %z")
                   ((not (null? (%cu-date-iso-fmt o))) (%cu-date-iso-fmt o))
                   ((not (null? (%cu-date-plus ops))) (%cu-date-plus ops))
-                  ; busybox's default, which is not the ISO stamp this
-                  ; applet used to print with no arguments at all
                   (#t "%a %b %e %H:%M:%S %Z %Y"))))
           (do (display (string-append (%cu-date-fmt fmt d secs) "\n")) 0))))))
 

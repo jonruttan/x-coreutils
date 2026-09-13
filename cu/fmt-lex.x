@@ -2,8 +2,8 @@
 ;
 ; ## cu/fmt-lex.x -- one reader for every format string
 ;
-; @description printf's %s, date's %Y, stat's %n and the escapes all
-;   have the same shape, and six applets each walked it themselves.
+; @description printf's %s, date's %Y, stat's %n and the escapes all have the
+;   same shape; this reads them once so each applet keeps only its table.
 ; @author [Jon Ruttan](jonruttan@gmail.com)
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)
@@ -13,34 +13,20 @@
 ;     (   )
 ;      " "
 ;
-; ## WHAT WAS WRITTEN SIX TIMES
+; A format string is literal text, backslash escapes, and directives introduced
+; by %. The scanning is the same wherever one appears; only the meaning of a
+; conversion differs, and that is the part belonging to the applet. So the
+; scanning lives here and printf, date and stat keep their tables.
 ;
-; A format string is literal text, backslash escapes, and directives
-; introduced by %.  Every applet that took one walked the bytes itself,
-; found the %, read whatever modifiers it cared about, and dispatched on
-; the conversion character:
-;
-;   %cu-printf-esc     the escapes
-;   %cu-printf-once    %[-][width]CONV
-;   %cu-stat-format    %CONV
-;   %cu-date-fmt       %CONV
-;   %cu-date-scan      %CONV, against an input rather than an output
-;
-; The SCANNING is the same every time; only the MEANING of a conversion
-; differs, and the meaning is the part that belongs to the applet.  So
-; the scanning moves to a reader base and the applets keep their tables.
-;
-; ## THE TOKENS
+; The tokens:
 ;
 ;   a literal run   the text, as a string
-;   an escape       (esc . "<the character>")
+;   an escape       the character it names
 ;   a directive     (dir LEFT? ZERO? WIDTH PREC "<conv>")
 ;
-; WIDTH and PREC are -1 when the format did not give them, which is not
-; the same as 0: "%.0f" asked for no decimals and "%f" did not ask.
-;
-; A LONE % AT THE END IS A LITERAL %, because a format ending in one is
-; a typo the shell already made and not worth an error here.
+; Width and precision are -1 when the format did not give them, which differs
+; from 0: "%.0f" asked for no decimals and "%f" did not ask. A lone % at the
+; end is a literal %.
 
 (def %cu-fl-types (pair () ()))
 (def %cu-fl-type!
@@ -49,8 +35,8 @@
 
 (def %cu-fl-raw (pair () ()))
 
-; Escapes are printf's, not every format's; a caller that does not want
-; them gets the backslash and the character as they were written.
+; Escapes are printf's, not every format's; a caller that does not want them
+; gets the backslash and the character as written.
 (def %cu-fl-escapes (pair #f ()))
 
 (def %cu-fl-read-string (prim-ref (lit tok) (lit read-str)))
@@ -70,9 +56,9 @@
 
 ; --- the directive -----------------------------------------------------------
 ;
-; One state consumes flags, width, precision and stops AT the conversion
-; character, which is any byte that is none of those.  The score is set
-; there, including it.
+; One state consumes flags, width and precision, stopping at the conversion
+; character -- any byte that is none of those. The score is set there,
+; including it.
 
 (def %cu-fl-pct-body ())
 (set! %cu-fl-pct-body
@@ -87,15 +73,15 @@
     (pair (lit analyse)
       (fn (_ buffer score chr)
         (if (= chr 37)
-          ; a % alone is still a match: read decides what it meant
+          ; a % alone is still a match; read decides what it meant
           (%seq (%score-set score 1 buffer) %cu-fl-pct-body)
           ())))
     (pair (lit read)
       (fn (_ . args) (%cu-fl-directive (%cu-fl-token (first args)))))))
 (%cu-fl-type! "CU-FMT-PCT" %cu-fl-t-pct)
 
-; "%-05.2f" -> (dir #t #t 5 2 "f").  The token always opens with % and,
-; when the format ran out, holds nothing else.
+; "%-05.2f" -> (dir #t #t 5 2 "f"). The token always opens with % and, when the
+; format ran out, holds nothing else.
 (def %cu-fl-directive
   (fn (_ tok)
     (def end (byte-len tok))
@@ -124,8 +110,8 @@
     (if (>= i end) #f
       (if (= (byte-at tok i) b) #t (self tok (+ i 1) end b)))))
 
-; digits at I -> (VALUE . NEXT); -1 when there were none, which is how a
-; caller tells "%5s" from "%s"
+; digits at I -> (VALUE . NEXT); -1 when there were none, which is how a caller
+; tells "%5s" from "%s"
 (def %cu-fl-number
   (fn (_ tok i end)
     (def go
@@ -202,8 +188,8 @@
           (first %cu-fl-raw)))
       (first %cu-fl-raw))))
 
-; A FORMAT -> its tokens.  ESCAPES? says whether a backslash means
-; something here; printf says yes, a strftime format says no.
+; A format -> its tokens. ESCAPES? says whether a backslash means something
+; here: printf says yes, a strftime format says no.
 (def %cu-fmt-parse
   (fn (_ fmt escapes?)
     (do

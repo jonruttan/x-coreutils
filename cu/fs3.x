@@ -89,8 +89,7 @@
       ((= c 111) (num (lit blksize)))           ; o
       (#t (string-append "%" (%cu-b->s c))))))
 
-; THE SCANNING IS cu/fmt-lex.x's; %cu-stat-spec below is the part that
-; is stat's.
+; The scanning is cu/fmt-lex.x's; %cu-stat-spec below is stat's.
 (def %cu-stat-format
   (fn (_ fmt name st)
     (def go
@@ -101,10 +100,7 @@
               (pair
                 (if (%cu-fmt-dir? t)
                   (let ((conv (%cu-fmt-conv t)))
-                    ; %% is a %, and a format ending in a bare one too.
-                    ; The old walker handed both to the spec table, which
-                    ; has no entry for them -- pre-existing, fixed here
-                    ; because the scanner now hands them over named.
+                    ; %% is a %, and so is a format ending in a bare one
                     (match
                       ((= (byte-len conv) 0) "%")
                       ((string=? conv "%") "%")
@@ -134,16 +130,14 @@
 
 (def %cu-stat
   (fn (_ argv stdin-thunk)
-    ; READ THROUGH THE DECLARATION.  This hand-read its own -c, which
-    ; meant the flag had to come FIRST and -L -- declared since the
-    ; option pass -- was accepted and never looked at.
+    ; Read through the declaration, so -c may follow its operands and -L is
+    ; reached at all.
     (def o (%cu-opts "stat" argv))
     (def fmt (Opts value o "-c"))
     (def c? (not (null? fmt)))
     (def ops (Opts operands o))
-    ; -L FOLLOWS THE LINK, and not following it is the default: stat
-    ; describes what the name refers to, and for a symlink that is the
-    ; link until asked otherwise.  It used to follow always.
+    ; -L follows the link; not following it is the default, since stat
+    ; describes the name it was given and for a symlink that is the link.
     (def stat-of
       (fn (_ path)
         (if (Opts on? o "-L") (file-stat-full path) (file-lstat-full path))))
