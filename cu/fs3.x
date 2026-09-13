@@ -245,6 +245,7 @@
 
 ; the operands are KEY=VALUE, not flags; this is the one applet whose
 ; command line the option guard never sees.
+; A key=value operand's value, or nil.
 (def %cu-dd-operand
   (fn (_ argv key)
     (def klen (byte-len key))
@@ -260,46 +261,135 @@
               (self (rest as)))))))
     (go argv)))
 
+; conv=, iflag= and oflag= take a comma-separated list. Every value a caller
+; may give is one this applet acts on: the rest are refused by name rather
+; than accepted and ignored.
+(def %cu-dd-list
+  (fn (_ argv key)
+    (let ((v (%cu-dd-operand argv key)))
+      (if (null? v) () (%cu-split-byte v 44)))))
+
+(def %cu-dd-has?
+  (fn (self vs name)
+    (if (null? vs) #f
+      (if (string=? (first vs) name) #t (self (rest vs) name)))))
+
+(def %cu-dd-conv-known
+  (list "swab" "lcase" "ucase" "notrunc"))
+(def %cu-dd-iflag-known
+  (list "skip_bytes" "count_bytes" "fullblock"))
+(def %cu-dd-oflag-known
+  (list "seek_bytes" "append"))
+
+; The first value of VS that KNOWN does not carry, or nil.
+(def %cu-dd-unknown
+  (fn (self vs known)
+    (if (null? vs) ()
+      (if (%cu-dd-has? known (first vs))
+        (self (rest vs) known)
+        (first vs)))))
+
+; Swap each pair of bytes; an odd byte at the end stays where it is.
+(def %cu-dd-swab
+  (fn (_ s)
+    (def end (byte-len s))
+    (def go
+      (fn (self i acc)
+        (if (>= (+ i 1) end)
+          (if (< i end) (string-append acc (substring s i end)) acc)
+          (self (+ i 2)
+            (string-append acc
+              (string-append (substring s (+ i 1) (+ i 2))
+                (substring s i (+ i 1))))))))
+    (go 0 "")))
+
+(def %cu-dd-convert
+  (fn (_ s conv)
+    (def a (if (%cu-dd-has? conv "swab") (%cu-dd-swab s) s))
+    (def b (if (%cu-dd-has? conv "lcase") (Str8 downcase a) a))
+    (if (%cu-dd-has? conv "ucase") (Str8 upcase b) b)))
+
+; Blocks of SIZE in N bytes, as "WHOLE+PARTIAL".
+(def %cu-dd-records
+  (fn (_ n size)
+    (string-append (%cu-int->str (/ (- n (% n size)) size))
+      (string-append "+" (if (= (% n size) 0) "0" "1")))))
+
 (def %cu-dd
   (fn (_ argv stdin-thunk)
     (def in (%cu-dd-operand argv "if"))
     (def out (%cu-dd-operand argv "of"))
-    (def bs (let ((v (%cu-dd-operand argv "bs")))
-              (if (null? v) 512 (%cu-num-prefix v))))
-    (def count (let ((v (%cu-dd-operand argv "count")))
-                 (if (null? v) (- 0 1) (%cu-num-prefix v))))
-    (def skip (let ((v (%cu-dd-operand argv "skip")))
-                (if (null? v) 0 (%cu-num-prefix v))))
-    (def seek (let ((v (%cu-dd-operand argv "seek")))
-                (if (null? v) 0 (%cu-num-prefix v))))
-    (def quiet? (let ((v (%cu-dd-operand argv "status")))
-                  (if (null? v) #f (string=? v "none"))))
-    (def source (if (null? in) (stdin-thunk) (file-read-all in)))
-    (def from (* skip bs))
-    (def avail (byte-len source))
-    (def want (if (< count 0) (- avail from) (* count bs)))
-    (def stop (let ((e (+ from want))) (if (> e avail) avail e)))
-    (def chunk (if (>= from avail) "" (substring source from stop)))
-    (def n (byte-len chunk))
-    (def recs (/ (- n (% n bs)) bs))
-    (def partial (if (= (% n bs) 0) 0 1))
-    (do
-      (if (null? out)
-        (display chunk)
-        (let ((fd (file-open-update out)))
-          (do (if (> seek 0) (file-seek fd (* seek bs)) ())
-              (file-write fd chunk)
-              (file-truncate fd (+ (* seek bs) n))
-              (file-close fd))))
-      (if quiet? ()
-        (file-write 2
-          (string-concat
-            (list (%cu-int->str recs) "+" (%cu-int->str partial)
-                  " records in\n"
-                  (%cu-int->str recs) "+" (%cu-int->str partial)
-                  " records out\n"
-                  (%cu-int->str n) " bytes copied\n"))))
-      0)))
+    (def bs (%cu-dd-operand argv "bs"))
+    ; bs= sets both sides; ibs= and obs= set one each and win over it.
+    (def ibs (let ((v (%cu-dd-operand argv "ibs")))
+               (if (null? v) (if (null? bs) 512 (%cu-num-prefix bs))
+                 (%cu-num-prefix v))))
+    (def obs (let ((v (%cu-dd-operand argv "obs")))
+               (if (null? v) (if (null? bs) 512 (%cu-num-prefix bs))
+                 (%cu-num-prefix v))))
+    (def conv (%cu-dd-list argv "conv"))
+    (def iflag (%cu-dd-list argv "iflag"))
+    (def oflag (%cu-dd-list argv "oflag"))
+    (def bad
+      (let ((c (%cu-dd-unknown conv %cu-dd-conv-known)))
+        (if (not (null? c)) (pair "conv" c)
+          (let ((i (%cu-dd-unknown iflag %cu-dd-iflag-known)))
+            (if (not (null? i)) (pair "iflag" i)
+              (let ((o (%cu-dd-unknown oflag %cu-dd-oflag-known)))
+                (if (null? o) () (pair "oflag" o))))))))
+    (if (not (null? bad))
+      (do (file-write 2
+            (string-concat
+              (list "dd: unknown " (first bad) " value: " (rest bad) "\n")))
+          1)
+      (do
+        (def count (let ((v (%cu-dd-operand argv "count")))
+                     (if (null? v) (- 0 1) (%cu-num-prefix v))))
+        (def skip (let ((v (%cu-dd-operand argv "skip")))
+                    (if (null? v) 0 (%cu-num-prefix v))))
+        (def seek (let ((v (%cu-dd-operand argv "seek")))
+                    (if (null? v) 0 (%cu-num-prefix v))))
+        (def quiet? (let ((v (%cu-dd-operand argv "status")))
+                      (if (null? v) #f (string=? v "none"))))
+        ; skip and count are blocks unless a flag says bytes; seek likewise.
+        (def from
+          (* skip (if (%cu-dd-has? iflag "skip_bytes") 1 ibs)))
+        (def at
+          (* seek (if (%cu-dd-has? oflag "seek_bytes") 1 obs)))
+        (def source (if (null? in) (stdin-thunk) (file-read-all in)))
+        (def avail (byte-len source))
+        (def want
+          (if (< count 0) (- avail from)
+            (* count (if (%cu-dd-has? iflag "count_bytes") 1 ibs))))
+        (def stop (let ((e (+ from want))) (if (> e avail) avail e)))
+        (def raw (if (>= from avail) "" (substring source from stop)))
+        (def chunk (%cu-dd-convert raw conv))
+        (def n (byte-len chunk))
+        (do
+          (if (null? out)
+            (display chunk)
+            (let ((fd (if (%cu-dd-has? oflag "append")
+                        (file-open-append out)
+                        (file-open-update out))))
+              (do (if (> at 0) (file-seek fd at) ())
+                  (file-write fd chunk)
+                  ; conv=notrunc leaves whatever followed the write in
+                  ; place, and appending says the same thing: truncating
+                  ; to at+n after an append cuts off what was just written.
+                  (if (if (%cu-dd-has? conv "notrunc") #t
+                        (%cu-dd-has? oflag "append")) ()
+                    (file-truncate fd (+ at n)))
+                  (file-close fd))))
+          ; records in are counted in ibs, records out in obs; they differ
+          ; whenever the two block sizes do.
+          (if quiet? ()
+            (file-write 2
+              (string-concat
+                (list (%cu-dd-records n ibs) " records in\n"
+                      (%cu-dd-records n obs) " records out\n"
+                      (%cu-int->str n) " bytes copied\n"))))
+          0)))))
+
 
 ; --- truncate, unlink, shred --------------------------------------------------
 

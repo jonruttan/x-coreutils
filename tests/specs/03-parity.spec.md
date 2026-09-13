@@ -318,6 +318,93 @@ solo
 ---
     cdef
 
+### dd: ibs and obs count the records apart
+
+`bs=` sets both sides; `ibs=` and `obs=` set one each. Six bytes is three
+blocks in at 2 and two out at 3, which is what the system dd reports. The
+counts themselves go to stderr, so what is asserted here is the blocking
+that produces them.
+
+```cu
+(do (display (%cu-dd-records 6 2)) (display "|")
+    (display (%cu-dd-records 6 3)) (display "|")
+    (display (%cu-dd-records 7 3)))
+```
+---
+    3+0|2+0|2+1
+
+### dd: conv=swab swaps each pair of bytes
+
+```cu
+(display (cu-run (list "dd" "status=none" "conv=swab") "abcdef"))
+```
+---
+```output
+badcfe0
+```
+
+### dd: conv=ucase and lcase, and the two compose
+
+```cu
+(do (display (cu-run (list "dd" "status=none" "conv=ucase") "abc"))
+    (display (cu-run (list "dd" "status=none" "conv=swab,lcase") "ABCDEF")))
+```
+---
+```output
+ABC0badcfe0
+```
+
+### dd: iflag=skip_bytes and count_bytes measure in bytes
+
+Without them skip and count are blocks, which is why the same numbers
+read differently.
+
+```cu
+(do (display (cu-run (list "dd" "status=none" "skip=2" "iflag=skip_bytes") "abcdef"))
+    (display (cu-run (list "dd" "status=none" "count=3" "iflag=count_bytes") "abcdef")))
+```
+---
+```output
+cdef0abc0
+```
+
+### dd: conv=notrunc keeps what followed the write
+
+```cu
+(do (file-write-all "/tmp/x-cu-par/nt" "0123456789")
+    (cu-run (list "dd" "status=none" "of=/tmp/x-cu-par/nt" "seek=2"
+              "oflag=seek_bytes" "conv=notrunc") "XX")
+    (display (file-read-all "/tmp/x-cu-par/nt"))
+    (newline)
+    (file-write-all "/tmp/x-cu-par/tr" "0123456789")
+    (cu-run (list "dd" "status=none" "of=/tmp/x-cu-par/tr" "seek=2"
+              "oflag=seek_bytes") "XX")
+    (display (file-read-all "/tmp/x-cu-par/tr")))
+```
+---
+```output
+01XX456789
+01XX
+```
+
+### dd: oflag=append adds to the end
+
+```cu
+(do (file-write-all "/tmp/x-cu-par/ap" "abc")
+    (cu-run (list "dd" "status=none" "of=/tmp/x-cu-par/ap" "oflag=append") "DEF")
+    (display (file-read-all "/tmp/x-cu-par/ap")))
+```
+---
+    abcDEF
+
+### dd: a value it does not act on is refused by name
+
+```cu
+(display (cu-run (list "dd" "conv=nope") "abc"))
+```
+---
+    1
+
 ### split cuts by lines, suffixing aa ab ac
 
 ```cu

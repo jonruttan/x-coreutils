@@ -24,7 +24,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -r -R -P -L -H -p -f -i -l -s -T -u |  | 100% |
 | `cut` | -b -c -f -d -s -n | -d -f -c | -b -s -n | 50% |
 | `date` | -u -d -D -s -r -R -I +FMT | -u -R -I -Idate -Ihours -Iminutes -Iseconds -Ins -d -D -r +FMT | -s | 87% |
-| `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= count= skip= seek= status= | ibs= obs= conv= iflag= oflag= | 58% |
+| `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= ibs= obs= count= skip= seek= status= conv= iflag= oflag= |  | 100% |
 | `df` | -P -k -m -h -T -a -i -B | -h -k -P -m -i -B | -T -a | 75% |
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -i -b -w -B -q -s -a -d -T -t -r -N -U -L -S |  | 100% |
 | `dirname` |  |  |  | - |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 360 of 426 busybox options accepted (84%).**
+**Total: 365 of 426 busybox options accepted (85%).**
