@@ -408,5 +408,26 @@
                             (self (rest ps) st)))))))
           (go ops 0)))))
 
+; sync with no operand syncs everything. -d asks for a file's DATA and -f
+; for the filesystem holding it; this has fsync and a whole-system sync,
+; both of which are supersets of what is asked, so the guarantee each
+; flag wants is met by doing more than it wants rather than less.
 (def %cu-sync
-  (fn (_ argv stdin-thunk) (do (sys-sync) 0)))
+  (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "sync" argv))
+    (def ops (Opts operands o))
+    (if (null? ops)
+      (do (sys-sync) 0)
+      (if (Opts on? o "-f")
+        (do (sys-sync) 0)
+        (let ((go (fn (self os st)
+                    (if (null? os) st
+                      (let ((fd (file-open-read (first os))))
+                        (if (null? fd)
+                          (do (file-write 2
+                                (string-concat
+                                  (list "sync: cannot open " (first os) "\n")))
+                              (self (rest os) 1))
+                          (do (sys-fsync fd) (file-close fd)
+                              (self (rest os) st))))))))
+          (go ops 0))))))

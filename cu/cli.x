@@ -140,7 +140,13 @@
     (pair "nl" (list () (list "-b" "-n" "-s" "-w" "-v" "-i")))
     (pair "head" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "tail" (list (list "-q" "-v") (list "-n" "-c")))
-    (pair "wc" (list (list "-l" "-w" "-c") ()))
+    (pair "wc" (list (list "-l" "-w" "-c" "-m" "-L") ()))
+    ; -0 is not declared: it ends each line with NUL, which an x string
+    ; cannot carry (x-lang#685).
+    (pair "env" (list (list "-i") (list "-u")))
+    (pair "sync" (list (list "-d" "-f") ()))
+    (pair "dos2unix" (list (list "-u" "-d") ()))
+    (pair "unix2dos" (list (list "-u" "-d") ()))
     ; -s is NOT declared; cu/date.x says why.  -I's SPEC is attached and
     ; optional, which Opts has no way to say, so the five spellings are
     ; declared outright -- the declaration then lists exactly what is
@@ -160,6 +166,9 @@
     (pair "comm" (list (list "-1" "-2" "-3") ()))
     (pair "tr" (list (list "-d" "-s") ()))
     (pair "cut" (list (list "-s" "-n") (list "-d" "-f" "-c" "-b")))
+    ; join is not a busybox applet, so the matrix has no row for it; the
+    ; declaration is still what the applet reads through.
+    (pair "join" (list () (list "-t")))
     (pair "cat" (list (list "-n" "-b" "-v" "-t" "-e" "-A") ()))
     (pair "cp" (list (list "-a" "-r" "-R" "-P" "-L" "-H" "-p" "-f" "-i" "-l" "-s" "-T" "-u") ()))
     (pair "mv" (list (list "-f" "-i" "-n" "-T") ()))
@@ -180,7 +189,9 @@
     (pair "expand" (list () (list "-t")))
     (pair "unexpand" (list (list "-a") (list "-t")))
     (pair "split" (list () (list "-b" "-l")))
-    (pair "shuf" (list (list "-e") (list "-n")))
+    ; -z is not declared: it delimits with NUL, and a NUL truncates an x
+    ; string at every door (x-lang#685), so the output cannot carry one.
+    (pair "shuf" (list (list "-e") (list "-n" "-i" "-o")))
     (pair "base64" (list (list "-d") ()))
     (pair "stat" (list (list "-L") (list "-c")))
     (pair "du" (list (list "-s" "-a" "-k" "-c" "-h" "-m" "-x" "-l" "-H" "-L") (list "-d")))

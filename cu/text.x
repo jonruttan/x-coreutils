@@ -203,41 +203,56 @@
     (do (%cu-each-operand ops stdin-thunk one) 0)))
 
 ; counts for one text: (lines words bytes)
+; (LINES WORDS BYTES LONGEST). LONGEST is the longest line without its
+; newline, which is what -L reports.
 (def %cu-wc-counts
   (fn (_ s)
     (def end (byte-len s))
     (def go
-      (fn (self i nl nw in-word)
+      (fn (self i nl nw in-word col longest)
         (if (>= i end)
-          (list nl (if in-word (+ nw 1) nw) end)
+          (list nl (if in-word (+ nw 1) nw) end
+            (if (> col longest) col longest))
           (let ((b (byte-at s i)))
             (def ws (match ((= b 32) #t) ((= b 9) #t) (#t (= b 10))))
             (self (+ i 1)
               (if (= b 10) (+ nl 1) nl)
               (if (if in-word ws #f) (+ nw 1) nw)
-              (not ws))))))
-    (go 0 0 0 #f)))
+              (not ws)
+              (if (= b 10) 0 (+ col 1))
+              (if (= b 10) (if (> col longest) col longest) longest))))))
+    (go 0 0 0 #f 0 0)))
 
 (def %cu-wc
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "wc" argv))
-    (def any? (if (Opts on? o "-l") #t (if (Opts on? o "-w") #t (Opts on? o "-c"))))
-    ; with no flag at all, wc shows every column
-    (def show? (fn (_ f) (if any? (Opts on? o f) #t)))
+    (def any?
+      (match
+        ((Opts on? o "-l") #t) ((Opts on? o "-w") #t) ((Opts on? o "-c") #t)
+        ((Opts on? o "-m") #t) ((Opts on? o "-L") #t)
+        (#t #f)))
+    ; With no flag at all wc shows lines, words and bytes -- not -m or -L,
+    ; which are asked for or not shown.
+    (def show?
+      (fn (_ f)
+        (if any? (Opts on? o f)
+          (match ((string=? f "-m") #f) ((string=? f "-L") #f) (#t #t)))))
     (def row
       (fn (_ counts name)
+        ; Columns in wc's order: lines, words, chars, bytes, longest line.
+        ; -m and -c report the same number here, because this wc counts
+        ; bytes and a character is a byte -- asking for both prints it
+        ; twice, which is what asking for both means.
+        (def col
+          (fn (_ flag n)
+            (if (show? flag)
+              (list (%cu-pad-left (%cu-int->str (%cu-nth n counts)) 8))
+              ())))
         (def parts
-          (append
-            (if (show? "-l")
-              (list (%cu-pad-left (%cu-int->str (first counts)) 8)) ())
-            (append
-              (if (show? "-w")
-                (list (%cu-pad-left (%cu-int->str (first (rest counts))) 8))
-                ())
-              (if (show? "-c")
-                (list (%cu-pad-left
-                        (%cu-int->str (first (rest (rest counts)))) 8))
-                ()))))
+          (append (col "-l" 0)
+            (append (col "-w" 1)
+              (append (col "-m" 2)
+                (append (col "-c" 2) (col "-L" 3))))))
         (display
           (string-append (%cu-join-sp parts)
             (if (null? name) "\n"
@@ -342,11 +357,9 @@
 
 (def %cu-join
   (fn (_ argv stdin-thunk)
-    (def delim
-      (if (if (pair? argv) (string=? (first argv) "-t") #f)
-        (first (rest argv))
-        ()))
-    (def ops (if (null? delim) argv (rest (rest argv))))
+    (def o (%cu-opts "join" argv))
+    (def delim (Opts value o "-t"))
+    (def ops (Opts operands o))
     (def sep (if (null? delim) " " delim))
     (def read-op
       (fn (_ op) (if (string=? op "-") (stdin-thunk) (file-read-all op))))

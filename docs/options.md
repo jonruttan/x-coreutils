@@ -28,10 +28,10 @@ the work.  Applet parity is the other axis: see the README.
 | `df` | -P -k -m -h -T -a -i -B | -h -k -P -m -i -B | -T -a | 75% |
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -i -b -w -B -q -s -a -d -T -t -r -N -U -L -S |  | 100% |
 | `dirname` |  |  |  | - |
-| `dos2unix` | -u -d |  | -u -d | 0% |
+| `dos2unix` | -u -d | -u -d |  | 100% |
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k -c -h -m -x -l -H -L -d |  | 100% |
 | `echo` | -n -e -E | -n -e | -E | 66% |
-| `env` | -i -u -0 |  | -i -u -0 | 0% |
+| `env` | -i -u -0 | -i -u | -0 | 66% |
 | `expand` | -i -t | -t | -i | 50% |
 | `expr` |  |  |  | - |
 | `factor` |  |  |  | - |
@@ -41,7 +41,7 @@ the work.  Applet parity is the other axis: see the README.
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
 | `id` | -u -g -G -n -r | -u -g -G -n | -r | 80% |
 | `install` | -c -d -D -s -p -o -g -m -t | -d -c -D -p -m -o -g -t | -s | 88% |
-| `join` | _not a busybox applet_ |  | | - |
+| `join` | _not a busybox applet_ | -t | | - |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
@@ -70,13 +70,13 @@ the work.  Applet parity is the other axis: see the README.
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha512sum` | -c -s -w | -c -s -w |  | 100% |
 | `shred` | -f -n -u -z | -u -n | -f -z | 50% |
-| `shuf` | -e -i -n -o -z | -e -n | -i -o -z | 40% |
+| `shuf` | -e -i -n -o -z | -e -n -i -o | -z | 80% |
 | `sleep` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -n -r -u -g -M -c -s -b -d -f -i -o -k -t | -z | 93% |
 | `split` | -b -l -a | -b -l | -a | 66% |
 | `stat` | -L -f -t -c | -L -c | -f -t | 50% |
 | `sum` | -r -s | -s -r |  | 100% |
-| `sync` | -d -f |  | -d -f | 0% |
+| `sync` | -d -f | -d -f |  | 100% |
 | `tac` |  |  |  | - |
 | `tail` | -c -f -n -q -s -v | -q -v -n -c | -f -s | 66% |
 | `tee` | -a -i | -a | -i | 50% |
@@ -90,15 +90,15 @@ the work.  Applet parity is the other axis: see the README.
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -s -n -r -v -m -p -i -o |  | 100% |
 | `unexpand` | -f -a -t | -a -t | -f | 66% |
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
-| `unix2dos` | -u -d |  | -u -d | 0% |
+| `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
 | `usleep` |  |  |  | - |
 | `uudecode` | -o |  | -o | 0% |
 | `uuencode` | -m | -m |  | 100% |
-| `wc` | -c -m -l -w -L | -l -w -c | -m -L | 60% |
+| `wc` | -c -m -l -w -L | -l -w -c -m -L |  | 100% |
 | `which` | -a |  | -a | 0% |
 | `whoami` |  |  |  | - |
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 368 of 426 busybox options accepted (86%).**
+**Total: 380 of 426 busybox options accepted (89%).**
