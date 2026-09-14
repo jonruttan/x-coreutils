@@ -69,11 +69,12 @@
 (def %t-same-file?
   (fn (_ a b)
     (let ((x (%t-stat a)) (y (%t-stat b)))
-      (if (null? x) #f
-        (if (null? y) #f
-          (if (= (%cu-stat-get x (lit dev)) (%cu-stat-get y (lit dev)))
-            (= (%cu-stat-get x (lit ino)) (%cu-stat-get y (lit ino)))
-            #f))))))
+      (match
+        ((null? x) #f)
+        ((null? y) #f)
+        ((= (%cu-stat-get x (lit dev)) (%cu-stat-get y (lit dev)))
+          (= (%cu-stat-get x (lit ino)) (%cu-stat-get y (lit ino))))
+        (#t #f)))))
 
 ; --- the operators ------------------------------------------------------------
 
@@ -153,13 +154,15 @@
     ; unreadable rather than wrong.
     (def go
       (fn (self v xs)
-        (if (null? v) (pair () xs)
-          (if (null? xs) (pair v xs)
-            (if (not (string=? (first xs) "-o")) (pair v xs)
-              (let ((r2 (%t-term (rest xs))))
-                (self (if (null? (first r2)) ()
-                        (if v #t (first r2)))
-                  (rest r2))))))))
+        (match
+          ((null? v) (pair () xs))
+          ((null? xs) (pair v xs))
+          ((not (string=? (first xs) "-o")) (pair v xs))
+          (#t
+            (let ((r2 (%t-term (rest xs))))
+              (self (if (null? (first r2)) ()
+                      (if v #t (first r2)))
+                (rest r2)))))))
     (go (first r) (rest r))))
 
 (def %t-term
@@ -170,37 +173,38 @@
     ; unreadable rather than wrong.
     (def go
       (fn (self v xs)
-        (if (null? v) (pair () xs)
-          (if (null? xs) (pair v xs)
-            (if (not (string=? (first xs) "-a")) (pair v xs)
-              (let ((r2 (%t-factor (rest xs))))
-                (self (if (null? (first r2)) ()
-                        (if v (first r2) #f))
-                  (rest r2))))))))
+        (match
+          ((null? v) (pair () xs))
+          ((null? xs) (pair v xs))
+          ((not (string=? (first xs) "-a")) (pair v xs))
+          (#t
+            (let ((r2 (%t-factor (rest xs))))
+              (self (if (null? (first r2)) ()
+                      (if v (first r2) #f))
+                (rest r2)))))))
     (go (first r) (rest r))))
 
 (def %t-factor
   (fn (_ args)
     (if (null? args) (%t-bad args)
       (let ((a (first args)))
-        (if (string=? a "!")
-          (let ((r (%t-factor (rest args))))
-            (if (null? (first r)) (%t-bad (rest r))
-              (pair (not (first r)) (rest r))))
-          (if (string=? a "(")
-            (let ((r (%t-expr (rest args))))
+        (match
+          ((string=? a "!")
+            (let ((r (%t-factor (rest args))))
               (if (null? (first r)) (%t-bad (rest r))
-                (if (null? (rest r)) (%t-bad ())
-                  (if (string=? (first (rest r)) ")")
-                    (pair (first r) (rest (rest r)))
-                    (%t-bad (rest r))))))
-            ; a unary operator binds tighter than a binary one, but only
-            ; when something follows it AND the token after that is not
-            ; itself a binary operator (`-n = x` compares the string -n)
-            (if (%t-binary-next? args) (%t-binary-factor args)
-              (if (if (%t-unary? a) (pair? (rest args)) #f)
-                (pair (%t-unary a (first (rest args))) (rest (rest args)))
-                (pair (> (byte-len a) 0) (rest args))))))))))
+                (pair (not (first r)) (rest r)))))
+          ((string=? a "(")
+            (let ((r (%t-expr (rest args))))
+              (match
+                ((null? (first r)) (%t-bad (rest r)))
+                ((null? (rest r)) (%t-bad ()))
+                ((string=? (first (rest r)) ")")
+                  (pair (first r) (rest (rest r))))
+                (#t (%t-bad (rest r))))))
+          ((%t-binary-next? args) (%t-binary-factor args))
+          ((if (%t-unary? a) (pair? (rest args)) #f)
+            (pair (%t-unary a (first (rest args))) (rest (rest args))))
+          (#t (pair (> (byte-len a) 0) (rest args))))))))
 
 (def %t-binary-next?
   (fn (_ args)
@@ -220,9 +224,11 @@
   (fn (_ args)
     (if (null? args) 1
       (let ((r (%t-expr args)))
-        (if (null? (first r)) 2
-          (if (pair? (rest r)) 2
-            (if (first r) 0 1)))))))
+        (match
+          ((null? (first r)) 2)
+          ((pair? (rest r)) 2)
+          ((first r) 0)
+          (#t 1))))))
 
 (def %cu-test
   (fn (_ argv stdin-thunk) (%cu-test-eval argv)))

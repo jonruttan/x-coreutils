@@ -92,17 +92,19 @@
 ; the round's mixing function and its message index, by round number
 (def %cu-md5-f
   (fn (_ i b c d)
-    (if (< i 16) (bit-or (bit-and b c) (bit-and (%cu-not32 b) d))
-      (if (< i 32) (bit-or (bit-and d b) (bit-and (%cu-not32 d) c))
-        (if (< i 48) (bit-xor b (bit-xor c d))
-          (bit-xor c (bit-or b (%cu-not32 d))))))))
+    (match
+      ((< i 16) (bit-or (bit-and b c) (bit-and (%cu-not32 b) d)))
+      ((< i 32) (bit-or (bit-and d b) (bit-and (%cu-not32 d) c)))
+      ((< i 48) (bit-xor b (bit-xor c d)))
+      (#t (bit-xor c (bit-or b (%cu-not32 d)))))))
 
 (def %cu-md5-g
   (fn (_ i)
-    (if (< i 16) i
-      (if (< i 32) (% (+ (* 5 i) 1) 16)
-        (if (< i 48) (% (+ (* 3 i) 5) 16)
-          (% (* 7 i) 16))))))
+    (match
+      ((< i 16) i)
+      ((< i 32) (% (+ (* 5 i) 1) 16))
+      ((< i 48) (% (+ (* 3 i) 5) 16))
+      (#t (% (* 7 i) 16)))))
 
 (def %cu-md5-block
   (fn (_ hs block)
@@ -192,17 +194,19 @@
 
 (def %cu-sha1-f
   (fn (_ t b c d)
-    (if (< t 20) (bit-or (bit-and b c) (bit-and (%cu-not32 b) d))
-      (if (< t 40) (bit-xor b (bit-xor c d))
-        (if (< t 60)
-          (bit-or (bit-and b c) (bit-or (bit-and b d) (bit-and c d)))
-          (bit-xor b (bit-xor c d)))))))
+    (match
+      ((< t 20) (bit-or (bit-and b c) (bit-and (%cu-not32 b) d)))
+      ((< t 40) (bit-xor b (bit-xor c d)))
+      ((< t 60) (bit-or (bit-and b c) (bit-or (bit-and b d) (bit-and c d))))
+      (#t (bit-xor b (bit-xor c d))))))
 
 (def %cu-sha1-kt
   (fn (_ t)
-    (if (< t 20) 1518500249
-      (if (< t 40) 1859775393
-        (if (< t 60) 2400959708 3395469782)))))
+    (match
+      ((< t 20) 1518500249)
+      ((< t 40) 1859775393)
+      ((< t 60) 2400959708)
+      (#t 3395469782))))
 
 (def %cu-sha1-block
   (fn (_ hs block)
@@ -271,16 +275,15 @@
                   (if (>= i end) ()
                     (if (= (byte-at line i) 32) i (self (+ i 1)))))))
         (go 0)))
-    (if (null? sp)
-      ()
-      (if (= sp 0)
-        ()
-        (if (>= (+ sp 2) end)
-          ()
-          (let ((c2 (byte-at line (+ sp 1))))
-            (if (if (= c2 32) #t (= c2 42))
-              (pair (substring line 0 sp) (substring line (+ sp 2) end))
-              ())))))))
+    (match
+      ((null? sp) ())
+      ((= sp 0) ())
+      ((>= (+ sp 2) end) ())
+      (#t
+        (let ((c2 (byte-at line (+ sp 1))))
+          (if (if (= c2 32) #t (= c2 42))
+            (pair (substring line 0 sp) (substring line (+ sp 2) end))
+            ()))))))
 
 ; -c: read the checksum lines back and recompute.  Returns 1 when
 ; anything failed, which is the whole point of the mode -- a checker

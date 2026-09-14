@@ -102,13 +102,15 @@
         (if (>= i la) (< j lb)
           (if (>= j lb) #f
             (let ((ca (byte-at a i)) (cb (byte-at b j)))
-              (if (if (%ls-digit? ca) (%ls-digit? cb) #f)
-                (let ((ra (%ls-num-run a i)) (rb (%ls-num-run b j)))
-                  (if (< (first ra) (first rb)) #t
-                    (if (> (first ra) (first rb)) #f
-                      (self (rest ra) (rest rb)))))
-                (if (< ca cb) #t
-                  (if (> ca cb) #f (self (+ i 1) (+ j 1))))))))))
+              (match
+                ((if (%ls-digit? ca) (%ls-digit? cb) #f)
+                  (let ((ra (%ls-num-run a i)) (rb (%ls-num-run b j)))
+                    (if (< (first ra) (first rb)) #t
+                      (if (> (first ra) (first rb)) #f
+                        (self (rest ra) (rest rb))))))
+                ((< ca cb) #t)
+                ((> ca cb) #f)
+                (#t (self (+ i 1) (+ j 1)))))))))
     (go 0 0)))
 
 (def %ls-desc-then-name

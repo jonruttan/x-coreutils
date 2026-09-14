@@ -67,29 +67,31 @@
     (def n? (Opts on? o "-n"))
     (def uid (sys-geteuid))
     (def gid (sys-getegid))
-    (if (Opts on? o "-u")
-      (do (display
-            (string-append (if n? (%cu-user-name uid) (%cu-int->str uid)) "\n"))
-          0)
-      (if (Opts on? o "-g")
-        (do (display (string-append (%cu-int->str gid) "\n")) 0)
-        (if (Opts on? o "-G")
-          (do (display
-                (string-append
-                  (%cu-join-with
-                    (map (fn (_ g) (%cu-int->str g)) (sys-getgroups)) " ")
-                  "\n"))
-              0)
-          (do (display
-                (string-concat
-                  (list "uid=" (%cu-int->str uid)
-                        "(" (%cu-user-name uid) ") gid="
-                        (%cu-int->str gid) " groups="
-                        (%cu-join-with
-                          (map (fn (_ g) (%cu-int->str g)) (sys-getgroups))
-                          ",")
-                        "\n")))
-              0))))))
+    (match
+      ((Opts on? o "-u")
+        (do (display
+              (string-append (if n? (%cu-user-name uid) (%cu-int->str uid)) "\n"))
+            0))
+      ((Opts on? o "-g")
+        (do (display (string-append (%cu-int->str gid) "\n")) 0))
+      ((Opts on? o "-G")
+        (do (display
+              (string-append
+                (%cu-join-with
+                  (map (fn (_ g) (%cu-int->str g)) (sys-getgroups)) " ")
+                "\n"))
+            0))
+      (#t
+        (do (display
+              (string-concat
+                (list "uid=" (%cu-int->str uid)
+                      "(" (%cu-user-name uid) ") gid="
+                      (%cu-int->str gid) " groups="
+                      (%cu-join-with
+                        (map (fn (_ g) (%cu-int->str g)) (sys-getgroups))
+                        ",")
+                      "\n")))
+            0)))))
 
 ; --- uname, arch, nproc -------------------------------------------------------
 

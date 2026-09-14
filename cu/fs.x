@@ -48,13 +48,15 @@
 ; add the line and tab markers, and -A is all three.
 (def %cat-visible
   (fn (_ b)
-    (if (< b 32) (string-append "^" (%cu-b->s (+ b 64)))
-      (if (= b 127) "^?"
-        (if (< b 128) (%cu-b->s b)
-          (string-append "M-"
-            (let ((low (- b 128)))
-              (if (< low 32) (string-append "^" (%cu-b->s (+ low 64)))
-                (if (= low 127) "^?" (%cu-b->s low))))))))))
+    (match
+      ((< b 32) (string-append "^" (%cu-b->s (+ b 64))))
+      ((= b 127) "^?")
+      ((< b 128) (%cu-b->s b))
+      (#t
+        (string-append "M-"
+          (let ((low (- b 128)))
+            (if (< low 32) (string-append "^" (%cu-b->s (+ low 64)))
+              (if (= low 127) "^?" (%cu-b->s low)))))))))
 
 (def %cat-render
   (fn (_ s o)
@@ -69,9 +71,11 @@
               (let ((b (byte-at s i)))
                 (self (+ i 1)
                   (pair
-                    (if (= b 10) (if e? "$\n" "\n")
-                      (if (= b 9) (if t? "^I" "\t")
-                        (if v? (%cat-visible b) (%cu-b->s b))))
+                    (match
+                      ((= b 10) (if e? "$\n" "\n"))
+                      ((= b 9) (if t? "^I" "\t"))
+                      (v? (%cat-visible b))
+                      (#t (%cu-b->s b)))
                     acc))))))
         (go 0 ())))))
 
@@ -110,8 +114,11 @@
   (if (Opts on? o "-p") #t (Opts on? o "-a"))))
 ; -a and -P keep a link a link; -L and -H follow one
 (def %cp-deref? (fn (_ o)
-  (if (Opts on? o "-L") #t
-    (if (Opts on? o "-P") #f (if (Opts on? o "-a") #f #t)))))
+  (match
+    ((Opts on? o "-L") #t)
+    ((Opts on? o "-P") #f)
+    ((Opts on? o "-a") #f)
+    (#t #t))))
 
 (def %cp-preserve!
   (fn (_ src dst o)
@@ -130,35 +137,35 @@
             (string-concat (list "cp: cannot stat '" src "'\n")))
           1)
       (let ((kind (%cu-stat-get st (lit kind))))
-        (if (eq? kind (lit dir))
-          (if (not (%cp-recursive? o))
-            (do (file-write 2
-                  (string-concat (list "cp: omitting directory '" src "'\n")))
-                1)
-            (do (if (file-exists? dst) () (file-mkdir dst))
-                (let ((r (%cu-walk-status src
-                           (fn (_ n) (self (%cu-path-join src n)
-                                       (%cu-path-join dst n) o)))))
-                  (do (%cp-preserve! src dst o) r))))
-          ; a file onto an existing DIRECTORY is a refusal, not a raise:
-          ; -T names the destination outright, and cp will not unmake a
-          ; directory to honour it
-          (if (file-dir? dst)
+        (match
+          ((eq? kind (lit dir))
+            (if (not (%cp-recursive? o))
+              (do (file-write 2
+                    (string-concat (list "cp: omitting directory '" src "'\n")))
+                  1)
+              (do (if (file-exists? dst) () (file-mkdir dst))
+                  (let ((r (%cu-walk-status src
+                             (fn (_ n) (self (%cu-path-join src n)
+                                         (%cu-path-join dst n) o)))))
+                    (do (%cp-preserve! src dst o) r)))))
+          ((file-dir? dst)
             (do (file-write 2
                   (string-concat
                     (list "cp: cannot overwrite directory '" dst
                           "' with non-directory\n")))
-                1)
-          (if (not (%fs-may-clobber? o dst "cp")) 0
+                1))
+          ((not (%fs-may-clobber? o dst "cp")) 0)
+          (#t
             (do (if (if (file-exists? dst) (Opts on? o "-f") #f)
                   (file-unlink dst) ())
-                (if (eq? kind (lit link))
-                  (file-symlink (file-readlink src) dst)
-                  (if (Opts on? o "-l") (file-link src dst)
-                    (if (Opts on? o "-s") (file-symlink src dst)
-                      (file-copy src dst))))
+                (match
+                  ((eq? kind (lit link))
+                    (file-symlink (file-readlink src) dst))
+                  ((Opts on? o "-l") (file-link src dst))
+                  ((Opts on? o "-s") (file-symlink src dst))
+                  (#t (file-copy src dst)))
                 (%cp-preserve! src dst o)
-                0))))))))
+                0)))))))
 
 ; SRC... DST: DST is a directory to copy into, unless -T says it is the
 ; name to write
@@ -221,14 +228,15 @@
 (def %rm-one
   (fn (self path o)
     (def kind (file-lstat-kind path))
-    (if (eq? kind (lit none))
-      (if (Opts on? o "-f") 0
-        (do (file-write 2
-              (string-concat
-                (list "rm: cannot remove '" path
-                      "': No such file or directory\n")))
-            1))
-      (if (eq? kind (lit dir))
+    (match
+      ((eq? kind (lit none))
+        (if (Opts on? o "-f") 0
+          (do (file-write 2
+                (string-concat
+                  (list "rm: cannot remove '" path
+                        "': No such file or directory\n")))
+              1)))
+      ((eq? kind (lit dir))
         (if (not (%rm-recursive? o))
           (do (file-write 2
                 (string-concat
@@ -236,9 +244,9 @@
               1)
           (let ((r (%cu-walk-status path
                      (fn (_ n) (self (%cu-path-join path n) o)))))
-            (do (file-rmdir path) (%rm-say path o) r)))
-        (if (not (%fs-may-clobber? o path "rm")) 0
-          (do (file-unlink path) (%rm-say path o) 0))))))
+            (do (file-rmdir path) (%rm-say path o) r))))
+      ((not (%fs-may-clobber? o path "rm")) 0)
+      (#t (do (file-unlink path) (%rm-say path o) 0)))))
 
 (def %rm-recursive? (fn (_ o)
   (if (Opts on? o "-r") #t (Opts on? o "-R"))))
@@ -272,18 +280,20 @@
     (def stamp! (fn (_ path) (if (null? mode) () (file-chmod path mode))))
     (def go
       (fn (self os st)
-        (if (null? os) st
-          (if p?
+        (match
+          ((null? os) st)
+          (p?
             (do (%cu-mkdir-p! (first os)) (stamp! (first os))
-                (self (rest os) st))
-            (if (file-exists? (first os))
-              (do (file-write 2
-                    (string-concat
-                      (list "mkdir: cannot create directory '" (first os)
-                            "': File exists\n")))
-                  (self (rest os) 1))
-              (do (file-mkdir (first os)) (stamp! (first os))
-                  (self (rest os) st)))))))
+                (self (rest os) st)))
+          ((file-exists? (first os))
+            (do (file-write 2
+                  (string-concat
+                    (list "mkdir: cannot create directory '" (first os)
+                          "': File exists\n")))
+                (self (rest os) 1)))
+          (#t
+            (do (file-mkdir (first os)) (stamp! (first os))
+                (self (rest os) st))))))
     (go (Opts operands o) 0)))
 
 ; -p removes each parent too, while they keep coming up empty.  File
