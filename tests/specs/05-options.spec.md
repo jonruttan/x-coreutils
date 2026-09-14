@@ -573,6 +573,114 @@ abc
 ---
     1
 
+### wc -L is the longest line, -m counts what -c counts
+
+A character is a byte here, so -m and -c report the same number; asking
+for both prints it twice, which is what asking for both means.
+
+```cu
+(do (display (cu-run (list "wc" "-L") "ab cd\nefghij\n"))
+    (display (cu-run (list "wc" "-m") "ab cd\nefghij\n")))
+```
+---
+```output
+       6
+0      13
+0
+```
+
+### wc with no flag is unchanged: lines, words, bytes
+
+-m and -L are shown when asked for, never by default.
+
+```cu
+(display (cu-run (list "wc") "ab cd\nefghij\n"))
+```
+---
+```output
+       2       3      13
+0
+```
+
+### shuf -i shuffles a range and reads nothing
+
+Sorted back, the range is exactly itself.
+
+```cu
+(display (%cu-join-with
+  (%cu-msort (%cu-shuf-range "1-5") %cu-str<) ","))
+```
+---
+    1,2,3,4,5
+
+### shuf -o writes where the shuffle goes
+
+```cu
+(do (cu-run (list "shuf" "-i" "1-4" "-o" "/tmp/x-cu-opt-shuf") "")
+    (display (length (%cu-lines (file-read-all "/tmp/x-cu-opt-shuf"))))
+    (file-unlink "/tmp/x-cu-opt-shuf"))
+```
+---
+    4
+
+### env -i starts from an empty environment, so it prints nothing
+
+```cu
+(display (cu-run (list "env" "-i") ""))
+```
+---
+    0
+
+### env -u drops exactly the name it was given
+
+```cu
+(do (def cap
+      (fn (_ argv)
+        (do (sys-dup2 1 9)
+            (let ((fd (file-open-write "/tmp/x-cu-opt-env")))
+              (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1)
+                  (file-close fd)
+                  (file-read-all "/tmp/x-cu-opt-env"))))))
+    (def all (%cu-lines (cap (list "env"))))
+    (def minus (%cu-lines (cap (list "env" "-u" "PATH"))))
+    (display (- (length all) (length minus)))
+    (display (%cu-dd-has?
+      (map (fn (_ e) (first (%cu-split-byte e 61))) minus) "PATH"))
+    (file-unlink "/tmp/x-cu-opt-env"))
+```
+---
+    1#f
+
+### dos2unix -d and unix2dos -u each take the other direction
+
+The two are one tool with a default, and the flags name the direction
+outright.
+
+```cu
+(do (file-write-all "/tmp/x-cu-opt-crlf" "a\r\nb\r\n")
+    (cu-run (list "dos2unix" "/tmp/x-cu-opt-crlf") "")
+    (display (byte-len (file-read-all "/tmp/x-cu-opt-crlf")))
+    (cu-run (list "dos2unix" "-d" "/tmp/x-cu-opt-crlf") "")
+    (display (byte-len (file-read-all "/tmp/x-cu-opt-crlf")))
+    (cu-run (list "unix2dos" "-u" "/tmp/x-cu-opt-crlf") "")
+    (display (byte-len (file-read-all "/tmp/x-cu-opt-crlf")))
+    (file-unlink "/tmp/x-cu-opt-crlf"))
+```
+---
+    464
+
+### sync takes a file, and -f the filesystem holding it
+
+```cu
+(do (file-write-all "/tmp/x-cu-opt-sync" "x")
+    (display (cu-run (list "sync") ""))
+    (display (cu-run (list "sync" "-d" "/tmp/x-cu-opt-sync") ""))
+    (display (cu-run (list "sync" "-f" "/tmp/x-cu-opt-sync") ""))
+    (file-unlink "/tmp/x-cu-opt-sync"))
+```
+---
+    000
+
 ### fixtures
 
 ```cu

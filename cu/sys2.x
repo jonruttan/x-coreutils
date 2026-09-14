@@ -11,9 +11,32 @@
 (def %cu-true (fn (_ argv stdin-thunk) 0))
 (def %cu-false (fn (_ argv stdin-thunk) 1))
 
+; Is "NAME=VALUE" one of NAMES?
+(def %cu-env-named?
+  (fn (_ entry names)
+    (def end (byte-len entry))
+    (def eq
+      (let ((go (fn (self i)
+                  (if (>= i end) (- 0 1)
+                    (if (= (byte-at entry i) 61) i (self (+ i 1)))))))
+        (go 0)))
+    (if (< eq 0) #f
+      (let ((nm (substring entry 0 eq)))
+        (let ((go (fn (self l)
+                    (if (null? l) #f
+                      (if (string=? (first l) nm) #t (self (rest l)))))))
+          (go names))))))
+
+; env with no command prints the environment; -i starts from an empty one
+; and -u drops a name, so both are visible in what is printed.
 (def %cu-env
   (fn (_ argv stdin-thunk)
-    (do (%cu-print-lines (sys-environ)) 0)))
+    (def o (%cu-opts "env" argv))
+    (def drop (Opts values o "-u"))
+    (def kept
+      (if (Opts on? o "-i") ()
+        (filter (fn (_ e) (not (%cu-env-named? e drop))) (sys-environ))))
+    (do (%cu-print-lines kept) 0)))
 
 (def %cu-printenv
   (fn (_ argv stdin-thunk)

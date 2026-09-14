@@ -148,24 +148,37 @@
 
 ; both rewrite a named file IN PLACE (busybox's shape) and filter
 ; stdin to stdout when given no operand
+; -u converts to unix endings and -d to dos, whichever applet was named:
+; the two are one tool with a default, and the flags say which direction
+; is wanted outright.
 (def %cu-crlf-applet
-  (fn (_ conv argv stdin-thunk)
-    (if (null? argv)
+  (fn (_ name to-dos-by-default? argv stdin-thunk)
+    (def o (%cu-opts name argv))
+    (def ops (Opts operands o))
+    (def to-dos?
+      (match
+        ((Opts on? o "-d") #t)
+        ((Opts on? o "-u") #f)
+        (#t to-dos-by-default?)))
+    (def conv
+      (fn (_ s)
+        (if to-dos? (%cu-add-cr (%cu-strip-cr s)) (%cu-strip-cr s))))
+    (if (null? ops)
       (do (display (conv (stdin-thunk))) 0)
-      (let ((go (fn (self ops)
-                  (if (null? ops) 0
-                    (do (file-write-all (first ops)
-                          (conv (file-read-all (first ops))))
-                        (self (rest ops)))))))
-        (go argv)))))
+      (let ((go (fn (self os)
+                  (if (null? os) 0
+                    (do (file-write-all (first os)
+                          (conv (file-read-all (first os))))
+                        (self (rest os)))))))
+        (go ops)))))
 
 (def %cu-dos2unix
   (fn (_ argv stdin-thunk)
-    (%cu-crlf-applet (fn (_ s) (%cu-strip-cr s)) argv stdin-thunk)))
+    (%cu-crlf-applet "dos2unix" #f argv stdin-thunk)))
 
 (def %cu-unix2dos
   (fn (_ argv stdin-thunk)
-    (%cu-crlf-applet (fn (_ s) (%cu-add-cr (%cu-strip-cr s))) argv stdin-thunk)))
+    (%cu-crlf-applet "unix2dos" #t argv stdin-thunk)))
 
 ; --- split --------------------------------------------------------------------
 
@@ -268,13 +281,40 @@
     (def count (if (null? nv) 0 (%cu-num-prefix nv)))
     (def echo? (Opts on? o "-e"))
     (def rest1 (Opts operands o))
+    ; -i LO-HI shuffles the range itself and reads nothing.
+    (def iv (Opts value o "-i"))
     (def items
-      (if echo? rest1
-        (%cu-lines (%cu-gather rest1 stdin-thunk))))
+      (match
+        ((not (null? iv)) (%cu-shuf-range iv))
+        (echo? rest1)
+        (#t (%cu-lines (%cu-gather rest1 stdin-thunk)))))
     (def out (%cu-shuffle items))
-    (do (%cu-print-lines
-          (if (null? nv) out (%cu-take out count)))
-        0)))
+    (def picked (if (null? nv) out (%cu-take out count)))
+    ; -o writes where the shuffle goes, so a caller can shuffle a file in
+    ; place without a shell redirect reading it at the same time.
+    (def dest (Opts value o "-o"))
+    (if (null? dest)
+      (do (%cu-print-lines picked) 0)
+      (do (file-write-all dest
+            (string-concat
+              (map (fn (_ l) (string-append l "\n")) picked)))
+          0))))
+
+; "LO-HI" -> the integers from LO to HI, as strings.
+(def %cu-shuf-range
+  (fn (_ spec)
+    (def dash
+      (let ((go (fn (self i)
+                  (if (>= i (byte-len spec)) (- 0 1)
+                    (if (= (byte-at spec i) 45) i (self (+ i 1)))))))
+        (go 0)))
+    (if (< dash 0) ()
+      (let ((lo (%cu-num-prefix (substring spec 0 dash)))
+            (hi (%cu-num-prefix (substring spec (+ dash 1) (byte-len spec)))))
+        (let ((go (fn (self n acc)
+                    (if (< n lo) acc
+                      (self (- n 1) (pair (%cu-int->str n) acc))))))
+          (go hi ()))))))
 
 ; --- base64 -------------------------------------------------------------------
 
