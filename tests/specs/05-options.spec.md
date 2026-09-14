@@ -681,6 +681,114 @@ outright.
 ---
     000
 
+### basename -s strips a suffix, as a second operand still does
+
+```cu
+(do (display (cu-run (list "basename" "-s" ".txt" "/a/b/c.txt") ""))
+    (display (cu-run (list "basename" "/a/b/c.txt" ".txt") "")))
+```
+---
+```output
+c
+0c
+0
+```
+
+### echo -E turns escapes off, undoing an -e earlier on the line
+
+```cu
+(do (display (cu-run (list "echo" "-e" "a\\tb") ""))
+    (display (cu-run (list "echo" "-e" "-E" "a\\tb") "")))
+```
+---
+```output
+a	b
+0a\tb
+0
+```
+
+### cmp -l lists every differing byte in octal, and keeps going
+
+```cu
+(do (file-write-all "/tmp/x-cu-opt-c1" "abcXef\n")
+    (file-write-all "/tmp/x-cu-opt-c2" "abcYeZ\n")
+    (display (cu-run (list "cmp" "-l" "/tmp/x-cu-opt-c1" "/tmp/x-cu-opt-c2") "")))
+```
+---
+```output
+     4 130 131
+     6 146 132
+1
+```
+
+### cmp -n bounds how far either file is read
+
+The first three bytes match, so a comparison stopped there finds nothing.
+
+```cu
+(do (display (cu-run (list "cmp" "-n" "3" "/tmp/x-cu-opt-c1" "/tmp/x-cu-opt-c2") ""))
+    (file-unlink "/tmp/x-cu-opt-c1")
+    (file-unlink "/tmp/x-cu-opt-c2"))
+```
+---
+    0
+
+### seq -w pads to the widest value
+
+```cu
+(display (cu-run (list "seq" "-w" "8" "11") ""))
+```
+---
+```output
+08
+09
+10
+11
+0
+```
+
+### seq -s separates between, and ends with a newline
+
+That is GNU's and busybox's shape. The BSD seq appends the separator
+after the last value and ends without a newline; busybox is the parity
+target, so this differs from the system seq on purpose.
+
+```cu
+(display (cu-run (list "seq" "-s" "," "3") ""))
+```
+---
+```output
+1,2,3
+0
+```
+
+### paste -s puts a file on one line instead of pasting files together
+
+```cu
+(do (file-write-all "/tmp/x-cu-opt-p" "a\nb\nc\n")
+    (display (cu-run (list "paste" "-s" "-d" "," "/tmp/x-cu-opt-p") ""))
+    (file-unlink "/tmp/x-cu-opt-p"))
+```
+---
+```output
+a,b,c
+0
+```
+
+### base64 -w sets the wrap column
+
+```cu
+(display (cu-run (list "base64" "-w" "4") "hello world"))
+```
+---
+```output
+aGVs
+bG8g
+d29y
+bGQ=
+0
+```
+
 ### fixtures
 
 ```cu

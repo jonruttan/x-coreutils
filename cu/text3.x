@@ -386,4 +386,6 @@
     (def o (%cu-opts "base64" argv))
     (def d? (Opts on? o "-d"))
     (def text (%cu-gather (Opts operands o) stdin-thunk))
-    (do (display (if d? (%cu-b64-decode text) (%cu-b64-encode text 76))) 0)))
+    ; -w sets the wrap column; 0 means one unbroken line.
+    (def wrap (let ((v (Opts value o "-w"))) (if (null? v) 76 (%cu-num-prefix v))))
+    (do (display (if d? (%cu-b64-decode text) (%cu-b64-encode text wrap))) 0)))

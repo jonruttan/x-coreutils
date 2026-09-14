@@ -421,9 +421,13 @@
         (string-append (first ws)
           (string-append sep (self (rest ws) sep)))))))
 
+; The suffix is either -s SUFFIX or a second operand; busybox takes both
+; spellings and they mean the same thing.
 (def %cu-basename
   (fn (_ argv stdin-thunk)
-    (def p (first argv))
+    (def o (%cu-opts "basename" argv))
+    (def ops (Opts operands o))
+    (def p (first ops))
     (def stripped
       (let ((go (fn (self e)
                   (if (if (> e 1) (= (byte-at p (- e 1)) 47) #f)
@@ -438,7 +442,9 @@
         (go 0 (- 0 1))))
     (def base (if (< slash 0) stripped
                 (substring stripped (+ slash 1) (byte-len stripped))))
-    (def suf (if (null? (rest argv)) () (first (rest argv))))
+    (def suf
+      (let ((v (Opts value o "-s")))
+        (if (null? v) (if (null? (rest ops)) () (first (rest ops))) v)))
     (def final
       (if (null? suf) base
         (let ((lb (byte-len base)) (ls (byte-len suf)))

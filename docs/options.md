@@ -11,15 +11,15 @@ the work.  Applet parity is the other axis: see the README.
 | `[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `[[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `arch` |  |  |  | - |
-| `base64` | -d -w | -d | -w | 50% |
-| `basename` | -s |  | -s | 0% |
+| `base64` | -d -w | -d -w |  | 100% |
+| `basename` | -s | -s |  | 100% |
 | `cat` | -n -b -v -t -e -A | -n -b -v -t -e -A |  | 100% |
 | `chgrp` | -R -h -L -H -P -c -v -f | -R -h -L -H -P -c -v -f |  | 100% |
 | `chmod` | -R -c -v -f | -R -c -v -f |  | 100% |
 | `chown` | -R -h -L -H -P -c -v -f | -R -h -L -H -P -c -v -f |  | 100% |
 | `chroot` |  |  |  | - |
 | `cksum` |  |  |  | - |
-| `cmp` | -l -s -n | -s | -l -n | 33% |
+| `cmp` | -l -s -n | -s -l -n |  | 100% |
 | `comm` | -1 -2 -3 | -1 -2 -3 |  | 100% |
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -r -R -P -L -H -p -f -i -l -s -T -u |  | 100% |
 | `cut` | -b -c -f -d -s -n | -s -n -d -f -c -b |  | 100% |
@@ -30,7 +30,7 @@ the work.  Applet parity is the other axis: see the README.
 | `dirname` |  |  |  | - |
 | `dos2unix` | -u -d | -u -d |  | 100% |
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k -c -h -m -x -l -H -L -d |  | 100% |
-| `echo` | -n -e -E | -n -e | -E | 66% |
+| `echo` | -n -e -E | -n -e -E |  | 100% |
 | `env` | -i -u -0 | -i -u | -0 | 66% |
 | `expand` | -i -t | -t | -i | 50% |
 | `expr` |  |  |  | - |
@@ -56,7 +56,7 @@ the work.  Applet parity is the other axis: see the README.
 | `nohup` |  |  |  | - |
 | `nproc` | --all --ignore=N |  | --all --ignore=N | 0% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N | -j | 90% |
-| `paste` | -d -s | -d | -s | 50% |
+| `paste` | -d -s | -s -d |  | 100% |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
 | `pwd` | -L -P |  | -L -P | 0% |
@@ -65,7 +65,7 @@ the work.  Applet parity is the other axis: see the README.
 | `rev` |  |  |  | - |
 | `rm` | -i -r -R -f -v | -i -r -R -f -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
-| `seq` | -w -s |  | -w -s | 0% |
+| `seq` | -w -s | -w -s |  | 100% |
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha512sum` | -c -s -w | -c -s -w |  | 100% |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 380 of 426 busybox options accepted (89%).**
+**Total: 388 of 426 busybox options accepted (91%).**
