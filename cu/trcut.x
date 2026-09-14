@@ -104,56 +104,61 @@
               (self (rest rs)))))))
     (go ranges)))
 
-; -d C -f LIST (fields; lines without the delimiter pass whole) or
-; -c LIST (characters); options joined or split
+; -b/-c LIST selects positions, -d C -f LIST selects fields. -s drops a line
+; that holds no delimiter; without it such a line passes whole.
+;
+; -b and -c are the same operation here, and -n is a no-op that is honoured
+; rather than ignored: this cut is byte-oriented, so a character is a byte,
+; and "do not split a multibyte character" cannot fail when nothing is
+; multibyte.
 (def %cu-cut
   (fn (_ argv stdin-thunk)
-    (def grab
-      (fn (_ flag ops)
-        (if (null? ops) (pair () ops)
-          (let ((op (first ops)))
-            (if (string=? op flag)
-              (pair (first (rest ops)) (rest (rest ops)))
-              (if (if (> (byte-len op) 2)
-                    (string=? (substring op 0 2) flag)
-                    #f)
-                (pair (substring op 2 (byte-len op)) (rest ops))
-                (pair () ops)))))))
-    (def d1 (grab "-d" argv))
-    (def f1 (grab "-f" (rest d1)))
-    (def c1 (grab "-c" (rest f1)))
-    (def d2 (grab "-d" (rest c1)))     ; -f may precede -d
-    (def delim (if (null? (first d1)) (first d2) (first d1)))
-    (def ops (rest d2))
-    (def text (%cu-gather ops stdin-thunk))
-    (def lines (%cu-lines text))
-    (if (not (null? (first c1)))
-      (let ((ranges (%cu-cut-list (first c1))))
-        (def cut-line
-          (fn (_ line)
-            (def end (byte-len line))
-            (def go
-              (fn (self i acc)
-                (if (>= i end) (string-concat (reverse acc))
-                  (self (+ i 1)
-                    (if (%cu-in-ranges? (+ i 1) ranges)
-                      (pair (%cu-b->s (byte-at line i)) acc)
-                      acc)))))
-            (go 0 ())))
-        (do (%cu-print-lines (map (fn (_ l) (cut-line l)) lines)) 0))
-      (let ((ranges (%cu-cut-list (first f1))))
-        (def db (if (null? delim) 9 (byte-at delim 0)))
-        (def sep (%cu-b->s db))
-        (def cut-line
-          (fn (_ line)
-            (def fields (%cu-split-byte line db))
-            (if (null? (rest fields))
-              line                                        ; no delimiter
-              (let ((go (fn (self fs n acc)
-                          (if (null? fs) (reverse acc)
-                            (self (rest fs) (+ n 1)
-                              (if (%cu-in-ranges? n ranges)
-                                (pair (first fs) acc)
-                                acc))))))
-                (%cu-join-with (go fields 1 ()) sep)))))
-        (do (%cu-print-lines (map (fn (_ l) (cut-line l)) lines)) 0)))))
+    (def o (%cu-opts "cut" argv))
+    (def ops (Opts operands o))
+    (def blist (Opts value o "-b"))
+    (def clist (Opts value o "-c"))
+    (def flist (Opts value o "-f"))
+    (def positions (if (null? blist) clist blist))
+    (if (if (null? positions) (null? flist) #f)
+      (do (file-write 2 "cut: need -b, -c or -f\n") 1)
+      (do
+        (def delim (Opts value o "-d"))
+        (def suppress? (Opts on? o "-s"))
+        (def text (%cu-gather ops stdin-thunk))
+        (def lines (%cu-lines text))
+        (if (not (null? positions))
+          (let ((ranges (%cu-cut-list positions)))
+            (def cut-line
+              (fn (_ line)
+                (def end (byte-len line))
+                (def go
+                  (fn (self i acc)
+                    (if (>= i end) (string-concat (reverse acc))
+                      (self (+ i 1)
+                        (if (%cu-in-ranges? (+ i 1) ranges)
+                          (pair (%cu-b->s (byte-at line i)) acc)
+                          acc)))))
+                (go 0 ())))
+            (do (%cu-print-lines (map (fn (_ l) (cut-line l)) lines)) 0))
+          (let ((ranges (%cu-cut-list flist)))
+            (def db (if (null? delim) 9 (byte-at delim 0)))
+            (def sep (%cu-b->s db))
+            (def cut-line
+              (fn (_ line)
+                (def fields (%cu-split-byte line db))
+                (if (null? (rest fields))
+                  line                                    ; no delimiter
+                  (let ((go (fn (self fs n acc)
+                              (if (null? fs) (reverse acc)
+                                (self (rest fs) (+ n 1)
+                                  (if (%cu-in-ranges? n ranges)
+                                    (pair (first fs) acc)
+                                    acc))))))
+                    (%cu-join-with (go fields 1 ()) sep)))))
+            (def keep?
+              (fn (_ line)
+                (if suppress? (pair? (rest (%cu-split-byte line db))) #t)))
+            (do (%cu-print-lines
+                  (map (fn (_ l) (cut-line l)) (filter keep? lines)))
+                0)))))))
+

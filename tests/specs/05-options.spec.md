@@ -517,6 +517,62 @@ a
 
 ## the file-metadata tools
 
+### cut -b selects bytes, and -c does the same here
+
+This cut is byte-oriented, so a character is a byte and the two flags are
+one operation.
+
+```cu
+(do (display (cu-run (list "cut" "-b" "1-3") "abcdef\n"))
+    (display (cu-run (list "cut" "-c" "1-3") "abcdef\n"))
+    (display (cu-run (list "cut" "-b1,3") "abcdef\n")))
+```
+---
+```output
+abc
+0abc
+0ac
+0
+```
+
+### cut -s drops a line that holds no delimiter
+
+Without it such a line passes whole, which is what POSIX asks for.
+
+```cu
+(do (display (cu-run (list "cut" "-d:" "-f2") "a:b\nplain\n"))
+    (display (cu-run (list "cut" "-d:" "-f2" "-s") "a:b\nplain\n")))
+```
+---
+```output
+b
+plain
+0b
+0
+```
+
+### cut -n is honoured and changes nothing
+
+It asks not to split a multibyte character, which cannot happen when
+nothing is multibyte.
+
+```cu
+(display (cu-run (list "cut" "-n" "-b" "1-3") "abcdef\n"))
+```
+---
+```output
+abc
+0
+```
+
+### cut with no list says so
+
+```cu
+(display (cu-run (list "cut" "x") ""))
+```
+---
+    1
+
 ### fixtures
 
 ```cu
