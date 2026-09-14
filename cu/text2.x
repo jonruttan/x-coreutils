@@ -12,7 +12,9 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "echo" argv))
     (def n? (Opts on? o "-n"))
-    (def e? (Opts on? o "-e"))
+    ; -E turns escapes off and is the default; it exists so a caller can
+    ; undo an -e that came earlier on the same line.
+    (def e? (if (Opts on? o "-E") #f (Opts on? o "-e")))
     (def ops (Opts operands o))
     (def unescape
       (fn (_ s)
@@ -126,24 +128,48 @@
                 0))))
         (go (rest argv))))))
 
+; -s puts a separator between the values instead of a newline, and -w pads
+; them to the width of the widest so a column lines up.
+;
+; -s separates BETWEEN and ends with a newline, which is what GNU and busybox
+; do. The BSD seq on this machine appends the separator after the last value
+; and ends without a newline ("1,2,3," for -s, 3); busybox is the parity
+; target, so that difference is deliberate.
 (def %cu-seq
   (fn (_ argv stdin-thunk)
-    (def n (length argv))
-    (def a (if (>= n 2) (%cu-num-prefix (first argv)) 1))
-    (def step
-      (if (= n 3) (%cu-num-prefix (first (rest argv))) 1))
+    (def o (%cu-opts "seq" argv))
+    (def ops (Opts operands o))
+    (def n (length ops))
+    (def a (if (>= n 2) (%cu-num-prefix (first ops)) 1))
+    (def step (if (= n 3) (%cu-num-prefix (first (rest ops))) 1))
     (def z (%cu-num-prefix
              (match
-               ((= n 1) (first argv))
-               ((= n 2) (first (rest argv)))
-               (#t (first (rest (rest argv)))))))
-    (def go
-      (fn (self i)
-        (if (if (> step 0) (> i z) (< i z))
-          0
-          (do (display (string-append (%cu-int->str i) "\n"))
-              (self (+ i step))))))
-    (go a)))
+               ((= n 1) (first ops))
+               ((= n 2) (first (rest ops)))
+               (#t (first (rest (rest ops)))))))
+    (def sep (let ((v (Opts value o "-s"))) (if (null? v) "\n" v)))
+    (def width
+      (match
+        ((not (Opts on? o "-w")) 0)
+        (#t (let ((wa (byte-len (%cu-int->str a)))
+                  (wz (byte-len (%cu-int->str z))))
+              (if (> wa wz) wa wz)))))
+    (def fmt
+      (fn (_ i)
+        (let ((t (%cu-int->str i)))
+          (if (<= width (byte-len t)) t (%cu-pad-left-zero t width)))))
+    (def vals
+      (let ((go (fn (self i acc)
+                  (if (if (> step 0) (> i z) (< i z)) (reverse acc)
+                    (self (+ i step) (pair (fmt i) acc))))))
+        (go a ())))
+    (if (null? vals) 0
+      (do (display (string-append (%cu-join-with vals sep) "\n")) 0))))
+
+(def %cu-pad-left-zero
+  (fn (self t width)
+    (if (>= (byte-len t) width) t
+      (self (string-append "0" t) width))))
 
 (def %cu-rev-line
   (fn (_ s)
@@ -200,6 +226,14 @@
                (if (string=? op "-") (stdin-thunk)
                  (file-read-all op))))
         ops))
+    ; -s pastes each file onto ONE line instead of pasting the files
+    ; against each other line by line.
+    (def serial
+      (fn (self cs)
+        (if (null? cs) 0
+          (do (display
+                (string-append (%cu-join-with (first cs) delim) "\n"))
+              (self (rest cs))))))
     (def any?
       (fn (self cs)
         (if (null? cs) #f
@@ -214,7 +248,7 @@
                     delim)
                   "\n"))
               (self (map (fn (_ c) (if (pair? c) (rest c) ())) cs))))))
-    (go columns)))
+    (if (Opts on? o "-s") (serial columns) (go columns))))
 
 (def %cu-tee
   (fn (_ argv stdin-thunk)

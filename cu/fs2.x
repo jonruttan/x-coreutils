@@ -180,41 +180,64 @@
         (try 16)))))
 
 ; cmp: first differing byte, 1-based, with its line; -s is silent
+; -l lists every differing byte and keeps going; without it cmp stops at the
+; first difference and names where it was. -n bounds how far either is read.
 (def %cu-cmp
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "cmp" argv))
     (def s? (Opts on? o "-s"))
+    (def list? (Opts on? o "-l"))
     (def ops (Opts operands o))
     (def a (if (string=? (first ops) "-") (stdin-thunk)
              (file-read-all (first ops))))
     (def b (if (string=? (first (rest ops)) "-") (stdin-thunk)
              (file-read-all (first (rest ops)))))
-    (def la (byte-len a))
-    (def lb (byte-len b))
+    (def cap
+      (let ((v (Opts value o "-n")))
+        (if (null? v) (- 0 1) (%cu-num-prefix v))))
+    (def clamp
+      (fn (_ n)
+        (match ((< cap 0) n) ((> n cap) cap) (#t n))))
+    (def la (clamp (byte-len a)))
+    (def lb (clamp (byte-len b)))
+    (def eof
+      (fn (_ i)
+        (do (if s? ()
+              (file-write 2
+                (string-append "cmp: EOF on "
+                  (string-append
+                    (if (>= i la) (first ops) (first (rest ops))) "\n"))))
+            1)))
+    ; -l reports the byte values in octal, which is what cmp prints.
+    (def listing
+      (fn (self i st)
+        (match
+          ((if (>= i la) (>= i lb) #f) st)
+          ((if (>= i la) #t (>= i lb)) (eof i))
+          ((= (byte-at a i) (byte-at b i)) (self (+ i 1) st))
+          (#t
+            (do (if s? ()
+                  (display
+                    (string-concat
+                      ; width 6, which is what the system cmp prints
+                      (list (%cu-pad-left (%cu-int->str (+ i 1)) 6) " "
+                            (%cu-oct->str (byte-at a i)) " "
+                            (%cu-oct->str (byte-at b i)) "\n"))))
+                (self (+ i 1) 1))))))
     (def go
       (fn (self i line)
-        (if (if (>= i la) (>= i lb) #f)
-          0
-          (if (if (>= i la) #t (>= i lb))
+        (match
+          ((if (>= i la) (>= i lb) #f) 0)
+          ((if (>= i la) #t (>= i lb)) (eof i))
+          ((= (byte-at a i) (byte-at b i))
+            (self (+ i 1) (if (= (byte-at a i) 10) (+ line 1) line)))
+          (#t
             (do (if s? ()
-                  (file-write 2
-                    (string-append "cmp: EOF on "
-                      (string-append
-                        (if (>= i la) (first ops) (first (rest ops)))
-                        "\n"))))
-                1)
-            (if (= (byte-at a i) (byte-at b i))
-              (self (+ i 1)
-                (if (= (byte-at a i) 10) (+ line 1) line))
-              (do (if s? ()
-                    (display
-                      (string-append (first ops)
-                        (string-append " "
-                          (string-append (first (rest ops))
-                            (string-append " differ: char "
-                              (string-append (%cu-int->str (+ i 1))
-                                (string-append ", line "
-                                  (string-append (%cu-int->str line)
-                                    "\n")))))))))
-                  1))))))
-    (go 0 1)))
+                  (display
+                    (string-concat
+                      (list (first ops) " " (first (rest ops))
+                            " differ: char " (%cu-int->str (+ i 1))
+                            ", line " (%cu-int->str line) "\n"))))
+                1)))))
+    (if list? (listing 0 0) (go 0 1))))
+
