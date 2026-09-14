@@ -53,9 +53,10 @@
 
 (def %cu-tr
   (fn (_ argv stdin-thunk)
-    (def del? (if (pair? argv) (string=? (first argv) "-d") #f))
-    (def sq? (if (pair? argv) (string=? (first argv) "-s") #f))
-    (def args (if (if del? #t sq?) (rest argv) argv))
+    (def o (%cu-opts "tr" argv))
+    (def del? (Opts on? o "-d"))
+    (def sq? (Opts on? o "-s"))
+    (def args (Opts operands o))
     (def set1 (%cu-tr-set (first args)))
     (def set2 (if (null? (rest args)) () (%cu-tr-set (first (rest args)))))
     (def text (stdin-thunk))

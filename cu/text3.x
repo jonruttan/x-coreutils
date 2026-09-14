@@ -182,14 +182,14 @@
 
 (def %cu-split
   (fn (_ argv stdin-thunk)
-    (def by-bytes?
-      (if (pair? argv) (string=? (first argv) "-b") #f))
-    (def by-lines?
-      (if (pair? argv) (string=? (first argv) "-l") #f))
+    (def o (%cu-opts "split" argv))
+    (def bv (Opts value o "-b"))
+    (def lv (Opts value o "-l"))
+    (def by-bytes? (not (null? bv)))
     (def size
-      (if (if by-bytes? #t by-lines?)
-        (%cu-num-prefix (first (rest argv))) 1000))
-    (def ops (if (if by-bytes? #t by-lines?) (rest (rest argv)) argv))
+      (let ((v (if (null? bv) lv bv)))
+        (if (null? v) 1000 (%cu-num-prefix v))))
+    (def ops (Opts operands o))
     (def prefix (if (pair? (rest ops)) (first (rest ops)) "x"))
     (def text
       (if (null? ops) (stdin-thunk)
@@ -263,16 +263,18 @@
 
 (def %cu-shuf
   (fn (_ argv stdin-thunk)
-    (def n?
-      (if (pair? argv) (string=? (first argv) "-n") #f))
-    (def count (if n? (%cu-num-prefix (first (rest argv))) 0))
-    (def rest1 (if n? (rest (rest argv)) argv))
-    (def echo? (if (pair? rest1) (string=? (first rest1) "-e") #f))
+    (def o (%cu-opts "shuf" argv))
+    (def nv (Opts value o "-n"))
+    (def count (if (null? nv) 0 (%cu-num-prefix nv)))
+    (def echo? (Opts on? o "-e"))
+    (def rest1 (Opts operands o))
     (def items
-      (if echo? (rest rest1)
+      (if echo? rest1
         (%cu-lines (%cu-gather rest1 stdin-thunk))))
     (def out (%cu-shuffle items))
-    (do (%cu-print-lines (if n? (%cu-take out count) out)) 0)))
+    (do (%cu-print-lines
+          (if (null? nv) out (%cu-take out count)))
+        0)))
 
 ; --- base64 -------------------------------------------------------------------
 
@@ -341,7 +343,7 @@
 
 (def %cu-base64
   (fn (_ argv stdin-thunk)
-    (def d? (if (pair? argv) (string=? (first argv) "-d") #f))
-    (def ops (if d? (rest argv) argv))
-    (def text (%cu-gather ops stdin-thunk))
+    (def o (%cu-opts "base64" argv))
+    (def d? (Opts on? o "-d"))
+    (def text (%cu-gather (Opts operands o) stdin-thunk))
     (do (display (if d? (%cu-b64-decode text) (%cu-b64-encode text 76))) 0)))

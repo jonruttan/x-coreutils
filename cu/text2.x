@@ -10,9 +10,10 @@
 
 (def %cu-echo
   (fn (_ argv stdin-thunk)
-    (def n? (if (pair? argv) (string=? (first argv) "-n") #f))
-    (def e? (if (pair? argv) (string=? (first argv) "-e") #f))
-    (def ops (if (if n? #t e?) (rest argv) argv))
+    (def o (%cu-opts "echo" argv))
+    (def n? (Opts on? o "-n"))
+    (def e? (Opts on? o "-e"))
+    (def ops (Opts operands o))
     (def unescape
       (fn (_ s)
         (def end (byte-len s))
@@ -171,12 +172,9 @@
 
 (def %cu-fold
   (fn (_ argv stdin-thunk)
-    (def w
-      (if (if (pair? argv) (string=? (first argv) "-w") #f)
-        (%cu-num-prefix (first (rest argv)))
-        80))
-    (def ops (if (if (pair? argv) (string=? (first argv) "-w") #f)
-               (rest (rest argv)) argv))
+    (def o (%cu-opts "fold" argv))
+    (def w (let ((v (Opts value o "-w"))) (if (null? v) 80 (%cu-num-prefix v))))
+    (def ops (Opts operands o))
     (def chop
       (fn (self s)
         (if (<= (byte-len s) w)
@@ -191,26 +189,11 @@
 
 (def %cu-paste
   (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "paste" argv))
     (def delim
-      (if (if (pair? argv)
-            (if (> (byte-len (first argv)) 2)
-              (string=? (substring (first argv) 0 2) "-d")
-              #f)
-            #f)
-        (substring (first argv) 2 3)
-        (if (if (pair? argv) (string=? (first argv) "-d") #f)
-          (substring (first (rest argv)) 0 1)
-          "\t")))
-    (def ops
-      (if (if (pair? argv) (string=? (first argv) "-d") #f)
-        (rest (rest argv))
-        (if (if (pair? argv)
-              (if (> (byte-len (first argv)) 2)
-                (string=? (substring (first argv) 0 2) "-d")
-                #f)
-              #f)
-          (rest argv)
-          argv)))
+      (let ((v (Opts value o "-d")))
+        (if (null? v) "\t" (substring v 0 1))))
+    (def ops (Opts operands o))
     (def columns
       (map (fn (_ op)
              (%cu-lines
@@ -235,8 +218,9 @@
 
 (def %cu-tee
   (fn (_ argv stdin-thunk)
-    (def a? (if (pair? argv) (string=? (first argv) "-a") #f))
-    (def ops (if a? (rest argv) argv))
+    (def o (%cu-opts "tee" argv))
+    (def a? (Opts on? o "-a"))
+    (def ops (Opts operands o))
     (def text (stdin-thunk))
     (def go
       (fn (self os)

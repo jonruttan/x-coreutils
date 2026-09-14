@@ -182,8 +182,9 @@
 ; cmp: first differing byte, 1-based, with its line; -s is silent
 (def %cu-cmp
   (fn (_ argv stdin-thunk)
-    (def s? (if (pair? argv) (string=? (first argv) "-s") #f))
-    (def ops (if s? (rest argv) argv))
+    (def o (%cu-opts "cmp" argv))
+    (def s? (Opts on? o "-s"))
+    (def ops (Opts operands o))
     (def a (if (string=? (first ops) "-") (stdin-thunk)
              (file-read-all (first ops))))
     (def b (if (string=? (first (rest ops)) "-") (stdin-thunk)

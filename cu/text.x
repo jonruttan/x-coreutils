@@ -342,11 +342,9 @@
 
 (def %cu-join
   (fn (_ argv stdin-thunk)
-    (def delim
-      (if (if (pair? argv) (string=? (first argv) "-t") #f)
-        (first (rest argv))
-        ()))
-    (def ops (if (null? delim) argv (rest (rest argv))))
+    (def o (%cu-opts "join" argv))
+    (def delim (Opts value o "-t"))
+    (def ops (Opts operands o))
     (def sep (if (null? delim) " " delim))
     (def read-op
       (fn (_ op) (if (string=? op "-") (stdin-thunk) (file-read-all op))))

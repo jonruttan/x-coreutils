@@ -498,8 +498,9 @@
 
 (def %cu-sum
   (fn (_ argv stdin-thunk)
-    (def sysv? (if (pair? argv) (string=? (first argv) "-s") #f))
-    (def ops (if sysv? (rest argv) argv))
+    (def o (%cu-opts "sum" argv))
+    (def sysv? (Opts on? o "-s"))
+    (def ops (Opts operands o))
     (def one
       (fn (_ name text)
         (def n (byte-len text))
