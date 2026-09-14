@@ -444,7 +444,10 @@
                 (substring stripped (+ slash 1) (byte-len stripped))))
     (def suf
       (let ((v (Opts value o "-s")))
-        (if (null? v) (if (null? (rest ops)) () (first (rest ops))) v)))
+        (match
+          ((not (null? v)) v)
+          ((null? (rest ops)) ())
+          (#t (first (rest ops))))))
     (def final
       (if (null? suf) base
         (let ((lb (byte-len base)) (ls (byte-len suf)))

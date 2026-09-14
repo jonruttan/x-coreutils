@@ -149,10 +149,11 @@
                (#t (first (rest (rest ops)))))))
     (def sep (let ((v (Opts value o "-s"))) (if (null? v) "\n" v)))
     (def width
-      (if (Opts on? o "-w")
-        (let ((wa (byte-len (%cu-int->str a))) (wz (byte-len (%cu-int->str z))))
-          (if (> wa wz) wa wz))
-        0))
+      (match
+        ((not (Opts on? o "-w")) 0)
+        (#t (let ((wa (byte-len (%cu-int->str a)))
+                  (wz (byte-len (%cu-int->str z))))
+              (if (> wa wz) wa wz)))))
     (def fmt
       (fn (_ i)
         (let ((t (%cu-int->str i)))
