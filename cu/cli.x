@@ -159,7 +159,7 @@
     (pair "sha512sum" (list (list "-c" "-s" "-w") ()))
     (pair "comm" (list (list "-1" "-2" "-3") ()))
     (pair "tr" (list (list "-d" "-s") ()))
-    (pair "cut" (list () (list "-d" "-f" "-c")))
+    (pair "cut" (list (list "-s" "-n") (list "-d" "-f" "-c" "-b")))
     (pair "cat" (list (list "-n" "-b" "-v" "-t" "-e" "-A") ()))
     (pair "cp" (list (list "-a" "-r" "-R" "-P" "-L" "-H" "-p" "-f" "-i" "-l" "-s" "-T" "-u") ()))
     (pair "mv" (list (list "-f" "-i" "-n" "-T") ()))

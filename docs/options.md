@@ -22,7 +22,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cmp` | -l -s -n | -s | -l -n | 33% |
 | `comm` | -1 -2 -3 | -1 -2 -3 |  | 100% |
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -r -R -P -L -H -p -f -i -l -s -T -u |  | 100% |
-| `cut` | -b -c -f -d -s -n | -d -f -c | -b -s -n | 50% |
+| `cut` | -b -c -f -d -s -n | -s -n -d -f -c -b |  | 100% |
 | `date` | -u -d -D -s -r -R -I +FMT | -u -R -I -Idate -Ihours -Iminutes -Iseconds -Ins -d -D -r +FMT | -s | 87% |
 | `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= ibs= obs= count= skip= seek= status= conv= iflag= oflag= |  | 100% |
 | `df` | -P -k -m -h -T -a -i -B | -h -k -P -m -i -B | -T -a | 75% |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 365 of 426 busybox options accepted (85%).**
+**Total: 368 of 426 busybox options accepted (86%).**
