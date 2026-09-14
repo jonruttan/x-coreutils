@@ -60,10 +60,11 @@
       (fn (self as bs st)
         (if (if (null? as) (null? bs) #f)
           st
-          (let ((n (if (null? as) (first bs)
-                    (if (null? bs) (first as)
-                      (if (%cu-str< (first as) (first bs))
-                        (first as) (first bs))))))
+          (let ((n (match
+                     ((null? as) (first bs))
+                     ((null? bs) (first as))
+                     ((%cu-str< (first as) (first bs)) (first as))
+                     (#t (first bs)))))
             (let ((ina (if (null? as) #f (string=? (first as) n)))
                   (inb (if (null? bs) #f (string=? (first bs) n))))
               (let ((r (visit n ina inb)))

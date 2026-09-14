@@ -216,19 +216,18 @@
 (def %cu-date-of
   (fn (_ spec fmt)
     ; the seconds -d asked for, or nil
-    (if (null? spec)
-      ()
-      (if (not (null? fmt))
+    (match
+      ((null? spec) ())
+      ((not (null? fmt))
         (let ((d (%cu-date-scan fmt spec)))
-          (if (null? d) () (Date to-unix (%cu-date-whole d))))
-        (if (if (> (byte-len spec) 1) (= (byte-at spec 0) 64) #f)
-          (let ((r (%cu-date-digits spec 1 20)))
-            (if (null? r) () (first r)))
-          ; from-iso raises on anything that is not a stamp; a bad -d is a
-          ; message and an exit status
-          (guard (e ())
-            (let ((d (Date from-iso spec)))
-              (if (null? d) () (Date to-unix d)))))))))
+          (if (null? d) () (Date to-unix (%cu-date-whole d)))))
+      ((if (> (byte-len spec) 1) (= (byte-at spec 0) 64) #f)
+        (let ((r (%cu-date-digits spec 1 20)))
+          (if (null? r) () (first r))))
+      (#t
+        (guard (e ())
+          (let ((d (Date from-iso spec)))
+            (if (null? d) () (Date to-unix d))))))))
 
 ; A scanned date holds only the fields the format named; to-unix wants a day
 ; and a month at least, so the missing ones take the epoch's.

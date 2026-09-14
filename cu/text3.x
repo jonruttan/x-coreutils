@@ -35,11 +35,11 @@
   (fn (_ n)
     (def go
       (fn (self t d acc)
-        (if (< t 2) (reverse acc)
-          (if (> (* d d) t) (reverse (pair t acc))
-            (if (= (% t d) 0)
-              (self (/ (- t (% t d)) d) d (pair d acc))
-              (self t (if (= d 2) 3 (+ d 2)) acc))))))
+        (match
+          ((< t 2) (reverse acc))
+          ((> (* d d) t) (reverse (pair t acc)))
+          ((= (% t d) 0) (self (/ (- t (% t d)) d) d (pair d acc)))
+          (#t (self t (if (= d 2) 3 (+ d 2)) acc)))))
     (if (< n 2) () (go n 2 ()))))
 
 (def %cu-factor-line
@@ -328,11 +328,13 @@
 ; the pad both fall out of the decoder's accumulator
 (def %cu-b64-value
   (fn (_ b)
-    (if (if (>= b 65) (<= b 90) #f) (- b 65)
-      (if (if (>= b 97) (<= b 122) #f) (+ (- b 97) 26)
-        (if (if (>= b 48) (<= b 57) #f) (+ (- b 48) 52)
-          (if (= b 43) 62
-            (if (= b 47) 63 (- 0 1))))))))
+    (match
+      ((if (>= b 65) (<= b 90) #f) (- b 65))
+      ((if (>= b 97) (<= b 122) #f) (+ (- b 97) 26))
+      ((if (>= b 48) (<= b 57) #f) (+ (- b 48) 52))
+      ((= b 43) 62)
+      ((= b 47) 63)
+      (#t (- 0 1)))))
 
 (def %cu-b64-encode
   (fn (_ s wrap)

@@ -68,11 +68,11 @@
 ; merge sort: n log n, shallow recursion
 (def %cu-merge
   (fn (self a b less?)
-    (if (null? a) b
-      (if (null? b) a
-        (if (less? (first b) (first a))
-          (pair (first b) (self a (rest b) less?))
-          (pair (first a) (self (rest a) b less?)))))))
+    (match
+      ((null? a) b)
+      ((null? b) a)
+      ((less? (first b) (first a)) (pair (first b) (self a (rest b) less?)))
+      (#t (pair (first a) (self (rest a) b less?))))))
 (def %cu-msort
   (fn (self l less?)
     (if (null? l) ()
@@ -302,24 +302,26 @@
     (def ind3 (string-append (if s1 "\t" "") (if s2 "\t" "")))
     (def go
       (fn (self la lb)
-        (if (null? la)
-          (if (null? lb) ()
+        (match
+          ((null? la)
+            (if (null? lb) ()
+              (do (if s2 (display (string-append ind2
+                                    (string-append (first lb) "\n"))) ())
+                  (self la (rest lb)))))
+          ((null? lb)
+            (do (if s1 (display (string-append (first la) "\n")) ())
+                (self (rest la) lb)))
+          ((string=? (first la) (first lb))
+            (do (if s3 (display (string-append ind3
+                                  (string-append (first la) "\n"))) ())
+                (self (rest la) (rest lb))))
+          ((%cu-str< (first la) (first lb))
+            (do (if s1 (display (string-append (first la) "\n")) ())
+                (self (rest la) lb)))
+          (#t
             (do (if s2 (display (string-append ind2
                                   (string-append (first lb) "\n"))) ())
-                (self la (rest lb))))
-          (if (null? lb)
-            (do (if s1 (display (string-append (first la) "\n")) ())
-                (self (rest la) lb))
-            (if (string=? (first la) (first lb))
-              (do (if s3 (display (string-append ind3
-                                    (string-append (first la) "\n"))) ())
-                  (self (rest la) (rest lb)))
-              (if (%cu-str< (first la) (first lb))
-                (do (if s1 (display (string-append (first la) "\n")) ())
-                    (self (rest la) lb))
-                (do (if s2 (display (string-append ind2
-                                      (string-append (first lb) "\n"))) ())
-                    (self la (rest lb)))))))))
+                (self la (rest lb)))))))
     (do (go a b) 0)))
 
 ; join on field 1 of two sorted inputs; -t CHAR sets the delimiter

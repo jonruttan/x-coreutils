@@ -184,10 +184,11 @@
 ; a capture is either a spliced group or a starred one
 (def %cu-re-has-group?
   (fn (self atoms)
-    (if (null? atoms) #f
-      (if (eq? (%cu-re-kind (first atoms)) (lit gopen)) #t
-        (if (eq? (%cu-re-kind (first atoms)) (lit rep)) #t
-          (self (rest atoms)))))))
+    (match
+      ((null? atoms) #f)
+      ((eq? (%cu-re-kind (first atoms)) (lit gopen)) #t)
+      ((eq? (%cu-re-kind (first atoms)) (lit rep)) #t)
+      (#t (self (rest atoms))))))
 
 ; expr's `:`: a capture answers the captured text, a plain pattern
 ; answers how many characters it spanned.  No match is "" or 0.
@@ -240,10 +241,13 @@
   (fn (_ op a b)
     (def numeric? (if (%cu-expr-num? a) (%cu-expr-num? b) #f))
     (def c
-      (if numeric?
-        (let ((x (%cu-expr-int a)) (y (%cu-expr-int b)))
-          (if (< x y) (- 0 1) (if (> x y) 1 0)))
-        (if (string=? a b) 0 (if (%cu-str< a b) (- 0 1) 1))))
+      (match
+        (numeric?
+          (let ((x (%cu-expr-int a)) (y (%cu-expr-int b)))
+            (if (< x y) (- 0 1) (if (> x y) 1 0))))
+        ((string=? a b) 0)
+        ((%cu-str< a b) (- 0 1))
+        (#t 1)))
     (def yes
       (match
         ((string=? op "=")  (= c 0))

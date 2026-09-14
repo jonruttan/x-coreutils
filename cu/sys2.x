@@ -176,22 +176,17 @@
               (string-append (%cu-join-with (append cmd ws) " ") "\n"))
             ())
           (proc-run (append cmd ws)))))
-    (if (null? words)
-      ; POSIX runs the command once over empty input; -r is the flag that
-      ; asks for the other answer.
-      (if (Opts on? o "-r") 0 (run! ()))
-      (if (not (null? repl))
-        (%cu-xargs-each cmd repl words trace? 0)
-        ; -x: an item that cannot fit the -s budget at all is refused
-        ; rather than run anyway, which is what the batcher would do.
-        (if (if (Opts on? o "-x")
+    (match
+      ((null? words) (if (Opts on? o "-r") 0 (run! ())))
+      ((not (null? repl)) (%cu-xargs-each cmd repl words trace? 0))
+      ((if (Opts on? o "-x")
               (if (> maxs 0)
                 (> (+ (byte-len (%cu-join-with cmd " "))
                       (+ 1 (byte-len (first words)))) maxs)
                 #f)
               #f)
-          (do (file-write 2 "xargs: argument line too long\n") 1)
-          (%cu-xargs-loop cmd words n maxs run! 0))))))
+        (do (file-write 2 "xargs: argument line too long\n") 1))
+      (#t (%cu-xargs-loop cmd words n maxs run! 0)))))
 
 ; test, [ and [[ moved to cu/test.x, which parses the whole grammar.
 

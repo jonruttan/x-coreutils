@@ -38,10 +38,12 @@
         (def keep?
           (fn (_ b)
             (if dict?
-              (if (%sort-blank? b) #t
-                (if (if (>= b 48) (<= b 57) #f) #t
-                  (if (if (>= b 65) (<= b 90) #f) #t
-                    (if (>= b 97) (<= b 122) #f))))
+              (match
+                ((%sort-blank? b) #t)
+                ((if (>= b 48) (<= b 57) #f) #t)
+                ((if (>= b 65) (<= b 90) #f) #t)
+                ((>= b 97) (<= b 122))
+                (#t #f))
               (if (>= b 32) (< b 127) #f))))
         (def go (fn (self i acc)
                   (if (>= i end) (string-concat (reverse acc))
@@ -190,13 +192,16 @@
     (def ka (%sort-prepare (%sort-key a spec sep) o spec))
     (def kb (%sort-prepare (%sort-key b spec sep) o spec))
     (def c
-      (if (%sort-opt? o spec "-n")
-        (%cu-cmp-int (%cu-num-prefix ka) (%cu-num-prefix kb))
-        (if (%sort-opt? o spec "-g")
-          (%cu-cmp-int (%sort-general ka) (%sort-general kb))
-          (if (%sort-opt? o spec "-M")
-            (%cu-cmp-int (%sort-month ka) (%sort-month kb))
-            (if (string=? ka kb) 0 (if (%cu-str< ka kb) (- 0 1) 1))))))
+      (match
+        ((%sort-opt? o spec "-n")
+          (%cu-cmp-int (%cu-num-prefix ka) (%cu-num-prefix kb)))
+        ((%sort-opt? o spec "-g")
+          (%cu-cmp-int (%sort-general ka) (%sort-general kb)))
+        ((%sort-opt? o spec "-M")
+          (%cu-cmp-int (%sort-month ka) (%sort-month kb)))
+        ((string=? ka kb) 0)
+        ((%cu-str< ka kb) (- 0 1))
+        (#t 1)))
     (if (%sort-opt? o spec "-r") (- 0 c) c)))
 
 (def %cu-cmp-int
@@ -207,9 +212,11 @@
   (fn (_ o spec sep)
     (fn (_ a b)
       (let ((c (%sort-cmp a b o spec sep)))
-        (if (not (= c 0)) (< c 0)
-          (if (Opts on? o "-s") #f
-            (if (Opts on? o "-r") (%cu-str< b a) (%cu-str< a b))))))))
+        (match
+          ((not (= c 0)) (< c 0))
+          ((Opts on? o "-s") #f)
+          ((Opts on? o "-r") (%cu-str< b a))
+          (#t (%cu-str< a b)))))))
 
 ; --- the applet ---------------------------------------------------------------
 
@@ -255,13 +262,14 @@
     (def name (if (null? ops) "-" (first ops)))
     (def go
       (fn (self xs n)
-        (if (null? xs) 0
-          (if (null? (rest xs)) 0
-            (if (less? (first (rest xs)) (first xs))
-              (do (file-write 2
-                    (string-concat
-                      (list "sort: " name ":" (%cu-int->str (+ n 1))
-                            ": disorder: " (first (rest xs)) "\n")))
-                  1)
-              (self (rest xs) (+ n 1)))))))
+        (match
+          ((null? xs) 0)
+          ((null? (rest xs)) 0)
+          ((less? (first (rest xs)) (first xs))
+            (do (file-write 2
+                  (string-concat
+                    (list "sort: " name ":" (%cu-int->str (+ n 1))
+                          ": disorder: " (first (rest xs)) "\n")))
+                1))
+          (#t (self (rest xs) (+ n 1))))))
     (go ls 1)))

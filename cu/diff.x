@@ -103,17 +103,16 @@
   (fn (_ avn bvn n m at)
     (def go
       (fn (self i j acc)
-        (if (if (>= i n) (>= j m) #f)
-          (reverse acc)
-          (if (if (< i n) (< j m) #f)
+        (match
+          ((if (>= i n) (>= j m) #f) (reverse acc))
+          ((if (< i n) (< j m) #f)
             (if (string=? (vec-ref avn i) (vec-ref bvn j))
               (self (+ i 1) (+ j 1) (pair (list (lit eq) i j) acc))
               (if (>= (at (+ i 1) j) (at i (+ j 1)))
                 (self (+ i 1) j (pair (list (lit del) i j) acc))
-                (self i (+ j 1) (pair (list (lit add) i j) acc))))
-            (if (< i n)
-              (self (+ i 1) j (pair (list (lit del) i j) acc))
-              (self i (+ j 1) (pair (list (lit add) i j) acc)))))))
+                (self i (+ j 1) (pair (list (lit add) i j) acc)))))
+          ((< i n) (self (+ i 1) j (pair (list (lit del) i j) acc)))
+          (#t (self i (+ j 1) (pair (list (lit add) i j) acc))))))
     (go 0 0 ())))
 
 (def %cu-diff-tag (fn (_ op) (first op)))
@@ -230,13 +229,13 @@
     ; one fewer than their distance.
     (def groups
       (let ((go (fn (self l cur acc)
-                  (if (null? l)
-                    (reverse (if (null? cur) acc (pair (reverse cur) acc)))
-                    (if (null? cur)
-                      (self (rest l) (list (first l)) acc)
-                      (if (> (- (first l) (first cur)) (+ (* 2 ctx) 1))
-                        (self (rest l) (list (first l)) (pair (reverse cur) acc))
-                        (self (rest l) (pair (first l) cur) acc)))))))
+                  (match
+                    ((null? l)
+                      (reverse (if (null? cur) acc (pair (reverse cur) acc))))
+                    ((null? cur) (self (rest l) (list (first l)) acc))
+                    ((> (- (first l) (first cur)) (+ (* 2 ctx) 1))
+                      (self (rest l) (list (first l)) (pair (reverse cur) acc)))
+                    (#t (self (rest l) (pair (first l) cur) acc))))))
         (go idx () ())))
     (def slice
       (fn (_ lo hi)
@@ -348,18 +347,19 @@
         (if (null? l)
           (string-concat (reverse (flush dels adds hi hj acc)))
           (let ((op (first l)))
-            (if (%cu-diff-eq? op)
-              (self (rest l) () () (+ (%cu-diff-ai op) 2)
-                (+ (%cu-diff-bi op) 2)
-                (flush dels adds hi hj acc))
-              (if (not (change? op))
-                (self (rest l) dels adds hi hj acc)
-                (if (eq? (%cu-diff-tag op) (lit del))
-                  (self (rest l) (pair (vec-ref av (%cu-diff-ai op)) dels)
-                    adds hi hj acc)
-                  (self (rest l) dels
-                    (pair (vec-ref bv (%cu-diff-bi op)) adds)
-                    hi hj acc))))))))
+            (match
+              ((%cu-diff-eq? op)
+                (self (rest l) () () (+ (%cu-diff-ai op) 2)
+                  (+ (%cu-diff-bi op) 2)
+                  (flush dels adds hi hj acc)))
+              ((not (change? op)) (self (rest l) dels adds hi hj acc))
+              ((eq? (%cu-diff-tag op) (lit del))
+                (self (rest l) (pair (vec-ref av (%cu-diff-ai op)) dels)
+                  adds hi hj acc))
+              (#t
+                (self (rest l) dels
+                  (pair (vec-ref bv (%cu-diff-bi op)) adds)
+                  hi hj acc)))))))
     (go ops () () 1 1 ())))
 
 ; --- the unified header ------------------------------------------------------

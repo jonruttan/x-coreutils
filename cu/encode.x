@@ -85,8 +85,12 @@
   (fn (_ spec)
     (def c (byte-at spec 0))
     (def size
-      (if (> (byte-len spec) 1) (%cu-num-prefix (substring spec 1 (byte-len spec)))
-        (if (= c 99) 1 (if (= c 97) 1 2))))
+      (match
+        ((> (byte-len spec) 1)
+          (%cu-num-prefix (substring spec 1 (byte-len spec))))
+        ((= c 99) 1)
+        ((= c 97) 1)
+        (#t 2)))
     (pair
       (match
         ((= c 111) (lit o))
@@ -177,9 +181,11 @@
 
 (def %cu-od-repeat?
   (fn (_ v? body prev width)
-    (if v? #f
-      (if (null? prev) #f
-        (if (string=? body prev) (= width 16) #f)))))
+    (match
+      (v? #f)
+      ((null? prev) #f)
+      ((string=? body prev) (= width 16))
+      (#t #f))))
 
 ; -An, -tx1, -N10: the argument may ride the flag.  Splitting it off
 ; first keeps the scan a plain token walk.
