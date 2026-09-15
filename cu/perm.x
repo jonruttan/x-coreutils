@@ -356,29 +356,46 @@
     ; 1024-byte blocks, so the count is scaled before it is formatted.
     ; Unscaled, a 926G filesystem printed as 926M.
     (if (Opts on? o "-h") (%ls-human (* blocks 1024))
+      ; to the unit, rounded UP as df rounds: 409K under -m is 1
       (%cu-int->str (let ((u (%cu-df-unit o)))
-                      (/ (- blocks (% blocks u)) u))))))
+                      (let ((c (+ blocks (- u 1))))
+                        (/ (- c (% c u)) u)))))))
 
 ; -i counts INODES rather than blocks: statfs answers files and ffree,
 ; so the same row shape carries both.
+; TW is the Type column's width under -T, 0 without it
 (def %cu-df-row
-  (fn (_ path o)
-    (let ((s (file-statfs path)))
+  (fn (_ path o tw)
+    (let ((s (if (> tw 0) (file-statfs-full path) (file-statfs path))))
       (def inodes? (Opts on? o "-i"))
       (def bsize (%cu-stat-get s (lit bsize)))
-      (def per-k (/ (- bsize (% bsize 1024)) 1024))
+      ; blocks to 1024-byte units through the byte count, rounded UP, as
+      ; df rounds: a block size under 1024 (devfs's 512) is not zero
+      (def k (fn (_ v)
+               (let ((b (+ (* v bsize) 1023)))
+                 (/ (- b (% b 1024)) 1024))))
       (def total (if inodes? (%cu-stat-get s (lit files))
-                   (* (%cu-stat-get s (lit blocks)) per-k)))
+                   (k (%cu-stat-get s (lit blocks)))))
       (def avail (if inodes? (%cu-stat-get s (lit ffree))
-                   (* (%cu-stat-get s (lit bavail)) per-k)))
-      (def used (- total avail))
-      (def pct (if (= total 0) 0
-                 (let ((n (* used 100)))
-                   (/ (- n (% n total)) total))))
+                   (k (%cu-stat-get s (lit bavail)))))
+      ; used counts from what is free to anyone, not from what a plain
+      ; user may take; the percentage is of used plus available, rounded
+      ; UP -- df's and busybox's rule both
+      (def used (if inodes? (- total avail)
+                  (k (- (%cu-stat-get s (lit blocks))
+                        (%cu-stat-get s (lit bfree))))))
+      (def pct (let ((d (+ used avail)))
+                 (if (= d 0) 0
+                   (let ((n (+ (* used 100) (- d 1))))
+                     (/ (- n (% n d)) d)))))
       (def show (fn (_ v) (if inodes? (%cu-int->str v) (%cu-df-show v o))))
       (display
         (string-concat
-          (list (%cu-pad-left (show total) 10)
+          (list (if (> tw 0)
+                  (string-append
+                    (%cu-pad-right (%cu-stat-get s (lit typename)) tw) " ")
+                  "")
+                (%cu-pad-left (show total) 10)
                 (%cu-pad-left (show used) 10)
                 (%cu-pad-left (show avail) 10)
                 (%cu-pad-left (string-append (%cu-int->str pct) "%")
@@ -399,9 +416,22 @@
     (def i? (Opts on? o "-i"))
     (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list (sys-getcwd)) ops0))
+    ; -T leads with the filesystem's type, in a column as wide as the
+    ; widest name among the operands and never narrower than its heading
+    (def tw
+      (if (not (Opts on? o "-T")) 0
+        (let ((go (fn (self ps w)
+                    (if (null? ps) w
+                      (let ((fs (file-statfs-full (first ps))))
+                        (self (rest ps)
+                          (if (null? fs) w
+                            (let ((n (byte-len (%cu-stat-get fs (lit typename)))))
+                              (if (> n w) n w)))))))))
+          (go ops 4))))
     (do (display
           (string-concat
-            (list (%cu-pad-left
+            (list (if (> tw 0) (string-append (%cu-pad-right "Type" tw) " ") "")
+                  (%cu-pad-left
                     (if i? "Inodes" (if h? "Size" (%cu-df-heading o))) 10)
                   (%cu-pad-left (if i? "IUsed" "Used") 10)
                   (%cu-pad-left (if i? "IFree" "Avail") 10)
@@ -414,7 +444,7 @@
                               (string-concat
                                 (list "df: " (first ps) ": No such file\n")))
                             (self (rest ps) 1))
-                        (do (%cu-df-row (first ps) o)
+                        (do (%cu-df-row (first ps) o tw)
                             (self (rest ps) st)))))))
           (go ops 0)))))
 

@@ -197,7 +197,7 @@
     ; string at every door (x-lang#685), so the output cannot carry one.
     (pair "shuf" (list (list "-e") (list "-n" "-i" "-o")))
     (pair "base64" (list (list "-d") (list "-w")))
-    (pair "stat" (list (list "-L") (list "-c")))
+    (pair "stat" (list (list "-L" "-f" "-t") (list "-c")))
     (pair "du" (list (list "-s" "-a" "-k" "-c" "-h" "-m" "-x" "-l" "-H" "-L") (list "-d")))
     (pair "truncate" (list (list "-c") (list "-s")))
     (pair "od" (list (list "-v" "-c" "-b" "-x" "-d" "-o") (list "-A" "-t" "-N" "-j")))
@@ -208,10 +208,11 @@
     (pair "readlink" (list (list "-f" "-e" "-n" "-v") ()))
     (pair "mkfifo" (list () (list "-m")))
     (pair "mktemp" (list (list "-d" "-t" "-q" "-u") (list "-p")))
-    ; -T and -a are not declared: the filesystem TYPE is past what File
-    ; statfs decodes, and -a lists every mount, which no door enumerates
-    ; -- df here measures the operands it is given (cu/perm.x).
-    (pair "df" (list (list "-h" "-k" "-P" "-m" "-i") (list "-B")))
+    ; -a is not declared: it lists every mount, and nothing here
+    ; enumerates them yet -- getfsstat(2) or /proc/mounts would, and
+    ; would give df its Filesystem column with it.  df measures the
+    ; operands it is given (cu/perm.x).
+    (pair "df" (list (list "-h" "-k" "-P" "-m" "-i" "-T") (list "-B")))
     (pair "id" (list (list "-u" "-g" "-G" "-n" "-r") ()))
     (pair "uname" (list (list "-a" "-s" "-n" "-r" "-v" "-m" "-p" "-i" "-o") ()))
     (pair "nice" (list () (list "-n") (lit leading)))

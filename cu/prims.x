@@ -27,7 +27,7 @@
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
   file-open-update
   file-chmod file-chown file-link file-symlink file-readlink
-  file-utimes file-mkfifo file-statfs file-lstat-kind file-copy
+  file-utimes file-mkfifo file-statfs file-statfs-full file-lstat-kind file-copy
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
@@ -132,7 +132,8 @@
         (list (lit rdev) (lit u32)) (list (lit pad) 4)
         (list (lit atime) (lit i64)) (list (lit pad) 8)
         (list (lit mtime) (lit i64)) (list (lit pad) 8)
-        (list (lit ctime) (lit i64)) (list (lit pad) 24)
+        (list (lit ctime) (lit i64)) (list (lit pad) 8)
+        (list (lit btime) (lit i64)) (list (lit pad) 8)
         (list (lit size) (lit i64)) (list (lit blocks) (lit i64))
         (list (lit blksize) (lit u32))))
 
@@ -227,6 +228,77 @@
 (def file-utimes (fn (_ path) (File utimes path)))
 (def file-mkfifo (fn (_ path mode) (File mkfifo path mode)))
 (def file-statfs (fn (_ path) (File statfs path)))
+
+; the C string of at most N bytes at OFF in BUF -- a name a syscall wrote
+(def %cu-cstr-at
+  (fn (_ buf off n)
+    (def go
+      (fn (self i acc)
+        (if (>= i (+ off n)) (list->string (reverse acc))
+          (let ((b (byte-at buf i)))
+            (if (= b 0) (list->string (reverse acc))
+              (self (+ i 1) (pair (integer->char b) acc)))))))
+    (go off ())))
+
+; Linux names a filesystem by its magic; these are the ones stat
+; spells, and a magic past them prints as stat prints it.  Unmeasured
+; here: this host is Darwin, which carries the name in the struct.
+(def %cu-fs-magic-names
+  (list (pair 61267 "ext2/ext3") (pair 2435016766 "btrfs")
+        (pair 1481003842 "xfs") (pair 16914836 "tmpfs")
+        (pair 2035054128 "overlayfs") (pair 26985 "nfs")
+        (pair 19780 "msdos") (pair 40864 "proc") (pair 1650812274 "sysfs")
+        (pair 7377 "devpts") (pair 1936814952 "squashfs")
+        (pair 801189825 "zfs") (pair 1397118030 "ntfs")
+        (pair 2240043254 "ramfs") (pair 684539205 "cramfs")
+        (pair 1684170528 "debugfs") (pair 2613483 "cgroupfs")
+        (pair 1667723888 "cgroup2fs") (pair 2508478710 "hugetlbfs")
+        (pair 1702057286 "fuseblk") (pair 38496 "iso9660")))
+
+; The filesystem under PATH, past what (File statfs) decodes: its id,
+; its type as a number and a name, and on Linux the name limit and the
+; fundamental block size.  Darwin's struct has no name limit, so that
+; key is absent and stat prints `?` for it, and its fundamental block
+; size is the block size.  The id is the two fsid words as one number:
+; on Darwin the first word high, as stat prints it here (measured); on
+; Linux the second word high, as stat.c has it (unmeasured).
+(def file-statfs-full
+  (fn (_ path)
+    (def buf (%str-make-raw 2304))
+    (def r (if os-darwin?
+             (syscall (syscall-id (lit statfs64)) path buf)
+             (syscall (syscall-id (lit statfs)) path buf)))
+    (if (< r 0) ()
+      (let ((d (Struct unpack
+                 (if os-darwin?
+                   (list (list (lit bsize) (lit u32)) (list (lit pad) 4)
+                         (list (lit blocks) (lit u64)) (list (lit bfree) (lit u64))
+                         (list (lit bavail) (lit u64)) (list (lit files) (lit u64))
+                         (list (lit ffree) (lit u64)) (list (lit fsid0) (lit u32))
+                         (list (lit fsid1) (lit u32)) (list (lit pad) 4)
+                         (list (lit type) (lit u32)))
+                   (list (list (lit type) (lit i64)) (list (lit bsize) (lit i64))
+                         (list (lit blocks) (lit u64)) (list (lit bfree) (lit u64))
+                         (list (lit bavail) (lit u64)) (list (lit files) (lit u64))
+                         (list (lit ffree) (lit u64)) (list (lit fsid0) (lit u32))
+                         (list (lit fsid1) (lit u32)) (list (lit namelen) (lit i64))
+                         (list (lit frsize) (lit i64))))
+                 buf)))
+        (def get (fn (_ k) (rest (Assoc entry k d))))
+        (def hi (if os-darwin? (get (lit fsid0)) (get (lit fsid1))))
+        (def lo (if os-darwin? (get (lit fsid1)) (get (lit fsid0))))
+        (def typename
+          (if os-darwin? (%cu-cstr-at buf 72 16)
+            (let ((e (Assoc entry (get (lit type)) %cu-fs-magic-names)))
+              (if (null? e)
+                (string-concat (list "UNKNOWN (0x" (%cu-hexs (get (lit type))) ")"))
+                (rest e)))))
+        (append
+          (list (pair (lit fsid) (+ (* hi 4294967296) lo))
+                (pair (lit typename) typename)
+                (pair (lit frsize)
+                  (if os-darwin? (get (lit bsize)) (get (lit frsize)))))
+          d)))))
 
 ; the kind a path has WITHOUT following it: the one question ln,
 ; readlink and realpath ask, and the one File stat cannot answer.  A

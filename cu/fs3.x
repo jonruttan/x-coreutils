@@ -63,6 +63,19 @@
 
 ; --- stat ---------------------------------------------------------------------
 
+; a device number's halves, as the platform packs them: Darwin keeps the
+; major in the top byte; Linux (glibc) splits each across the word
+(def %cu-dev-major
+  (fn (_ dev)
+    (if os-darwin? (bit-and (bit-shr dev 24) 255)
+      (+ (bit-and (bit-shr dev 8) 4095)
+         (bit-and (bit-shr dev 32) 4294963200)))))
+
+(def %cu-dev-minor
+  (fn (_ dev)
+    (if os-darwin? (bit-and dev 16777215)
+      (+ (bit-and dev 255) (bit-and (bit-shr dev 12) 4294967040)))))
+
 ; -c FMT: the GNU specifiers busybox carries. Anything else is copied through,
 ; so a format is never silently eaten.
 (def %cu-stat-spec
@@ -70,6 +83,7 @@
     (def kind (%cu-stat-get st (lit kind)))
     (def mode (%cu-stat-get st (lit mode)))
     (def num (fn (_ key) (%cu-int->str (%cu-stat-get st key))))
+    (def hex (fn (_ key) (%cu-hexs (%cu-stat-get st key))))
     (match
       ((= c 110) name)                          ; n
       ((= c 115) (num (lit size)))              ; s
@@ -82,16 +96,45 @@
       ((= c 103) (num (lit gid)))               ; g
       ((= c 104) (num (lit nlink)))             ; h
       ((= c 105) (num (lit ino)))               ; i
+      ((= c 100) (num (lit dev)))               ; d
+      ((= c 68)  (hex (lit dev)))               ; D
+      ((= c 114) (num (lit rdev)))              ; r
+      ((= c 82)  (hex (lit rdev)))              ; R
+      ((= c 116) (%cu-hexs (%cu-dev-major (%cu-stat-get st (lit rdev)))))   ; t
+      ((= c 84)  (%cu-hexs (%cu-dev-minor (%cu-stat-get st (lit rdev)))))   ; T
       ((= c 70)  (%cu-kind-word kind))          ; F
       ((= c 88)  (num (lit atime)))             ; X
       ((= c 89)  (num (lit mtime)))             ; Y
       ((= c 90)  (num (lit ctime)))             ; Z
+      ((= c 87)  (num (lit btime)))             ; W
       ((= c 111) (num (lit blksize)))           ; o
       (#t (string-append "%" (%cu-b->s c))))))
 
-; The scanning is cu/fmt-lex.x's; %cu-stat-spec below is stat's.
+; -f's specifiers, for a filesystem.  Darwin has no name limit to
+; report, and stat prints `?` for it.
+(def %cu-stat-fs-spec
+  (fn (_ c name fs)
+    (def num (fn (_ key) (%cu-int->str (%cu-stat-get fs key))))
+    (match
+      ((= c 110) name)                                       ; n
+      ((= c 105) (%cu-hexs (%cu-stat-get fs (lit fsid))))    ; i
+      ((= c 108)                                             ; l
+        (let ((e (Assoc entry (lit namelen) fs)))
+          (if (null? e) "?" (%cu-int->str (rest e)))))
+      ((= c 116) (%cu-hexs (%cu-stat-get fs (lit type))))    ; t
+      ((= c 84)  (%cu-stat-get fs (lit typename)))           ; T
+      ((= c 115) (num (lit bsize)))                          ; s
+      ((= c 83)  (num (lit frsize)))                         ; S
+      ((= c 98)  (num (lit blocks)))                         ; b
+      ((= c 102) (num (lit bfree)))                          ; f
+      ((= c 97)  (num (lit bavail)))                         ; a
+      ((= c 99)  (num (lit files)))                          ; c
+      ((= c 100) (num (lit ffree)))                          ; d
+      (#t (string-append "%" (%cu-b->s c))))))
+
+; The scanning is cu/fmt-lex.x's; SPEC is one of the two above.
 (def %cu-stat-format
-  (fn (_ fmt name st)
+  (fn (_ fmt name st spec)
     (def go
       (fn (self ts acc)
         (if (null? ts) (string-concat (reverse acc))
@@ -104,29 +147,62 @@
                     (match
                       ((= (byte-len conv) 0) "%")
                       ((string=? conv "%") "%")
-                      (#t (%cu-stat-spec (byte-at conv 0) name st))))
+                      (#t (spec (byte-at conv 0) name st))))
                   t)
                 acc))))))
     (go (%cu-fmt-parse fmt #f) ())))
 
-; the default block.  The user and group are NUMERIC: there is no
-; passwd door, so the name column real stat(1) prints is not available.
+; the default block, as stat lays it out: the device as major,minor,
+; the inode padded to ten, a device's own type after its link count.
+; The user and group are NUMERIC: there is no passwd door, so the name
+; column real stat(1) prints is not available.
 (def %cu-stat-default
   (fn (_ name st)
     (def kind (%cu-stat-get st (lit kind)))
     (def mode (%cu-stat-get st (lit mode)))
+    (def dev (%cu-stat-get st (lit dev)))
+    (def rdev (%cu-stat-get st (lit rdev)))
+    (def nlink (%cu-int->str (%cu-stat-get st (lit nlink))))
+    (def device? (if (eq? kind (lit char)) #t (eq? kind (lit block))))
     (string-concat
       (list "  File: " name "\n"
             "  Size: " (%cu-int->str (%cu-stat-get st (lit size)))
             "\tBlocks: " (%cu-int->str (%cu-stat-get st (lit blocks)))
             "\tIO Block: " (%cu-int->str (%cu-stat-get st (lit blksize)))
             "\t" (%cu-kind-word kind) "\n"
-            "Device: -\tInode: " (%cu-int->str (%cu-stat-get st (lit ino)))
-            "\tLinks: " (%cu-int->str (%cu-stat-get st (lit nlink))) "\n"
+            "Device: " (%cu-int->str (%cu-dev-major dev)) ","
+            (%cu-int->str (%cu-dev-minor dev))
+            "\tInode: "
+            (%cu-pad-right (%cu-int->str (%cu-stat-get st (lit ino))) 10)
+            "  Links: "
+            (if device?
+              (string-concat
+                (list (%cu-pad-right nlink 5) " Device type: "
+                      (%cu-int->str (%cu-dev-major rdev)) ","
+                      (%cu-int->str (%cu-dev-minor rdev))))
+              nlink)
+            "\n"
             "Access: (" (%cu-mode-octal mode) "/"
             (%cu-perm-string kind mode) ")  Uid: ("
             (%cu-int->str (%cu-stat-get st (lit uid))) ")   Gid: ("
             (%cu-int->str (%cu-stat-get st (lit gid))) ")\n"))))
+
+; the filesystem block under -f, in stat -f's column widths
+(def %cu-stat-fs-default
+  (fn (_ name fs)
+    (def sp (fn (_ c) (%cu-stat-fs-spec c name fs)))
+    (string-concat
+      (list "  File: \"" name "\"\n"
+            "    ID: " (%cu-pad-right (sp 105) 8)
+            " Namelen: " (%cu-pad-right (sp 108) 7)
+            " Type: " (sp 84) "\n"
+            "Block size: " (%cu-pad-right (sp 115) 10)
+            " Fundamental block size: " (sp 83) "\n"
+            "Blocks: Total: " (%cu-pad-right (sp 98) 10)
+            " Free: " (%cu-pad-right (sp 102) 10)
+            " Available: " (sp 97) "\n"
+            "Inodes: Total: " (%cu-pad-right (sp 99) 10)
+            " Free: " (sp 100) "\n"))))
 
 (def %cu-stat
   (fn (_ argv stdin-thunk)
@@ -134,13 +210,30 @@
     ; reached at all.
     (def o (%cu-opts "stat" argv))
     (def fmt (Opts value o "-c"))
-    (def c? (not (null? fmt)))
+    (def fs? (Opts on? o "-f"))
+    (def terse? (Opts on? o "-t"))
     (def ops (Opts operands o))
     ; -L follows the link; not following it is the default, since stat
     ; describes the name it was given and for a symlink that is the link.
+    ; -f asks about the filesystem under the name instead.
     (def stat-of
       (fn (_ path)
-        (if (Opts on? o "-L") (file-stat-full path) (file-lstat-full path))))
+        (match
+          (fs? (file-statfs-full path))
+          ((Opts on? o "-L") (file-stat-full path))
+          (#t (file-lstat-full path)))))
+    ; -c's format, else -t's line in stat's own terse order, else the block
+    (def render
+      (fn (_ name st)
+        (def spec (if fs? %cu-stat-fs-spec %cu-stat-spec))
+        (def line
+          (fn (_ f) (string-append (%cu-stat-format f name st spec) "\n")))
+        (match
+          ((not (null? fmt)) (line fmt))
+          ((if fs? terse? #f) (line "%n %i %l %t %s %S %b %f %a %c %d"))
+          (terse? (line "%n %s %b %f %u %g %D %i %h %t %T %X %Y %Z %W %o"))
+          (fs? (%cu-stat-fs-default name st))
+          (#t (%cu-stat-default name st)))))
     (def go
       (fn (self os st)
         (if (null? os) st
@@ -148,12 +241,12 @@
             (if (null? s)
               (do (file-write 2
                     (string-concat
-                      (list "stat: cannot stat '" (first os) "'\n")))
+                      (if fs?
+                        (list "stat: cannot read file system information for '"
+                              (first os) "': No such file or directory\n")
+                        (list "stat: cannot stat '" (first os) "'\n"))))
                   (self (rest os) 1))
-              (do (display
-                    (if c?
-                      (string-append (%cu-stat-format fmt (first os) s) "\n")
-                      (%cu-stat-default (first os) s)))
+              (do (display (render (first os) s))
                   (self (rest os) st)))))))
     (if (null? ops)
       (do (file-write 2 "stat: missing operand\n") 1)
