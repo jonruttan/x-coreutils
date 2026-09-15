@@ -124,6 +124,12 @@
     (def sp (fn (self k) (if (<= k 0) "" (string-append " " (self (- k 1))))))
     (if (<= gap 0) s (string-append (sp gap) s))))
 
+(def %cu-pad-right
+  (fn (_ s w)
+    (def gap (- w (byte-len s)))
+    (def sp (fn (self k) (if (<= k 0) "" (string-append " " (self (- k 1))))))
+    (if (<= gap 0) s (string-append s (sp gap)))))
+
 ; operands to one text: files in order, - or none meaning stdin
 (def %cu-gather
   (fn (_ operands stdin-thunk)

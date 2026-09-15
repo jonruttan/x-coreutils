@@ -142,12 +142,12 @@ link -> b.txt
 ### -i and -s prefix every line; -h abbreviates a size; a missing operand is loud
 
 ```cu
-(do (def il (first (%cu-lines (cu-out (list "ls" "-i" "/tmp/x-cu-ls/b.txt"))))) (display (if (> (%cu-num-prefix il) 0) "inode" "none")) (newline) (def hl (first (%cu-lines (cu-out (list "ls" "-lh" "/tmp/x-cu-ls/big.log"))))) (display (if (null? (filter (fn (_ w) (string=? w "4.8K")) (%cu-words-line hl))) "bytes" "4.8K")) (newline) (display (cu-run (list "ls" "/tmp/x-cu-ls/nope") "")))
+(do (def il (first (%cu-lines (cu-out (list "ls" "-i" "/tmp/x-cu-ls/b.txt"))))) (display (if (> (%cu-num-prefix il) 0) "inode" "none")) (newline) (def hl (first (%cu-lines (cu-out (list "ls" "-lh" "/tmp/x-cu-ls/big.log"))))) (display (if (null? (filter (fn (_ w) (string=? w "4.9K")) (%cu-words-line hl))) "bytes" "4.9K")) (newline) (display (cu-run (list "ls" "/tmp/x-cu-ls/nope") "")))
 ```
 ---
 ```output
 inode
-4.8K
+4.9K
 1
 ```
 
@@ -1478,6 +1478,101 @@ z.c
 
 ```cu
 (do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-lc")) (display "clean"))
+```
+---
+    clean
+
+## stat -f -t, df -T
+
+The numbers are a machine's; the specs judge order, shape and the
+relations stat itself guarantees.
+
+### fixtures
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-st && mkdir -p /tmp/x-cu-st && printf hello > /tmp/x-cu-st/f && chmod 644 /tmp/x-cu-st/f")) (def cu-sf (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-st/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-st/.cap")))))) (def words (fn (_ s) (%cu-words-line (first (%cu-lines s))))) (display "made"))
+```
+---
+    made
+
+### -t is the sixteen fields of -c's terse order
+
+```cu
+(do (def t (cu-sf (list "stat" "-t" "/tmp/x-cu-st/f"))) (def c (cu-sf (list "stat" "-c" "%n %s %b %f %u %g %D %i %h %t %T %X %Y %Z %W %o" "/tmp/x-cu-st/f"))) (display (length (words t))) (newline) (display (if (string=? t c) "same" "differ")))
+```
+---
+```output
+16
+same
+```
+
+### a regular file has no device type; %D is %d in hex; a birth precedes a modify
+
+```cu
+(do (def w (words (cu-sf (list "stat" "-c" "%t %T %r %R %d %D %W %Y %f" "/tmp/x-cu-st/f")))) (display (%cu-join-with (%cu-take w 4) " ")) (newline) (display (if (string=? (%cu-hexs (%cu-num-prefix (%cu-nth 4 w))) (%cu-nth 5 w)) "hex" "no")) (newline) (display (if (<= (%cu-num-prefix (%cu-nth 6 w)) (%cu-num-prefix (%cu-nth 7 w))) "ordered" "no")) (newline) (display (%cu-nth 8 w)))
+```
+---
+```output
+0 0 0 0
+hex
+ordered
+81a4
+```
+
+### the default block names the device as major,minor and pads the inode
+
+```cu
+(do (def l3 (%cu-nth 2 (%cu-lines (cu-sf (list "stat" "/tmp/x-cu-st/f"))))) (display (substring l3 0 8)) (newline) (display (if (null? (filter (fn (_ w) (string=? w "Inode:")) (%cu-words-line l3))) "no" "Inode:")) (newline) (display (%cu-last (%cu-words-line l3))))
+```
+---
+```output
+Device: 
+Inode:
+1
+```
+
+### -f -t is the eleven fields of the filesystem, in stat's order
+
+```cu
+(do (def w (words (cu-sf (list "stat" "-f" "-t" "/tmp/x-cu-st")))) (display (length w)) (newline) (display (first w)) (newline) (display (if (> (%cu-num-prefix (%cu-nth 5 w)) 0) "block size" "no")) (newline) (display (if (>= (%cu-num-prefix (%cu-nth 7 w)) (%cu-num-prefix (%cu-nth 8 w))) "total>=free" "no")) (newline) (display (if (> (byte-len (%cu-nth 4 w)) 0) "typed" "no")))
+```
+---
+```output
+11
+/tmp/x-cu-st
+block size
+total>=free
+typed
+```
+
+### -f's block has stat's five lines, and a missing path is refused
+
+```cu
+(do (def ls (%cu-lines (cu-sf (list "stat" "-f" "/tmp/x-cu-st")))) (display (length ls)) (newline) (display (%cu-join-with (map (fn (_ l) (first (%cu-words-line l))) ls) "|")) (newline) (display (cu-run (list "stat" "-f" "/tmp/x-cu-st/nope") "")))
+```
+---
+```output
+5
+File:|ID:|Block|Blocks:|Inodes:
+1
+```
+
+### df -T leads with the type stat -f names
+
+```cu
+(do (def out (cu-sf (list "df" "-T" "/tmp/x-cu-st"))) (def hdr (first (%cu-lines out))) (def row (%cu-nth 1 (%cu-lines out))) (display (first (%cu-words-line hdr))) (newline) (display (if (string=? (first (%cu-words-line row)) (first (words (cu-sf (list "stat" "-f" "-c" "%T" "/tmp/x-cu-st"))))) "same type" "differ")) (newline) (display (first (%cu-words-line (first (%cu-lines (cu-sf (list "df" "/tmp/x-cu-st"))))))))
+```
+---
+```output
+Type
+same type
+1K-blocks
+```
+
+### cleanup
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-st")) (display "clean"))
 ```
 ---
     clean

@@ -25,7 +25,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cut` | -b -c -f -d -s -n | -s -n -d -f -c -b |  | 100% |
 | `date` | -u -d -D -s -r -R -I +FMT | -u -R -I -Idate -Ihours -Iminutes -Iseconds -Ins -d -D -r +FMT | -s | 87% |
 | `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= ibs= obs= count= skip= seek= status= conv= iflag= oflag= |  | 100% |
-| `df` | -P -k -m -h -T -a -i -B | -h -k -P -m -i -B | -T -a | 75% |
+| `df` | -P -k -m -h -T -a -i -B | -h -k -P -m -i -T -B | -a | 87% |
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -i -b -w -B -q -s -a -d -T -t -r -N -U -L -S |  | 100% |
 | `dirname` |  |  |  | - |
 | `dos2unix` | -u -d | -u -d |  | 100% |
@@ -74,7 +74,7 @@ the work.  Applet parity is the other axis: see the README.
 | `sleep` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -n -r -u -g -M -c -s -b -d -f -i -o -k -t | -z | 93% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
-| `stat` | -L -f -t -c | -L -c | -f -t | 50% |
+| `stat` | -L -f -t -c | -L -f -t -c |  | 100% |
 | `sum` | -r -s | -s -r |  | 100% |
 | `sync` | -d -f | -d -f |  | 100% |
 | `tac` |  |  |  | - |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 413 of 426 busybox options accepted (96%).**
+**Total: 416 of 426 busybox options accepted (97%).**
