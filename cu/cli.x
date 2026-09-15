@@ -208,11 +208,7 @@
     (pair "readlink" (list (list "-f" "-e" "-n" "-v") ()))
     (pair "mkfifo" (list () (list "-m")))
     (pair "mktemp" (list (list "-d" "-t" "-q" "-u") (list "-p")))
-    ; -a is not declared: it lists every mount, and nothing here
-    ; enumerates them yet -- getfsstat(2) or /proc/mounts would, and
-    ; would give df its Filesystem column with it.  df measures the
-    ; operands it is given (cu/perm.x).
-    (pair "df" (list (list "-h" "-k" "-P" "-m" "-i" "-T") (list "-B")))
+    (pair "df" (list (list "-h" "-k" "-P" "-m" "-i" "-T" "-a") (list "-B")))
     (pair "id" (list (list "-u" "-g" "-G" "-n" "-r") ()))
     (pair "uname" (list (list "-a" "-s" "-n" "-r" "-v" "-m" "-p" "-i" "-o") ()))
     (pair "nice" (list () (list "-n") (lit leading)))

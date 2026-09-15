@@ -884,12 +884,12 @@ unknown
 ### df counts blocks, or inodes under -i, in the unit -m and -B choose
 
 ```cu
-(do (def row (fn (_ flag) (first (rest (%cu-lines (cu-out (list "df" flag "/tmp"))))))) (display (if (> (%cu-num-prefix (row "-k")) (%cu-num-prefix (row "-m"))) "k>m" "wrong")) (newline) (display (first (%cu-lines (cu-out (list "df" "-i" "/tmp"))))))
+(do (def row (fn (_ flag) (%cu-nth 1 (%cu-words-line (first (rest (%cu-lines (cu-out (list "df" flag "/tmp"))))))))) (display (if (> (%cu-num-prefix (row "-k")) (%cu-num-prefix (row "-m"))) "k>m" "wrong")) (newline) (display (%cu-join-with (%cu-words-line (first (%cu-lines (cu-out (list "df" "-i" "/tmp"))))) " ")))
 ```
 ---
 ```output
 k>m
-    Inodes     IUsed     IFree IUse% Mounted on
+Filesystem Inodes IUsed IFree IUse% Mounted on
 ```
 
 ### -h scales blocks to bytes: du and df count 1024-byte blocks, %ls-human formats bytes
@@ -902,7 +902,7 @@ so it holds on any machine: the `-h` field must be what `%ls-human` makes
 of the `-k` count scaled to bytes.
 
 ```cu
-(do (def kb (%cu-num-prefix (cu-out (list "du" "-k" "-s" "/tmp/x-cu-fm")))) (display (if (string=? (cu-out (list "du" "-h" "-s" "/tmp/x-cu-fm")) (string-concat (list (%ls-human (* 1024 kb)) "\t/tmp/x-cu-fm\n"))) "du-h-scaled" "du-h-wrong")) (newline) (def hrow (first (rest (%cu-lines (cu-out (list "df" "-h" "/tmp")))))) (def krow (first (rest (%cu-lines (cu-out (list "df" "-k" "/tmp")))))) (display (if (string=? (substring hrow 0 10) (%cu-pad-left (%ls-human (* 1024 (%cu-num-prefix krow))) 10)) "df-h-scaled" "df-h-wrong")))
+(do (def kb (%cu-num-prefix (cu-out (list "du" "-k" "-s" "/tmp/x-cu-fm")))) (display (if (string=? (cu-out (list "du" "-h" "-s" "/tmp/x-cu-fm")) (string-concat (list (%ls-human (* 1024 kb)) "\t/tmp/x-cu-fm\n"))) "du-h-scaled" "du-h-wrong")) (newline) (def hsize (%cu-nth 1 (%cu-words-line (first (rest (%cu-lines (cu-out (list "df" "-h" "/tmp")))))))) (def kb (%cu-num-prefix (%cu-nth 1 (%cu-words-line (first (rest (%cu-lines (cu-out (list "df" "-k" "/tmp"))))))))) (display (if (string=? hsize (%ls-human (* 1024 kb))) "df-h-scaled" "df-h-wrong")))
 ```
 ---
 ```output
@@ -1557,22 +1557,98 @@ File:|ID:|Block|Blocks:|Inodes:
 1
 ```
 
-### df -T leads with the type stat -f names
+### df -T puts the type stat -f names after the filesystem
 
 ```cu
-(do (def out (cu-sf (list "df" "-T" "/tmp/x-cu-st"))) (def hdr (first (%cu-lines out))) (def row (%cu-nth 1 (%cu-lines out))) (display (first (%cu-words-line hdr))) (newline) (display (if (string=? (first (%cu-words-line row)) (first (words (cu-sf (list "stat" "-f" "-c" "%T" "/tmp/x-cu-st"))))) "same type" "differ")) (newline) (display (first (%cu-words-line (first (%cu-lines (cu-sf (list "df" "/tmp/x-cu-st"))))))))
+(do (def out (cu-sf (list "df" "-T" "/tmp/x-cu-st"))) (def hdr (first (%cu-lines out))) (def row (%cu-nth 1 (%cu-lines out))) (display (%cu-join-with (%cu-take (%cu-words-line hdr) 3) " ")) (newline) (display (if (string=? (%cu-nth 1 (%cu-words-line row)) (first (words (cu-sf (list "stat" "-f" "-c" "%T" "/tmp/x-cu-st"))))) "same type" "differ")) (newline) (display (%cu-join-with (%cu-take (%cu-words-line (first (%cu-lines (cu-sf (list "df" "/tmp/x-cu-st"))))) 2) " ")))
 ```
 ---
 ```output
-Type
+Filesystem Type 1K-blocks
 same type
-1K-blocks
+Filesystem 1K-blocks
 ```
 
 ### cleanup
 
 ```cu
 (do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-st")) (display "clean"))
+```
+---
+    clean
+
+## df over the mount table
+
+### fixtures
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-mt && mkdir -p /tmp/x-cu-mt/deep/er")) (def cu-mt (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-mt/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-mt/.cap")))))) (def lines (fn (_ argv) (filter (fn (_ l) (> (byte-len l) 0)) (%cu-lines (cu-mt argv))))) (def last-word (fn (_ l) (%cu-last (%cu-words-line l)))) (display "made"))
+```
+---
+    made
+
+### a bare df lists the mounted filesystems, the root among them, named from and on
+
+```cu
+(do (def ls (lines (list "df"))) (display (%cu-join-with (%cu-words-line (first ls)) " ")) (newline) (display (if (null? (filter (fn (_ l) (string=? (last-word l) "/")) (rest ls))) "no root" "root listed")) (newline) (display (if (null? (filter (fn (_ l) (string=? (first (%cu-words-line l)) "Filesystem")) (rest ls))) "rows named" "unnamed")))
+```
+---
+```output
+Filesystem 1K-blocks Used Available Use% Mounted on
+root listed
+rows named
+```
+
+### -a lists at least as many, and no row of a plain df has a dash for its counts
+
+```cu
+(do (def plain (lines (list "df"))) (def all (lines (list "df" "-a"))) (display (if (>= (length all) (length plain)) "all>=plain" "fewer")) (newline) (display (if (null? (filter (fn (_ l) (string=? (%cu-nth 1 (%cu-words-line l)) "-")) (rest plain))) "no dashes" "dashes")))
+```
+---
+```output
+all>=plain
+no dashes
+```
+
+### an operand is reported on the mount it sits on, not by its own path
+
+```cu
+(do (def row (%cu-nth 1 (lines (list "df" "/tmp/x-cu-mt/deep/er")))) (def on (last-word row)) (display (if (string=? on "/tmp/x-cu-mt/deep/er") "the path" "a mount point")) (newline) (display (if (string=? (substring (%cu-realpath-of "/tmp/x-cu-mt/deep/er") 0 (byte-len on)) on) "which contains it" "elsewhere")))
+```
+---
+```output
+a mount point
+which contains it
+```
+
+### -P is the portable heading, -m and -B name their unit, -h its columns
+
+```cu
+(do (display (%cu-join-with (%cu-words-line (first (lines (list "df" "-P" "/tmp")))) " ")) (newline) (display (%cu-nth 1 (%cu-words-line (first (lines (list "df" "-m" "/tmp")))))) (newline) (display (%cu-nth 1 (%cu-words-line (first (lines (list "df" "-B" "2048" "/tmp")))))) (newline) (display (%cu-join-with (%cu-words-line (first (lines (list "df" "-h" "/tmp")))) " ")))
+```
+---
+```output
+Filesystem 1024-blocks Used Available Capacity Mounted on
+1M-blocks
+2K-blocks
+Filesystem Size Used Avail Use% Mounted on
+```
+
+### a missing operand is named, and the others still print
+
+```cu
+(do (def out (lines (list "df" "/tmp/x-cu-mt/nope" "/tmp"))) (display (length out)) (newline) (display (cu-run (list "df" "/tmp/x-cu-mt/nope") "")))
+```
+---
+```output
+2
+1
+```
+
+### cleanup
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-mt")) (display "clean"))
 ```
 ---
     clean
