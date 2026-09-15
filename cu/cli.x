@@ -134,16 +134,15 @@
 
 (def %cu-option-spec
   (list
-    (pair "sort" (list (list "-n" "-r" "-u" "-g" "-M" "-c" "-s" "-b" "-d" "-f" "-i")
+    (pair "sort" (list (list "-n" "-r" "-u" "-g" "-M" "-c" "-s" "-b" "-d" "-f" "-i"
+                         "-z")
                        (list "-o" "-k" "-t")))
     (pair "uniq" (list (list "-c" "-d" "-u" "-i") (list "-f" "-s" "-w")))
     (pair "nl" (list () (list "-b" "-n" "-s" "-w" "-v" "-i")))
     (pair "head" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "tail" (list (list "-q" "-v" "-f") (list "-n" "-c" "-s")))
     (pair "wc" (list (list "-l" "-w" "-c" "-m" "-L") ()))
-    ; -0 is not declared: it ends each line with NUL, which an x string
-    ; cannot carry (x-lang#685).
-    (pair "env" (list (list "-i") (list "-u")))
+    (pair "env" (list (list "-i" "-0") (list "-u")))
     (pair "sync" (list (list "-d" "-f") ()))
     (pair "dos2unix" (list (list "-u" "-d") ()))
     (pair "unix2dos" (list (list "-u" "-d") ()))
@@ -193,9 +192,7 @@
     (pair "expand" (list (list "-i") (list "-t")))
     (pair "unexpand" (list (list "-a" "-f") (list "-t")))
     (pair "split" (list () (list "-b" "-l" "-a")))
-    ; -z is not declared: it delimits with NUL, and a NUL truncates an x
-    ; string at every door (x-lang#685), so the output cannot carry one.
-    (pair "shuf" (list (list "-e") (list "-n" "-i" "-o")))
+    (pair "shuf" (list (list "-e" "-z") (list "-n" "-i" "-o")))
     (pair "base64" (list (list "-d") (list "-w")))
     (pair "stat" (list (list "-L" "-f" "-t") (list "-c")))
     (pair "du" (list (list "-s" "-a" "-k" "-c" "-h" "-m" "-x" "-l" "-H" "-L") (list "-d")))
@@ -214,15 +211,15 @@
     (pair "nice" (list () (list "-n") (lit leading)))
     ; -z is not declared: its pass is a run of NUL, which no x string can
     ; carry (x-lang#685).  cu/fs3.x says why the truncate trick is not it.
-    (pair "shred" (list (list "-u" "-f") (list "-n")))
+    (pair "shred" (list (list "-u" "-f" "-z") (list "-n")))
     (pair "timeout" (list () (list "-s" "-k") (lit leading)))
     (pair "tty" (list (list "-s") ()))
     (pair "pwd" (list (list "-L" "-P") ()))
     (pair "which" (list (list "-a") ()))
     (pair "nproc" (list (list "--all") (list "--ignore")))
     (pair "uudecode" (list () (list "-o")))
-    ; -0 and -p are NOT here on purpose; cu/sys2.x says why
-    (pair "xargs" (list (list "-r" "-t" "-x")
+    ; -p is NOT here on purpose; cu/sys2.x says why
+    (pair "xargs" (list (list "-r" "-t" "-x" "-0")
                         (list "-n" "-a" "-E" "-I" "-s") (lit leading)))
     ; test and its spellings are an EXPRESSION, not an option list:
     ; the operators are declared so the guard knows them, and the

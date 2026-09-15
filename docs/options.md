@@ -31,7 +31,7 @@ the work.  Applet parity is the other axis: see the README.
 | `dos2unix` | -u -d | -u -d |  | 100% |
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k -c -h -m -x -l -H -L -d |  | 100% |
 | `echo` | -n -e -E | -n -e -E |  | 100% |
-| `env` | -i -u -0 | -i -u | -0 | 66% |
+| `env` | -i -u -0 | -i -0 -u |  | 100% |
 | `expand` | -i -t | -i -t |  | 100% |
 | `expr` |  |  |  | - |
 | `factor` |  |  |  | - |
@@ -69,10 +69,10 @@ the work.  Applet parity is the other axis: see the README.
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha512sum` | -c -s -w | -c -s -w |  | 100% |
-| `shred` | -f -n -u -z | -u -f -n | -z | 75% |
-| `shuf` | -e -i -n -o -z | -e -n -i -o | -z | 80% |
+| `shred` | -f -n -u -z | -u -f -z -n |  | 100% |
+| `shuf` | -e -i -n -o -z | -e -z -n -i -o |  | 100% |
 | `sleep` |  |  |  | - |
-| `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -n -r -u -g -M -c -s -b -d -f -i -o -k -t | -z | 93% |
+| `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -n -r -u -g -M -c -s -b -d -f -i -z -o -k -t |  | 100% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
 | `stat` | -L -f -t -c | -L -f -t -c |  | 100% |
 | `sum` | -r -s | -s -r |  | 100% |
@@ -98,7 +98,7 @@ the work.  Applet parity is the other axis: see the README.
 | `wc` | -c -m -l -w -L | -l -w -c -m -L |  | 100% |
 | `which` | -a | -a |  | 100% |
 | `whoami` |  |  |  | - |
-| `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
+| `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -0 -n -a -E -I -s | -p | 90% |
 | `yes` |  |  |  | - |
 
-**Total: 418 of 426 busybox options accepted (98%).**
+**Total: 423 of 426 busybox options accepted (99%).**

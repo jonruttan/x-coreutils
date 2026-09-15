@@ -28,6 +28,7 @@
   file-open-update
   file-chmod file-chown file-link file-symlink file-readlink
   file-utimes file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
+  file-write-nuls file-write-field cu-stdin-fields!
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
@@ -217,6 +218,94 @@
             (self (pair chunk acc))
             (string-concat (reverse acc))))))
     (slurp ())))
+
+; --- NUL bytes ----------------------------------------------------------------
+;
+; A NUL is reachable, and only the length-computing helpers say otherwise:
+; (File read fd buf n) fills a buffer with every byte and answers the true
+; count, byte-at reads past as many NULs as there are, and (File write fd
+; buf n) writes n bytes whatever they hold.  What truncates is anything
+; that asks a C string its length -- byte-len, string-length, substring,
+; list->string -- so file-write, file-read-all and cu-stdin! all stop at the
+; first one.  The rule below: carry the buffer and its length, index it with
+; byte-at, write with an explicit count.
+;
+; %str-make-raw answers a SPACE-filled buffer, so the zero bytes come from
+; /dev/zero, read once and kept.
+
+(def %cu-zeros-cell (list ()))
+
+(def %cu-zeros
+  (fn (_)
+    (if (not (null? (first %cu-zeros-cell))) (first (first %cu-zeros-cell))
+      (let ((fd (file-open-read "/dev/zero")))
+        (def b (%str-make-raw 65536))
+        (do (File read fd b 65536)
+            (file-close fd)
+            (set-first! %cu-zeros-cell (list b))
+            b)))))
+
+(def file-write-nuls
+  (fn (_ fd n)
+    (def go
+      (fn (self left)
+        (if (<= left 0) ()
+          (let ((k (if (> left 65536) 65536 left)))
+            (do (File write fd (%cu-zeros) k) (self (- left k)))))))
+    (go n)))
+
+; S then one DELIM byte, which is the -z and -0 output shape.  Both go
+; through File write: display would reach fd 1 by another road, and the
+; two orders are not guaranteed to agree.
+(def file-write-field
+  (fn (_ fd s delim)
+    (do (File write fd s (string-length s))
+        (if (= delim 0) (file-write-nuls fd 1)
+          (File write fd (%cu-b->s delim) 1)))))
+
+; FD's bytes as fields split on the byte DELIM, continuing a field left
+; over from an earlier descriptor: answers (FIELDS . PARTIAL), so a
+; caller reading several files sees one stream.  A field holds no DELIM
+; by construction, so each is an ordinary string once cut -- substring
+; would stop at a NUL, so a slice is built byte by byte.
+(def %cu-fd-fields
+  (fn (_ fd delim partial)
+    (def buf (%str-make-raw 65536))
+    (def slice
+      (fn (_ from to)
+        (let ((go (fn (self k acc)
+                    (if (>= k to) (list->string (reverse acc))
+                      (self (+ k 1) (pair (integer->char (byte-at buf k)) acc))))))
+          (go from ()))))
+    (def go
+      (fn (self part acc)
+        (let ((n (File read fd buf 65536)))
+          (if (if (number? n) (> n 0) #f)
+            (let ((scan
+                    (fn (self2 i start p acc2)
+                      (if (>= i n) (pair (string-append p (slice start i)) acc2)
+                        (if (= (byte-at buf i) delim)
+                          (self2 (+ i 1) (+ i 1) ""
+                            (pair (string-append p (slice start i)) acc2))
+                          (self2 (+ i 1) start p acc2))))))
+              (let ((r (scan 0 0 part acc)))
+                (self (first r) (rest r))))
+            (pair (reverse acc) part)))))
+    (go partial ())))
+
+; stdin as fields, through the platform's fd 3 arrangement.  The applet
+; protocol hands over one STRING, which a NUL would have cut short, so a
+; -z applet reads its standard input here instead.
+(def cu-stdin-fields!
+  (fn (_ delim)
+    (sys-dup2 3 0)
+    (sys-close 3)
+    ; A terminal is not a stream of NUL-separated items, and reading one
+    ; waits for a writer that is not coming.  Nothing, rather.
+    (if (sys-isatty 0) ()
+      (let ((r (%cu-fd-fields 0 delim "")))
+        (append (first r)
+          (if (= (byte-len (rest r)) 0) () (list (rest r))))))))
 
 ; --- the metadata doors (x-lang PR #607) --------------------------------------
 
