@@ -146,6 +146,34 @@
                         acc))))))
         (go operands ())))))
 
+; The -z and -0 reading shape: operands (or standard input) as fields
+; split on a byte, which is %cu-lines over %cu-gather when the delimiter
+; is a newline and the bytes are a string.  A NUL is neither, so the
+; operands are read as bytes and the leftover of one file opens the
+; next, the way the tools read their inputs as one stream.
+(def %cu-delim-fields
+  (fn (_ ops stdin-thunk delim)
+    (if (null? ops) (cu-stdin-fields! delim)
+      (let ((go (fn (self os partial acc)
+                  (if (null? os)
+                    (append acc
+                      (if (= (byte-len partial) 0) () (list partial)))
+                    (if (string=? (first os) "-")
+                      (self (rest os) "" (append acc (cu-stdin-fields! delim)))
+                      (let ((fd (file-open-read (first os))))
+                        (let ((r (%cu-fd-fields fd delim partial)))
+                          (do (file-close fd)
+                              (self (rest os) (rest r)
+                                (append acc (first r)))))))))))
+        (go ops "" ())))))
+
+; each field, then its delimiter -- %cu-print-lines for a -z output
+(def %cu-print-fields
+  (fn (self ls delim)
+    (if (null? ls) ()
+      (do (file-write-field 1 (first ls) delim)
+          (self (rest ls) delim)))))
+
 ; The last hand-rolled option read: everything reads its options off cu/cli.x's
 ; declaration except comm, whose flags are digits -- v0.13.0's Opts decides
 ; `-12` is a negative number before consulting the declaration, so the cluster

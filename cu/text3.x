@@ -322,25 +322,38 @@
     (def nv (Opts value o "-n"))
     (def count (if (null? nv) 0 (%cu-num-prefix nv)))
     (def echo? (Opts on? o "-e"))
+    (def z? (Opts on? o "-z"))
     (def rest1 (Opts operands o))
     ; -i LO-HI shuffles the range itself and reads nothing.
     (def iv (Opts value o "-i"))
+    ; -z makes the NUL the delimiter on both sides, so a line may hold a
+    ; newline; the input is then read as bytes (cu/prims.x).
     (def items
       (match
         ((not (null? iv)) (%cu-shuf-range iv))
         (echo? rest1)
+        (z? (%cu-delim-fields rest1 stdin-thunk 0))
         (#t (%cu-lines (%cu-gather rest1 stdin-thunk)))))
     (def out (%cu-shuffle items))
     (def picked (if (null? nv) out (%cu-take out count)))
     ; -o writes where the shuffle goes, so a caller can shuffle a file in
     ; place without a shell redirect reading it at the same time.
     (def dest (Opts value o "-o"))
-    (if (null? dest)
-      (do (%cu-print-lines picked) 0)
-      (do (file-write-all dest
-            (string-concat
-              (map (fn (_ l) (string-append l "\n")) picked)))
-          0))))
+    (match
+      ((if (null? dest) z? #f) (do (%cu-print-fields picked 0) 0))
+      ((null? dest) (do (%cu-print-lines picked) 0))
+      (z?
+        (let ((fd (file-open-write dest)))
+          (def go
+            (fn (self ls)
+              (if (null? ls) ()
+                (do (file-write-field fd (first ls) 0) (self (rest ls))))))
+          (do (go picked) (file-close fd) 0)))
+      (#t
+        (do (file-write-all dest
+              (string-concat
+                (map (fn (_ l) (string-append l "\n")) picked)))
+            0)))))
 
 ; "LO-HI" -> the integers from LO to HI, as strings.
 (def %cu-shuf-range

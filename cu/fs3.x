@@ -545,11 +545,11 @@
     (def u? (Opts on? o "-u"))
     ; -f takes a file the mode denies: 0600 first, then the passes.
     (def f? (Opts on? o "-f"))
-    ; -z is not declared: its final pass is a run of ZERO bytes, and a NUL
-    ; truncates an x string at every door (x-lang#685), so the pass cannot
-    ; be written.  Truncating to 0 and back would produce zeros without
-    ; writing any, but it frees the blocks instead of overwriting them,
-    ; which is the one thing shred exists to do.
+    ; -z adds a last pass of zeros, so what is left does not read as the
+    ; random bytes the earlier passes wrote.  The zeros are written with
+    ; an explicit count (cu/prims.x), which overwrites the blocks rather
+    ; than freeing them the way a truncate would.
+    (def z? (Opts on? o "-z"))
     (def ops (Opts operands o))
     (def r (rng-make (date-now-unix)))
     (def one
@@ -565,6 +565,10 @@
                       (do (file-write-all path (%cu-shred-filler r size))
                           (self (- k 1))))))
                 (do (pass passes)
+                    (if z?
+                      (let ((fd (file-open-write path)))
+                        (do (file-write-nuls fd size) (file-close fd)))
+                      ())
                     (if u? (file-unlink path) ())
                     0)))))))
     (def go
