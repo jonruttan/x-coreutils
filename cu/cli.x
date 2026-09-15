@@ -139,7 +139,7 @@
     (pair "uniq" (list (list "-c" "-d" "-u" "-i") (list "-f" "-s" "-w")))
     (pair "nl" (list () (list "-b" "-n" "-s" "-w" "-v" "-i")))
     (pair "head" (list (list "-q" "-v") (list "-n" "-c")))
-    (pair "tail" (list (list "-q" "-v") (list "-n" "-c")))
+    (pair "tail" (list (list "-q" "-v" "-f") (list "-n" "-c" "-s")))
     (pair "wc" (list (list "-l" "-w" "-c" "-m" "-L") ()))
     ; -0 is not declared: it ends each line with NUL, which an x string
     ; cannot carry (x-lang#685).

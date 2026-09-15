@@ -1256,3 +1256,119 @@ abc
 ```
 ---
     clean
+
+## tail -f
+
+The loop itself never returns, so the specs drive one ROUND of it at a
+time through %cu-tail-round with the offsets stated, which is what the
+applet does between sleeps.
+
+### fixtures
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-tl && mkdir -p /tmp/x-cu-tl && printf 'l1\\nl2\\nl3\\n' > /tmp/x-cu-tl/f && printf 'a1\\n' > /tmp/x-cu-tl/a && printf 'b1\\n' > /tmp/x-cu-tl/b")) (def cu-cap (fn (_ thunk) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-tl/.cap"))) (do (sys-dup2 fd 1) (thunk) (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-tl/.cap")))))) (def grow! (fn (_ p s) (let ((fd (file-open-append p))) (do (file-write fd s) (file-close fd))))) (display "made"))
+```
+---
+    made
+
+### -s without -f is accepted and changes nothing; -f over stdin alone prints the tail and returns
+
+```cu
+(do (display (cu-run (list "tail" "-s" "5" "-n" "1" "/tmp/x-cu-tl/f") "")) (display (cu-run (list "tail" "-f" "-n" "1") "p\nq\n")))
+```
+---
+```output
+l3
+0q
+0
+```
+
+### a round prints what grew past the offset, and moves the offset to the end
+
+```cu
+(do (grow! "/tmp/x-cu-tl/f" "l4\nl5\n") (def r (cu-cap (fn (_) (write (%cu-tail-round (list "/tmp/x-cu-tl/f") (list 9) #f ""))))) (display r))
+```
+---
+```output
+l4
+l5
+((15) . "/tmp/x-cu-tl/f")
+```
+
+### nothing grew, nothing printed, the offset stays
+
+```cu
+(write (%cu-tail-round (list "/tmp/x-cu-tl/f") (list 15) #f "/tmp/x-cu-tl/f"))
+```
+---
+    ((15) . "/tmp/x-cu-tl/f")
+
+### a file that shrank was truncated: it is read again from its start
+
+```cu
+(do (file-write-all "/tmp/x-cu-tl/f" "n1\n") (display (cu-cap (fn (_) (write (%cu-tail-round (list "/tmp/x-cu-tl/f") (list 15) #f "/tmp/x-cu-tl/f"))))))
+```
+---
+```output
+n1
+((3) . "/tmp/x-cu-tl/f")
+```
+
+### growth on another file re-emits its header
+
+```cu
+(do (grow! "/tmp/x-cu-tl/a" "a2\n") (grow! "/tmp/x-cu-tl/b" "b2\n") (display (cu-cap (fn (_) (%cu-tail-round (list "/tmp/x-cu-tl/a" "/tmp/x-cu-tl/b") (list 3 3) #t "/tmp/x-cu-tl/b")))))
+```
+---
+```output
+
+==> /tmp/x-cu-tl/a <==
+a2
+
+==> /tmp/x-cu-tl/b <==
+b2
+```
+
+### the file printed last needs no header again
+
+```cu
+(do (grow! "/tmp/x-cu-tl/b" "b3\n") (display (cu-cap (fn (_) (%cu-tail-round (list "/tmp/x-cu-tl/a" "/tmp/x-cu-tl/b") (list 6 6) #t "/tmp/x-cu-tl/b")))))
+```
+---
+    b3
+
+### a bounded follow starts where the initial read ended, so growth in between is not lost
+
+```cu
+(do (def at (byte-len (file-read-all "/tmp/x-cu-tl/f"))) (grow! "/tmp/x-cu-tl/f" "n2\n") (display (cu-cap (fn (_) (%cu-tail-follow (list "/tmp/x-cu-tl/f") (list at) #f "" "0" 1)))) (display "|"))
+```
+---
+```output
+n2
+|
+```
+
+### a file that cannot be opened is named and dropped; with nothing left to follow, -f says so
+
+The messages go to stderr; what the specs see is that nothing is printed
+for the missing file, the good one still is, and the status is 1.
+
+```cu
+(do (display (cu-run (list "tail" "/tmp/x-cu-tl/nope") "")) (newline) (display (cu-run (list "tail" "-f" "/tmp/x-cu-tl/nope") "")) (newline) (display (cu-run (list "tail" "-n" "1" "/tmp/x-cu-tl/nope" "/tmp/x-cu-tl/a") "")))
+```
+---
+```output
+1
+1
+==> /tmp/x-cu-tl/a <==
+a2
+1
+```
+
+### cleanup
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-tl")) (display "clean"))
+```
+---
+    clean

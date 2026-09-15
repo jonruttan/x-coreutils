@@ -78,7 +78,7 @@ the work.  Applet parity is the other axis: see the README.
 | `sum` | -r -s | -s -r |  | 100% |
 | `sync` | -d -f | -d -f |  | 100% |
 | `tac` |  |  |  | - |
-| `tail` | -c -f -n -q -s -v | -q -v -n -c | -f -s | 66% |
+| `tail` | -c -f -n -q -s -v | -q -v -f -n -c -s |  | 100% |
 | `tee` | -a -i | -a -i |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `timeout` | -s -k | -s -k |  | 100% |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 408 of 426 busybox options accepted (95%).**
+**Total: 410 of 426 busybox options accepted (96%).**
