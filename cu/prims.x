@@ -27,7 +27,7 @@
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
   file-open-update
   file-chmod file-chown file-link file-symlink file-readlink
-  file-utimes file-mkfifo file-statfs file-statfs-full file-lstat-kind file-copy
+  file-utimes file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
@@ -299,6 +299,89 @@
                 (pair (lit frsize)
                   (if os-darwin? (get (lit bsize)) (get (lit frsize)))))
           d)))))
+
+; little-endian words at OFF in BUF, from the bytes
+(def %cu-u32-at
+  (fn (_ buf off)
+    (+ (byte-at buf off)
+       (+ (* 256 (byte-at buf (+ off 1)))
+          (+ (* 65536 (byte-at buf (+ off 2)))
+             (* 16777216 (byte-at buf (+ off 3))))))))
+
+(def %cu-u64-at
+  (fn (_ buf off)
+    (+ (%cu-u32-at buf off) (* 4294967296 (%cu-u32-at buf (+ off 4))))))
+
+; Darwin's getfsstat64 has no name in the platform's syscall table yet;
+; 347 is its number, as statfs64's 345 is recorded there.
+(def %cu-getfsstat64 347)
+
+; a mount name from /proc/self/mounts, its \040-style octal escapes
+; read back into bytes
+(def %cu-mount-unescape
+  (fn (_ s)
+    (def end (byte-len s))
+    (def oct? (fn (_ b) (if (>= b 48) (<= b 55) #f)))
+    (def go
+      (fn (self i acc)
+        (if (>= i end) (list->string (reverse acc))
+          (let ((b (byte-at s i)))
+            (if (if (= b 92) (if (< (+ i 3) end)
+                               (if (oct? (byte-at s (+ i 1)))
+                                 (if (oct? (byte-at s (+ i 2))) (oct? (byte-at s (+ i 3))) #f)
+                                 #f)
+                               #f)
+                  #f)
+              (self (+ i 4)
+                (pair (integer->char
+                        (+ (* 64 (- (byte-at s (+ i 1)) 48))
+                           (+ (* 8 (- (byte-at s (+ i 2)) 48))
+                              (- (byte-at s (+ i 3)) 48))))
+                  acc))
+              (self (+ i 1) (pair (integer->char b) acc)))))))
+    (go 0 ())))
+
+; Every mounted filesystem, each an alist: what it is mounted FROM and
+; ON, its type's name, and the fields file-statfs-full decodes.  Darwin
+; answers getfsstat64 into one buffer of statfs64 records, 2168 bytes
+; each, the names inside them; Linux lists /proc/self/mounts and asks
+; statfs of each mount point.  The Linux half is unmeasured here.
+(def file-mounts
+  (fn (_)
+    (if os-darwin?
+      (let ((n (syscall %cu-getfsstat64 0 0 2)))              ; MNT_NOWAIT
+        (def buf (%str-make-raw (* n 2168)))
+        (def got (syscall %cu-getfsstat64 buf (* n 2168) 2))
+        ; the words at their offsets, read byte by byte: a record sits
+        ; kilobytes into the buffer, past what a pad should walk
+        (def one
+          (fn (_ i)
+            (def at (* i 2168))
+            (def u32 (fn (_ off) (%cu-u32-at buf (+ at off))))
+            (def u64 (fn (_ off) (%cu-u64-at buf (+ at off))))
+            (list (pair (lit from) (%cu-cstr-at buf (+ at 1112) 1024))
+                  (pair (lit on) (%cu-cstr-at buf (+ at 88) 1024))
+                  (pair (lit typename) (%cu-cstr-at buf (+ at 72) 16))
+                  (pair (lit fsid) (+ (* (u32 48) 4294967296) (u32 52)))
+                  (pair (lit frsize) (u32 0))
+                  (pair (lit bsize) (u32 0))
+                  (pair (lit blocks) (u64 8)) (pair (lit bfree) (u64 16))
+                  (pair (lit bavail) (u64 24)) (pair (lit files) (u64 32))
+                  (pair (lit ffree) (u64 40)) (pair (lit type) (u32 60)))))
+        (def go
+          (fn (self i acc)
+            (if (>= i got) (reverse acc) (self (+ i 1) (pair (one i) acc)))))
+        (if (< got 0) () (go 0 ())))
+      (let ((text (guard (_ "") (file-read-all "/proc/self/mounts"))))
+        (map (fn (_ ws)
+               (let ((on (%cu-mount-unescape (%cu-nth 1 ws))))
+                 (append
+                   (list (pair (lit from) (%cu-mount-unescape (first ws)))
+                         (pair (lit on) on)
+                         (pair (lit typename) (%cu-nth 2 ws)))
+                   (let ((fs (file-statfs-full on))) (if (null? fs) () fs)))))
+          (filter (fn (_ ws) (>= (length ws) 3))
+            (map (fn (_ l) (%cu-words-line l)) (%cu-lines text))))))))
 
 ; the kind a path has WITHOUT following it: the one question ln,
 ; readlink and realpath ask, and the one File stat cannot answer.  A

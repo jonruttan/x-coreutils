@@ -20,9 +20,25 @@
 ; lint-known: busybox-options
 (include-once "docs/busybox-options.x")
 
+; busybox spells a long option with its value shown, --ignore=N; the
+; declaration and the guard know it as --ignore, a flag that takes one.
+; The part before the = is what to look for.
+(def %mx-stem
+  (fn (_ s)
+    (def end (byte-len s))
+    (def go
+      (fn (self i)
+        (if (>= i end) s
+          (if (= (byte-at s i) 61) (substring s 0 i) (self (+ i 1))))))
+    (go 0)))
+
 (def %mx-member?
   (fn (self x xs)
-    (if (null? xs) #f (if (string=? (first xs) x) #t (self x (rest xs))))))
+    (match
+      ((null? xs) #f)
+      ((string=? (first xs) x) #t)
+      ((string=? (first xs) (%mx-stem x)) #t)
+      (#t (self x (rest xs))))))
 
 (def %mx-minus
   (fn (_ xs ys) (filter (fn (_ x) (not (%mx-member? x ys))) xs)))
