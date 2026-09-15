@@ -29,9 +29,25 @@
 
 ; ls lives in cu/ls.x: the busybox option set is a module's worth.
 
+; pwd: the physical directory, as getcwd has it, by default and under -P.
+; -L answers $PWD when that still names the working directory -- the path
+; a shell reached it by, links unresolved -- and the physical one when it
+; does not.  busybox defaults to -L; the physical default here is GNU's,
+; and what this applet always printed.
 (def %cu-pwd
   (fn (_ argv stdin-thunk)
-    (do (display (string-append (sys-getcwd) "\n")) 0)))
+    (def o (%cu-opts "pwd" argv))
+    (def here (sys-getcwd))
+    (def shown
+      (let ((p (sys-getenv "PWD")))
+        (match
+          ((not (Opts on? o "-L")) here)
+          ((null? p) here)
+          ((= (byte-len p) 0) here)
+          ((not (= (byte-at p 0) 47)) here)
+          ((string=? (%cu-realpath-of p) here) p)
+          (#t here))))
+    (do (display (string-append shown "\n")) 0)))
 
 ; mv moved to cu/fs.x with busybox's option set (-f -i -n -T).
 

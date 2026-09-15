@@ -39,6 +39,17 @@
           (if (= (first es) b) #t (self (rest es))))))
     (go l)))
 
+; -c: every byte NOT in the set, ascending -- the set tr then maps,
+; deletes or squeezes in place of the one written.  Walking down from
+; 255 and consing at the front leaves it in order.
+(def %cu-tr-complement
+  (fn (_ set)
+    (def go
+      (fn (self b acc)
+        (if (< b 0) acc
+          (self (- b 1) (if (%cu-member-b? b set) acc (pair b acc))))))
+    (go 255 ())))
+
 ; the 256-entry translate map as an alist would scan; a flat pairing
 ; walk per byte is fine at this scale
 (def %cu-tr-map
@@ -57,7 +68,9 @@
     (def del? (Opts on? o "-d"))
     (def sq? (Opts on? o "-s"))
     (def args (Opts operands o))
-    (def set1 (%cu-tr-set (first args)))
+    (def set1
+      (let ((s (%cu-tr-set (first args))))
+        (if (Opts on? o "-c") (%cu-tr-complement s) s)))
     (def set2 (if (null? (rest args)) () (%cu-tr-set (first (rest args)))))
     (def text (stdin-thunk))
     (def end (byte-len text))

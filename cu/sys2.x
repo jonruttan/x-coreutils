@@ -55,26 +55,32 @@
 ; date moved to cu/date.x, which is where its strftime lives.
 
 ; which: the PATH walk; existence is the test (there is no access(X_OK)
-; door -- the recorded divergence)
+; door -- the recorded divergence).  -a lists every directory that has
+; the name, in PATH order, rather than stopping at the first.
 (def %cu-which
   (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "which" argv))
+    (def all? (Opts on? o "-a"))
     (def path (sys-getenv "PATH"))
     (def dirs (if (null? path) () (%cu-split-byte path 58)))  ; :
-    (def go
+    (def hits
       (fn (self ds name)
         (if (null? ds) ()
           (let ((cand (string-append (first ds)
                         (string-append "/" name))))
-            (if (file-exists? cand) cand (self (rest ds) name))))))
+            (match
+              ((not (file-exists? cand)) (self (rest ds) name))
+              (all? (pair cand (self (rest ds) name)))
+              (#t (list cand)))))))
     (def each
       (fn (self os st)
         (if (null? os) st
-          (let ((hit (go dirs (first os))))
-            (if (null? hit)
+          (let ((found (hits dirs (first os))))
+            (if (null? found)
               (self (rest os) 1)
-              (do (display (string-append hit "\n"))
+              (do (%cu-print-lines found)
                   (self (rest os) st)))))))
-    (each argv 0)))
+    (each (Opts operands o) 0)))
 
 ; xargs: stdin words append to the command (default echo); -n N batches.
 ; --- xargs -------------------------------------------------------------------

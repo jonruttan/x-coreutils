@@ -930,3 +930,329 @@ df-h-scaled
 ---
     clean
 
+
+## the process and file tools
+
+### fixtures
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-pf && mkdir -p /tmp/x-cu-pf && printf 'hello world' > /tmp/x-cu-pf/there && printf secret > /tmp/x-cu-pf/ro && chmod 444 /tmp/x-cu-pf/ro")) (display "made"))
+```
+---
+    made
+
+### truncate -c passes over a file that is not there, and does not make one
+
+```cu
+(do (display (cu-run (list "truncate" "-c" "-s" "10" "/tmp/x-cu-pf/absent") "")) (display (if (file-exists? "/tmp/x-cu-pf/absent") "created" "absent")) (newline) (cu-run (list "truncate" "-c" "-s" "5" "/tmp/x-cu-pf/there") "") (display (cu-run (list "stat" "-c" "%s" "/tmp/x-cu-pf/there") "")))
+```
+---
+```output
+0absent
+5
+0
+```
+
+### without -c the file is created
+
+```cu
+(do (cu-run (list "truncate" "-s" "7" "/tmp/x-cu-pf/made") "") (display (cu-run (list "stat" "-c" "%s" "/tmp/x-cu-pf/made") "")))
+```
+---
+```output
+7
+0
+```
+
+### shred -f writes through a mode that denies it
+
+```cu
+(do (display (cu-run (list "shred" "-n" "1" "-f" "/tmp/x-cu-pf/ro") "")) (display (if (string=? (file-read-all "/tmp/x-cu-pf/ro") "secret") "intact" "overwritten")))
+```
+---
+    0overwritten
+
+### timeout -k follows an ignored signal with KILL
+
+`sh` traps TERM and outlives it, so only the KILL ends the command --
+128+9, the status a KILLed child reports, rather than the 124 a command
+that took the first signal would give.
+
+```cu
+(display (cu-run (list "timeout" "-k" "1" "1" "/bin/sh" "-c" "trap '' TERM; sleep 10") ""))
+```
+---
+    137
+
+### a command that ignores the signal and exits on its own still timed out
+
+```cu
+(display (cu-run (list "timeout" "1" "/bin/sh" "-c" "trap '' TERM; sleep 3") ""))
+```
+---
+    124
+
+### KILL as the primary signal keeps its own status
+
+```cu
+(display (cu-run (list "timeout" "-s" "9" "1" "/bin/sleep" "5") ""))
+```
+---
+    137
+
+### tty -s answers with the status alone
+
+```cu
+(do (display (cu-run (list "tty" "-s") "")) (display (cu-run (list "tty") "")))
+```
+---
+```output
+1not a tty
+1
+```
+
+### cleanup
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-pf")) (display "clean"))
+```
+---
+    clean
+
+## the text shapers
+
+`tee -i` is declared and not run here: it sets the interrupt disposition
+of the process it runs in, and cu-run runs the applet in the harness's own.
+
+### fixtures
+
+Output is captured and its control bytes spelled the way `cat -A` spells
+them, so a tab, a backspace and a carriage return can be read.
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-tx && mkdir -p /tmp/x-cu-tx")) (def cu-cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-tx/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (Str8 replace (list->string (list (integer->char 13))) "^M" (Str8 replace (list->string (list (integer->char 8))) "^H" (Str8 replace "\t" "^I" (file-read-all "/tmp/x-cu-tx/.cap"))))))))) (file-write-all "/tmp/x-cu-tx/tab" "ab\tcdefghijkl\n") (file-write-all "/tmp/x-cu-tx/words" "the quick brown fox jumps\nabcdefghijklmnop\nab cd ef gh ij kl mn\n") (file-write-all "/tmp/x-cu-tx/ctl" (string-append "abc" (list->string (list (integer->char 8))) "defgh\nabcd" (list->string (list (integer->char 13))) "efghij\n")) (file-write-all "/tmp/x-cu-tx/lead" "\t\ta\tb\n  \tc\td\n") (file-write-all "/tmp/x-cu-tx/runs" "        a        b\n    \t  c\n  x\n") (file-write-all "/tmp/x-cu-tx/stops" "abcdefg h\nabcdef  h\na        \n") (display "made"))
+```
+---
+    made
+
+### fold counts columns, so a tab reaches the next stop; -b counts bytes
+
+```cu
+(do (display (cu-cap (list "fold" "-w" "12" "/tmp/x-cu-tx/tab"))) (display (cu-cap (list "fold" "-b" "-w" "12" "/tmp/x-cu-tx/tab"))))
+```
+---
+```output
+ab^Icdef
+ghijkl
+ab^Icdefghijk
+l
+```
+
+### fold -s breaks after the last space, keeping it
+
+```cu
+(display (cu-cap (list "fold" "-s" "-w" "10" "/tmp/x-cu-tx/words")))
+```
+---
+```output
+the quick 
+brown fox 
+jumps
+abcdefghij
+klmnop
+ab cd ef 
+gh ij kl 
+mn
+```
+
+### a backspace gives a column back and a carriage return the whole line
+
+```cu
+(display (cu-cap (list "fold" "-w" "5" "/tmp/x-cu-tx/ctl")))
+```
+---
+```output
+abc^Hdef
+gh
+abcd^Mefghi
+j
+```
+
+### expand -i expands only the leading tabs
+
+```cu
+(do (display (cu-cap (list "expand" "/tmp/x-cu-tx/lead"))) (display (cu-cap (list "expand" "-i" "/tmp/x-cu-tx/lead"))))
+```
+---
+```output
+                a       b
+        c       d
+                a^Ib
+        c^Id
+```
+
+### unexpand respells the leading run, tabs included; -f says so; -a takes every run
+
+```cu
+(do (display (cu-cap (list "unexpand" "/tmp/x-cu-tx/runs"))) (display (cu-cap (list "unexpand" "-f" "/tmp/x-cu-tx/runs"))) (display (cu-cap (list "unexpand" "-a" "/tmp/x-cu-tx/runs"))))
+```
+---
+```output
+^Ia        b
+^I  c
+  x
+^Ia        b
+^I  c
+  x
+^Ia^I b
+^I  c
+  x
+```
+
+### under -a a lone space on a stop stays a space; two become a tab; a trailing run counts
+
+```cu
+(display (cu-cap (list "unexpand" "-a" "/tmp/x-cu-tx/stops")))
+```
+---
+```output
+abcdefg h
+abcdef^Ih
+a^I 
+```
+
+### cleanup
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-tx")) (display "clean"))
+```
+---
+    clean
+
+## the singles
+
+### fixtures
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-sg && mkdir -p /tmp/x-cu-sg/real && ln -s /tmp/x-cu-sg/real/target /tmp/x-cu-sg/l && : > /tmp/x-cu-sg/reg && printf abcdefghij > /tmp/x-cu-sg/od && printf 'a\\nb\\nc\\n' > /tmp/x-cu-sg/in && printf 'begin 644 t\\n$86)C\"@``\\n`\\nend\\n' > /tmp/x-cu-sg/uu")) (def cu-cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-sg/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-sg/.cap")))))) (display "made"))
+```
+---
+    made
+
+### id -r reads the real ids, and on its own has nothing to print
+
+The real and effective ids agree in a test process, so the fields are
+judged equal to their plain forms rather than to a number.
+
+```cu
+(do (display (if (string=? (cu-cap (list "id" "-ru")) (cu-cap (list "id" "-u"))) "same" "differ")) (newline) (display (if (string=? (cu-cap (list "id" "-rg")) (cu-cap (list "id" "-g"))) "same" "differ")) (newline) (display (cu-run (list "id" "-r") "")))
+```
+---
+```output
+same
+same
+1
+```
+
+### nproc --ignore holds processors back and never answers below one; --all agrees with the plain count
+
+```cu
+(do (def n (sys-cpu-count)) (display (if (= (%cu-num-prefix (cu-cap (list "nproc" "--ignore=1"))) (- n 1)) "one held" "wrong")) (newline) (display (cu-cap (list "nproc" "--ignore=9999"))) (display (if (string=? (cu-cap (list "nproc" "--all")) (cu-cap (list "nproc"))) "agree" "differ")))
+```
+---
+```output
+one held
+1
+agree
+```
+
+### pwd -P is the physical directory, and -L is that too when $PWD does not name it
+
+```cu
+(do (display (if (string=? (cu-cap (list "pwd" "-P")) (string-append (sys-getcwd) "\n")) "physical" "other")) (newline) (display (if (= (byte-at (cu-cap (list "pwd" "-L")) 0) 47) "absolute" "relative")))
+```
+---
+```output
+physical
+absolute
+```
+
+### readlink -n drops the newline; -v names the trouble
+
+```cu
+(do (display (cu-cap (list "readlink" "-n" "/tmp/x-cu-sg/l"))) (display "|") (newline) (display (cu-run (list "readlink" "-v" "/tmp/x-cu-sg/reg") "")) (display (cu-run (list "readlink" "/tmp/x-cu-sg/reg") "")))
+```
+---
+```output
+/tmp/x-cu-sg/real/target|
+11
+```
+
+### which -a is accepted and finds what the plain form finds first
+
+```cu
+(display (if (string=? (first (%cu-lines (cu-cap (list "which" "-a" "sh")))) (first (%cu-lines (cu-cap (list "which" "sh"))))) "same first" "differ"))
+```
+---
+    same first
+
+### split -a sets the suffix width
+
+```cu
+(do (cu-run (list "split" "-a" "3" "-l" "1" "/tmp/x-cu-sg/in" "/tmp/x-cu-sg/w") "") (display (if (file-exists? "/tmp/x-cu-sg/waaa") "waaa" "no")) (display (if (file-exists? "/tmp/x-cu-sg/waac") " waac" " no")) (newline) (cu-run (list "split" "-a" "1" "-l" "1" "/tmp/x-cu-sg/in" "/tmp/x-cu-sg/v") "") (display (if (file-exists? "/tmp/x-cu-sg/vc") "vc" "no")) (newline) (display (file-read-all "/tmp/x-cu-sg/waab")))
+```
+---
+```output
+waaa waac
+vc
+b
+```
+
+### od -j skips into the input and numbers from there; past the end it refuses
+
+```cu
+(do (display (cu-cap (list "od" "-j" "4" "-c" "/tmp/x-cu-sg/od"))) (display (cu-cap (list "od" "-A" "d" "-j" "3" "-t" "x1" "/tmp/x-cu-sg/od"))) (display (cu-cap (list "od" "-j4" "-N" "3" "-c" "/tmp/x-cu-sg/od"))) (display (cu-run (list "od" "-j" "99" "-c" "/tmp/x-cu-sg/od") "")))
+```
+---
+```output
+0000004   e   f   g   h   i   j
+0000012
+0000003 64 65 66 67 68 69 6a
+0000010
+0000004   e   f   g
+0000007
+1
+```
+
+### tr -c complements the first set, under -d and -s as well
+
+```cu
+(do (display (cu-run (list "tr" "-c" "a-z" "X") "ab1 cd2\n")) (newline) (display (cu-run (list "tr" "-cd" "a-z") "ab1 cd2\n")) (newline) (display (cu-run (list "tr" "-cs" "a-z" "X") "ab1 cd2\n")) (newline) (display (cu-run (list "tr" "-c" "abc" "XY") "ab1 cd2\n")))
+```
+---
+```output
+abXXcdXX0
+abcd0
+abXcdX0
+abYYcYYY0
+```
+
+### uudecode -o names the output, and -o - is the standard output the plain form writes
+
+```cu
+(do (cu-run (list "uudecode" "-o" "/tmp/x-cu-sg/dec" "/tmp/x-cu-sg/uu") "") (display (file-read-all "/tmp/x-cu-sg/dec")) (display (cu-run (list "uudecode" "-o" "-" "/tmp/x-cu-sg/uu") "")))
+```
+---
+```output
+abc
+abc
+0
+```
+
+### cleanup
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-sg")) (display "clean"))
+```
+---
+    clean

@@ -196,22 +196,52 @@
 ; nl: %6d + TAB for nonempty lines; six spaces + TAB for empty ones
 ; nl moved to cu/sort.x's neighbours in cu/text4.x with -b -n -s -w -v -i.
 
+; One line, folded.  Column mode counts a tab to the next stop of eight, a
+; backspace back one and a carriage return back to the margin; -b counts
+; every byte as one.  A byte that would carry the column past the width
+; starts a new line -- under -s, after the last space of the segment
+; instead, when there is one before it.  A byte that is too wide on its
+; own (a tab at the margin under a width below eight) is kept whole.
+(def %cu-fold-line
+  (fn (_ s w bytes? spaces?)
+    (def end (byte-len s))
+    (def col-after
+      (fn (_ col b)
+        (match
+          (bytes? (+ col 1))
+          ((= b 9) (+ col (- 8 (% col 8))))
+          ((= b 8) (if (> col 0) (- col 1) 0))
+          ((= b 13) 0)
+          (#t (+ col 1)))))
+    ; START is where the current line begins, BLANK the index of its last
+    ; space so far or -1, ACC the lines already cut, newest first.  A
+    ; break under -s puts the rest of the segment back and rewalks it.
+    (def go
+      (fn (self i start col blank acc)
+        (if (>= i end) (reverse (pair (substring s start end) acc))
+          (let ((b (byte-at s i)))
+            (def adv (col-after col b))
+            (match
+              ((if (> adv w) (> i start) #f)
+                (if (if spaces? (>= blank 0) #f)
+                  (self (+ blank 1) (+ blank 1) 0 -1
+                    (pair (substring s start (+ blank 1)) acc))
+                  (self i i 0 -1 (pair (substring s start i) acc))))
+              (#t (self (+ i 1) start adv (if (= b 32) i blank) acc)))))))
+    (go 0 0 0 -1 ())))
+
 (def %cu-fold
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "fold" argv))
     (def w (let ((v (Opts value o "-w"))) (if (null? v) 80 (%cu-num-prefix v))))
-    (def ops (Opts operands o))
-    (def chop
-      (fn (self s)
-        (if (<= (byte-len s) w)
-          (display (string-append s "\n"))
-          (do (display (string-append (substring s 0 w) "\n"))
-              (self (substring s w (byte-len s)))))))
+    (def bytes? (Opts on? o "-b"))
+    (def spaces? (Opts on? o "-s"))
     (def go
       (fn (self ls)
         (if (null? ls) 0
-          (do (chop (first ls)) (self (rest ls))))))
-    (go (%cu-lines (%cu-gather ops stdin-thunk)))))
+          (do (%cu-print-lines (%cu-fold-line (first ls) w bytes? spaces?))
+              (self (rest ls))))))
+    (go (%cu-lines (%cu-gather (Opts operands o) stdin-thunk)))))
 
 (def %cu-paste
   (fn (_ argv stdin-thunk)
@@ -254,6 +284,13 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "tee" argv))
     (def a? (Opts on? o "-a"))
+    ; -i: an interrupt ends whatever is feeding the pipe, not the copy.
+    ; Under x the disposition is already that -- the engine ignores
+    ; SIGINT for every applet (measured: a 4s sleep runs its full 4s
+    ; through an INT at 1s and exits 0, where TERM ends it at 1s with
+    ; 143) -- so the flag changes nothing observable here and is set for
+    ; what it means.
+    (if (Opts on? o "-i") (sys-signal cu-sigint cu-sig-ign) ())
     (def ops (Opts operands o))
     (def text (stdin-thunk))
     (def go

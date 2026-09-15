@@ -141,6 +141,9 @@
           ((string=? a "-N")
             (self (rest (rest as))
               (pair (pair (lit limit) (%cu-num-prefix (first (rest as)))) st)))
+          ((string=? a "-j")
+            (self (rest (rest as))
+              (pair (pair (lit skip) (%cu-num-prefix (first (rest as)))) st)))
           ((string=? a "-v")
             (self (rest as) (pair (pair (lit verbose) #t) st)))
           (#t (self (rest as) (pair (%cu-od-short a) st))))))))
@@ -156,14 +159,16 @@
       ((string=? a "-o") (pair (lit type) (pair (lit o) 2)))
       (#t (pair (lit op) a)))))
 
-; a line repeated from the one before collapses to `*`, unless -v
+; a line repeated from the one before collapses to `*`, unless -v.
+; BASE is what -j skipped: the addresses count from it, the way od
+; numbers the bytes of the input rather than of what it printed.
 (def %cu-od-dump
-  (fn (_ text kind size rad v?)
+  (fn (_ text kind size rad v? base)
     (def end (byte-len text))
     (def tail
       (fn (_)
         (do (if (eq? rad (lit n)) ()
-              (display (string-append (%cu-od-address end rad) "\n")))
+              (display (string-append (%cu-od-address (+ base end) rad) "\n")))
             0)))
     (def go
       (fn (self i prev starred)
@@ -174,7 +179,7 @@
                 (do (if starred () (display "*\n"))
                     (self stop body #t))
                 (do (display
-                      (string-append (%cu-od-address i rad)
+                      (string-append (%cu-od-address (+ base i) rad)
                         (string-append body "\n")))
                     (self stop body #f))))))))
     (go 0 () #f)))
@@ -187,14 +192,17 @@
       ((string=? body prev) (= width 16))
       (#t #f))))
 
-; -An, -tx1, -N10: the argument may ride the flag.  Splitting it off
-; first keeps the scan a plain token walk.
+; -An, -tx1, -N10, -j4: the argument may ride the flag.  Splitting it
+; off first keeps the scan a plain token walk.
 (def %cu-od-attached?
   (fn (_ a)
     (if (< (byte-len a) 3) #f
       (let ((h (substring a 0 2)))
-        (if (string=? h "-A") #t
-          (if (string=? h "-t") #t (string=? h "-N")))))))
+        (match
+          ((string=? h "-A") #t)
+          ((string=? h "-t") #t)
+          ((string=? h "-N") #t)
+          (#t (string=? h "-j")))))))
 
 (def %cu-od-normalize
   (fn (self as acc)
@@ -215,13 +223,21 @@
           (filter (fn (_ e) (eq? (first e) (lit op))) st))))
     (def ty (%cu-od-opt st (lit type) (pair (lit o) 2)))
     (def lim (%cu-od-opt st (lit limit) (- 0 1)))
-    (def text0 (%cu-gather ops stdin-thunk))
-    (def text
-      (if (if (>= lim 0) (< lim (byte-len text0)) #f)
-        (substring text0 0 lim) text0))
-    (%cu-od-dump text (first ty) (rest ty)
-      (%cu-od-opt st (lit radix) (lit o))
-      (%cu-od-opt st (lit verbose) #f))))
+    (def all (%cu-gather ops stdin-thunk))
+    ; -j skips its bytes first and -N counts from what is left, as od
+    ; does.  A skip past the end is refused the way od refuses it: there
+    ; is nothing to number from there.
+    (def skip (%cu-od-opt st (lit skip) 0))
+    (if (> skip (byte-len all))
+      (do (file-write 2 "od: cannot skip past end of combined input\n") 1)
+      (let ((text0 (substring all skip (byte-len all))))
+        (def text
+          (if (if (>= lim 0) (< lim (byte-len text0)) #f)
+            (substring text0 0 lim) text0))
+        (%cu-od-dump text (first ty) (rest ty)
+          (%cu-od-opt st (lit radix) (lit o))
+          (%cu-od-opt st (lit verbose) #f)
+          skip)))))
 ; --- uuencode / uudecode --------------------------------------------------------
 
 ; the historical alphabet: six bits plus 32, with 0 written as a
@@ -302,10 +318,16 @@
                 acc))))))
     (if (= n 0) "" (go 1 0 ()))))
 
-; uudecode reads either encoding, choosing on the begin line
+; uudecode reads either encoding, choosing on the begin line.  -o names
+; the output, and `-o -` is stdout -- which is also what the plain form
+; writes, where busybox writes the file the begin line names; that
+; default predates -o and stays, since the applet protocol is a
+; standard-output one and the begin line's name is rarely meant here.
 (def %cu-uudecode
   (fn (_ argv stdin-thunk)
-    (def ls (%cu-lines (%cu-gather argv stdin-thunk)))
+    (def o (%cu-opts "uudecode" argv))
+    (def out (let ((v (Opts value o "-o"))) (if (null? v) "-" v)))
+    (def ls (%cu-lines (%cu-gather (Opts operands o) stdin-thunk)))
     (def b64?
       (let ((go (fn (self xs)
                   (if (null? xs) #f
@@ -330,10 +352,11 @@
                           (reverse acc)
                           (self (rest xs) (pair (first xs) acc)))))))
           (stop (skip ls) ()))))
-    (do (display
-          (if b64?
-            (%cu-b64-decode (%cu-join-with body "\n"))
-            (string-concat
-              (map (fn (_ l) (%cu-uu-decode-line l))
-                (filter (fn (_ l) (> (byte-len l) 0)) body)))))
+    (def bytes
+      (if b64?
+        (%cu-b64-decode (%cu-join-with body "\n"))
+        (string-concat
+          (map (fn (_ l) (%cu-uu-decode-line l))
+            (filter (fn (_ l) (> (byte-len l) 0)) body)))))
+    (do (if (string=? out "-") (display bytes) (file-write-all out bytes))
         0)))

@@ -32,7 +32,7 @@
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
   sys-fork sys-wait sys-exec sys-kill sys-signal sys-isatty sys-usleep
-  cu-sigterm cu-sighup cu-sig-ign
+  cu-sigterm cu-sigkill cu-sigint cu-sighup cu-sig-ign
   sys-getcwd sys-environ sys-getenv sys-sleep
   date-now-iso date-now-unix rng-make rng-int
   sys-getuid sys-geteuid sys-getgid sys-getegid sys-getgroups
@@ -196,6 +196,8 @@
 (def sys-isatty (fn (_ fd) (Sys isatty fd)))
 (def sys-usleep (fn (_ us) (Sys usleep us)))
 (def cu-sigterm 15)
+(def cu-sigkill 9)
+(def cu-sigint 2)
 (def cu-sighup 1)
 (def cu-sig-ign 1)
 (def sys-exit (fn (_ n) (Sys exit n)))
