@@ -45,7 +45,7 @@ the work.  Applet parity is the other axis: see the README.
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
-| `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -A -a -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u | -C -x -w | 87% |
+| `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -A -a -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -C -x -w |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
@@ -101,4 +101,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 410 of 426 busybox options accepted (96%).**
+**Total: 413 of 426 busybox options accepted (96%).**

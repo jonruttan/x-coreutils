@@ -183,7 +183,9 @@
     (pair "seq" (list (list "-w") (list "-s")))
     (pair "tee" (list (list "-a" "-i") ()))
     (pair "ls" (list (list "-1" "-A" "-a" "-d" "-L" "-H" "-R" "-F" "-p" "-l"
-                       "-i" "-n" "-s" "-h" "-r" "-S" "-X" "-v" "-c" "-t" "-u") ()))
+                       "-i" "-n" "-s" "-h" "-r" "-S" "-X" "-v" "-c" "-t" "-u"
+                       "-C" "-x")
+                     (list "-w")))
     (pair "touch" (list (list "-c") (list "-r" "-d" "-t")))
     (pair "install" (list (list "-d" "-c" "-D" "-p") (list "-m" "-o" "-g" "-t")))
     (pair "cmp" (list (list "-s" "-l") (list "-n")))

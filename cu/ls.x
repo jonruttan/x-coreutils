@@ -212,7 +212,9 @@
           (w (fn (_ e) (%cu-int->str (%ls-get e (lit ino)))))
           (w (fn (_ e) (%cu-int->str (%cu-du-blocks (%ls-st e))))))))
 
-(def %ls-line
+; one entry as it is listed, without its newline: the cell a column
+; layout arranges, or the line the plain listing prints
+(def %ls-cell
   (fn (_ e o ws now)
     (def long? (if (%ls-flag? o "-l") #t (%ls-flag? o "-n")))
     (def st (%ls-st e))
@@ -234,8 +236,127 @@
                   name
                   (if (eq? (%ls-get e (lit kind)) (lit link))
                     (string-append " -> " (file-readlink (%ls-path e)))
-                    ""))))
-        "\n"))))
+                    ""))))))))
+
+(def %ls-line
+  (fn (_ e o ws now) (string-append (%ls-cell e o ws now) "\n")))
+
+; --- columns: -C down, -x across, -w the width --------------------------------
+;
+; The width is -w, else $COLUMNS, else 80: there is no door to a terminal's
+; size, so a tty gets 80, as ls does when stdout is not one.  -w 0 is no
+; limit.  A column is as wide as its widest cell and two spaces from the
+; next, the last cell of a row unpadded, and the count is the most that
+; fit -- ls's layout, spelled in spaces (busybox pads every column to the
+; widest name).  Columns are the default on a tty; -1, -l and -n turn
+; them off.
+
+(def %ls-width
+  (fn (_ o)
+    (def w (Opts value o "-w"))
+    (def env (sys-getenv "COLUMNS"))
+    (def n
+      (match
+        ((not (null? w)) (%cu-num-prefix w))
+        ((if (null? env) #f (> (%cu-num-prefix env) 0)) (%cu-num-prefix env))
+        (#t 80)))
+    (if (<= n 0) 1000000 n)))
+
+; -1 on its own reads as a negative NUMBER to Opts before the declaration
+; is consulted (x-lang#650, the digit-flag read comm also works around),
+; so %cu-ls looks for the token itself and leaves the answer here.
+(def %ls-one-cell (list #f))
+
+(def %ls-columns?
+  (fn (_ o)
+    (match
+      ((first %ls-one-cell) #f)
+      ((%ls-flag? o "-1") #f)
+      ((%ls-flag? o "-l") #f)
+      ((%ls-flag? o "-n") #f)
+      ((%ls-flag? o "-C") #t)
+      ((%ls-flag? o "-x") #t)
+      (#t (sys-isatty 1)))))
+
+; the N cells of V as rows of COLS columns -- down the columns, or across
+; the rows under ACROSS? -- each row the list of cells it has
+(def %ls-rows
+  (fn (_ v n cols across?)
+    ; ceiling of n / cols, in integers -- `/` is exact where the tower
+    ; is loaded, and a rational row count would index the vector wrongly
+    (def nrows (let ((k (+ n (- cols 1)))) (/ (- k (% k cols)) cols)))
+    (def cell-at
+      (fn (_ r c)
+        (let ((i (if across? (+ (* r cols) c) (+ (* c nrows) r))))
+          (if (< i n) (vec-ref v i) ()))))
+    (def row
+      (fn (self r c acc)
+        (if (>= c cols) (reverse acc)
+          (let ((cell (cell-at r c)))
+            (if (null? cell) (reverse acc)
+              (self r (+ c 1) (pair cell acc)))))))
+    (def go
+      (fn (self r acc)
+        (if (>= r nrows) (reverse acc)
+          (self (+ r 1) (pair (row r 0 ()) acc)))))
+    (go 0 ())))
+
+; each column's width: its widest cell, 0 for a column no row reaches
+(def %ls-col-widths
+  (fn (_ rows cols)
+    (def w (vec-make cols 0))
+    (def note!
+      (fn (self cells c)
+        (if (null? cells) ()
+          (do (if (> (byte-len (first cells)) (vec-ref w c))
+                (vec-set! w c (byte-len (first cells)))
+                ())
+              (self (rest cells) (+ c 1))))))
+    (def go
+      (fn (self rs)
+        (if (null? rs) () (do (note! (first rs) 0) (self (rest rs))))))
+    (do (go rows) w)))
+
+; COLS columns within WIDTH, as ls counts them: each takes at least three
+; cells' worth, its widest cell and the two-space gap after it (none
+; after the last), and the sum must fall SHORT of the width, not meet it.
+(def %ls-fits?
+  (fn (_ w cols width)
+    (def go
+      (fn (self c total)
+        (if (>= c cols) (< total width)
+          (let ((need (+ (vec-ref w c) (if (= c (- cols 1)) 0 2))))
+            (self (+ c 1) (+ total (if (< need 3) 3 need)))))))
+    (go 0 0)))
+
+(def %ls-render
+  (fn (_ rows w)
+    (def line
+      (fn (self cells c acc)
+        (if (null? cells) (string-concat (reverse acc))
+          (let ((cell (first cells)))
+            (self (rest cells) (+ c 1)
+              (pair (if (null? (rest cells)) cell
+                      (string-append cell
+                        (%cu-spaces (- (+ (vec-ref w c) 2) (byte-len cell)))))
+                    acc))))))
+    (string-concat (map (fn (_ r) (string-append (line r 0 ()) "\n")) rows))))
+
+; CELLS laid out in the most columns that fit WIDTH.  A column needs a
+; cell and a gap, so no more than a third of the width are tried.
+(def %ls-layout
+  (fn (_ cells width across?)
+    (def n (length cells))
+    (def v (%cu-list->vec cells n))
+    (def most (let ((m (/ (- width (% width 3)) 3))) (if (< m 1) 1 m)))
+    (def pick
+      (fn (self cols)
+        (let ((rows (%ls-rows v n cols across?)))
+          (let ((w (%ls-col-widths rows cols)))
+            (if (if (= cols 1) #t (%ls-fits? w cols width))
+              (%ls-render rows w)
+              (self (- cols 1)))))))
+    (if (= n 0) "" (pick (if (< n most) n most)))))
 
 ; --- a listing ----------------------------------------------------------------
 
@@ -253,11 +374,15 @@
     (do (if (if dir? (if long? #t (%ls-flag? o "-s")) #f)
           (display (string-append "total " (string-append (%cu-int->str blocks) "\n")))
           ())
-        (let ((go (fn (self xs)
-                    (if (null? xs) ()
-                      (do (display (%ls-line (first xs) o ws now))
-                          (self (rest xs)))))))
-          (go ordered))
+        (if (if (%ls-columns? o) (not long?) #f)
+          (display
+            (%ls-layout (map (fn (_ e) (%ls-cell e o ws now)) ordered)
+              (%ls-width o) (%ls-flag? o "-x")))
+          (let ((go (fn (self xs)
+                      (if (null? xs) ()
+                        (do (display (%ls-line (first xs) o ws now))
+                            (self (rest xs)))))))
+            (go ordered)))
         ordered)))
 
 ; a directory, and under -R every directory below it, each with its
@@ -282,7 +407,10 @@
 (def %cu-ls
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "ls" argv))
-    (def ops0 (Opts operands o))
+    (%set-first! %ls-one-cell
+      (if (%ls-flag? o "-1") #t (%cu-member-s? "-1" argv)))
+    ; a standalone -1 comes back as an operand (x-lang#650): not a file
+    (def ops0 (filter (fn (_ p) (not (string=? p "-1"))) (Opts operands o)))
     (def ops (if (null? ops0) (list ".") ops0))
     (def now (date-now-unix))
     (def d? (%ls-flag? o "-d"))
