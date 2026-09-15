@@ -179,6 +179,95 @@
                            (if (> k (byte-len text)) (byte-len text) k))))))))
     (do (%cu-each-operand ops stdin-thunk one) 0)))
 
+(def %cu-member-s?
+  (fn (_ s l)
+    (def go
+      (fn (self es)
+        (if (null? es) #f
+          (if (string=? (first es) s) #t (self (rest es))))))
+    (go l)))
+
+; LINES to FD, one per line -- stderr's %cu-print-lines
+(def %cu-print-lines-to
+  (fn (self fd ls)
+    (if (null? ls) ()
+      (do (file-write fd (string-append (first ls) "\n"))
+          (self fd (rest ls))))))
+
+; -s's interval: "2", "0.5", "1.25" -- whole seconds through sleep and
+; the fraction, to the microsecond, through usleep, which on Darwin
+; takes less than a second.
+(def %cu-tail-sleep
+  (fn (_ spec)
+    (def parts (%cu-split-byte spec 46))                          ; .
+    (def secs
+      (if (= (byte-len (first parts)) 0) 0 (%cu-num-prefix (first parts))))
+    (def us
+      (if (null? (rest parts)) 0
+        (%cu-num-prefix
+          (substring (string-append (first (rest parts)) "000000") 0 6))))
+    (do (if (> secs 0) (sys-sleep secs) ())
+        (if (> us 0) (sys-usleep us) ())
+        ())))
+
+; the bytes of NAME from FROM up to TO
+(def %cu-read-range
+  (fn (_ name from to)
+    (let ((fd (file-open-read name)))
+      (do (file-seek fd from)
+          (let ((s (file-read-fd fd (- to from))))
+            (do (file-close fd) s))))))
+
+; One round of -f over NAMES, each followed from its entry in OFFS: what
+; grew is printed, under a header when headers are on and the file is
+; not the one printed last, and a file that shrank was truncated -- said
+; on stderr, then read again from its start.  A file that cannot be
+; read this round keeps its offset for the next.  Answers the new
+; offsets paired with the name printed last, which the next round takes.
+(def %cu-tail-round
+  (fn (_ names offs head? last)
+    (def go
+      (fn (self ns os last acc)
+        (if (null? ns) (pair (reverse acc) last)
+          (let ((st (file-stat-full (first ns))))
+            (if (null? st)
+              (self (rest ns) (rest os) last (pair (first os) acc))
+              (let ((size (%cu-stat-get st (lit size))))
+                (def from
+                  (if (< size (first os))
+                    (do (file-write 2
+                          (string-concat
+                            (list "tail: " (first ns) ": file truncated\n")))
+                        0)
+                    (first os)))
+                (if (> size from)
+                  (do (if (if head? (not (string=? last (first ns))) #f)
+                        (display
+                          (string-concat (list "\n==> " (first ns) " <==\n")))
+                        ())
+                      (display (%cu-read-range (first ns) from size))
+                      (self (rest ns) (rest os) (first ns) (pair size acc)))
+                  (self (rest ns) (rest os) last (pair from acc)))))))))
+    (go names offs last ())))
+
+; rounds forever (ROUNDS below zero) or for a count, sleeping INTERVAL
+; between them; "0" does not sleep.  OFFS is where each file's initial
+; read ENDED, not its size now: a line appended between that read and
+; the first round belongs to the follow, and sizing the file again here
+; would skip it.
+(def %cu-tail-follow
+  (fn (_ names offs head? last interval rounds)
+    (def go
+      (fn (self offs last k)
+        (if (= k 0) 0
+          (do (if (string=? interval "0") () (%cu-tail-sleep interval))
+              (let ((r (%cu-tail-round names offs head? last)))
+                (self (first r) (rest r) (if (< k 0) k (- k 1))))))))
+    (go offs last rounds)))
+
+; -f follows its files by NAME, polled every -s seconds (1 by default).
+; Standard input has been read whole by the time an applet runs, so it
+; has nothing to follow: -f with only stdin prints the tail and returns.
 (def %cu-tail
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "tail" argv))
@@ -188,11 +277,16 @@
     (def head?
       (if (Opts on? o "-q") #f
         (if (Opts on? o "-v") #t (> (length ops) 1))))
+    ; where each file's read ended, newest first: the follow starts there
+    (def read-to (list ()))
     (def one
       (fn (_ name text first?)
         (do (if head?
               (display (string-concat
                          (list (if first? "" "\n") "==> " name " <==\n")))
+              ())
+            (if (if (string=? name "-") #f (not (string=? name "standard input")))
+              (%set-first! read-to (pair (byte-len text) (first read-to)))
               ())
             (if (null? bytes)
               (let ((ls (%cu-lines text)))
@@ -200,7 +294,31 @@
               (let ((k (%cu-num-prefix bytes)))
                 (def end (byte-len text))
                 (display (substring text (if (> k end) 0 (- end k)) end)))))))
-    (do (%cu-each-operand ops stdin-thunk one) 0)))
+    ; A file that cannot be opened is named and dropped, as tail does, and
+    ; the rest are read; with nothing left to follow, -f says so.  Only
+    ; when no operand was given at all is stdin the input.
+    (def missing
+      (filter (fn (_ p) (if (string=? p "-") #f (not (file-exists? p)))) ops))
+    (def kept (filter (fn (_ p) (not (%cu-member-s? p missing))) ops))
+    (def files (filter (fn (_ p) (not (string=? p "-"))) kept))
+    (def f? (Opts on? o "-f"))
+    (do (%cu-print-lines-to 2
+          (map (fn (_ p)
+                 (string-concat
+                   (list "tail: cannot open '" p
+                         "' for reading: No such file or directory")))
+            missing))
+        (if (if (null? kept) (pair? ops) #f) ()
+          (%cu-each-operand kept stdin-thunk one))
+        (match
+          ((if f? (if (pair? ops) (null? files) #f) #f)
+            (do (file-write 2 "tail: no files remaining\n") 1))
+          ((if f? (pair? files) #f)
+            (do (%cu-tail-follow files (reverse (first read-to)) head?
+                  (if (null? kept) "" (%cu-last kept))
+                  (Opts value o "-s" "1") (- 0 1))
+                (if (null? missing) 0 1)))
+          (#t (if (null? missing) 0 1))))))
 
 ; counts for one text: (lines words bytes)
 ; (LINES WORDS BYTES LONGEST). LONGEST is the longest line without its
