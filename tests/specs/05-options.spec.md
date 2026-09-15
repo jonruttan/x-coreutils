@@ -1372,3 +1372,112 @@ a2
 ```
 ---
     clean
+
+## ls in columns
+
+The layout is ls's, spelled in spaces: a column as wide as its widest
+cell, two spaces between, the last cell of a row unpadded, the most
+columns that fit.  Names are chosen so one is wider than a column's
+share.
+
+### fixtures
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-lc && mkdir -p /tmp/x-cu-lc/d && cd /tmp/x-cu-lc && for n in a1 a10 a2 b.txt big.log sub y.h z.c averyveryverylongname; do : > $n; done && ln -s b.txt link")) (def cu-lc (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-lc/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-lc/.cap")))))) (display "made"))
+```
+---
+    made
+
+### -C fills down the columns, -x across the rows, within -w
+
+```cu
+(do (display (cu-run (list "ls" "-C" "-w" "40" "/tmp/x-cu-lc") "")) (display (cu-run (list "ls" "-x" "-w" "40" "/tmp/x-cu-lc") "")))
+```
+---
+```output
+a1   averyveryverylongname  d     y.h
+a10  b.txt                  link  z.c
+a2   big.log                sub
+0a1                     a10    a2
+averyveryverylongname  b.txt  big.log
+d                      link   sub
+y.h                    z.c
+0
+```
+
+### a narrower width takes fewer columns, both ways
+
+```cu
+(do (display (cu-run (list "ls" "-C" "-w" "30" "/tmp/x-cu-lc") "")) (display (cu-run (list "ls" "-x" "-w" "30" "/tmp/x-cu-lc") "")))
+```
+---
+```output
+a1                     d
+a10                    link
+a2                     sub
+averyveryverylongname  y.h
+b.txt                  z.c
+big.log
+0a1     a10
+a2     averyveryverylongname
+b.txt  big.log
+d      link
+sub    y.h
+z.c
+0
+```
+
+### the -F marks count toward a cell's width
+
+```cu
+(display (cu-run (list "ls" "-C" "-F" "-w" "40" "/tmp/x-cu-lc") ""))
+```
+---
+```output
+a1   averyveryverylongname  d/     y.h
+a10  b.txt                  link@  z.c
+a2   big.log                sub
+0
+```
+
+### too narrow for two columns is one; -w 0 is no limit
+
+```cu
+(do (display (cu-run (list "ls" "-C" "-w" "20" "/tmp/x-cu-lc") "")) (display (cu-run (list "ls" "-C" "-w" "0" "/tmp/x-cu-lc") "")))
+```
+---
+```output
+a1
+a10
+a2
+averyveryverylongname
+b.txt
+big.log
+d
+link
+sub
+y.h
+z.c
+0a1  a10  a2  averyveryverylongname  b.txt  big.log  d  link  sub  y.h  z.c
+0
+```
+
+### -1 and -l each turn columns off
+
+```cu
+(do (display (cu-run (list "ls" "-1" "-C" "-w" "40" "/tmp/x-cu-lc/a1" "/tmp/x-cu-lc/a2") "")) (display (substring (first (%cu-lines (cu-lc (list "ls" "-C" "-l" "-w" "40" "/tmp/x-cu-lc")))) 0 5)))
+```
+---
+```output
+/tmp/x-cu-lc/a1
+/tmp/x-cu-lc/a2
+0total
+```
+
+### cleanup
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-lc")) (display "clean"))
+```
+---
+    clean
