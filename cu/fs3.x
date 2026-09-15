@@ -399,17 +399,25 @@
     ; -s TAKES A VALUE, and a value flag is not among the record's
     ; standalone flags -- its presence IS its value being there.
     (def size-arg (Opts value o "-s"))
+    ; -c truncates only what is already there: a missing file is passed
+    ; over rather than created, and that is not an error.
+    (def no-create? (Opts on? o "-c"))
     (if (null? size-arg)
       (do (file-write 2 "truncate: need -s SIZE\n") 1)
       (let ((size (%cu-num-prefix size-arg)))
-        (def ops (rest (rest argv)))
+        ; The operands come from the parse, not from a fixed position:
+        ; with -c in the line the old (rest (rest argv)) ate a file.
+        (def ops (Opts operands o))
         (def go
           (fn (self os)
-            (if (null? os) 0
-              (let ((fd (file-open-update (first os))))
-                (do (file-truncate fd size)
-                    (file-close fd)
-                    (self (rest os)))))))
+            (match
+              ((null? os) 0)
+              ((if no-create? (not (file-exists? (first os))) #f)
+                (self (rest os)))
+              (#t (let ((fd (file-open-update (first os))))
+                    (do (file-truncate fd size)
+                        (file-close fd)
+                        (self (rest os))))))))
         (go ops)))))
 
 ; File unlink RAISES on a missing path rather than answering a
@@ -442,21 +450,30 @@
     (def n-arg (Opts value o "-n"))
     (def passes (if (null? n-arg) 3 (%cu-num-prefix n-arg)))
     (def u? (Opts on? o "-u"))
+    ; -f takes a file the mode denies: 0600 first, then the passes.
+    (def f? (Opts on? o "-f"))
+    ; -z is not declared: its final pass is a run of ZERO bytes, and a NUL
+    ; truncates an x string at every door (x-lang#685), so the pass cannot
+    ; be written.  Truncating to 0 and back would produce zeros without
+    ; writing any, but it frees the blocks instead of overwriting them,
+    ; which is the one thing shred exists to do.
     (def ops (Opts operands o))
     (def r (rng-make (date-now-unix)))
     (def one
       (fn (_ path)
-        (let ((st (file-stat-full path)))
-          (if (null? st) 1
-            (let ((size (%cu-stat-get st (lit size))))
-              (def pass
-                (fn (self k)
-                  (if (<= k 0) ()
-                    (do (file-write-all path (%cu-shred-filler r size))
-                        (self (- k 1))))))
-              (do (pass passes)
-                  (if u? (file-unlink path) ())
-                  0))))))
+        (do
+          (if f? (guard (_ ()) (file-chmod path 384)) ())   ; 0600
+          (let ((st (file-stat-full path)))
+            (if (null? st) 1
+              (let ((size (%cu-stat-get st (lit size))))
+                (def pass
+                  (fn (self k)
+                    (if (<= k 0) ()
+                      (do (file-write-all path (%cu-shred-filler r size))
+                          (self (- k 1))))))
+                (do (pass passes)
+                    (if u? (file-unlink path) ())
+                    0)))))))
     (def go
       (fn (self os st)
         (if (null? os) st
@@ -471,11 +488,22 @@
 ; timeout(1) without an alarm door: the parent forks the command AND a
 ; watchdog that sleeps and then kills it.  Whichever finishes first,
 ; the parent reaps both; a killed command reports 124, as timeout does.
+;
+; The watchdog's own exit says whether it FIRED, because the command's
+; status cannot say so on its own: a command that ignores the signal and
+; then exits 0 has still timed out, and timeout reports 124 for it.  A
+; command killed by a signal keeps 128+N instead -- which is how -k's
+; KILL comes back as 137 rather than 124.
 (def %cu-timeout
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "timeout" argv))
+    (def fired 7)                     ; the watchdog's "I signalled" status
     (def sig-arg (Opts value o "-s"))
     (def sig (if (null? sig-arg) cu-sigterm (%cu-num-prefix sig-arg)))
+    ; -k DURATION: if the command outlives the first signal by DURATION,
+    ; follow it with KILL, which cannot be caught.  The watcher sends both,
+    ; so the parent still learns the command's own status from one wait.
+    (def kill-arg (Opts value o "-k"))
     (def rest1 (Opts operands o))
     (if (null? (rest rest1))
       (do (file-write 2 "timeout: need SECONDS COMMAND\n") 1)
@@ -486,11 +514,25 @@
           (do (sys-exec (first cmd) (rest cmd)) (sys-exit 127))
           (let ((watch (sys-fork)))
             (if (= watch 0)
-              (do (sys-sleep secs) (sys-kill pid sig) (sys-exit 0))
+              (do (sys-sleep secs)
+                  (sys-kill pid sig)
+                  (if (null? kill-arg) ()
+                    (do (sys-sleep (%cu-num-prefix kill-arg))
+                        (sys-kill pid cu-sigkill)))
+                  (sys-exit fired))
               (let ((st (sys-wait pid)))
                 (do (sys-kill watch cu-sigterm)
-                    (sys-wait watch)
-                    (if (= st (+ 128 sig)) 124 st))))))))))
+                    (let ((wst (sys-wait watch)))
+                      (match
+                        ; Killed by our signal: 124, the timeout status --
+                        ; except KILL, which timeout does not mask and
+                        ; which therefore keeps 137 (measured against GNU
+                        ; across TERM HUP INT QUIT USR1 KILL).
+                        ((if (= st (+ 128 sig)) (not (= sig cu-sigkill)) #f) 124)
+                        ; Signal ignored and the command exited on its own:
+                        ; it still timed out, so 124 rather than its status.
+                        ((if (= wst fired) (< st 128) #f) 124)
+                        (#t st))))))))))))
 
 (def %cu-usleep
   (fn (_ argv stdin-thunk)
@@ -498,11 +540,17 @@
 
 ; tty(1) names the terminal; there is no ttyname door, so this answers
 ; the QUESTION isatty asks and says so plainly.
+; -s answers with the status alone.  The name is not discoverable through
+; the doors this bundle has -- ttyname(3) is not among them -- so the
+; reporting form names the controlling terminal generically.
 (def %cu-tty
   (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "tty" argv))
+    (def quiet? (Opts on? o "-s"))
+    (def say (fn (_ s) (if quiet? () (display s))))
     (if (sys-isatty 0)
-      (do (display "/dev/tty\n") 0)
-      (do (display "not a tty\n") 1))))
+      (do (say "/dev/tty\n") 0)
+      (do (say "not a tty\n") 1))))
 
 (def %cu-nohup
   (fn (_ argv stdin-thunk)

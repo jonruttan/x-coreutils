@@ -32,14 +32,14 @@ the work.  Applet parity is the other axis: see the README.
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k -c -h -m -x -l -H -L -d |  | 100% |
 | `echo` | -n -e -E | -n -e -E |  | 100% |
 | `env` | -i -u -0 | -i -u | -0 | 66% |
-| `expand` | -i -t | -t | -i | 50% |
+| `expand` | -i -t | -i -t |  | 100% |
 | `expr` |  |  |  | - |
 | `factor` |  |  |  | - |
 | `false` |  |  |  | - |
-| `fold` | -b -s -w | -w | -b -s | 33% |
+| `fold` | -b -s -w | -b -s -w |  | 100% |
 | `groups` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
-| `id` | -u -g -G -n -r | -u -g -G -n | -r | 80% |
+| `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -d -c -D -p -m -o -g -t | -s | 88% |
 | `join` | _not a busybox applet_ | -t | | - |
 | `link` |  |  |  | - |
@@ -54,13 +54,13 @@ the work.  Applet parity is the other axis: see the README.
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -n -s -w -v -i |  | 100% |
 | `nohup` |  |  |  | - |
-| `nproc` | --all --ignore=N |  | --all --ignore=N | 0% |
-| `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N | -j | 90% |
+| `nproc` | --all --ignore=N | --all --ignore | --ignore=N | 50% |
+| `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
 | `paste` | -d -s | -s -d |  | 100% |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
-| `pwd` | -L -P |  | -L -P | 0% |
-| `readlink` | -f -n -v | -f -e | -n -v | 33% |
+| `pwd` | -L -P | -L -P |  | 100% |
+| `readlink` | -f -n -v | -f -e -n -v |  | 100% |
 | `realpath` |  |  |  | - |
 | `rev` |  |  |  | - |
 | `rm` | -i -r -R -f -v | -i -r -R -f -v |  | 100% |
@@ -69,36 +69,36 @@ the work.  Applet parity is the other axis: see the README.
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha512sum` | -c -s -w | -c -s -w |  | 100% |
-| `shred` | -f -n -u -z | -u -n | -f -z | 50% |
+| `shred` | -f -n -u -z | -u -f -n | -z | 75% |
 | `shuf` | -e -i -n -o -z | -e -n -i -o | -z | 80% |
 | `sleep` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -n -r -u -g -M -c -s -b -d -f -i -o -k -t | -z | 93% |
-| `split` | -b -l -a | -b -l | -a | 66% |
+| `split` | -b -l -a | -b -l -a |  | 100% |
 | `stat` | -L -f -t -c | -L -c | -f -t | 50% |
 | `sum` | -r -s | -s -r |  | 100% |
 | `sync` | -d -f | -d -f |  | 100% |
 | `tac` |  |  |  | - |
 | `tail` | -c -f -n -q -s -v | -q -v -n -c | -f -s | 66% |
-| `tee` | -a -i | -a | -i | 50% |
+| `tee` | -a -i | -a -i |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
-| `timeout` | -s -k | -s | -k | 50% |
+| `timeout` | -s -k | -s -k |  | 100% |
 | `touch` | -c -d -t -r | -c -r -d -t |  | 100% |
-| `tr` | -c -d -s | -d -s | -c | 66% |
+| `tr` | -c -d -s | -d -s -c |  | 100% |
 | `true` |  |  |  | - |
-| `truncate` | -c -s | -s | -c | 50% |
-| `tty` | -s |  | -s | 0% |
+| `truncate` | -c -s | -c -s |  | 100% |
+| `tty` | -s | -s |  | 100% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -s -n -r -v -m -p -i -o |  | 100% |
-| `unexpand` | -f -a -t | -a -t | -f | 66% |
+| `unexpand` | -f -a -t | -a -f -t |  | 100% |
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
 | `usleep` |  |  |  | - |
-| `uudecode` | -o |  | -o | 0% |
+| `uudecode` | -o | -o |  | 100% |
 | `uuencode` | -m | -m |  | 100% |
 | `wc` | -c -m -l -w -L | -l -w -c -m -L |  | 100% |
-| `which` | -a |  | -a | 0% |
+| `which` | -a | -a |  | 100% |
 | `whoami` |  |  |  | - |
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -n -a -E -I -s | -0 -p | 80% |
 | `yes` |  |  |  | - |
 
-**Total: 388 of 426 busybox options accepted (91%).**
+**Total: 408 of 426 busybox options accepted (95%).**

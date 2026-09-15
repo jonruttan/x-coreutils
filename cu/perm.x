@@ -237,19 +237,29 @@
             (self (- i 1))))))
     (go (- (byte-len p) 1))))
 
+; -n leaves the newline off; -v names what went wrong, where the plain
+; form answers a non-link with a silent 1.
 (def %cu-readlink
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "readlink" argv))
     (def f? (if (Opts on? o "-f") #t (Opts on? o "-e")))
+    (def nl (if (Opts on? o "-n") "" "\n"))
+    (def complain
+      (fn (_ p why)
+        (do (if (Opts on? o "-v")
+              (file-write 2 (string-concat (list "readlink: " p ": " why "\n")))
+              ())
+            1)))
     (def ops (Opts operands o))
     (if (null? ops)
       (do (file-write 2 "readlink: missing operand\n") 1)
       (let ((p (first ops)))
-        (if f?
-          (do (display (string-append (%cu-realpath-of p) "\n")) 0)
-          (if (eq? (file-lstat-kind p) (lit link))
-            (do (display (string-append (file-readlink p) "\n")) 0)
-            1))))))
+        (match
+          (f? (do (display (string-append (%cu-realpath-of p) nl)) 0))
+          ((eq? (file-lstat-kind p) (lit link))
+            (do (display (string-append (file-readlink p) nl)) 0))
+          ((file-exists? p) (complain p "Invalid argument"))
+          (#t (complain p "No such file or directory")))))))
 
 ; realpath: walk the segments, resolving every prefix that turns out to
 ; be a link.  A resolved link REPLACES what has been walked so far and

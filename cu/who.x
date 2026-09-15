@@ -60,14 +60,23 @@
         0)))
 
 ; id: the full line by default, or one field under -u -g -G, with -n
-; asking for names where a name can be found
+; asking for names where a name can be found and -r for the real ids in
+; place of the effective ones.  -r on its own has nothing to print, and
+; says so the way id does.
 (def %cu-id
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "id" argv))
     (def n? (Opts on? o "-n"))
-    (def uid (sys-geteuid))
-    (def gid (sys-getegid))
+    (def r? (Opts on? o "-r"))
+    (def one?
+      (match ((Opts on? o "-u") #t) ((Opts on? o "-g") #t) (#t (Opts on? o "-G"))))
+    (def uid (if r? (sys-getuid) (sys-geteuid)))
+    (def gid (if r? (sys-getgid) (sys-getegid)))
     (match
+      ((if r? (not one?) #f)
+        (do (file-write 2
+              "id: printing only names or real IDs requires -u, -g, or -G\n")
+            1))
       ((Opts on? o "-u")
         (do (display
               (string-append (if n? (%cu-user-name uid) (%cu-int->str uid)) "\n"))
@@ -135,9 +144,18 @@
           (string-append (%cu-uname-field (sys-uname) (lit machine)) "\n"))
         0)))
 
+; nproc: --all asks for the processors installed and the plain form for
+; the ones available; one door answers both, so here they agree.
+; --ignore=N holds N back and never answers below one.
 (def %cu-nproc
   (fn (_ argv stdin-thunk)
-    (do (display (string-append (%cu-int->str (sys-cpu-count)) "\n")) 0)))
+    (def o (%cu-opts "nproc" argv))
+    (def n (sys-cpu-count))
+    (def held
+      (let ((v (Opts value o "--ignore"))) (if (null? v) 0 (%cu-num-prefix v))))
+    (do (display
+          (string-append (%cu-int->str (if (< (- n held) 1) 1 (- n held))) "\n"))
+        0)))
 
 ; --- nice, chroot -------------------------------------------------------------
 

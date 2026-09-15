@@ -72,54 +72,89 @@
   (fn (self k) (if (<= k 0) "" (string-append " " (self (- k 1))))))
 
 ; expand: a TAB advances to the next multiple of the tab width; every
-; other byte advances the column by one
+; other byte advances the column by one.  Under -i only the leading run
+; of blanks is expanded: LEAD? holds while nothing but blanks has been
+; seen, and a tab past that point is copied.
 (def %cu-expand-line
-  (fn (_ s w)
+  (fn (_ s w init?)
     (def end (byte-len s))
     (def go
-      (fn (self i col acc)
+      (fn (self i col lead? acc)
         (if (>= i end) (string-concat (reverse acc))
           (let ((b (byte-at s i)))
-            (if (= b 9)
-              (let ((gap (- w (% col w))))
-                (self (+ i 1) (+ col gap) (pair (%cu-spaces gap) acc)))
-              (self (+ i 1) (+ col 1) (pair (%cu-b->s b) acc)))))))
-    (go 0 0 ())))
+            (match
+              ((if (= b 9) (if init? lead? #t) #f)
+                (let ((gap (- w (% col w))))
+                  (self (+ i 1) (+ col gap) lead? (pair (%cu-spaces gap) acc))))
+              ((= b 32) (self (+ i 1) (+ col 1) lead? (pair " " acc)))
+              (#t (self (+ i 1) (+ col 1) #f (pair (%cu-b->s b) acc))))))))
+    (go 0 0 #t ())))
 
 (def %cu-expand
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "expand" argv))
     (def w (%cu-num-prefix (Opts value o "-t" "8")))
+    (def init? (Opts on? o "-i"))
     (do (%cu-print-lines
-          (map (fn (_ l) (%cu-expand-line l w))
+          (map (fn (_ l) (%cu-expand-line l w init?))
             (%cu-lines (%cu-gather (Opts operands o) stdin-thunk))))
         0)))
 
-; unexpand: the LEADING run of blanks becomes tabs plus a remainder
-; (-a would fold interior runs too; the leading form is the default)
+(def %cu-tabs
+  (fn (self k) (if (<= k 0) "" (string-append "\t" (self (- k 1))))))
+
+; A run of blanks that carried the column from FROM to TO, respelled: a
+; tab for each stop it crossed, then spaces for what is left past the
+; last stop -- or the whole run as spaces when it crossed none.  A run
+; that is one lone space stays a space even on a stop; a lone tab is a
+; tab already and comes back as one.
+(def %cu-unexpand-run
+  (fn (_ from to w one-space?)
+    (def stops (- (/ (- to (% to w)) w) (/ (- from (% from w)) w)))
+    (match
+      (one-space? " ")
+      ((= stops 0) (%cu-spaces (- to from)))
+      (#t (string-append (%cu-tabs stops) (%cu-spaces (% to w)))))))
+
+; unexpand: the leading run of blanks -- spaces and tabs both -- becomes
+; tabs plus a remainder, which is -f and the default; -a respells every
+; run.  Under -f the line past its leading run is copied as it is.
 (def %cu-unexpand-line
-  (fn (_ s w)
+  (fn (_ s w all?)
     (def end (byte-len s))
-    (def lead
-      (let ((go (fn (self i)
-                  (if (>= i end) i
-                    (if (= (byte-at s i) 32) (self (+ i 1)) i)))))
-        (go 0)))
-    (def tabs (/ (- lead (% lead w)) w))
-    (def keep (% lead w))
-    (def tab-run
-      (let ((go (fn (self k) (if (<= k 0) "" (string-append "\t" (self (- k 1)))))))
-        (go tabs)))
-    (if (= tabs 0) s
-      (string-append tab-run
-        (string-append (%cu-spaces keep) (substring s lead end))))))
+    ; The run of blanks at I, from column COL: (END-INDEX COLUMN COUNT).
+    (def run-end
+      (fn (self i col n)
+        (if (>= i end) (list i col n)
+          (let ((b (byte-at s i)))
+            (match
+              ((= b 32) (self (+ i 1) (+ col 1) (+ n 1)))
+              ((= b 9)  (self (+ i 1) (+ col (- w (% col w))) (+ n 1)))
+              (#t (list i col n)))))))
+    (def go
+      (fn (self i col lead? acc)
+        (if (>= i end) (string-concat (reverse acc))
+          (let ((b (byte-at s i)))
+            (match
+              ((not (if (= b 32) #t (= b 9)))
+                (self (+ i 1) (+ col 1) #f (pair (%cu-b->s b) acc)))
+              ((if all? #t lead?)
+                (let ((r (run-end i col 0)))
+                  (def to (first (rest r)))
+                  (def n (first (rest (rest r))))
+                  (self (first r) to #f
+                    (pair (%cu-unexpand-run col to w (if (= n 1) (= b 32) #f))
+                          acc))))
+              (#t (string-concat (reverse (pair (substring s i end) acc)))))))))
+    (go 0 0 #t ())))
 
 (def %cu-unexpand
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "unexpand" argv))
     (def w (%cu-num-prefix (Opts value o "-t" "8")))
+    (def all? (Opts on? o "-a"))
     (do (%cu-print-lines
-          (map (fn (_ l) (%cu-unexpand-line l w))
+          (map (fn (_ l) (%cu-unexpand-line l w all?))
             (%cu-lines (%cu-gather (Opts operands o) stdin-thunk))))
         0)))
 
@@ -183,21 +218,28 @@
 ; --- split --------------------------------------------------------------------
 
 ; the suffix alphabet: aa ab ... az ba ...  (two letters, as split(1))
+; the Nth suffix of WIDTH letters, counting in base 26 with the last
+; letter moving fastest: aa ab ... under the default width of two
 (def %cu-split-suffix
-  (fn (_ n)
-    (list->string
-      (list (integer->char (+ 97 (/ (- n (% n 26)) 26)))
-            (integer->char (+ 97 (% n 26)))))))
+  (fn (_ n width)
+    (def go
+      (fn (self k v acc)
+        (if (<= k 0) (list->string acc)
+          (self (- k 1) (/ (- v (% v 26)) 26)
+            (pair (integer->char (+ 97 (% v 26))) acc)))))
+    (go width n ())))
 
 (def %cu-split-write
-  (fn (_ prefix n text)
-    (file-write-all (string-append prefix (%cu-split-suffix n)) text)))
+  (fn (_ prefix n width text)
+    (file-write-all (string-append prefix (%cu-split-suffix n width)) text)))
 
 (def %cu-split
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "split" argv))
     (def bv (Opts value o "-b"))
     (def lv (Opts value o "-l"))
+    (def width
+      (let ((v (Opts value o "-a"))) (if (null? v) 2 (%cu-num-prefix v))))
     (def by-bytes? (not (null? bv)))
     (def size
       (let ((v (if (null? bv) lv bv)))
@@ -214,7 +256,7 @@
           (fn (self i n)
             (if (>= i end) 0
               (let ((stop (if (> (+ i size) end) end (+ i size))))
-                (do (%cu-split-write prefix n (substring text i stop))
+                (do (%cu-split-write prefix n width (substring text i stop))
                     (self stop (+ n 1)))))))
         (go 0 0))
       (let ((ls (%cu-lines text)))
@@ -227,7 +269,7 @@
                                          (self2 (rest l) (- k 1)
                                            (pair (first l) acc))))))
                             (go2 rest-ls size ()))))
-                (do (%cu-split-write prefix n
+                (do (%cu-split-write prefix n width
                       (string-concat
                         (map (fn (_ l) (string-append l "\n"))
                           (first take))))
