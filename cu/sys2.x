@@ -28,15 +28,22 @@
           (go names))))))
 
 ; env with no command prints the environment; -i starts from an empty one
-; and -u drops a name, so both are visible in what is printed.
+; and -u drops a name, so both are visible in what is printed.  -0 ends
+; each entry with a NUL instead of a newline, which is what lets a value
+; hold one.
 (def %cu-env
   (fn (_ argv stdin-thunk)
+    ; -0 reads as a negative NUMBER to Opts before the declaration is
+    ; consulted (x-lang#650, what ls's -1 works around), so it arrives as
+    ; an operand rather than a flag; the token itself is the test.
+    (def zero? (%cu-member-s? "-0" argv))
     (def o (%cu-opts "env" argv))
     (def drop (Opts values o "-u"))
     (def kept
       (if (Opts on? o "-i") ()
         (filter (fn (_ e) (not (%cu-env-named? e drop))) (sys-environ))))
-    (do (%cu-print-lines kept) 0)))
+    (do (if zero? (%cu-print-fields kept 0) (%cu-print-lines kept))
+        0)))
 
 (def %cu-printenv
   (fn (_ argv stdin-thunk)
@@ -85,16 +92,14 @@
 ; xargs: stdin words append to the command (default echo); -n N batches.
 ; --- xargs -------------------------------------------------------------------
 ;
-; Two of busybox's nine flags are not declared, because an option the guard
-; accepts and the applet does not read is how option bugs get in:
+; -0 takes the items NUL-separated rather than on whitespace, which is what
+; makes a name holding a space or a newline safe to pass on.  Its input is
+; read as bytes (cu/prims.x), since the one string the applet protocol hands
+; over would stop at the first NUL.
 ;
-;   -0  input items separated by NUL. The input cannot reach the applet -- a
-;       NUL truncates an x string at every door, so declaring -0 would accept a
-;       flag whose input is unrepresentable.
-;   -p  prompt before each command. A prompt wants a tty, and the applet
-;       protocol hands an applet one string of stdin and nothing else.
-;
-; The other seven are here.
+; -p is the one flag still not declared: it prompts before each command, and
+; a prompt wants a tty, which the protocol has no way to offer.  An option
+; the guard accepts and the applet does not read is how option bugs get in.
 
 ; Items up to the logical EOF marker (-E), which ends the input early.
 (def %cu-xargs-until
@@ -159,7 +164,14 @@
 
 (def %cu-xargs
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "xargs" argv))
+    ; -0 reads as a negative NUMBER to Opts before the declaration is
+    ; consulted (x-lang#650, what ls's -1 works around).  Here that also
+    ; ENDS the parse, since this row stops at its first operand, so a -a
+    ; after it would never be read: the token is taken off the line
+    ; first, and what is left parses as it should.
+    (def zero? (%cu-member-s? "-0" argv))
+    (def o (%cu-opts "xargs"
+             (filter (fn (_ a) (not (string=? a "-0"))) argv)))
     (def cmd0 (Opts operands o))
     (def cmd (if (null? cmd0) (list "echo") cmd0))
     (def n (let ((v (Opts value o "-n"))) (if (null? v) 0 (%cu-num-prefix v))))
@@ -167,10 +179,14 @@
     (def repl (Opts value o "-I"))
     (def eof (Opts value o "-E"))
     (def trace? (Opts on? o "-t"))
-    (def text
-      (let ((a (Opts value o "-a")))
-        (if (null? a) (stdin-thunk) (file-read-all a))))
-    (def words0 (%cu-words-line (%cu-join-with (%cu-lines text) " ")))
+    (def src (let ((a (Opts value o "-a"))) (if (null? a) () (list a))))
+    ; -0 splits on the NUL and nothing else: a space or a newline inside an
+    ; item is part of it, which is the whole reason for the flag.
+    (def words0
+      (if zero?
+        (%cu-delim-fields src stdin-thunk 0)
+        (let ((text (if (null? src) (stdin-thunk) (file-read-all (first src)))))
+          (%cu-words-line (%cu-join-with (%cu-lines text) " ")))))
     (def words (if (null? eof) words0 (%cu-xargs-until words0 eof)))
     (def run!
       (fn (_ ws)

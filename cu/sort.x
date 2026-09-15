@@ -227,16 +227,29 @@
     (def spec (%sort-spec (Opts value o "-k")))
     (def out (Opts value o "-o"))
     (def ops (Opts operands o))
-    (def lines (%cu-lines (%cu-gather ops stdin-thunk)))
+    ; -z makes the NUL the delimiter on both sides, so a line may hold a
+    ; newline; the input is then read as bytes (cu/prims.x).
+    (def z? (Opts on? o "-z"))
+    (def lines
+      (if z? (%cu-delim-fields ops stdin-thunk 0)
+        (%cu-lines (%cu-gather ops stdin-thunk))))
     (def less? (%sort-less o spec sep))
     (if (Opts on? o "-c")
       (%sort-check lines less? ops)
       (let ((sorted (%cu-msort lines less?)))
         (def final
           (if (Opts on? o "-u") (%sort-dedup sorted less?) sorted))
-        (def text (string-concat (map (fn (_ l) (string-append l "\n")) final)))
-        (if (null? out) (do (display text) 0)
-          (do (file-write-all out text) 0))))))
+        (if z?
+          (let ((fd (if (null? out) 1 (file-open-write out))))
+            (def go
+              (fn (self ls)
+                (if (null? ls) ()
+                  (do (file-write-field fd (first ls) 0) (self (rest ls))))))
+            (do (go final) (if (null? out) () (file-close fd)) 0))
+          (let ((text (string-concat
+                        (map (fn (_ l) (string-append l "\n")) final))))
+            (if (null? out) (do (display text) 0)
+              (do (file-write-all out text) 0))))))))
 
 ; sort's operands come off the parse: a value flag's argument is not an
 ; operand.
