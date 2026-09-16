@@ -98,6 +98,8 @@
     (pair "mktemp" %cu-mktemp)
     (pair "cmp" %cu-cmp)
     (pair "diff" %cu-diff)
+    ; %cu-find is the applet; %cu-find-applet below is the table lookup.
+    (pair "find" %cu-find)
     (pair "env" %cu-env)
     (pair "printenv" %cu-printenv)
     (pair "sleep" %cu-sleep)
@@ -131,6 +133,14 @@
         "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
         "-eq" "-ne" "-lt" "-le" "-gt" "-ge" "-nt" "-ot" "-ef"
         "-a" "-o" "=" "==" "!=" "!" "(" ")"))
+
+; find's vocabulary is here for the same reason test's is: the guard has to
+; know every dash-word the grammar accepts, or a valid expression reads as a
+; bad flag.  cu/find.x parses them; this list only makes them spellable.
+(def %cu-find-primaries
+  (list "-name" "-iname" "-path" "-type" "-size" "-newer"
+        "-maxdepth" "-mindepth" "-empty" "-print" "-print0" "-exec"
+        "-true" "-false" "-not" "-a" "-and" "-o" "-or" "!" "(" ")"))
 
 (def %cu-option-spec
   (list
@@ -226,7 +236,11 @@
     ; applet parses the expression itself.
     (pair "test" (list %cu-test-operators () (lit leading)))
     (pair "[" (list %cu-test-operators () (lit leading)))
-    (pair "[[" (list %cu-test-operators () (lit leading)))))
+    (pair "[[" (list %cu-test-operators () (lit leading)))
+    ; find is the same shape: the paths come first and the grammar after
+    ; them, so the parse stops at the first operand and the applet reads
+    ; what is left.
+    (pair "find" (list %cu-find-primaries () (lit leading)))))
 
 (def %cu-spec-of
   (fn (_ applet)

@@ -7,11 +7,12 @@ one bundle -- the busybox shape:
 
     x -l coreutils -- APPLET [args]...
 
-**Ninety-two applets: parity with busybox's `coreutils` set.**
+**Ninety-three applets: parity with busybox's `coreutils` set, plus
+`join` and `find`.**
 
     arch base64 basename cat chgrp chmod chown chroot cksum cmp comm
     cp cut date dd df diff dirname dos2unix du echo env expand expr
-    factor false fold groups head id install join link ln logname ls
+    factor false find fold groups head id install join link ln logname ls
     md5sum mkdir mkfifo mktemp mv nice nl nohup nproc od paste printenv
     printf pwd readlink realpath rev rm rmdir seq sha1sum sha256sum
     sha512sum shred shuf sleep sort split stat sum sync tac tail tee
@@ -106,6 +107,7 @@ parsed by x-lang's `Opts`.
     cu/encode.x       od uuencode uudecode
     cu/expr.x         expr, and the anchored matcher it needs
     cu/diff.x         diff, normal format (LCS by DP)
+    cu/find.x         find: the expression grammar, and the walk it drives
     cu/hash.x         md5sum sha1sum cksum sum
     cu/sha256.x       FIPS 180-4, in x
     cu/sha512.x       its 64-bit sibling, addition masked in halves
