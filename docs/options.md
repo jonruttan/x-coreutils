@@ -36,6 +36,7 @@ the work.  Applet parity is the other axis: see the README.
 | `expr` |  |  |  | - |
 | `factor` |  |  |  | - |
 | `false` |  |  |  | - |
+| `find` | _not a busybox applet_ | -name -iname -path -type -size -newer -maxdepth -mindepth -empty -print -print0 -exec -true -false -not -a -and -o -or ! ( ) | | - |
 | `fold` | -b -s -w | -b -s -w |  | 100% |
 | `groups` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
