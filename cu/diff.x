@@ -18,9 +18,6 @@
 ;   -d  "try hard to find a smaller set of changes"; the LCS below is already
 ;       minimal, so there is nothing to try harder than.
 ;
-; The seven still missing (-r -N -S -T -t -U -L) are the directory walk and the
-; unified format, and are not declared until they are read.
-;
 ; What counts as the same line is a lexical question, answered in cu/diff-lex.x
 ; on a reader base of its own: -w makes a run of spaces read as nothing, -b as
 ; one space, -i folds a word as it is read. -t and -T are not lexical and stay

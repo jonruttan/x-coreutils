@@ -1156,14 +1156,104 @@ same
 
 ### nproc --ignore holds processors back and never answers below one; --all agrees with the plain count
 
+With neither OpenMP variable set, which is why the case clears them first.
+
 ```cu
-(do (def n (sys-cpu-count)) (display (if (= (%cu-num-prefix (cu-cap (list "nproc" "--ignore=1"))) (- n 1)) "one held" "wrong")) (newline) (display (cu-cap (list "nproc" "--ignore=9999"))) (display (if (string=? (cu-cap (list "nproc" "--all")) (cu-cap (list "nproc"))) "agree" "differ")))
+(do (Sys unsetenv "OMP_NUM_THREADS") (Sys unsetenv "OMP_THREAD_LIMIT") (def n (sys-cpu-count)) (display (if (= (%cu-num-prefix (cu-cap (list "nproc" "--ignore=1"))) (- n 1)) "one held" "wrong")) (newline) (display (cu-cap (list "nproc" "--ignore=9999"))) (display (if (string=? (cu-cap (list "nproc" "--all")) (cu-cap (list "nproc"))) "agree" "differ")))
 ```
 ---
 ```output
 one held
 1
 agree
+```
+
+### nproc takes OMP_NUM_THREADS when it holds a count, even above the processors installed
+
+Expectations from GNU nproc.  A list answers its first element, and white
+space around the count is allowed.  Every case here clears both variables
+before its last line, since the cases of a file share one process.
+
+```cu
+(do (Sys unsetenv "OMP_THREAD_LIMIT")
+    (Sys setenv "OMP_NUM_THREADS" "2") (def np-two (cu-cap (list "nproc")))
+    (Sys setenv "OMP_NUM_THREADS" (%cu-int->str (+ (sys-cpu-count) 5)))
+    (def np-above (%cu-num-prefix (cu-cap (list "nproc"))))
+    (Sys setenv "OMP_NUM_THREADS" "2,4") (def np-list (cu-cap (list "nproc")))
+    (Sys setenv "OMP_NUM_THREADS" " 3 ") (def np-spaced (cu-cap (list "nproc")))
+    (Sys setenv "OMP_NUM_THREADS" "2 ,4") (def np-gap (cu-cap (list "nproc")))
+    (Sys unsetenv "OMP_NUM_THREADS")
+    (display np-two)
+    (display (if (= np-above (+ (sys-cpu-count) 5)) "above installed\n" "capped\n"))
+    (display np-list) (display np-spaced) (display np-gap))
+```
+---
+```output
+2
+above installed
+2
+3
+2
+```
+
+### OMP_THREAD_LIMIT caps the answer, whether OMP_NUM_THREADS gave it or not
+
+```cu
+(do (Sys unsetenv "OMP_NUM_THREADS")
+    (Sys setenv "OMP_THREAD_LIMIT" "1") (def np-limited (cu-cap (list "nproc")))
+    (Sys setenv "OMP_NUM_THREADS" "5") (Sys setenv "OMP_THREAD_LIMIT" "3")
+    (def np-over (cu-cap (list "nproc")))
+    (Sys setenv "OMP_NUM_THREADS" "2") (def np-under (cu-cap (list "nproc")))
+    (Sys unsetenv "OMP_NUM_THREADS") (Sys unsetenv "OMP_THREAD_LIMIT")
+    (display np-limited) (display np-over) (display np-under))
+```
+---
+```output
+1
+3
+2
+```
+
+### a value that is not a count leaves the variable unset -- 0, abc and 3x all read as absent
+
+```cu
+(do (Sys unsetenv "OMP_NUM_THREADS") (Sys unsetenv "OMP_THREAD_LIMIT")
+    (def np-plain (cu-cap (list "nproc")))
+    (Sys setenv "OMP_NUM_THREADS" "0") (def np-zero (cu-cap (list "nproc")))
+    (Sys setenv "OMP_NUM_THREADS" "abc") (def np-word (cu-cap (list "nproc")))
+    (Sys setenv "OMP_NUM_THREADS" "3x") (def np-trail (cu-cap (list "nproc")))
+    (Sys unsetenv "OMP_NUM_THREADS") (Sys setenv "OMP_THREAD_LIMIT" "0")
+    (def np-nolimit (cu-cap (list "nproc")))
+    (Sys unsetenv "OMP_THREAD_LIMIT")
+    (List for-each
+      (fn (_ v) (display (if (string=? v np-plain) "unset\n" "read\n")))
+      (list np-zero np-word np-trail np-nolimit)))
+```
+---
+```output
+unset
+unset
+unset
+unset
+```
+
+### nproc --all reads neither variable, and --ignore comes off after them
+
+```cu
+(do (Sys setenv "OMP_NUM_THREADS" "5") (Sys setenv "OMP_THREAD_LIMIT" "3")
+    (def np-all (%cu-num-prefix (cu-cap (list "nproc" "--all"))))
+    (Sys unsetenv "OMP_THREAD_LIMIT")
+    (def np-held (cu-cap (list "nproc" "--ignore=2")))
+    (Sys setenv "OMP_NUM_THREADS" "2") (def np-lowest (cu-cap (list "nproc" "--ignore=5")))
+    (Sys unsetenv "OMP_NUM_THREADS")
+    (display (if (= np-all (sys-cpu-count)) "installed\n" "narrowed\n"))
+    (display np-held) (display np-lowest))
+```
+---
+```output
+installed
+3
+1
 ```
 
 ### pwd -P is the physical directory, and -L is that too when $PWD does not name it
