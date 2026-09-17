@@ -212,6 +212,7 @@
     (if (null? cmd)
       (do (display (string-append (%cu-int->str (sys-nice 0)) "\n")) 0)
       (do (sys-nice inc)
+          (cu-stdin-to-command!)
           (sys-exec (first cmd) (rest cmd))
           127))))
 
@@ -227,4 +228,4 @@
             1)
         (let ((cmd (rest argv)))
           (if (null? cmd) 0
-            (do (sys-exec (first cmd) (rest cmd)) 127)))))))
+            (do (cu-stdin-to-command!) (sys-exec (first cmd) (rest cmd)) 127)))))))

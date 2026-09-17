@@ -152,7 +152,7 @@
     (pair "head" (list (list "-q" "-v") (list "-n" "-c")))
     (pair "tail" (list (list "-q" "-v" "-f") (list "-n" "-c" "-s")))
     (pair "wc" (list (list "-l" "-w" "-c" "-m" "-L") ()))
-    (pair "env" (list (list "-i" "-0") (list "-u")))
+    (pair "env" (list (list "-i" "-0") (list "-u") (lit leading)))
     (pair "sync" (list (list "-d" "-f") ()))
     (pair "dos2unix" (list (list "-u" "-d") ()))
     (pair "unix2dos" (list (list "-u" "-d") ()))
