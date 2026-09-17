@@ -16,31 +16,19 @@
     ; undo an -e that came earlier on the same line.
     (def e? (if (Opts on? o "-E") #f (Opts on? o "-e")))
     (def ops (Opts operands o))
-    (def unescape
-      (fn (_ s)
-        (def end (byte-len s))
-        (def go
-          (fn (self i acc)
-            (if (>= i end) (string-concat (reverse acc))
-              (let ((b (byte-at s i)))
-                (if (if (= b 92) (< (+ i 1) end) #f)
-                  (let ((e (byte-at s (+ i 1))))
-                    (match
-                      ((= e 110) (self (+ i 2) (pair "\n" acc)))
-                      ((= e 116) (self (+ i 2) (pair "\t" acc)))
-                      ((= e 92)  (self (+ i 2) (pair "\\" acc)))
-                      (#t (self (+ i 1) (pair "\\" acc)))))
-                  (self (+ i 1) (pair (%cu-b->s b) acc)))))))
-        (go 0 ())))
-    (def joined (%cu-join-with ops " "))
-    (do (display (if e? (unescape joined) joined))
-        (if n? () (display "\n"))
-        0)))
+    ; the escapes are cu/fmt-lex.x's, read as echo's manual spells them; a \c
+    ; ends the output, newline and all
+    (let ((r (let ((joined (%cu-join-with ops " ")))
+               (if e? (%cu-esc-string joined (lit arg)) (pair joined #f)))))
+      (do (display (first r))
+          (if (if n? #t (rest r)) () (display "\n"))
+          0))))
 
-; printf(1): the format REUSES until the arguments run out; %s %d %c
-; %x %o %% with optional width and the - flag; \n \t \\ in the format
-; The escapes and the % scanning are cu/fmt-lex.x's; what stays here is the
-; table of what a conversion means to printf.
+; printf(1): the format REUSES until the arguments run out.  The conversions
+; are %s, %d %i %u, %x %X, %o, %c, %b and %%, with an optional width and the -
+; flag; any other is refused by name, as printf refuses one.  %b reads its
+; argument's escapes.  The escapes and the % scanning are cu/fmt-lex.x's; what
+; stays here is the table of what a conversion means to printf.
 
 (def %cu-oct->str
   (fn (_ n)
@@ -71,46 +59,61 @@
       (if left (string-append s (sp gap))
         (string-append (sp gap) s)))))
 
-; one pass of the format over the argument list; answers (consumed-any?
-; . rest-args)
+; One pass of the format over the argument list, printing as it goes.  Answers
+; (USED-AN-ARGUMENT? REST WHAT-NEXT): WHAT-NEXT is `more` to go on with the
+; arguments left, `stop` where a \c ended the output, and otherwise the
+; directive printf does not read, which it refuses by name.
 (def %cu-printf-once
   (fn (_ toks args)
     (def go
       (fn (self ts as used acc)
         (if (null? ts)
           (do (display (string-concat (reverse acc)))
-              (pair used as))
+              (list used as (lit more)))
           (let ((t (first ts)))
-            (if (not (%cu-fmt-dir? t))
-              (self (rest ts) as used (pair t acc))
-              (let ((conv (%cu-fmt-conv t))
-                    (w (%cu-fmt-width t))
-                    (left (%cu-fmt-left? t)))
-                (def arg (if (null? as) "" (first as)))
-                (def as2 (if (null? as) () (rest as)))
-                (match
-                  ; a format ending in a bare % keeps it as a directive
-                  ; with no conversion
-                  ((= (byte-len conv) 0) (self (rest ts) as used (pair "%" acc)))
-                  ((string=? conv "%") (self (rest ts) as used (pair "%" acc)))
-                  ((string=? conv "s")
-                    (self (rest ts) as2 #t (pair (%cu-pad arg w left) acc)))
-                  ((string=? conv "d")
-                    (self (rest ts) as2 #t
-                      (pair (%cu-pad (%cu-int->str (%cu-num-prefix arg)) w left)
-                        acc)))
-                  ((string=? conv "x")
-                    (self (rest ts) as2 #t
-                      (pair (%cu-hexs (%cu-num-prefix arg)) acc)))
-                  ((string=? conv "o")
-                    (self (rest ts) as2 #t
-                      (pair (%cu-oct->str (%cu-num-prefix arg)) acc)))
-                  ((string=? conv "c")
-                    (self (rest ts) as2 #t
-                      (pair (if (> (byte-len arg) 0) (substring arg 0 1) "")
-                        acc)))
-                  (#t (Err raise (lit cu)
-                        "printf: only %s %d %x %o %c %%" ())))))))))
+            (match
+              ((eq? t (lit stop))
+                (do (display (string-concat (reverse acc)))
+                    (list used as (lit stop))))
+              ((not (%cu-fmt-dir? t)) (self (rest ts) as used (pair t acc)))
+              (#t
+                (let ((conv (%cu-fmt-conv t))
+                      (w (%cu-fmt-width t))
+                      (left (%cu-fmt-left? t))
+                      (arg (if (null? as) "" (first as)))
+                      (as2 (if (null? as) () (rest as))))
+                  (match
+                    ((string=? conv "%") (self (rest ts) as used (pair "%" acc)))
+                    ((string=? conv "s")
+                      (self (rest ts) as2 #t (pair (%cu-pad arg w left) acc)))
+                    ((%cu-member-s? conv (list "d" "i" "u"))
+                      (self (rest ts) as2 #t
+                        (pair (%cu-pad (%cu-int->str (%cu-num-prefix arg)) w left)
+                          acc)))
+                    ((string=? conv "x")
+                      (self (rest ts) as2 #t
+                        (pair (%cu-hexs (%cu-num-prefix arg)) acc)))
+                    ((string=? conv "X")
+                      (self (rest ts) as2 #t
+                        (pair (Str8 upcase (%cu-hexs (%cu-num-prefix arg))) acc)))
+                    ((string=? conv "o")
+                      (self (rest ts) as2 #t
+                        (pair (%cu-oct->str (%cu-num-prefix arg)) acc)))
+                    ((string=? conv "c")
+                      (self (rest ts) as2 #t
+                        (pair (if (> (byte-len arg) 0) (substring arg 0 1) "")
+                          acc)))
+                    ; %b reads the argument's escapes, as echo -e reads them
+                    ((string=? conv "b")
+                      (let ((r (%cu-esc-string arg (lit arg))))
+                        (if (rest r)
+                          (do (display
+                                (string-concat (reverse (pair (first r) acc))))
+                              (list #t as2 (lit stop)))
+                          (self (rest ts) as2 #t (pair (first r) acc)))))
+                    (#t
+                      (do (display (string-concat (reverse acc)))
+                          (list used as (%cu-fmt-raw t))))))))))))
     (go toks args #f ())))
 
 (def %cu-printf
@@ -123,9 +126,16 @@
         (def go
           (fn (self as)
             (let ((r (%cu-printf-once toks as)))
-              (if (if (first r) (pair? (rest r)) #f)
-                (self (rest r))
-                0))))
+              (match
+                ((eq? (%cu-nth 2 r) (lit stop)) 0)
+                ((not (eq? (%cu-nth 2 r) (lit more)))
+                  (do (file-write 2
+                        (string-concat
+                          (list "printf: " (%cu-nth 2 r)
+                                ": invalid conversion specification\n")))
+                      1))
+                ((if (first r) (pair? (%cu-nth 1 r)) #f) (self (%cu-nth 1 r)))
+                (#t 0)))))
         (go (rest argv))))))
 
 ; -s puts a separator between the values instead of a newline, and -w pads
