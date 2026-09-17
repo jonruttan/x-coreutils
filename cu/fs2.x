@@ -11,21 +11,123 @@
 ; touch: utimes(2) on a path that exists, an empty file when it does not. It
 ; bumps the stamp through the door x-lang PR #607 opened, rather than rewriting
 ; the bytes.
+; touch: every operand gets the time asked for, created first unless -c.  That
+; time is now; or -d's date, read the way date reads one (so as UTC, the
+; timezone divergence cu/date.x records); or -t's [[CC]YY]MMDDhhmm[.ss]; or the
+; two times of -r's file.  -t names a time of its own, so it conflicts with
+; -d and with -r.  -r with -d takes -d's time: only an absolute -d is read
+; here, and an absolute date has no base to be relative to.
+
+; -t's stamp as unix seconds, or nil when it does not read as one.  Two year
+; digits pivot at 69 as POSIX has it (69-99 are 19xx, 00-68 20xx), no year
+; means this one, and every field must name a real moment: February 30th is
+; refused, and a second of 60 is taken and rolls into the next minute.
+(def %cu-touch-stamp
+  (fn (_ s)
+    (def end (byte-len s))
+    (def digit? (fn (_ i) (let ((b (byte-at s i))) (if (>= b 48) (<= b 57) #f))))
+    (def digits?
+      (fn (_ from to)
+        (let ((go (fn (self i) (if (>= i to) #t (if (digit? i) (self (+ i 1)) #f)))))
+          (if (< from to) (go from) #f))))
+    (def num
+      (fn (_ from to)
+        (let ((go (fn (self i n)
+                    (if (>= i to) n (self (+ i 1) (+ (* n 10) (- (byte-at s i) 48)))))))
+          (go from 0))))
+    (def dot
+      (let ((go (fn (self i) (match ((>= i end) end) ((= (byte-at s i) 46) i) (#t (self (+ i 1)))))))
+        (go 0)))
+    (def shaped?
+      (match
+        ((not (digits? 0 dot)) #f)
+        ((not (match ((= dot 8) #t) ((= dot 10) #t) (#t (= dot 12)))) #f)
+        ((= dot end) #t)
+        (#t (if (= (- end dot) 3) (digits? (+ dot 1) end) #f))))
+    (if (not shaped?) ()
+      (let ((lead (- dot 8)))
+        (def year
+          (match
+            ((= lead 4) (num 0 4))
+            ((= lead 2) (let ((yy (num 0 2))) (if (>= yy 69) (+ 1900 yy) (+ 2000 yy))))
+            (#t (Assoc get (lit year) (Date now)))))
+        (def month (num lead (+ lead 2)))
+        (def day (num (+ lead 2) (+ lead 4)))
+        (def hour (num (+ lead 4) (+ lead 6)))
+        (def minute (num (+ lead 6) (+ lead 8)))
+        (def second (if (= dot end) 0 (num (+ dot 1) end)))
+        (def month-days
+          (if (if (>= month 1) (<= month 12) #f)
+            (+ (%cu-nth (- month 1) %cu-date-mon-days)
+               (if (if (= month 2) (Date leap-year? year) #f) 1 0))
+            0))
+        (match
+          ((< day 1) ())
+          ((> day month-days) ())
+          ((> hour 23) ())
+          ((> minute 59) ())
+          ((> second 60) ())
+          (#t (Date to-unix
+                (list (pair (lit year) year) (pair (lit month) month)
+                      (pair (lit day) day) (pair (lit hour) hour)
+                      (pair (lit minute) minute) (pair (lit second) second)))))))))
+
 (def %cu-touch
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "touch" argv))
     (def c? (Opts on? o "-c"))
     (def ops (Opts operands o))
+    (def rfile (Opts value o "-r"))
+    (def dspec (Opts value o "-d"))
+    (def tspec (Opts value o "-t"))
+    (def ref-st (if (null? rfile) () (file-stat-full rfile)))
+    (def dsecs (if (null? dspec) () (%cu-date-of dspec ())))
+    (def tsecs (if (null? tspec) () (%cu-touch-stamp tspec)))
+    (def refused
+      (match
+        ((if (null? tspec) #f (if (null? dspec) (not (null? rfile)) #t))
+          "touch: cannot specify times from more than one source\n")
+        ((if (null? rfile) #f (null? ref-st))
+          (string-concat
+            (list "touch: failed to get attributes of '" rfile "': "
+                  (if (file-exists? rfile) "Permission denied" "No such file or directory")
+                  "\n")))
+        ((if (null? dspec) #f (null? dsecs))
+          (string-concat (list "touch: invalid date format '" dspec "'\n")))
+        ((if (null? tspec) #f (null? tsecs))
+          (string-concat (list "touch: invalid date format '" tspec "'\n")))
+        (#t ())))
+    ; (ATIME . MTIME), or nil for the clock
+    (def times
+      (match
+        ((not (null? dsecs)) (pair dsecs dsecs))
+        ((not (null? tsecs)) (pair tsecs tsecs))
+        ((not (null? ref-st))
+          (pair (%cu-stat-get ref-st (lit atime)) (%cu-stat-get ref-st (lit mtime))))
+        (#t ())))
+    (def stamp
+      (fn (_ path)
+        (if (null? times) (do (file-utimes path) 0)
+          (if (< (file-set-times path (first times) (rest times)) 0)
+            (do (file-write 2 (string-concat (list "touch: setting times of '" path "' failed\n")))
+                1)
+            0))))
     (def go
-      (fn (self os)
-        (if (null? os) 0
-          (do (if (file-exists? (first os))
-                (file-utimes (first os))
-                (if c? () (file-write-all (first os) "")))
-              (self (rest os))))))
-    (if (null? ops)
-      (do (file-write 2 "touch: missing operand\n") 1)
-      (go ops))))
+      (fn (self os st)
+        (if (null? os) st
+          (let ((path (first os)))
+            (match
+              ((file-exists? path) (self (rest os) (%cu-max-status st (stamp path))))
+              (c? (self (rest os) st))
+              (#t (do (file-write-all path "")
+                      (self (rest os)
+                        (%cu-max-status st (if (null? times) 0 (stamp path)))))))))))
+    (match
+      ((not (null? refused)) (do (file-write 2 refused) 1))
+      ((null? ops) (do (file-write 2 "touch: missing operand\n") 1))
+      (#t (go ops 0)))))
+
+(def %cu-max-status (fn (_ a b) (if (> a b) a b)))
 
 ; ls lives in cu/ls.x: the busybox option set is a module's worth.
 

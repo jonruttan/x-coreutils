@@ -27,7 +27,7 @@
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
   file-open-update
   file-chmod file-chown file-link file-symlink file-readlink
-  file-utimes file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
+  file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
   file-write-nuls file-write-field cu-stdin-fields!
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
@@ -315,6 +315,36 @@
 (def file-symlink (fn (_ target path) (File symlink target path)))
 (def file-readlink (fn (_ path) (File readlink path)))
 (def file-utimes (fn (_ path) (File utimes path)))
+
+; A path's access and modification times set to ATIME and MTIME, seconds since
+; the epoch; the utimes syscall's result, negative on failure.  File utimes
+; only ever sets the clock, so the pair of timevals is built here.  Both
+; platforms lay a timeval out as 16 bytes with the seconds a little-endian i64
+; at offset 0, so all 32 bytes are written, the microseconds and padding as
+; zeros -- a raw string starts out filled with spaces, not zeros.
+(def %cu-str->ptr (prim-ref (lit str) (lit ->ptr)))
+(def %cu-ptr-set! (prim-ref (lit ptr) (lit set!)))
+(def file-set-times
+  (fn (_ path atime mtime)
+    (def buf (%str-make-raw 32))
+    (def at (%cu-str->ptr buf))
+    (def zero
+      (fn (self i) (if (< i 32) (do (%cu-ptr-set! at i 0 1) (self (+ i 1))) ())))
+    ; A time before 1970 is negative, and its bytes are the complements of the
+    ; bytes of -v-1 -- two's complement without a 64-bit bigint.
+    (def put
+      (fn (_ off v)
+        (let ((neg? (< v 0)))
+          (let ((go (fn (self i m)
+                      (if (< i 8)
+                        (let ((b (% m 256)))
+                          (do (%cu-ptr-set! at (+ off i) (if neg? (- 255 b) b) 1)
+                              (self (+ i 1) (/ (- m b) 256))))
+                        ()))))
+            (go 0 (if neg? (- (- 0 v) 1) v))))))
+    (do (zero 0) (put 0 atime) (put 16 mtime)
+        (syscall (syscall-id (lit utimes)) path buf))))
+
 (def file-mkfifo (fn (_ path mode) (File mkfifo path mode)))
 (def file-statfs (fn (_ path) (File statfs path)))
 
