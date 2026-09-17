@@ -144,13 +144,55 @@
           (string-append (%cu-uname-field (sys-uname) (lit machine)) "\n"))
         0)))
 
-; nproc: --all asks for the processors installed and the plain form for
-; the ones available; one door answers both, so here they agree.
+; nproc: the processors this process may use, which the OpenMP variables
+; narrow.  OMP_NUM_THREADS, when it holds a count, is the answer -- even above
+; the processors installed -- and OMP_THREAD_LIMIT caps whatever the answer
+; is.  --all asks for the processors installed and reads neither.
 ; --ignore=N holds N back and never answers below one.
+;
+; One door answers "available" and "installed" alike, so here the two differ
+; only through those variables: CPU affinity, which also narrows what is
+; available, is not read (recorded divergence).
+
+; A count as OpenMP spells one, or 0 for none.  White space around it is
+; allowed and a list answers its first element, but anything else after the
+; digits leaves the variable unset: "3x" is not three, and neither is "0".
+(def %cu-omp-count
+  (fn (_ s)
+    (if (null? s) 0
+      (let ((end (byte-len s)))
+        (def space?
+          (fn (_ b)
+            (match ((= b 32) #t) ((= b 9) #t) ((= b 10) #t)
+                   ((= b 11) #t) ((= b 12) #t) (#t (= b 13)))))
+        (def skip
+          (fn (self i) (if (< i end) (if (space? (byte-at s i)) (self (+ i 1)) i) i)))
+        (def digit? (fn (_ b) (if (>= b 48) (<= b 57) #f)))
+        (def start (skip 0))
+        (if (if (< start end) (not (digit? (byte-at s start))) #t) 0
+          (let ((go (fn (self i n)
+                      (if (if (< i end) (digit? (byte-at s i)) #f)
+                        (self (+ i 1) (+ (* n 10) (- (byte-at s i) 48)))
+                        (pair n i)))))
+            (let ((read (go start 0)))
+              (let ((after (skip (rest read))))
+                (match
+                  ((>= after end) (first read))
+                  ((= (byte-at s after) 44) (first read))  ; ,
+                  (#t 0))))))))))
+
 (def %cu-nproc
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "nproc" argv))
-    (def n (sys-cpu-count))
+    (def cpus (sys-cpu-count))
+    (def limit (%cu-omp-count (sys-getenv "OMP_THREAD_LIMIT")))
+    (def threads (%cu-omp-count (sys-getenv "OMP_NUM_THREADS")))
+    (def capped (fn (_ c) (if (if (> limit 0) (< limit c) #f) limit c)))
+    (def n
+      (match
+        ((Opts on? o "--all") cpus)
+        ((> threads 0) (capped threads))
+        (#t (capped cpus))))
     (def held
       (let ((v (Opts value o "--ignore"))) (if (null? v) 0 (%cu-num-prefix v))))
     (do (display

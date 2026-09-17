@@ -219,8 +219,6 @@
     (pair "id" (list (list "-u" "-g" "-G" "-n" "-r") ()))
     (pair "uname" (list (list "-a" "-s" "-n" "-r" "-v" "-m" "-p" "-i" "-o") ()))
     (pair "nice" (list () (list "-n") (lit leading)))
-    ; -z is not declared: its pass is a run of NUL, which no x string can
-    ; carry (x-lang#685).  cu/fs3.x says why the truncate trick is not it.
     (pair "shred" (list (list "-u" "-f" "-z") (list "-n")))
     (pair "timeout" (list () (list "-s" "-k") (lit leading)))
     (pair "tty" (list (list "-s") ()))
