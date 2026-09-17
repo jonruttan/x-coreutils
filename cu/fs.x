@@ -117,14 +117,38 @@
   (if (Opts on? o "-r") #t (if (Opts on? o "-R") #t (Opts on? o "-a")))))
 (def %cp-preserve? (fn (_ o)
   (if (Opts on? o "-p") #t (Opts on? o "-a"))))
-; -a and -P keep a link a link; -L and -H follow one
-(def %cp-deref? (fn (_ o)
-  (match
-    ((Opts on? o "-L") #t)
-    ((Opts on? o "-P") #f)
-    ((Opts on? o "-a") #f)
-    (#t #t))))
+; What cp does with a symlink, from the last of -P, -H and -L given -- -a
+; says -P, and takes its turn in that order too:
+;
+;   none   the link is copied AS a link         -P, -a
+;   args   a link NAMED on the command line is followed   -H
+;   all    every link is followed                         -L
+;   unsaid a link named on the command line is followed, one met on a walk
+;          is copied as a link -- what cp does when told nothing else
+(def %cp-links
+  (fn (_ o)
+    (let ((v (%cu-last-given o (list "-H" "-L" "-P" "-a"))))
+      (if (null? v) (lit unsaid)
+        (match
+          ((string=? v "-H") (lit args))
+          ((string=? v "-L") (lit all))
+          (#t (lit none)))))))
 
+; TOP? says the path was named on the command line rather than met on a walk
+(def %cp-deref?
+  (fn (_ o top?)
+    (let ((links (%cp-links o)))
+      (match
+        ((eq? links (lit all)) #t)
+        ((eq? links (lit none)) #f)
+        ((eq? links (lit args)) top?)
+        ((%cp-recursive? o) #f)
+        (#t top?)))))
+
+; -p keeps the mode and the times; a link is never handed to this, since it
+; has no mode of its own to set and no lutimes door to set its times through
+; -- chmod and utimes would both reach THROUGH it, and through a link
+; pointing nowhere they reach nothing at all
 (def %cp-preserve!
   (fn (_ src dst o)
     (if (not (%cp-preserve? o)) ()
@@ -133,44 +157,80 @@
           (do (file-chmod dst (bit-and (%cu-stat-get st (lit mode)) 4095))
               (file-utimes dst)))))))
 
-; one source to one full destination path
-(def %cp-one
-  (fn (self src dst o)
-    (def st (if (%cp-deref? o) (file-stat-full src) (file-lstat-full src)))
-    (if (null? st)
+; a name a link is about to be written to: symlink refuses one that is taken,
+; where a copy would truncate it, so the old name goes first -- as cp drops it
+(def %cp-clear!
+  (fn (_ dst)
+    (if (eq? (file-lstat-kind dst) (lit none)) () (file-unlink dst))))
+
+; a link cp writes itself, for -s and -l: the refusal is cp's to report, in
+; cp's words, rather than an error nothing catches
+(def %cp-made
+  (fn (_ r what src dst)
+    (if (not (Err err? r)) 0
       (do (file-write 2
-            (string-concat (list "cp: cannot stat '" src "'\n")))
-          1)
-      (let ((kind (%cu-stat-get st (lit kind))))
-        (match
-          ((eq? kind (lit dir))
-            (if (not (%cp-recursive? o))
+            (string-concat
+              (list "cp: cannot create " what " '" dst "' to '" src "': "
+                    (file-err-text r) "\n")))
+          1))))
+
+; one source to one full destination path; TOP? says it was named on the
+; command line, which is what -H and a plain cp ask about
+(def %cp-one
+  (fn (self src dst o top?)
+    (let ((st (file-or-err
+                (fn (_) (if (%cp-deref? o top?)
+                          (file-stat-wide src)
+                          (file-lstat-wide src))))))
+      (if (Err err? st)
+        (do (file-write 2
+              (string-concat
+                (list "cp: cannot stat '" src "': " (file-err-text st) "\n")))
+            1)
+        (let ((kind (%cu-stat-get st (lit kind))))
+          (match
+            ((eq? kind (lit dir))
+              (if (not (%cp-recursive? o))
+                (do (file-write 2
+                      (string-concat
+                        (list "cp: omitting directory '" src "'\n")))
+                    1)
+                (do (if (file-exists? dst) () (file-mkdir dst))
+                    (let ((r (%cu-walk-status src
+                               (fn (_ n) (self (%cu-path-join src n)
+                                           (%cu-path-join dst n) o #f)))))
+                      (do (%cp-preserve! src dst o) r)))))
+            ((file-dir? dst)
               (do (file-write 2
-                    (string-concat (list "cp: omitting directory '" src "'\n")))
-                  1)
-              (do (if (file-exists? dst) () (file-mkdir dst))
-                  (let ((r (%cu-walk-status src
-                             (fn (_ n) (self (%cu-path-join src n)
-                                         (%cu-path-join dst n) o)))))
-                    (do (%cp-preserve! src dst o) r)))))
-          ((file-dir? dst)
-            (do (file-write 2
-                  (string-concat
-                    (list "cp: cannot overwrite directory '" dst
-                          "' with non-directory\n")))
-                1))
-          ((not (%fs-may-clobber? o dst "cp")) 0)
-          (#t
-            (do (if (if (file-exists? dst) (Opts on? o "-f") #f)
-                  (file-unlink dst) ())
-                (match
-                  ((eq? kind (lit link))
-                    (file-symlink (file-readlink src) dst))
-                  ((Opts on? o "-l") (file-link src dst))
-                  ((Opts on? o "-s") (file-symlink src dst))
-                  (#t (file-copy src dst)))
-                (%cp-preserve! src dst o)
-                0)))))))
+                    (string-concat
+                      (list "cp: cannot overwrite directory '" dst
+                            "' with non-directory\n")))
+                  1))
+            ((not (%fs-may-clobber? o dst "cp")) 0)
+            (#t
+              (do (if (if (file-exists? dst) (Opts on? o "-f") #f)
+                    (file-unlink dst) ())
+                  (%cp-write src dst o kind)))))))))
+
+; The write itself: a link copied as a link, a link cp is asked to make with
+; -s or -l, or the bytes.  Answers the status.
+(def %cp-write
+  (fn (_ src dst o kind)
+    (match
+      ; the link is written and left at that: -p has nothing it can keep of a
+      ; link, and would reach through this one
+      ((eq? kind (lit link))
+        (let ((target (file-readlink src)))
+          (do (%cp-clear! dst)
+              (%cp-made (file-or-err (fn (_) (file-symlink target dst)))
+                "symbolic link" target dst))))
+      ((Opts on? o "-l")
+        (%cp-made (file-or-err (fn (_) (file-link src dst)))
+          "hard link" src dst))
+      ((Opts on? o "-s")
+        (%cp-made (file-or-err (fn (_) (file-symlink src dst)))
+          "symbolic link" src dst))
+      (#t (do (file-copy src dst) (%cp-preserve! src dst o) 0)))))
 
 ; SRC... DST: DST is a directory to copy into, unless -T says it is the
 ; name to write
@@ -197,7 +257,7 @@
                           (if (if (Opts on? o "-u")
                                 (not (%fs-newer? (first ss) target)) #f)
                             (self (rest ss) st)
-                            (let ((r (%cp-one (first ss) target o)))
+                            (let ((r (%cp-one (first ss) target o #t)))
                               (self (rest ss) (if (> r st) r st)))))))))
             (go srcs 0)))))))
 
