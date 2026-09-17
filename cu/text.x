@@ -28,23 +28,55 @@
 (def %cu-lines
   (fn (_ s) (%cu-lines-go s (byte-len s) 0 0 ())))
 
-; run BODY over each operand in turn, with `-` and the empty list
-; standing for stdin -- the shape head and tail share once they print
-; a header per file.
-(def %cu-each-operand
-  (fn (_ ops stdin-thunk body)
-    (if (null? ops) (body "standard input" (stdin-thunk) #t)
-      (let ((go (fn (self os first?)
-                  (if (null? os) ()
-                    (do (body (first os)
-                          (if (string=? (first os) "-") (stdin-thunk)
-                            (file-read-all (first os)))
-                          first?)
-                        (self (rest os) #f))))))
-        (go ops #t)))))
+; --- the inputs head and tail read --------------------------------------------
+;
+; Each operand is read whole and handed to SHOW as (NAME TEXT FILE?), in order;
+; `-`, and no operand at all, is standard input, shown under that name.  Under
+; HEAD? a header comes first, with a blank line before every header but the
+; first one printed.  A file that cannot be opened is named on stderr with the
+; reason and gets no header; one that opens and cannot be read -- a directory --
+; gets its header, then the reason.  Answers 1 when an operand failed, else 0.
+(def %cu-each-input
+  (fn (_ applet ops stdin-thunk head? show)
+    (if (null? ops)
+      (do (%cu-input-header head? "standard input" #t)
+          (show "standard input" (stdin-thunk) #f)
+          0)
+      (%cu-each-input-from applet ops stdin-thunk head? show #t 0))))
 
-(def %cu-drop
-  (fn (self l k) (if (<= k 0) l (if (null? l) l (self (rest l) (- k 1))))))
+(def %cu-each-input-from
+  (fn (self applet ops stdin-thunk head? show first? st)
+    (if (null? ops) st
+      (let ((name (first ops)))
+        (if (string=? name "-")
+          (do (%cu-input-header head? "standard input" first?)
+              (show "standard input" (stdin-thunk) #f)
+              (self applet (rest ops) stdin-thunk head? show #f st))
+          (let ((text (file-or-err (fn (_) (file-read-all name)))))
+            (match
+              ((not (Err err? text))
+                (do (%cu-input-header head? name first?)
+                    (show name text #t)
+                    (self applet (rest ops) stdin-thunk head? show #f st)))
+              ((eq? (file-err-op text) (lit read))
+                (do (%cu-input-header head? name first?)
+                    (file-write 2
+                      (string-concat
+                        (list applet ": error reading '" name "': "
+                              (file-err-text text) "\n")))
+                    (self applet (rest ops) stdin-thunk head? show #f 1)))
+              (#t
+                (do (file-write 2
+                      (string-concat
+                        (list applet ": cannot open '" name "' for reading: "
+                              (file-err-text text) "\n")))
+                    (self applet (rest ops) stdin-thunk head? show first? 1))))))))))
+
+(def %cu-input-header
+  (fn (_ head? name first?)
+    (if head?
+      (display (string-concat (list (if first? "" "\n") "==> " name " <==\n")))
+      ())))
 
 (def %cu-print-lines
   (fn (self ls)
@@ -189,29 +221,162 @@
                   (if (= (byte-at tok i) d) #t (self (+ i 1)))))))
       (go 1))))
 
+; --- the counts head and tail take ---------------------------------------------
+;
+; -n and -c take a count the way GNU's head and tail read one, once a leading -
+; is taken off: blanks, an optional +, digits, then an optional multiplier and
+; nothing after it.  b is 512; k K m M G T P E Z Y R Q are powers of 1024, or of
+; 1000 with a B after them (kB MB) and of 1024 again with iB (KiB).  A multiplier
+; with no digits before it counts one of itself.  A count too large to hold is
+; %cu-count-all, which no input reaches.
+
+(def %cu-count-all 4611686018427387904)                        ; 2^62
+
+; the power a multiplier letter raises its base to, or nil
+(def %cu-count-power
+  (fn (_ c)
+    (match
+      ((= c 107) 1) ((= c 75) 1)                                ; k K
+      ((= c 109) 2) ((= c 77) 2)                                ; m M
+      ((= c 71) 3) ((= c 84) 4) ((= c 80) 5) ((= c 69) 6)       ; G T P E
+      ((= c 90) 7) ((= c 89) 8) ((= c 82) 9) ((= c 81) 10)      ; Z Y R Q
+      (#t ()))))
+
+; S's digits from I onto ACC: (ACC . NEXT)
+(def %cu-count-digits
+  (fn (self s i acc)
+    (if (if (< i (byte-len s))
+          (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f)
+          #f)
+      (self s (+ i 1)
+        (if (> acc 100000000000000000) %cu-count-all
+          (+ (* acc 10) (- (byte-at s i) 48))))
+      (pair acc i))))
+
+; V times BASE, POWER times over
+(def %cu-count-scale
+  (fn (self v base power)
+    (match
+      ((<= power 0) v)
+      ((> v 1000000000000000) %cu-count-all)
+      (#t (self (* v base) base (- power 1))))))
+
+; V under the multiplier at I, and its B or iB: the count, or nil when what is
+; there is not a multiplier or something follows it
+(def %cu-count-suffix
+  (fn (_ s i v)
+    (let ((end (byte-len s)))
+      (if (>= i end) v
+        (let ((c (byte-at s i)))
+          (let ((p (if (= c 98) 1 (%cu-count-power c))))       ; b
+            (if (null? p) ()
+              (let ((base (match
+                            ((= (+ i 1) end) 1024)
+                            ((if (= (+ i 2) end) (= (byte-at s (+ i 1)) 66) #f)
+                              1000)                                  ; B
+                            ((if (= (+ i 3) end)
+                               (if (= (byte-at s (+ i 1)) 105)
+                                 (= (byte-at s (+ i 2)) 66) #f)
+                               #f)
+                              1024)                                  ; iB
+                            (#t ()))))
+                (match
+                  ((null? base) ())
+                  ((= c 98) (%cu-count-scale v 512 1))
+                  (#t (%cu-count-scale v base p)))))))))))
+
+; the count S holds, or nil when it holds none
+(def %cu-count-of
+  (fn (_ s)
+    (let ((i (%cu-count-blanks s 0)))
+      (if (if (< i (byte-len s)) (= (byte-at s i) 45) #f) ()      ; -
+        (let ((j (if (if (< i (byte-len s)) (= (byte-at s i) 43) #f)
+                   (+ i 1) i)))                                   ; +
+          (let ((d (%cu-count-digits s j 0)))
+            (match
+              ((> (rest d) j) (%cu-count-suffix s (rest d) (first d)))
+              ((= (byte-len s) 0) ())
+              (#t (%cu-count-suffix s 0 1)))))))))
+
+(def %cu-count-blanks
+  (fn (self s i)
+    (if (if (< i (byte-len s))
+          (let ((b (byte-at s i))) (if (= b 32) #t (if (>= b 9) (<= b 13) #f)))
+          #f)
+      (self s (+ i 1))
+      i)))
+
+; the -n or -c value past a leading -, which both applets take off first
+(def %cu-count-body
+  (fn (_ spec)
+    (if (if (> (byte-len spec) 0) (= (byte-at spec 0) 45) #f)
+      (substring spec 1 (byte-len spec))
+      spec)))
+
+; a value that is not a count, refused in GNU's words
+(def %cu-count-refused
+  (fn (_ applet lines? spec)
+    (do (file-write 2
+          (string-concat
+            (list applet ": invalid number of " (if lines? "lines" "bytes") ": '"
+                  (%cu-count-body spec) "'\n")))
+        1)))
+
+; where each line of TEXT starts: 0, then one past each newline that has more
+; text after it.  An empty text has no lines.
+(def %cu-line-starts
+  (fn (_ text)
+    (if (= (byte-len text) 0) ()
+      (%cu-line-starts-at text (byte-len text) 0 (list 0)))))
+
+(def %cu-line-starts-at
+  (fn (self text end i acc)
+    (match
+      ((>= (+ i 1) end) (reverse acc))
+      ((= (byte-at text i) 10) (self text end (+ i 1) (pair (+ i 1) acc)))
+      (#t (self text end (+ i 1) acc)))))
+
+; where line K starts, counting from 0, or END when there are not that many
+(def %cu-line-at
+  (fn (self starts k end)
+    (match
+      ((null? starts) end)
+      ((<= k 0) (first starts))
+      (#t (self (rest starts) (- k 1) end)))))
+
+; What head prints of TEXT: its first N lines or bytes, or under ELIDE? all but
+; its last N.  The bytes are the input's, so a last line keeps having no
+; newline when it had none.
+(def %cu-head-part
+  (fn (_ text lines? elide? n)
+    (let ((end (byte-len text)))
+      (if lines?
+        (let ((starts (%cu-line-starts text)))
+          (substring text 0
+            (%cu-line-at starts (if elide? (- (length starts) n) n) end)))
+        (substring text 0
+          (match
+            ((> n end) (if elide? 0 end))
+            (elide? (- end n))
+            (#t n)))))))
+
+; head -n and -c: a leading - prints all but the last COUNT, and a leading + is
+; the count itself.  A header comes before each operand when there is more than
+; one; -v asks for them always and -q never.
 (def %cu-head
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "head" argv))
     (def ops (Opts operands o))
-    (def bytes (Opts value o "-c"))
-    (def n (%cu-num-prefix (Opts value o "-n" "10")))
-    ; a header per operand when there is more than one, as head does;
-    ; -v forces it and -q suppresses it
-    (def head?
-      (if (Opts on? o "-q") #f
-        (if (Opts on? o "-v") #t (> (length ops) 1))))
-    (def one
-      (fn (_ name text first?)
-        (do (if head?
-              (display (string-concat
-                         (list (if first? "" "\n") "==> " name " <==\n")))
-              ())
-            (if (null? bytes)
-              (%cu-print-lines (%cu-take (%cu-lines text) n))
-              (let ((k (%cu-num-prefix bytes)))
-                (display (substring text 0
-                           (if (> k (byte-len text)) (byte-len text) k))))))))
-    (do (%cu-each-operand ops stdin-thunk one) 0)))
+    (let ((lines? (null? (Opts value o "-c"))))
+      (let ((spec (if lines? (Opts value o "-n" "10") (Opts value o "-c"))))
+        (let ((n (%cu-count-of (%cu-count-body spec)))
+              (elide? (if (> (byte-len spec) 0) (= (byte-at spec 0) 45) #f)))
+          (if (null? n) (%cu-count-refused "head" lines? spec)
+            (%cu-each-input "head" ops stdin-thunk
+              (if (Opts on? o "-q") #f
+                (if (Opts on? o "-v") #t (> (length ops) 1)))
+              (fn (_ name text file?)
+                (display (%cu-head-part text lines? elide? n))))))))))
 
 (def %cu-member-s?
   (fn (_ s l)
@@ -299,60 +464,60 @@
                 (self (first r) (rest r) (if (< k 0) k (- k 1))))))))
     (go offs last rounds)))
 
-; -f follows its files by NAME, polled every -s seconds (1 by default).
-; Standard input has been read whole by the time an applet runs, so it
-; has nothing to follow: -f with only stdin prints the tail and returns.
+; What tail prints of TEXT: its last N lines or bytes, or under FROM-START?
+; everything from line or byte N on, where +0 is +1.  The bytes are the
+; input's, so a last line keeps having no newline when it had none.
+(def %cu-tail-part
+  (fn (_ text lines? from-start? n)
+    (let ((end (byte-len text)))
+      (if lines?
+        (let ((starts (%cu-line-starts text)))
+          (substring text
+            (%cu-line-at starts (if from-start? (- n 1) (- (length starts) n)) end)
+            end))
+        (substring text
+          (match
+            (from-start? (if (> n end) end (if (< n 1) 0 (- n 1))))
+            ((> n end) 0)
+            (#t (- end n)))
+          end)))))
+
+; tail -n and -c: a leading + counts from the start, and a leading - is the
+; count itself.  -f follows by NAME the files that were read, polled every -s
+; seconds (1 by default), each from where its read ended.  Standard input has
+; been read whole by the time an applet runs, so it has nothing to follow: -f
+; with only stdin prints the tail and returns, and -f with operands none of
+; which could be read says so.
 (def %cu-tail
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "tail" argv))
     (def ops (Opts operands o))
-    (def bytes (Opts value o "-c"))
-    (def n (%cu-num-prefix (Opts value o "-n" "10")))
-    (def head?
-      (if (Opts on? o "-q") #f
-        (if (Opts on? o "-v") #t (> (length ops) 1))))
-    ; where each file's read ended, newest first: the follow starts there
-    (def read-to (list ()))
-    (def one
-      (fn (_ name text first?)
-        (do (if head?
-              (display (string-concat
-                         (list (if first? "" "\n") "==> " name " <==\n")))
-              ())
-            (if (if (string=? name "-") #f (not (string=? name "standard input")))
-              (%set-first! read-to (pair (byte-len text) (first read-to)))
-              ())
-            (if (null? bytes)
-              (let ((ls (%cu-lines text)))
-                (%cu-print-lines (%cu-drop ls (- (length ls) n))))
-              (let ((k (%cu-num-prefix bytes)))
-                (def end (byte-len text))
-                (display (substring text (if (> k end) 0 (- end k)) end)))))))
-    ; A file that cannot be opened is named and dropped, as tail does, and
-    ; the rest are read; with nothing left to follow, -f says so.  Only
-    ; when no operand was given at all is stdin the input.
-    (def missing
-      (filter (fn (_ p) (if (string=? p "-") #f (not (file-exists? p)))) ops))
-    (def kept (filter (fn (_ p) (not (%cu-member-s? p missing))) ops))
-    (def files (filter (fn (_ p) (not (string=? p "-"))) kept))
-    (def f? (Opts on? o "-f"))
-    (do (%cu-print-lines-to 2
-          (map (fn (_ p)
-                 (string-concat
-                   (list "tail: cannot open '" p
-                         "' for reading: No such file or directory")))
-            missing))
-        (if (if (null? kept) (pair? ops) #f) ()
-          (%cu-each-operand kept stdin-thunk one))
-        (match
-          ((if f? (if (pair? ops) (null? files) #f) #f)
-            (do (file-write 2 "tail: no files remaining\n") 1))
-          ((if f? (pair? files) #f)
-            (do (%cu-tail-follow files (reverse (first read-to)) head?
-                  (if (null? kept) "" (%cu-last kept))
-                  (Opts value o "-s" "1") (- 0 1))
-                (if (null? missing) 0 1)))
-          (#t (if (null? missing) 0 1))))))
+    (let ((lines? (null? (Opts value o "-c")))
+          (head? (if (Opts on? o "-q") #f
+                   (if (Opts on? o "-v") #t (> (length ops) 1))))
+          ; each input shown, newest first: (NAME SIZE FILE?)
+          (shown (list ())))
+      (let ((spec (if lines? (Opts value o "-n" "10") (Opts value o "-c"))))
+        (let ((n (%cu-count-of (%cu-count-body spec)))
+              (from-start? (if (> (byte-len spec) 0) (= (byte-at spec 0) 43) #f)))
+          (if (null? n) (%cu-count-refused "tail" lines? spec)
+            (let ((st (%cu-each-input "tail" ops stdin-thunk head?
+                        (fn (_ name text file?)
+                          (do (%set-first! shown
+                                (pair (list name (byte-len text) file?)
+                                  (first shown)))
+                              (display (%cu-tail-part text lines? from-start? n)))))))
+              (let ((files (filter (fn (_ e) (%cu-nth 2 e)) (reverse (first shown)))))
+                (match
+                  ((not (Opts on? o "-f")) st)
+                  ((pair? files)
+                    (do (%cu-tail-follow (map (fn (_ e) (first e)) files)
+                          (map (fn (_ e) (%cu-nth 1 e)) files) head?
+                          (first (first (first shown)))
+                          (Opts value o "-s" "1") (- 0 1))
+                        st))
+                  ((pair? ops) (do (file-write 2 "tail: no files remaining\n") 1))
+                  (#t st))))))))))
 
 ; counts for one text: (lines words bytes)
 ; (LINES WORDS BYTES LONGEST). LONGEST is the longest line without its

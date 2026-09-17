@@ -822,10 +822,8 @@ b0b
 a
 
 ==> /tmp/x-cu-fm/sub/one <==
-x
-0a
-x
-0==> /tmp/x-cu-fm/five <==
+x0a
+x0==> /tmp/x-cu-fm/five <==
 a
 0
 ```

@@ -27,7 +27,7 @@
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
   file-open-update
   file-stat file-chmod file-chown file-link file-symlink file-readlink
-  file-or-err file-err-text file-err-sym
+  file-or-err file-err-text file-err-sym file-err-op
   file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
   file-write-nuls file-write-field cu-stdin-fields!
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
@@ -327,6 +327,10 @@
 ; the errno an io Err names, as a symbol: enoent, eacces
 (def file-err-sym
   (fn (_ e) (Assoc get (lit sym) (e data))))
+
+; the call an io Err came from, as a symbol: stat, open, read
+(def file-err-op
+  (fn (_ e) (Assoc get (lit op) (e data))))
 
 ; what follows the first ": " in M, or M when there is none
 (def %cu-after-colon
