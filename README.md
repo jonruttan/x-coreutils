@@ -26,8 +26,9 @@ input with no NUL byte -- `md5sum`, `sha1sum`, `sha256sum` and
 CRC-32 with its length fold; `sort` is a merge sort with busybox's whole
 option set, keys (`-k`, `-t`) included; `expr` is a recursive-descent
 parser over the argument list with its own anchored BRE matcher,
-`\(...\)` capture and all; `chmod` reads both an octal mode and the
-symbolic `[ugoa]*[+-=][rwx]*` clauses; `realpath` restarts its walk
+`\(...\)` capture and all; `chmod` reads an octal mode and the whole
+symbolic grammar -- `X`, `s`, `t`, a copied class and the umask
+included; `realpath` restarts its walk
 over any prefix that turns out to be a link, so `/tmp` resolves
 through to `/private/tmp`; `od` follows the GNU/busybox layout (not
 the BSD one macOS ships) and collapses a repeated line to `*`; `diff`
@@ -62,6 +63,8 @@ Self-contained: no `(requires-lang ...)`.
     `.`, `*`, bracket expressions with ranges and negation, `$`, and
     one `\(...\)` capture.  No `\{n,m\}`, `\+`, `\?` or `\|`, and no
     back-references.
+  - **A mode that looks like an option** is refused, since the option
+    guard sees it first: write `chmod a-w f`, not `chmod -w f`.
   - **Not present**: `who` (utmpx), `stty` (ioctl), `hostid`
     (gethostid) and `mknod` (device numbers), for want of a door this
     bundle will not invent; and `sha3sum`, which needs no door and is

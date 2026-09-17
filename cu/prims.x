@@ -35,7 +35,7 @@
   proc-run sys-exit sys-dup2 sys-close
   sys-fork sys-wait sys-exec sys-exec-or-err sys-kill sys-signal sys-isatty sys-usleep
   cu-sigterm cu-sigkill cu-sigint cu-sighup cu-sig-ign
-  sys-getcwd sys-environ sys-getenv sys-setenv sys-unsetenv sys-sleep
+  sys-getcwd sys-environ sys-getenv sys-setenv sys-unsetenv sys-sleep sys-umask
   date-now-iso date-now-unix rng-make rng-int
   sys-getuid sys-geteuid sys-getgid sys-getegid sys-getgroups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
@@ -183,6 +183,32 @@
 (def sys-getcwd (fn (_) (Sys getcwd)))
 (def sys-environ (fn (_) (Sys environ)))
 (def sys-getenv (fn (_ n) (Sys getenv n)))
+; The umask, which chmod needs for a mode with no who.  The call both reads and
+; sets, so reading it means setting it to 0, which answers the old value, and
+; putting that back -- what every chmod does.  There is no umask method on Sys
+; and no number for it in the Darwin syscall table, so it is reached through the
+; FFI the platform's own errno lookup uses (x/type/err.x).  A libc without the
+; symbol answers 0, which masks nothing.
+(def %cu-dlsym (prim-ref (lit ffi) (lit dlsym)))
+(def %cu-dlopen (prim-ref (lit ffi) (lit dlopen)))
+(def %cu-ptr-call (prim-ref (lit ptr) (lit call)))
+(def %cu-umask-cell (list ()))
+
+(def %cu-umask-fn
+  (fn (_)
+    (do (if (null? (first %cu-umask-cell))
+          (set-first! %cu-umask-cell
+            (list (%cu-dlsym (%cu-dlopen () 1) "umask")))
+          ())
+        (first (first %cu-umask-cell)))))
+
+(def sys-umask
+  (fn (_)
+    (let ((f (%cu-umask-fn)))
+      (if (null? f) 0
+        (let ((old (%cu-ptr-call f 0)))
+          (do (%cu-ptr-call f old) old))))))
+
 (def sys-setenv (fn (_ n v) (Sys setenv n v)))
 (def sys-unsetenv (fn (_ n) (Sys unsetenv n)))
 (def sys-sleep (fn (_ n) (Sys sleep n)))
