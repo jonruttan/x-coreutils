@@ -20,47 +20,51 @@ one bundle -- the busybox shape:
     unlink uname uudecode uuencode usleep wc which whoami xargs yes
     [ [[
 
-Highlights: **every digest is byte-identical with the system tool** --
-`md5sum`, `sha1sum`, `sha256sum` and `sha512sum` are the FIPS/RFC
-algorithms in x, and `cksum` is the POSIX CRC-32 with its length fold;
-`sort` is a merge sort with `-r -n -u`; `expr` is a recursive-descent
+Highlights: **every digest is byte-identical with the system tool** on
+input with no NUL byte -- `md5sum`, `sha1sum`, `sha256sum` and
+`sha512sum` are the FIPS/RFC algorithms in x, and `cksum` is the POSIX
+CRC-32 with its length fold; `sort` is a merge sort with busybox's whole
+option set, keys (`-k`, `-t`) included; `expr` is a recursive-descent
 parser over the argument list with its own anchored BRE matcher,
-capture groups and all; `chmod` reads both an octal mode and the
+`\(...\)` capture and all; `chmod` reads both an octal mode and the
 symbolic `[ugoa]*[+-=][rwx]*` clauses; `realpath` restarts its walk
 over any prefix that turns out to be a link, so `/tmp` resolves
 through to `/private/tmp`; `od` follows the GNU/busybox layout (not
 the BSD one macOS ships) and collapses a repeated line to `*`; `diff`
-is a line LCS by DP; `timeout` forks the command AND a watchdog,
-because there is no alarm door.  Self-contained: no `(requires-lang
-...)`.
+is a line LCS by DP, in the normal or the unified format; `timeout`
+forks the command AND a watchdog, because there is no alarm door.
+Self-contained: no `(requires-lang ...)`.
 
 ## Known limits
 
-  - **No name service.** There is no passwd or group door, so `id`,
-    `whoami` and `logname` read /etc/passwd when it holds the id and
-    fall back to `$USER`/`$LOGNAME` when it does not; the numeric id
-    is the last resort.  `chown` and `chgrp` take NUMERIC ids only.
-    `groups` and `id -G` print numbers.
-  - **`df` measures paths, not mounts.** There is no mount-table door,
-    so `df` reports the filesystem each operand sits on, and a bare
-    `df` measures the working directory rather than listing every
-    filesystem.  There is no Filesystem column.
-  - **`date` prints ISO-8601 UTC**, not the locale format.
+  - **No name service.** There is no passwd or group door.  A user's
+    name comes from /etc/passwd when it holds the id, then `$USER`,
+    then `$LOGNAME`, then the number itself; `logname` reads
+    `$LOGNAME` first.  No group has a name: `groups`, `id`, `id -gn`
+    and `id -Gn` print numbers.  `chown` and `chgrp` take numeric ids
+    only.
+  - **`date` is UTC, in the C locale.** Neither TZ nor the locale is
+    read, so `date` prints what `TZ=UTC LC_ALL=C date` prints.
+    `date -d` and `touch -d` read a date as UTC, spelled as an ISO 8601
+    date or time or as `@SECONDS`, not in GNU's free-form words.
   - **`tty` answers isatty**, not a terminal name: there is no ttyname
     door, so it prints `/dev/tty` or `not a tty`.
-  - **`touch` sets the clock only.** `utimes` with explicit stamps
-    wants a packed pair of timevals; `-d` and `-t` are not accepted.
   - **`which` tests existence**, not the execute bit.
-  - **Text, not binary.** An x string ends at its first NUL, so the
-    digests, `base64 -d`, `dd` and `shred` are safe on text and will
-    truncate a stream with an embedded NUL.
+  - **Text, not binary.** An applet holds what it reads as a string,
+    and a string's length stops at its first NUL byte, so `cat`, `od`,
+    `wc`, `cmp`, `dd`, the digests and the other readers see a file or
+    a stream only up to its first NUL -- `cmp` can call two different
+    files the same.  `cp`, `mv` and `install` copy every byte;
+    `sort -z`, `shuf -z` and `xargs -0` read NUL as a separator, and
+    `env -0` writes it.
   - **`expr`'s regular expressions are its own grammar**: literals,
     `.`, `*`, bracket expressions with ranges and negation, `$`, and
-    `\(...\)` capture.  No `\{n,m\}`, no `\|`, no back-references.
-  - **`head`/`tail` treat multiple inputs as one stream.**
-  - **Not present**, for want of a door this bundle will not invent:
-    `who` (utmpx), `stty` (ioctl), `hostid` (gethostid), `mknod`
-    (device numbers), and `sha3sum`.
+    one `\(...\)` capture.  No `\{n,m\}`, `\+`, `\?` or `\|`, and no
+    back-references.
+  - **Not present**: `who` (utmpx), `stty` (ioctl), `hostid`
+    (gethostid) and `mknod` (device numbers), for want of a door this
+    bundle will not invent; and `sha3sum`, which needs no door and is
+    not written.
 
 Paired with x-lang v0.13.0 (`lang.xon` is the checkable row).
 
@@ -93,25 +97,34 @@ parsed by x-lang's `Opts`.
 
     lang.xon          what this bundle IS (self-contained)
     run.x             the entry: operands mean "be the applet"
+    cu/base.x         the files below, assembled into the one bundle
     cu/prims.x        the platform layer (byte doors, bitwise, File, the wide stat)
-    cu/text.x         cat sort uniq head tail wc comm join basename dirname
-    cu/text2.x        echo printf seq rev tac nl fold paste tee
+    cu/text.x         head tail wc comm join basename dirname
+    cu/text2.x        echo printf seq rev tac fold paste tee
     cu/text3.x        yes factor expand unexpand dos2unix unix2dos split shuf base64
+    cu/text4.x        uniq nl
+    cu/fmt-lex.x      one reader for the format strings of printf, date and stat
+    cu/sort.x         sort
     cu/trcut.x        tr and cut
-    cu/fs.x           cp rm mkdir
-    cu/fs2.x          touch ls pwd mv rmdir install mktemp cmp
-    cu/fs3.x          stat du dd truncate unlink shred timeout usleep tty nohup [[
-    cu/sys2.x         true false env printenv sleep date which xargs test
-    cu/perm.x         chmod chown chgrp ln link readlink realpath mkfifo df sync
+    cu/fs.x           cat cp mv rm mkdir rmdir ln
+    cu/fs2.x          touch pwd install mktemp cmp
+    cu/fs3.x          stat du dd truncate unlink shred timeout usleep tty nohup
+    cu/ls.x           ls
+    cu/walk.x         the directory walk the recursive applets share
+    cu/sys2.x         true false env printenv sleep which xargs
+    cu/test.x         test, [ and [[: the expression grammar
+    cu/date.x         date, and the strftime it needs
+    cu/perm.x         chmod chown chgrp link readlink realpath mkfifo df sync
     cu/who.x          id whoami logname groups uname arch nproc nice chroot
     cu/encode.x       od uuencode uudecode
     cu/expr.x         expr, and the anchored matcher it needs
-    cu/diff.x         diff, normal format (LCS by DP)
+    cu/diff.x         diff, normal and unified formats (LCS by DP)
+    cu/diff-lex.x     which lines diff counts the same under -i -b -w
     cu/find.x         find: the expression grammar, and the walk it drives
     cu/hash.x         md5sum sha1sum cksum sum
     cu/sha256.x       FIPS 180-4, in x
     cu/sha512.x       its 64-bit sibling, addition masked in halves
-    cu/cli.x          the applet table, cu-run, cu-main
+    cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 
 <p align="center"><img src="docs/bitwise-mark.svg" alt="Bitwise" width="96"></p>
