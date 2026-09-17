@@ -176,8 +176,8 @@
     (def end (byte-len s))
     (def go
       (fn (self i acc)
-        (if (>= i end) (list->string acc)
-          (self (+ i 1) (pair (integer->char (byte-at s i)) acc)))))
+        (if (>= i end) (bytes->str acc)
+          (self (+ i 1) (pair (byte-at s i) acc)))))
     (go 0 ())))
 
 (def %cu-rev-applet

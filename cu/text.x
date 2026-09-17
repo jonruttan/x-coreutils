@@ -13,8 +13,10 @@
 
 ; --- shared helpers ----------------------------------------------------------
 
+; the byte B as a one-byte string.  bytes->str packs the byte itself; a
+; character of that code would be written in UTF-8, as two bytes above 0x7F.
 (def %cu-b->s
-  (fn (_ b) (list->string (list (integer->char b)))))
+  (fn (_ b) (bytes->str (list b))))
 
 (def %cu-lines-go
   (fn (self s end i start acc)

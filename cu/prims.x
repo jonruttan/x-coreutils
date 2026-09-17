@@ -275,8 +275,8 @@
     (def slice
       (fn (_ from to)
         (let ((go (fn (self k acc)
-                    (if (>= k to) (list->string (reverse acc))
-                      (self (+ k 1) (pair (integer->char (byte-at buf k)) acc))))))
+                    (if (>= k to) (bytes->str (reverse acc))
+                      (self (+ k 1) (pair (byte-at buf k) acc))))))
           (go from ()))))
     (def go
       (fn (self part acc)
@@ -388,10 +388,10 @@
   (fn (_ buf off n)
     (def go
       (fn (self i acc)
-        (if (>= i (+ off n)) (list->string (reverse acc))
+        (if (>= i (+ off n)) (bytes->str (reverse acc))
           (let ((b (byte-at buf i)))
-            (if (= b 0) (list->string (reverse acc))
-              (self (+ i 1) (pair (integer->char b) acc)))))))
+            (if (= b 0) (bytes->str (reverse acc))
+              (self (+ i 1) (pair b acc)))))))
     (go off ())))
 
 ; Linux names a filesystem by its magic; these are the ones stat
@@ -478,7 +478,7 @@
     (def oct? (fn (_ b) (if (>= b 48) (<= b 55) #f)))
     (def go
       (fn (self i acc)
-        (if (>= i end) (list->string (reverse acc))
+        (if (>= i end) (bytes->str (reverse acc))
           (let ((b (byte-at s i)))
             (if (if (= b 92) (if (< (+ i 3) end)
                                (if (oct? (byte-at s (+ i 1)))
@@ -487,12 +487,11 @@
                                #f)
                   #f)
               (self (+ i 4)
-                (pair (integer->char
-                        (+ (* 64 (- (byte-at s (+ i 1)) 48))
-                           (+ (* 8 (- (byte-at s (+ i 2)) 48))
-                              (- (byte-at s (+ i 3)) 48))))
+                (pair (+ (* 64 (- (byte-at s (+ i 1)) 48))
+                         (+ (* 8 (- (byte-at s (+ i 2)) 48))
+                            (- (byte-at s (+ i 3)) 48)))
                   acc))
-              (self (+ i 1) (pair (integer->char b) acc)))))))
+              (self (+ i 1) (pair b acc)))))))
     (go 0 ())))
 
 ; Every mounted filesystem, each an alist: what it is mounted FROM and
