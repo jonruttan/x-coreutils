@@ -27,23 +27,113 @@
                       (if (string=? (first l) nm) #t (self (rest l)))))))
           (go names))))))
 
-; env with no command prints the environment; -i starts from an empty one
-; and -u drops a name, so both are visible in what is printed.  -0 ends
-; each entry with a NUL instead of a newline, which is what lets a value
-; hold one.
+; env [-i] [-0] [-u NAME]... [-] [NAME=VALUE]... [COMMAND [ARG]...]
+;
+; -i starts from an empty environment, and so does a - before the operands; -u
+; drops a name; each NAME=VALUE replaces its name where it stands, or is added
+; at the end, as setenv places it.  The options end at the first operand, so a
+; command's own options stay its own.  With no command the environment is
+; printed, one entry to a line or, under -0, each ended with a NUL -- which is
+; what lets a value hold a newline.  A command runs in a child given those
+; changes and the caller's standard input, and env answers how it ended: its
+; status, 127 when there is no such command, 126 when it cannot be run.
+
+; the NAME of a NAME=VALUE entry, and its VALUE
+(def %cu-env-name
+  (fn (_ e) (first (%cu-env-cut e))))
+(def %cu-env-value
+  (fn (_ e) (rest (%cu-env-cut e))))
+(def %cu-env-cut
+  (fn (_ e)
+    (let ((at (%cu-env-eq-at e 0)))
+      (if (< at 0) (pair e "")
+        (pair (substring e 0 at) (substring e (+ at 1) (byte-len e)))))))
+(def %cu-env-eq-at
+  (fn (self e i)
+    (match
+      ((>= i (byte-len e)) (- 0 1))
+      ((= (byte-at e i) 61) i)                                    ; =
+      (#t (self e (+ i 1))))))
+
+; env's arguments with each -0 before the operands taken out, and whether there
+; was one: (ZERO? . ARGUMENTS).  Opts reads -0 as a number, which would end the
+; options early.  -u takes the argument after it.
+(def %cu-env-zero
+  (fn (self as acc zero?)
+    (match
+      ((null? as) (pair zero? (reverse acc)))
+      ((string=? (first as) "-0") (self (rest as) acc #t))
+      ((if (string=? (first as) "-u") (pair? (rest as)) #f)
+        (self (rest (rest as)) (pair (first (rest as)) (pair "-u" acc)) zero?))
+      ((if (> (byte-len (first as)) 1)
+         (if (= (byte-at (first as) 0) 45) (not (string=? (first as) "--")) #f)
+         #f)
+        (self (rest as) (pair (first as) acc) zero?))
+      (#t (pair zero? (append (reverse acc) as))))))
+
+; the leading NAME=VALUE operands, and what follows them: (SETS . COMMAND)
+(def %cu-env-sets
+  (fn (self ops sets)
+    (if (if (pair? ops) (>= (%cu-env-eq-at (first ops) 0) 0) #f)
+      (self (rest ops) (pair (first ops) sets))
+      (pair (reverse sets) ops))))
+
+; ENTRIES with SET's name holding SET's value: in its place, or at the end
+(def %cu-env-put
+  (fn (_ entries set)
+    (let ((name (%cu-env-name set)))
+      (if (%cu-env-named? set (map %cu-env-name entries))
+        (map (fn (_ e) (if (string=? (%cu-env-name e) name) set e)) entries)
+        (append entries (list set))))))
+
+(def %cu-env-apply
+  (fn (self entries sets)
+    (if (null? sets) entries (self (%cu-env-put entries (first sets)) (rest sets)))))
+
+; The child that becomes COMMAND: its own environment changed, the caller's
+; standard input put back, then exec.  A command exec refuses is named with the
+; reason.  Every path ends in an exit, so nothing returns into the applet.
+(def %cu-env-child
+  (fn (_ clear? drop sets cmd)
+    (do (guard (_ (sys-exit 125))
+          (do (if clear?
+                (map (fn (_ e) (sys-unsetenv (%cu-env-name e))) (sys-environ))
+                ())
+              (map sys-unsetenv drop)
+              (map (fn (_ s) (sys-setenv (%cu-env-name s) (%cu-env-value s))) sets)
+              (cu-stdin-to-command!)
+              (let ((e (sys-exec-or-err (first cmd) (rest cmd))))
+                (do (file-write 2
+                      (string-concat
+                        (list "env: '" (first cmd) "': " (file-err-text e) "\n")))
+                    (sys-exit (if (eq? (file-err-sym e) (lit enoent)) 127 126))))))
+        (sys-exit 125))))
+
 (def %cu-env
   (fn (_ argv stdin-thunk)
-    ; -0 reads as a negative NUMBER to Opts before the declaration is
-    ; consulted (x-lang#650, what ls's -1 works around), so it arrives as
-    ; an operand rather than a flag; the token itself is the test.
-    (def zero? (%cu-member-s? "-0" argv))
-    (def o (%cu-opts "env" argv))
-    (def drop (Opts values o "-u"))
-    (def kept
-      (if (Opts on? o "-i") ()
-        (filter (fn (_ e) (not (%cu-env-named? e drop))) (sys-environ))))
-    (do (if zero? (%cu-print-fields kept 0) (%cu-print-lines kept))
-        0)))
+    (let ((z (%cu-env-zero argv () #f)))
+      (let ((o (%cu-opts "env" (rest z))))
+        (let ((ops (Opts operands o)))
+          (let ((dash? (if (pair? ops) (string=? (first ops) "-") #f)))
+            (let ((clear? (if dash? #t (Opts on? o "-i")))
+                  (drop (Opts values o "-u"))
+                  (split (%cu-env-sets (if dash? (rest ops) ops) ())))
+              (match
+                ((null? (rest split))
+                  (let ((env (%cu-env-apply
+                               (filter (fn (_ e) (not (%cu-env-named? e drop)))
+                                 (if clear? () (sys-environ)))
+                               (first split))))
+                    (do (if (first z) (%cu-print-fields env 0) (%cu-print-lines env))
+                        0)))
+                ((first z)
+                  (do (file-write 2 "env: cannot specify --null (-0) with command\n")
+                      125))
+                (#t
+                  (let ((pid (sys-fork)))
+                    (if (= pid 0)
+                      (%cu-env-child clear? drop (first split) (rest split))
+                      (sys-wait pid))))))))))))
 
 (def %cu-printenv
   (fn (_ argv stdin-thunk)

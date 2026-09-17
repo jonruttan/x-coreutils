@@ -33,13 +33,13 @@
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
-  sys-fork sys-wait sys-exec sys-kill sys-signal sys-isatty sys-usleep
+  sys-fork sys-wait sys-exec sys-exec-or-err sys-kill sys-signal sys-isatty sys-usleep
   cu-sigterm cu-sigkill cu-sigint cu-sighup cu-sig-ign
-  sys-getcwd sys-environ sys-getenv sys-sleep
+  sys-getcwd sys-environ sys-getenv sys-setenv sys-unsetenv sys-sleep
   date-now-iso date-now-unix rng-make rng-int
   sys-getuid sys-geteuid sys-getgid sys-getegid sys-getgroups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
-  cu-stdin!)
+  cu-stdin! cu-stdin-to-command!)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -183,6 +183,8 @@
 (def sys-getcwd (fn (_) (Sys getcwd)))
 (def sys-environ (fn (_) (Sys environ)))
 (def sys-getenv (fn (_ n) (Sys getenv n)))
+(def sys-setenv (fn (_ n v) (Sys setenv n v)))
+(def sys-unsetenv (fn (_ n) (Sys unsetenv n)))
 (def sys-sleep (fn (_ n) (Sys sleep n)))
 
 (def date-now-iso (fn (_) (Date ->iso (Date now))))
@@ -194,6 +196,14 @@
 (def sys-fork (fn (_) (Sys fork)))
 (def sys-wait (fn (_ pid) (Sys wait pid)))
 (def sys-exec (fn (_ name argv) (Sys exec name argv)))
+
+; NAME run in place of this process, looked for on PATH; when exec refuses it,
+; the io Err that says why -- enoent for no such command, eacces for a file
+; that cannot be run.  errno is read straight after the refusal.
+(def sys-exec-or-err
+  (fn (_ name argv)
+    (do (Sys exec name argv)
+        (Err from-errno (Err errno-of (- 0 1)) (lit exec) name))))
 (def sys-kill (fn (_ pid sig) (Sys kill pid sig)))
 (def sys-signal (fn (_ sig how) (Sys signal sig how)))
 (def sys-isatty (fn (_ fd) (Sys isatty fd)))
@@ -206,6 +216,14 @@
 (def sys-exit (fn (_ n) (Sys exit n)))
 (def sys-dup2 (fn (_ a b) (Sys dup2 a b)))
 (def sys-close (fn (_ fd) (Sys close fd)))
+
+; The caller's standard input for a command about to replace this process.
+; The platform keeps it on fd 3 while fd 0 carries x's own program text, so a
+; command that inherited fd 0 would read that text.  When fd 3 is not open --
+; stdin was read already, or there was none -- fd 0 is left as it is.
+(def cu-stdin-to-command!
+  (fn (_)
+    (if (< (sys-dup2 3 0) 0) () (sys-close 3))))
 
 ; stdin, read once from fd 3 (the platform's arrangement; see x-awk)
 (def cu-stdin!
