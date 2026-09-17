@@ -65,6 +65,14 @@ readers accept either and the cases below state the signed time.
 1600000000 1600000000
 ```
 
+### -d takes a time of day too, as date's -d does
+
+```cu
+(do (cu-run (list "touch" "-d" "2020-01-02 03:04:05" (tch "dt")) "") (times (tch "dt")))
+```
+---
+    1577934245 1577934245
+
 ### -r copies both times from its file, and -r with -d takes -d's time
 
 ```cu

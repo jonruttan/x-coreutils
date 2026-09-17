@@ -56,21 +56,7 @@
         (def hour (num (+ lead 4) (+ lead 6)))
         (def minute (num (+ lead 6) (+ lead 8)))
         (def second (if (= dot end) 0 (num (+ dot 1) end)))
-        (def month-days
-          (if (if (>= month 1) (<= month 12) #f)
-            (+ (%cu-nth (- month 1) %cu-date-mon-days)
-               (if (if (= month 2) (Date leap-year? year) #f) 1 0))
-            0))
-        (match
-          ((< day 1) ())
-          ((> day month-days) ())
-          ((> hour 23) ())
-          ((> minute 59) ())
-          ((> second 60) ())
-          (#t (Date to-unix
-                (list (pair (lit year) year) (pair (lit month) month)
-                      (pair (lit day) day) (pair (lit hour) hour)
-                      (pair (lit minute) minute) (pair (lit second) second)))))))))
+        (%cu-date-moment year month day hour minute second 60)))))
 
 (def %cu-touch
   (fn (_ argv stdin-thunk)
