@@ -44,8 +44,9 @@
 ; --- cat ----------------------------------------------------------------------
 
 ; -v spells the unprintables: control as ^X, DEL as ^?, and a high byte
-; as M- followed by the same rendering of its low seven bits.  -e and -t
-; add the line and tab markers, and -A is all three.
+; as M- followed by the same rendering of its low seven bits.  -e adds the
+; line marker and -t the tab marker, each of them spelling the unprintables
+; as well -- cat's -e is -vE and its -t is -vT -- and -A is all three.
 (def %cat-visible
   (fn (_ b)
     (match
@@ -60,7 +61,11 @@
 
 (def %cat-render
   (fn (_ s o)
-    (def v? (if (Opts on? o "-A") #t (Opts on? o "-v")))
+    (def v? (match
+              ((Opts on? o "-A") #t)
+              ((Opts on? o "-v") #t)
+              ((Opts on? o "-e") #t)
+              (#t (Opts on? o "-t"))))
     (def e? (if (Opts on? o "-A") #t (Opts on? o "-e")))
     (def t? (if (Opts on? o "-A") #t (Opts on? o "-t")))
     (if (if v? #f (if e? #f (not t?))) s

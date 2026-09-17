@@ -103,14 +103,14 @@ same size
 0
 ```
 
-### shred -z leaves the file its size, in zeros
+### shred -z fills the blocks it covered with zeros
 
 ```cu
 (do (cu-run (list "shred" "-n" "1" "-z" "/tmp/x-cu-z/s") "") (display (cu-run (list "stat" "-c" "%s" "/tmp/x-cu-z/s") "")) (def fd (file-open-read "/tmp/x-cu-z/s")) (def buf (%str-make-raw 32)) (def n (File read fd buf 32)) (file-close fd) (def allzero (fn (self i) (if (>= i n) #t (if (= (byte-at buf i) 0) (self (+ i 1)) #f)))) (display (if (allzero 0) "all zero" "not zero")))
 ```
 ---
 ```output
-11
+4096
 0all zero
 ```
 

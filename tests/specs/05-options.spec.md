@@ -175,16 +175,19 @@ inode
 0
 ```
 
-### -A spells the tab, the newline and the unprintables
+### -A spells the tab, the newline and the unprintables, and -e and -t each spell them too
+
+cat's -e is -vE and its -t is -vT, so either one names a high byte or a
+control character as -v does; only -A brings both markers.
 
 ```cu
-(do (display (cu-run (list "cat" "-A") "a\tb\n")) (display (cu-run (list "cat" "-e") "p\n")) (display (cu-run (list "cat" "-t") "q\tr\n")))
+(do (display (cu-run (list "cat" "-A") "a\tb\n")) (display (cu-run (list "cat" "-e") (bytes->str (list 112 233 10)))) (display (cu-run (list "cat" "-t") (bytes->str (list 113 9 114 2 10)))))
 ```
 ---
 ```output
 a^Ib$
-0p$
-0q^Ir
+0pM-i$
+0q^Ir^B
 0
 ```
 

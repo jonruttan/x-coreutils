@@ -29,7 +29,7 @@
   file-stat file-chmod file-chown file-link file-symlink file-readlink
   file-or-err file-err-text file-err-sym file-err-op
   file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
-  file-write-nuls file-write-field cu-stdin-fields!
+  file-write-nuls file-write-random file-write-field cu-stdin-fields!
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
@@ -289,6 +289,37 @@
             (file-close fd)
             (set-first! %cu-zeros-cell (list b))
             b)))))
+
+; N random bytes to FD: one buffer of them, written over and over, through the
+; counted write -- which carries a NUL as readily as any other byte.
+;
+; Two costs shape this.  As a string the bytes would cost one Str8 append per
+; byte, and the appends nest, so a file of 8K was a C-stack overflow rather
+; than a shredded file.  And a draw costs objects that nothing here sweeps, so
+; the buffer is drawn ONCE per pass and repeated rather than drawn per byte:
+; three bytes to a draw, 64K to a buffer.  A pass over a file larger than the
+; buffer therefore repeats it, which is what shred's pattern passes do anyway.
+(def file-write-random
+  (fn (_ fd rng n)
+    (def chunk (if (> n 65536) 65536 n))
+    (def buf (%str-make-raw chunk))
+    (def at (%cu-str->ptr buf))
+    (def put
+      (fn (_ i v) (if (< i chunk) (%cu-ptr-set! at i (bit-and v 255) 1) ())))
+    (def fill
+      (fn (self i)
+        (if (>= i chunk) ()
+          (let ((v (rng-int rng 16777216)))
+            (do (put i (bit-shr v 16))
+                (put (+ i 1) (bit-shr v 8))
+                (put (+ i 2) v)
+                (self (+ i 3)))))))
+    (def go
+      (fn (self left)
+        (if (<= left 0) ()
+          (let ((k (if (> left chunk) chunk left)))
+            (do (File write fd buf k) (self (- left k)))))))
+    (if (<= n 0) () (do (fill 0) (go n)))))
 
 (def file-write-nuls
   (fn (_ fd n)
