@@ -34,69 +34,175 @@
             (if (if (>= b 48) (<= b 55) #f) (self (+ i 1)) #f)))))
     (go 0)))
 
-; a symbolic mode is [ugoa]*[+-=][rwx]*, and the WHO selects which of
-; the three permission triples the [rwx] bits land in
-(def %cu-mode-who
-  (fn (_ s stop)
-    (def go
-      (fn (self i acc)
-        (if (>= i stop) (if (= acc 0) 448 acc)         ; bare op means u
-          (let ((b (byte-at s i)))
-            (match
-              ((= b 117) (self (+ i 1) (bit-or acc 448)))     ; u
-              ((= b 103) (self (+ i 1) (bit-or acc 56)))      ; g
-              ((= b 111) (self (+ i 1) (bit-or acc 7)))       ; o
-              ((= b 97)  (self (+ i 1) (bit-or acc 511)))     ; a
-              (#t (if (= acc 0) 448 acc)))))))
-    (go 0 0)))
+; A symbolic mode is clauses separated by commas, each of them
+;
+;   [ugoa]* ( OP [rwxXst]* | OP [ugo] )+        OP := + - =
+;
+; The who says which triples a clause touches; left out, it touches all three,
+; and then what + and = grant is what the umask does not hold (cu/prims.x reads
+; it): `chmod +w` under a umask of 022 grants w to the user alone.
+;
+; s is the setuid bit with u and the setgid bit with g, t the sticky bit with o;
+; = clears the special bit of each class it names.  X is x, but only where an
+; execute bit is already set or the path is a directory.  A perm of u, g or o
+; is that class's permissions as they stand, copied to the who's triples.
+(def %cu-mode-triples
+  (fn (_ c)
+    (match
+      ((= c 117) 448)                                          ; u: 0700
+      ((= c 103) 56)                                           ; g: 0070
+      ((= c 111) 7)                                            ; o: 0007
+      ((= c 97) 511)                                           ; a: 0777
+      (#t 0))))
 
-; the [rwx] letters, spread across all three triples; the who mask
-; then selects the ones that apply
-(def %cu-mode-bits
-  (fn (_ s from)
-    (def end (byte-len s))
-    (def go
-      (fn (self i acc)
-        (if (>= i end) acc
-          (let ((b (byte-at s i)))
-            (match
-              ((= b 114) (self (+ i 1) (bit-or acc 292)))     ; r: 0444
-              ((= b 119) (self (+ i 1) (bit-or acc 146)))     ; w: 0222
-              ((= b 120) (self (+ i 1) (bit-or acc 73)))      ; x: 0111
-              (#t (self (+ i 1) acc)))))))
-    (go from 0)))
+; the special bits the classes in a triple mask own: setuid for u, setgid for
+; g, sticky for o
+(def %cu-mode-specials
+  (fn (_ who)
+    (bit-or (if (= (bit-and who 448) 0) 0 2048)
+      (bit-or (if (= (bit-and who 56) 0) 0 1024)
+        (if (= (bit-and who 7) 0) 0 512)))))
 
-(def %cu-mode-op-at
-  (fn (_ s)
-    (def end (byte-len s))
-    (def go
-      (fn (self i)
-        (if (>= i end) (- 0 1)
-          (let ((b (byte-at s i)))
-            (if (if (= b 43) #t (if (= b 45) #t (= b 61))) i   ; + - =
-              (self (+ i 1)))))))
-    (go 0)))
+; the letters of a clause's who: (TRIPLES LEFT-OUT? NEXT)
+(def %cu-mode-who-at
+  (fn (self s i acc)
+    (if (if (< i (byte-len s)) (> (%cu-mode-triples (byte-at s i)) 0) #f)
+      (self s (+ i 1) (bit-or acc (%cu-mode-triples (byte-at s i))))
+      (list (if (= acc 0) 511 acc) (= acc 0) i))))
 
-; one symbolic clause applied to a current mode
-(def %cu-apply-symbolic
-  (fn (_ spec mode)
-    (def at (%cu-mode-op-at spec))
-    (if (< at 0) mode
-      (let ((who (%cu-mode-who spec at)))
-        (def bits (bit-and (%cu-mode-bits spec (+ at 1)) who))
-        (def op (byte-at spec at))
+(def %cu-mode-op? (fn (_ c) (if (= c 43) #t (if (= c 45) #t (= c 61)))))
+
+; A perm run from I: the bits it names, spread over all three triples, and
+; where it ends.  CURRENT and DIR? decide X, and a lone u, g or o copies that
+; class as it stands.  Answers (BITS SPECIALS NEXT), or nil when a letter is
+; none of the perms.
+(def %cu-mode-perms
+  (fn (_ s i current dir?)
+    (if (%cu-mode-copy? s i)
+      (let ((triple (%cu-mode-copied s i current)))
+        (list (bit-or triple (bit-or (bit-shl triple 3) (bit-shl triple 6))) 0
+          (+ i 1)))
+      (%cu-mode-perm-run s i current dir? 0 0))))
+
+; a perm run that is one of u, g or o, and nothing else
+(def %cu-mode-copy?
+  (fn (_ s i)
+    (if (< i (byte-len s))
+      (if (if (= (byte-at s i) 117) #t
+            (if (= (byte-at s i) 103) #t (= (byte-at s i) 111)))
+        (if (= (+ i 1) (byte-len s)) #t
+          (let ((c (byte-at s (+ i 1))))
+            (if (%cu-mode-op? c) #t (= c 44))))                 ; , ends a clause
+        #f)
+      #f)))
+
+; the three bits the named class holds in CURRENT, at the low end
+(def %cu-mode-copied
+  (fn (_ s i current)
+    (match
+      ((= (byte-at s i) 117) (bit-and (bit-shr current 6) 7))
+      ((= (byte-at s i) 103) (bit-and (bit-shr current 3) 7))
+      (#t (bit-and current 7)))))
+
+(def %cu-mode-perm-run
+  (fn (self s i current dir? bits specials)
+    (if (>= i (byte-len s)) (list bits specials i)
+      (let ((c (byte-at s i)))
         (match
-          ((= op 43) (bit-or mode bits))                       ; +
-          ((= op 45) (bit-and mode (bit-xor bits 4095)))       ; -
-          (#t (bit-or (bit-and mode (bit-xor who 4095)) bits))))))) ; =
+          ((= c 114) (self s (+ i 1) current dir? (bit-or bits 292) specials))
+          ((= c 119) (self s (+ i 1) current dir? (bit-or bits 146) specials))
+          ((= c 120) (self s (+ i 1) current dir? (bit-or bits 73) specials))
+          ; X is x where one is set already, or on a directory
+          ((= c 88)
+            (self s (+ i 1) current dir?
+              (if (if dir? #t (not (= (bit-and current 73) 0)))
+                (bit-or bits 73) bits)
+              specials))
+          ((= c 115) (self s (+ i 1) current dir? bits (bit-or specials 3072)))
+          ((= c 116) (self s (+ i 1) current dir? bits (bit-or specials 512)))
+          ((%cu-mode-op? c) (list bits specials i))
+          (#t ()))))))
+
+; One clause applied to a mode: its who, then each op and the perms after it.
+; What + and = grant a who that was left out is what the umask does not hold,
+; which is chmod's rule; what - takes away is not masked.
+(def %cu-apply-symbolic
+  (fn (_ spec mode dir? umask)
+    (let ((w (%cu-mode-who-at spec 0 0)))
+      (%cu-apply-ops spec (%cu-nth 2 w) (first w) mode dir?
+        (if (%cu-nth 1 w) (bit-xor (bit-and umask 511) 4095) 4095)))))
+
+(def %cu-apply-ops
+  (fn (self spec i who mode dir? grant)
+    (if (>= i (byte-len spec)) mode
+      (let ((op (byte-at spec i)))
+        (let ((p (%cu-mode-perms spec (+ i 1) mode dir?)))
+          (if (null? p) mode
+            (let ((bits (bit-and (first p) who))
+                  (specials (bit-and (%cu-nth 1 p) (%cu-mode-specials who))))
+              (self spec (%cu-nth 2 p) who
+                (match
+                  ((= op 43)
+                    (bit-or mode (bit-and (bit-or bits specials) grant)))
+                  ((= op 45)
+                    (bit-and mode (bit-xor (bit-or bits specials) 4095)))
+                  (#t
+                    (bit-or
+                      (bit-and mode
+                        (bit-xor (bit-or who (%cu-mode-specials who)) 4095))
+                      (bit-and (bit-or bits specials) grant))))
+                dir? grant))))))))
 
 (def %cu-mode-of
-  (fn (_ spec current)
+  (fn (_ spec current dir? umask)
     (if (%cu-octal-mode? spec) (%cu-octal->int spec)
-      (let ((go (fn (self cs m)
-                  (if (null? cs) m
-                    (self (rest cs) (%cu-apply-symbolic (first cs) m))))))
-        (go (%cu-split-byte spec 44) current)))))               ; ,
+      (%cu-mode-clauses (%cu-split-byte spec 44) current dir? umask))))  ; ,
+
+(def %cu-mode-clauses
+  (fn (self cs mode dir? umask)
+    (if (null? cs) mode
+      (self (rest cs) (%cu-apply-symbolic (first cs) mode dir? umask)
+        dir? umask))))
+
+; Is SPEC a mode: octal digits, or clauses this grammar reads whole?  chmod
+; refuses anything else before it touches a path, and so does this.
+(def %cu-mode-valid?
+  (fn (_ spec)
+    (if (%cu-octal-mode? spec) #t
+      (if (= (byte-len spec) 0) #f
+        (%cu-mode-clauses-valid? (%cu-split-byte spec 44))))))
+
+(def %cu-mode-clauses-valid?
+  (fn (self cs)
+    (if (null? cs) #t
+      (if (%cu-mode-clause-valid? (first cs)) (self (rest cs)) #f))))
+
+(def %cu-mode-clause-valid?
+  (fn (_ c)
+    (let ((w (%cu-mode-who-at c 0 0)))
+      (if (>= (%cu-nth 2 w) (byte-len c)) #f        ; a who and no op at all
+        (%cu-mode-ops-valid? c (%cu-nth 2 w) #f)))))
+
+(def %cu-mode-ops-valid?
+  (fn (self c i any)
+    (if (>= i (byte-len c)) any
+      (if (not (%cu-mode-op? (byte-at c i))) #f
+        (let ((p (%cu-mode-perms c (+ i 1) 0 #f)))
+          (if (null? p) #f (self c (%cu-nth 2 p) #t)))))))
+
+; A directory keeps its setuid and setgid bits through a mode that does not
+; name them -- an octal mode of fewer than five digits, or a clause with no s --
+; which is what chmod does; a file keeps neither.
+(def %cu-mode-keep-setid
+  (fn (_ spec new current dir?)
+    (if (if dir? (not (%cu-mode-names-setid? spec)) #f)
+      (bit-or new (bit-and current 3072))
+      new)))
+
+(def %cu-mode-names-setid?
+  (fn (_ spec)
+    (if (%cu-octal-mode? spec) (>= (byte-len spec) 5)
+      (%cu-byte-in? spec 115 0))))                              ; s
 
 ; --- chmod --------------------------------------------------------------------
 
@@ -179,12 +285,14 @@
 ; read after the mode is set, as chmod reads them.  Answers 1 when anything along
 ; the way failed, else 0.
 (def %cu-chmod-one
-  (fn (_ how spec path recurse?)
+  (fn (_ how spec path recurse? umask)
     (let ((st (file-or-err (fn (_) (file-stat path)))))
       (if (Err err? st)
         (%cu-chmod-unreached how path (%cu-chmod-stat-failure path st))
-        (let ((old (bit-and (%cu-stat-get st (lit mode)) 4095)))
-          (let ((new (%cu-mode-of spec old)))
+        (let ((old (bit-and (%cu-stat-get st (lit mode)) 4095))
+              (dir? (eq? (%cu-stat-get st (lit kind)) (lit dir))))
+          (let ((new (%cu-mode-keep-setid spec
+                       (%cu-mode-of spec old dir? umask) old dir?)))
             (let ((r (file-or-err (fn (_) (file-chmod path new)))))
               (do (if (Err err? r)
                     (%cu-chmod-complain how
@@ -194,30 +302,38 @@
                   (%cu-chmod-report how path old new (Err err? r))
                   (%cu-max-status (if (Err err? r) 1 0)
                     (if (if recurse? (eq? (%cu-stat-get st (lit kind)) (lit dir)) #f)
-                      (%cu-chmod-kids how spec path)
+                      (%cu-chmod-kids how spec path umask)
                       0))))))))))
 
 (def %cu-chmod-kids
-  (fn (_ how spec dir)
+  (fn (_ how spec dir umask)
     (let ((names (file-or-err (fn (_) (%cu-walk-names dir)))))
       (if (Err err? names)
         (%cu-chmod-unreached how dir
           (string-concat
             (list "cannot read directory '" dir "': " (file-err-text names))))
         (%cu-walk-worst names
-          (fn (_ n) (%cu-chmod-one how spec (%cu-path-join dir n) #t))
+          (fn (_ n) (%cu-chmod-one how spec (%cu-path-join dir n) #t umask))
           0)))))
 
 (def %cu-chmod
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "chmod" argv))
     (def ops (Opts operands o))
-    (if (null? (rest ops))
-      (do (file-write 2 "chmod: need MODE and a path\n") 1)
-      (let ((how (%cu-chmod-how o)) (r? (Opts on? o "-R")) (spec (first ops)))
-        (%cu-walk-worst (rest ops)
-          (fn (_ p) (%cu-chmod-one how spec p r?))
-          0)))))
+    (match
+      ((null? (rest ops))
+        (do (file-write 2 "chmod: need MODE and a path\n") 1))
+      ((not (%cu-mode-valid? (first ops)))
+        (do (file-write 2
+              (string-concat
+                (list "chmod: invalid mode: '" (first ops) "'\n")))
+            1))
+      (#t
+        (let ((how (%cu-chmod-how o)) (r? (Opts on? o "-R")) (spec (first ops))
+              (umask (sys-umask)))
+          (%cu-walk-worst (rest ops)
+            (fn (_ p) (%cu-chmod-one how spec p r? umask))
+            0))))))
 
 ; --- chown, chgrp -------------------------------------------------------------
 
