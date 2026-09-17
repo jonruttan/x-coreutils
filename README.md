@@ -43,7 +43,8 @@ Self-contained: no `(requires-lang ...)`.
     then `$LOGNAME`, then the number itself; `logname` reads
     `$LOGNAME` first.  No group has a name: `groups`, `id`, `id -gn`
     and `id -Gn` print numbers.  `chown` and `chgrp` take numeric ids
-    only.
+    only, and their reports name ids where GNU's name a user and a
+    group: `changed group of 'f' from 0 to 20`.
   - **`date` is UTC, in the C locale.** Neither TZ nor the locale is
     read, so `date` prints what `TZ=UTC LC_ALL=C date` prints.
     `date -d` and `touch -d` read a date as UTC, spelled as an ISO 8601
@@ -65,6 +66,10 @@ Self-contained: no `(requires-lang ...)`.
     back-references.
   - **A mode that looks like an option** is refused, since the option
     guard sees it first: write `chmod a-w f`, not `chmod -w f`.
+  - **`chown -R` does not traverse a symlink** -- it changes the link
+    itself, which is `chown -P`, what GNU does when told nothing else.
+    `-L` and `-H`, which say otherwise, are declared and read by
+    nothing.
   - **Not present**: `who` (utmpx), `stty` (ioctl), `hostid`
     (gethostid) and `mknod` (device numbers), for want of a door this
     bundle will not invent; and `sha3sum`, which needs no door and is

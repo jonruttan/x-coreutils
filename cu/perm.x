@@ -206,11 +206,12 @@
 
 ; --- chmod --------------------------------------------------------------------
 
-; -c reports each path whose mode changed and -v every path, and whichever came
-; later wins.  -f keeps chmod's complaints off stderr; the reports still go to
-; stdout and the status still says a path failed.  How a run reports rides the
-; walk as (VERBOSITY . QUIET?), VERBOSITY one of off, changes, all.
-(def %cu-chmod-how
+; -c reports each path that changed and -v every path, and whichever came later
+; wins.  -f keeps the complaints off stderr; the reports still go to stdout and
+; the status still says a path failed.  How a run reports rides the walk as
+; (VERBOSITY . QUIET?), VERBOSITY one of off, changes, all -- chmod, chown and
+; chgrp all read their three flags this way.
+(def %cu-report-how
   (fn (_ o)
     (let ((v (%cu-last-given o (list "-c" "-v"))))
       (pair (match
@@ -224,16 +225,16 @@
   (fn (_ mode)
     (string-concat (list (%cu-mode-octal4 mode) " (" (%cu-perm-places mode) ")"))))
 
-(def %cu-chmod-complain
-  (fn (_ how line)
+(def %cu-report-complain
+  (fn (_ how applet line)
     (if (rest how) ()
-      (file-write 2 (string-concat (list "chmod: " line "\n"))))))
+      (file-write 2 (string-concat (list applet ": " line "\n"))))))
 
 ; a path chmod could not reach: the complaint, and under -v a report saying so.
 ; Answers the failing status.
 (def %cu-chmod-unreached
   (fn (_ how path line)
-    (do (%cu-chmod-complain how line)
+    (do (%cu-report-complain how "chmod" line)
         (if (eq? (first how) (lit all))
           (display (string-concat (list "'" path "' could not be accessed\n")))
           ())
@@ -255,7 +256,7 @@
     (if (= (bit-and new 3584) 0) (not (= old new))              ; 07000
       (let ((st (file-or-err (fn (_) (file-stat path)))))
         (if (Err err? st)
-          (do (%cu-chmod-complain how
+          (do (%cu-report-complain how "chmod"
                 (string-concat
                   (list "getting new attributes of '" path "': " (file-err-text st))))
               #f)
@@ -295,7 +296,7 @@
                        (%cu-mode-of spec old dir? umask) old dir?)))
             (let ((r (file-or-err (fn (_) (file-chmod path new)))))
               (do (if (Err err? r)
-                    (%cu-chmod-complain how
+                    (%cu-report-complain how "chmod"
                       (string-concat
                         (list "changing permissions of '" path "': " (file-err-text r))))
                     ())
@@ -329,7 +330,7 @@
                 (list "chmod: invalid mode: '" (first ops) "'\n")))
             1))
       (#t
-        (let ((how (%cu-chmod-how o)) (r? (Opts on? o "-R")) (spec (first ops))
+        (let ((how (%cu-report-how o)) (r? (Opts on? o "-R")) (spec (first ops))
               (umask (sys-umask)))
           (%cu-walk-worst (rest ops)
             (fn (_ p) (%cu-chmod-one how spec p r? umask))
@@ -348,50 +349,170 @@
     (pair (if (= (byte-len u) 0) (- 0 1) (%cu-num-prefix u))
       (if (= (byte-len g) 0) (- 0 1) (%cu-num-prefix g)))))
 
-; -R descends; -h changes the LINK rather than what it points at, and
-; -L/-H/-P say whether the descent follows one (-P, not following, is
-; the default and the only one a chown of a link can honour without a
-; lchown door -- -h is that door's absence made loud).
-(def %cu-chown-one
-  (fn (self path ids o name)
-    (def kind (file-lstat-kind path))
-    (if (eq? kind (lit none))
-      (do (if (Opts on? o "-f") ()
-            (file-write 2
+; -c reports each path whose ids changed and -v every path, as chmod's do,
+; and -f keeps the complaints off stderr while the status still says a path
+; failed.  The reports are chown's and chgrp's own words, with the ids where
+; those name a user and a group.
+;
+; -R descends, and -h changes the LINK rather than what it points at.  A plain
+; chown follows a link; -R does not traverse one and changes the link itself,
+; which is chown's -P and what it does when told nothing else -- -L and -H,
+; which say otherwise, are read by nothing here.
+
+; what a report names: the group alone where no user was asked for, the user
+; alone where no group was, and both where the spec named the two
+(def %cu-chown-shown
+  (fn (_ ids u g)
+    (match
+      ((< (first ids) 0) (%cu-int->str g))
+      ((< (rest ids) 0) (%cu-int->str u))
+      (#t (string-concat (list (%cu-int->str u) ":" (%cu-int->str g)))))))
+
+; and what it calls the change: the ids asked for decide the word, not the
+; applet -- `chown :g` reports a group, as chgrp does
+(def %cu-chown-what
+  (fn (_ ids) (if (< (first ids) 0) "group" "ownership")))
+
+; a path that could not be read: the complaint LINE says which way it failed,
+; and under -v the report chown makes when it names no ids it came from
+(def %cu-chown-unreached
+  (fn (_ how applet ids path line)
+    (do (%cu-report-complain how applet line)
+        (%cu-chown-failed-to how ids path)
+        1)))
+
+(def %cu-chown-failed-to
+  (fn (_ how ids path)
+    (if (eq? (first how) (lit all))
+      (display
+        (string-concat
+          (list "failed to change " (%cu-chown-what ids) " of '" path
+                "' to " (%cu-chown-shown ids (first ids) (rest ids)) "\n")))
+      ())))
+
+; -c reports a change; -v a change, a failure, or ids kept as they were
+(def %cu-chown-report
+  (fn (_ how ids path old new failed?)
+    (if (eq? (first how) (lit off)) ()
+      (let ((changed? (if failed? #f (not (string=? old new))))
+            (all? (eq? (first how) (lit all))))
+        (match
+          (changed?
+            (display
               (string-concat
-                (list name ": cannot access '" path "'\n"))))
-          (if (Opts on? o "-f") 0 1))
-      (do
-        ; a symlink is skipped unless -h asks for the link itself; there
-        ; is no lchown door, so -h REFUSES rather than changing the
-        ; target behind the caller's back
-        (if (eq? kind (lit link))
-          (if (Opts on? o "-h")
-            (do (file-write 2
-                  (string-concat
-                    (list name ": no lchown door: cannot change '"
-                          path "' itself\n")))
-                ())
-            ())
-          (do (file-chown path (first ids) (rest ids))
-              (if (Opts on? o "-v")
-                (display (string-concat
-                           (list "changed ownership of '" path "'\n")))
-                ())))
-        (if (if (Opts on? o "-R") (eq? kind (lit dir)) #f)
-          (%cu-walk-status path
-            (fn (_ n) (self (%cu-path-join path n) ids o name)))
+                (list "changed " (%cu-chown-what ids) " of '" path
+                      "' from " old " to " new "\n"))))
+          ((not all?) ())
+          (failed?
+            (display
+              (string-concat
+                (list "failed to change " (%cu-chown-what ids) " of '" path
+                      "' from " old " to " new "\n"))))
+          (#t
+            (display
+              (string-concat
+                (list (%cu-chown-what ids) " of '" path "' retained as "
+                      old "\n")))))))))
+
+; The stat a path is read and reported by: the link's own where the link
+; itself is what will change -- under -h, and under -R, which does not
+; traverse one -- and what the link points at otherwise, a plain chown
+; following it.
+(def %cu-chown-stat
+  (fn (_ path self?)
+    (let ((lst (file-lstat-wide path)))
+      (if (if self? #f (eq? (%cu-stat-get lst (lit kind)) (lit link)))
+        (file-stat-wide path)
+        lst))))
+
+; One path: under -R the entries of a directory FIRST, then the path itself --
+; chown reads a directory before it changes it, where chmod sets the mode first.
+; Answers 1 when anything along the way failed, else 0.
+(def %cu-chown-one
+  (fn (_ how applet ids path recurse? link?)
+    (let ((self? (if link? #t recurse?)))
+      (let ((st (file-or-err (fn (_) (%cu-chown-stat path self?)))))
+        (if (Err err? st)
+          (%cu-chown-unreached how applet ids path
+            (string-concat
+              (list "cannot access '" path "': " (file-err-text st))))
+          ; a link is never descended: its stat is its own, so its kind is
+          ; link and not the dir it may point at
+          (let ((kids (if (if recurse?
+                            (eq? (%cu-stat-get st (lit kind)) (lit dir)) #f)
+                        (%cu-chown-kids how applet ids path)
+                        0)))
+            ; a directory whose entries could not be read is left as it is,
+            ; as chown leaves it
+            (if (eq? kids (lit unreadable))
+              (do (%cu-chown-failed-to how ids path) 1)
+              (%cu-max-status kids
+                (%cu-chown-set how applet ids path st)))))))))
+
+; The ids set on one path and reported, the stat already read: answers 1 when
+; the call failed.  A report names the ids the path had and the ones it was
+; asked for, each as the spec shapes them.  A stat that is a link's own says
+; the link itself is what was asked for, so lchown is the door.
+(def %cu-chown-set
+  (fn (_ how applet ids path st)
+    (let ((old-u (%cu-stat-get st (lit uid)))
+          (old-g (%cu-stat-get st (lit gid))))
+      (let ((shown (%cu-chown-shown ids old-u old-g))
+            (asked (%cu-chown-shown ids
+                     (if (< (first ids) 0) old-u (first ids))
+                     (if (< (rest ids) 0) old-g (rest ids))))
+            (r (if (eq? (%cu-stat-get st (lit kind)) (lit link))
+                 (%cu-chown-link path (first ids) (rest ids))
+                 (file-or-err
+                   (fn (_) (file-chown path (first ids) (rest ids)))))))
+        (do (if (Err err? r)
+              (%cu-report-complain how applet
+                (string-concat
+                  (list "changing " (%cu-chown-what ids) " of '" path "': "
+                        (file-err-text r))))
+              ())
+            (%cu-chown-report how ids path shown asked (Err err? r))
+            (if (Err err? r) 1 0))))))
+
+; the link itself, through the lchown door; where a libc has no lchown the path
+; is refused rather than the target changed behind the caller's back, and the
+; refusal travels as the io Err a failed call would, so the path is reported
+; the way any other failure is
+(def %cu-chown-link
+  (fn (_ path u g)
+    (let ((r (file-lchown path u g)))
+      (if (null? r)
+        (Err make (lit io) "lchown: this libc has no lchown"
+          (list (pair (lit sym) (lit enotsup)) (pair (lit op) (lit lchown))))
+        r))))
+
+; the entries of DIR, each with the same ids; a directory that cannot be read
+; is complained about and answers `unreadable`, which leaves it unchanged
+(def %cu-chown-kids
+  (fn (_ how applet ids dir)
+    (let ((names (file-or-err (fn (_) (%cu-walk-names dir)))))
+      (if (Err err? names)
+        (do (%cu-report-complain how applet
+              (string-concat
+                (list "cannot read directory '" dir "': "
+                      (file-err-text names))))
+            (lit unreadable))
+        (%cu-walk-worst names
+          (fn (_ n)
+            ; the walk changes a link it meets, never what it points at, so
+            ; -h has nothing left to say here
+            (%cu-chown-one how applet ids (%cu-path-join dir n) #t #f))
           0)))))
 
 ; the first operand is the owner spec; the rest are the paths
 (def %cu-chown-with
-  (fn (_ ids paths o name)
-    (def go
-      (fn (self ps st)
-        (if (null? ps) st
-          (let ((r (%cu-chown-one (first ps) ids o name)))
-            (self (rest ps) (if (> r st) r st))))))
-    (go paths 0)))
+  (fn (_ ids paths o applet)
+    (let ((how (%cu-report-how o))
+          (r? (Opts on? o "-R"))
+          (link? (Opts on? o "-h")))
+      (%cu-walk-worst paths
+        (fn (_ p) (%cu-chown-one how applet ids p r? link?))
+        0))))
 
 (def %cu-chown
   (fn (_ argv stdin-thunk)

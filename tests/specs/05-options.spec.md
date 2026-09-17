@@ -855,16 +855,19 @@ named only
 dir
 ```
 
-### chown -v says what it changed, and -R reaches into a directory
+### chown -v reports every path, and -R reaches into a directory
+
+The caller's own id is the one id a case may set, so these paths keep theirs.
+The reports are shown with that id written back as ID; what the words are is
+21-chown's business.
 
 ```cu
-(do (display (cu-run (list "chown" "-R" "-v" (%cu-int->str (sys-geteuid)) "/tmp/x-cu-fm/sub") "")))
+(display (let ((u (%cu-int->str (sys-geteuid)))) (Str8 replace u "ID" (cu-out (list "chown" "-R" "-v" u "/tmp/x-cu-fm/sub")))))
 ```
 ---
 ```output
-changed ownership of '/tmp/x-cu-fm/sub'
-changed ownership of '/tmp/x-cu-fm/sub/one'
-0
+ownership of '/tmp/x-cu-fm/sub/one' retained as ID
+ownership of '/tmp/x-cu-fm/sub' retained as ID
 ```
 
 ### uname says `unknown` for what it cannot ask
