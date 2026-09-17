@@ -261,6 +261,20 @@
       (Opts parse-leading flags values argv)
       (Opts parse flags values argv))))
 
+; Of FLAGS, the one given last, or nil: for flags where a later one overrides an
+; earlier, as chmod's -v overrides -c.  The parse lists the flags it saw in the
+; order given, except that it reverses the letters of one cluster, so -cv reads
+; as -vc.
+(def %cu-last-given
+  (fn (_ o flags)
+    (%cu-last-given-in (Assoc get (lit on) o) flags ())))
+
+(def %cu-last-given-in
+  (fn (self on flags found)
+    (if (null? on) found
+      (self (rest on) flags
+        (if (%cu-member-s? (first on) flags) (first on) found)))))
+
 (def %cu-refuse-option
   (fn (_ applet tok)
     (do (file-write 2

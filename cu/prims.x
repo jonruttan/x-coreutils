@@ -26,7 +26,8 @@
   file-open-write file-open-append file-close file-write file-read-fd
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
   file-open-update
-  file-chmod file-chown file-link file-symlink file-readlink
+  file-stat file-chmod file-chown file-link file-symlink file-readlink
+  file-or-err file-err-text file-err-sym
   file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
   file-write-nuls file-write-field cu-stdin-fields!
   file-seek file-truncate file-open-read file-stat-full file-lstat-full
@@ -307,8 +308,38 @@
         (append (first r)
           (if (= (byte-len (rest r)) 0) () (list (rest r))))))))
 
+; --- what a failed call says --------------------------------------------------
+;
+; A File call that fails raises the platform's io Err.  Its message is the
+; operation and the errno's text, "chmod: Operation not permitted", and its data
+; names the errno, (sym . eperm).  A tool prints the text after the path it was
+; working on, so file-err-text answers it without the operation.
+
+; THUNK's value, or the io Err it raised; any other raise goes on up
+(def file-or-err
+  (fn (_ thunk)
+    (guard (e (if (eq? (Err tag e) (lit io)) e (error e)))
+      (thunk))))
+
+(def file-err-text
+  (fn (_ e) (%cu-after-colon (e msg) 0)))
+
+; the errno an io Err names, as a symbol: enoent, eacces
+(def file-err-sym
+  (fn (_ e) (Assoc get (lit sym) (e data))))
+
+; what follows the first ": " in M, or M when there is none
+(def %cu-after-colon
+  (fn (self m i)
+    (match
+      ((>= (+ i 1) (byte-len m)) m)
+      ((if (= (byte-at m i) 58) (= (byte-at m (+ i 1)) 32) #f)
+        (substring m (+ i 2) (byte-len m)))
+      (#t (self m (+ i 1))))))
+
 ; --- the metadata doors (x-lang PR #607) --------------------------------------
 
+(def file-stat (fn (_ path) (File stat path)))
 (def file-chmod (fn (_ path mode) (File chmod path mode)))
 (def file-chown (fn (_ path uid gid) (File chown path uid gid)))
 (def file-link (fn (_ target path) (File link target path)))
