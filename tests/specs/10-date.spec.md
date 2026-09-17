@@ -128,6 +128,78 @@ the other.
 ---
     1
 
+### -d reads a date with a time after a space or a T, the seconds optional
+
+```cu
+(do (cu-run (list "date" "-d" "2020-01-02 03:04:05" "+%F %T") "")
+    (cu-run (list "date" "-d" "2020-01-02 03:04" "+%F %T") "")
+    (cu-run (list "date" "-d" "2020-01-02T03:04:05Z" "+%F %T") "")
+    (cu-run (list "date" "-d" "2020-01-02T03:04:05z" "+%F %T") "")
+    (display (cu-run (list "date" "-d" "2020-01-02T03:04" "+%F %T") "")))
+```
+---
+```output
+2020-01-02 03:04:05
+2020-01-02 03:04:00
+2020-01-02 03:04:05
+2020-01-02 03:04:05
+2020-01-02 03:04:00
+0
+```
+
+### white space around a -d and inside it is squeezed, and fields need no padding
+
+```cu
+(do (cu-run (list "date" "-d" " 2020-01-02" "+%F %T") "")
+    (cu-run (list "date" "-d" "2020-01-02  03:04" "+%F %T") "")
+    (cu-run (list "date" "-d" "2020-01-02 3:4:5" "+%F %T") "")
+    (display (cu-run (list "date" "-d" "2020-1-2" "+%F %T") "")))
+```
+---
+```output
+2020-01-02 00:00:00
+2020-01-02 03:04:00
+2020-01-02 03:04:05
+2020-01-02 00:00:00
+0
+```
+
+### a time alone is read on today's date
+
+The only block that reads the clock, and it reads it on both sides of the -d,
+so a midnight between them cannot fail it.
+
+```cu
+(do (def cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-date-cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-date-cap"))))))
+    (def before (cap (list "date" "+%F")))
+    (def got (cap (list "date" "-d" "03:04:05" "+%F")))
+    (def after (cap (list "date" "+%F")))
+    (display (if (if (string=? got before) #t (string=? got after)) "today\n" "another day\n"))
+    (display (cu-run (list "date" "-d" "03:04" "+%T") "")))
+```
+---
+```output
+today
+03:04:00
+0
+```
+
+### a -d must use its whole input and name a real moment
+
+```cu
+(do (display (cu-run (list "date" "-d" "2020-01-02 junk") "")) (newline)
+    (display (cu-run (list "date" "-d" "2020-02-30") "")) (newline)
+    (display (cu-run (list "date" "-d" "24:00") "")) (newline)
+    (display (cu-run (list "date" "-d" "2020-01-02 03:04:60") "")))
+```
+---
+```output
+1
+1
+1
+1
+```
+
 ### -r reads a file's modification time
 
 ```cu

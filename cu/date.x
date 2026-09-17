@@ -15,7 +15,8 @@
 ; The calendar is x/sys/date.x's: it splits unix seconds into year, month, day,
 ; hour, minute, second and weekday by Hinnant's days/civil algorithms, and puts
 ; them back. Nothing here does calendar arithmetic -- %cu-date-fmt formats that
-; alist, and the only sums it owns are a day-of-year and a twelve-hour clock.
+; alist, and the only sums it owns are a day-of-year, a twelve-hour clock and the
+; length of a month.
 ;
 ; Everything is UTC, including without -u. The platform's date is UTC only
 ; ("No timezones, no locale -- boundary code converts at the edge"), so `date`
@@ -158,9 +159,10 @@
 
 ; --- reading a time ----------------------------------------------------------
 ;
-; -d takes @SECONDS or an ISO stamp the platform already parses. -D hands it a
-; format instead, read by the same directives the formatter writes (%Y %m %d %H
-; %M %S and literals), so the two cannot drift apart.
+; -d takes @SECONDS, or one of the spellings %cu-date-spellings lists. -D hands
+; it a format of its own instead. Both are read by the directives the formatter
+; writes (%Y %m %d %H %M %S and literals), so reading and writing cannot drift
+; apart.
 
 (def %cu-date-digits
   (fn (_ s i n)
@@ -177,8 +179,9 @@
     (go i 0 0)))
 
 ; Reading a time walks the same tokens against an input instead of an output:
-; a literal run must match rather than be emitted.
-(def %cu-date-scan
+; a literal run must match rather than be emitted.  The walk answers the fields
+; it read and the position it stopped at, or nil.
+(def %cu-date-scan-at
   (fn (_ fmt s)
     (def send (byte-len s))
     (def lit-match
@@ -190,7 +193,7 @@
             ()))))
     (def go
       (fn (self ts si acc)
-        (if (null? ts) acc
+        (if (null? ts) (pair acc si)
           (let ((t (first ts)))
             (if (%cu-fmt-dir? t)
               (let ((conv (%cu-fmt-conv t)))
@@ -204,6 +207,84 @@
               (let ((si2 (lit-match t si 0)))
                 (if (null? si2) () (self (rest ts) si2 acc))))))))
     (go (%cu-fmt-parse fmt #f) 0 ())))
+
+; the fields alone, as -D reads them
+(def %cu-date-scan
+  (fn (_ fmt s)
+    (let ((r (%cu-date-scan-at fmt s))) (if (null? r) () (first r)))))
+
+; Unix seconds for a moment given as fields, or nil when they name no real one.
+; The day must exist in its month -- February 29th only in a leap year -- and
+; the second may reach MAX-SECOND: touch -t takes 60 and rolls it into the next
+; minute, where date -d stops at 59.
+(def %cu-date-moment
+  (fn (_ year month day hour minute second max-second)
+    (def month-days
+      (if (if (>= month 1) (<= month 12) #f)
+        (+ (%cu-nth (- month 1) %cu-date-mon-days)
+           (if (if (= month 2) (Date leap-year? year) #f) 1 0))
+        0))
+    (match
+      ((< day 1) ())
+      ((> day month-days) ())
+      ((> hour 23) ())
+      ((> minute 59) ())
+      ((> second max-second) ())
+      (#t (Date to-unix
+            (list (pair (lit year) year) (pair (lit month) month)
+                  (pair (lit day) day) (pair (lit hour) hour)
+                  (pair (lit minute) minute) (pair (lit second) second)))))))
+
+; -d's spellings when no -D is given: a date; a date with a time after a space
+; or a T, seconds optional, and after a T a closing Z in either case; or a time
+; alone, which means today.  Longest first, and a spelling must use the whole
+; input, so a date is never read off the front of a date and a time.
+(def %cu-date-spellings
+  (list "%Y-%m-%d %H:%M:%S" "%Y-%m-%d %H:%M"
+        "%Y-%m-%dT%H:%M:%SZ" "%Y-%m-%dT%H:%M:%Sz"
+        "%Y-%m-%dT%H:%M:%S" "%Y-%m-%dT%H:%M"
+        "%Y-%m-%d" "%H:%M:%S" "%H:%M"))
+
+; S trimmed, with each run of white space inside it squeezed to one space --
+; how -d reads " 2020-01-02" and "2020-01-02  03:04".
+(def %cu-date-squeeze
+  (fn (_ s)
+    (def end (byte-len s))
+    (def space?
+      (fn (_ b) (match ((= b 32) #t) ((= b 9) #t) ((= b 10) #t) (#t (= b 13)))))
+    (def go
+      (fn (self i acc gap?)
+        (if (>= i end) (string-concat (reverse acc))
+          (let ((b (byte-at s i)))
+            (match
+              ((space? b) (self (+ i 1) acc (pair? acc)))
+              (gap? (self (+ i 1) (pair (%cu-b->s b) (pair " " acc)) #f))
+              (#t (self (+ i 1) (pair (%cu-b->s b) acc) #f)))))))
+    (go 0 () #f)))
+
+; the seconds a -d with no -D names, or nil
+(def %cu-date-spelled
+  (fn (_ spec)
+    (def s (%cu-date-squeeze spec))
+    (def end (byte-len s))
+    (def today (Date now))
+    (def moment
+      (fn (_ d)
+        (def field (fn (_ k default) (Assoc get-or default k d)))
+        (%cu-date-moment
+          (field (lit year) (Assoc get (lit year) today))
+          (field (lit month) (Assoc get (lit month) today))
+          (field (lit day) (Assoc get (lit day) today))
+          (field (lit hour) 0) (field (lit minute) 0) (field (lit second) 0)
+          59)))
+    (def try
+      (fn (self fmts)
+        (if (null? fmts) ()
+          (let ((r (%cu-date-scan-at (first fmts) s)))
+            (if (if (null? r) #f (= (rest r) end))
+              (moment (first r))
+              (self (rest fmts)))))))
+    (try %cu-date-spellings)))
 
 (def %cu-date-field
   (fn (_ c)
@@ -224,10 +305,7 @@
       ((if (> (byte-len spec) 1) (= (byte-at spec 0) 64) #f)
         (let ((r (%cu-date-digits spec 1 20)))
           (if (null? r) () (first r))))
-      (#t
-        (guard (e ())
-          (let ((d (Date from-iso spec)))
-            (if (null? d) () (Date to-unix d))))))))
+      (#t (%cu-date-spelled spec)))))
 
 ; A scanned date holds only the fields the format named; to-unix wants a day
 ; and a month at least, so the missing ones take the epoch's.
