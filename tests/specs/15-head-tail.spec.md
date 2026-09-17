@@ -1,8 +1,8 @@
 # @weight 2
 
-head and tail: the counts -n and -c take, the bytes they print, and how they
-read their operands.  The expected text is GNU head's and tail's for the same
-input.
+head and tail: the counts -n and -c take, the old -NUM spelling of one, the
+bytes they print, and how they read their operands.  The expected text is GNU
+head's and tail's for the same input.
 
 ## the fixtures
 
@@ -254,7 +254,182 @@ head: error reading '/tmp/x-cu-ht/adir': Is a directory
 status 1
 ```
 
-### cleanup
+## the old spellings of a count
+
+### head reads -NUM as its first argument, with letters for what it counts and the headers
+
+```cu
+(do (ht (list "head" "-2") five) (ht (list "head" "-2c") five) (ht (list "head" "-2q" (htp "five") (htp "five")) "") (ht (list "head" "-2v" (htp "five")) "") (ht (list "head" "-2qv" (htp "five") (htp "five")) ""))
+```
+---
+```output
+1
+2
+|
+status 0
+1
+|
+status 0
+1
+2
+1
+2
+|
+status 0
+==> /tmp/x-cu-ht/five <==
+1
+2
+|
+status 0
+==> /tmp/x-cu-ht/five <==
+1
+2
+
+==> /tmp/x-cu-ht/five <==
+1
+2
+|
+status 0
+```
+
+### b, k and m count bytes in their multiples, l after them counts lines, and too large is everything
+
+```cu
+(do (hn "head -1k" (list "head" "-1k" (htp "big"))) (hn "head -1kl five" (list "head" "-1kl" (htp "five"))) (hn "head -1b" (list "head" "-1b" (htp "big"))) (hn "head -2m" (list "head" "-2m" (htp "big"))) (hn "tail -2b" (list "tail" "-2b" (htp "big"))) (hn "tail -99999999999999999999" (list "tail" "-99999999999999999999" (htp "big"))))
+```
+---
+```output
+head -1k: 1024
+head -1kl five: 10
+head -1b: 512
+head -2m: 5000
+tail -2b: 1024
+tail -99999999999999999999: 5000
+```
+
+### tail reads -NUM[bcl] with at most one operand after it, or -- and one
+
+```cu
+(do (ht (list "tail" "-2") five) (ht (list "tail" "-2c") five) (ht (list "tail" "-2l") five) (ht (list "tail" "-2" "-") five) (ht (list "tail" "-2" "--" (htp "five")) ""))
+```
+---
+```output
+4
+5
+|
+status 0
+5
+|
+status 0
+4
+5
+|
+status 0
+4
+5
+|
+status 0
+4
+5
+|
+status 0
+```
+
+### a -NUM anywhere else is refused, where after -- it names a file and after -n it is the count
+
+GNU head follows its refusal with a line pointing at --help, which this head
+does not have.
+
+```cu
+(do (ht (list "head" (htp "five") "-2") "") (ht (list "head" "-2x" (htp "five")) "") (ht (list "head" "-n" "1" "-2x" (htp "five")) "") (ht (list "tail" "-2" "-q" (htp "five")) "") (ht (list "tail" (htp "five") "-2") "") (ht (list "tail" "-2" (htp "five") (htp "five")) "") (ht (list "tail" "-2x" (htp "five")) "") (ht (list "head" "-n" "-2") five) (ht (list "head" "--" "-2") ""))
+```
+---
+```output
+|
+head: invalid trailing option -- 2
+status 1
+|
+head: invalid trailing option -- x
+status 1
+|
+head: invalid trailing option -- 2
+status 1
+|
+tail: option used in invalid context -- 2
+status 1
+|
+tail: option used in invalid context -- 2
+status 1
+|
+tail: option used in invalid context -- 2
+status 1
+|
+tail: option used in invalid context -- 2
+status 1
+1
+2
+3
+|
+status 0
+|
+head: cannot open '-2' for reading: No such file or directory
+status 1
+```
+
+## the later option wins
+
+### the later of -n and -c says what is counted, and the later of -q and -v decides the headers
+
+```cu
+(do (ht (list "head" "-2" "-n" "3") five) (ht (list "head" "-2c" "-n" "3") five) (ht (list "head" "-n" "3" "-c" "2") five) (ht (list "head" "-q" "-v" (htp "five") (htp "five")) "") (ht (list "head" "-v" "-q" (htp "five") (htp "five")) ""))
+```
+---
+```output
+1
+2
+3
+|
+status 0
+1
+2
+3
+|
+status 0
+1
+|
+status 0
+==> /tmp/x-cu-ht/five <==
+1
+2
+3
+4
+5
+
+==> /tmp/x-cu-ht/five <==
+1
+2
+3
+4
+5
+|
+status 0
+1
+2
+3
+4
+5
+1
+2
+3
+4
+5
+|
+status 0
+```
+
+## cleanup
+
+### the scratch directory goes
 
 ```cu
 (do (proc-run (list "/bin/sh" "-c" "chmod 644 /tmp/x-cu-ht/unread; rm -rf /tmp/x-cu-ht")) (display "clean"))

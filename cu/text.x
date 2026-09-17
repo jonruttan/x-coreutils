@@ -322,6 +322,138 @@
                   (%cu-count-body spec) "'\n")))
         1)))
 
+; What an applet counts, as (LINES? . SPEC): the later of -n and -c, else ten
+; lines.
+(def %cu-count-given
+  (fn (_ o)
+    (let ((flag (%cu-last-valued o (list "-n" "-c"))))
+      (match
+        ((null? flag) (pair #t "10"))
+        ((string=? flag "-c") (pair #f (Opts value o "-c")))
+        (#t (pair #t (Opts value o "-n")))))))
+
+; whether a header comes before each operand: as the later of -q and -v says,
+; else when there is more than one operand
+(def %cu-headers?
+  (fn (_ o ops)
+    (let ((flag (%cu-last-given o (list "-q" "-v"))))
+      (if (null? flag) (> (length ops) 1) (string=? flag "-v")))))
+
+; --- the old spellings of a count ----------------------------------------------
+;
+; head and tail also take a count spelled as an option of digits, -NUM.  head
+; reads one as its first argument, with letters after the digits: c counts
+; bytes; b, k and m count bytes in 512s, 1024s and 1048576s; l counts lines; q
+; and v set the headers.  tail reads one only as -NUM[bcl][f] with at most one
+; operand after it, or -- and one: b counts bytes in 512s, c bytes, l lines, and
+; f follows.  Each is rewritten as the -n or -c it means, ahead of the rest.  A
+; -NUM anywhere else is refused.
+
+; is TOK a dash and a digit: a number to Opts, a count or a misplaced one here
+(def %cu-dash-digit?
+  (fn (_ tok)
+    (if (< (byte-len tok) 2) #f
+      (if (= (byte-at tok 0) 45)
+        (let ((c (byte-at tok 1))) (if (>= c 48) (<= c 57) #f))
+        #f))))
+
+; the index past the digits in TOK from I
+(def %cu-digits-end
+  (fn (self tok i)
+    (if (if (< i (byte-len tok))
+          (let ((c (byte-at tok i))) (if (>= c 48) (<= c 57) #f))
+          #f)
+      (self tok (+ i 1))
+      i)))
+
+; head's arguments with its first read as -NUM[cbkmlqv]*: (ok . ARGUMENTS), the
+; count rewritten, or (bad . LETTER) for a letter that is not one of those
+(def %cu-head-old
+  (fn (_ argv)
+    (if (if (pair? argv) (%cu-dash-digit? (first argv)) #f)
+      (let ((tok (first argv)))
+        (let ((e (%cu-digits-end tok 1)))
+          (%cu-head-old-letters tok e (substring tok 1 e) #t "" () (rest argv))))
+      (pair (lit ok) argv))))
+
+; the letters of head's old count from I: LINES? and the multiplier MULT so far,
+; and HEADER, the -q or -v the last q or v asked for
+(def %cu-head-old-letters
+  (fn (self tok i digits lines? mult header more)
+    (if (>= i (byte-len tok))
+      (pair (lit ok)
+        (append (list (if lines? "-n" "-c") (string-append digits mult))
+          (append header more)))
+      (let ((c (byte-at tok i)))
+        (match
+          ((= c 99) (self tok (+ i 1) digits #f "" header more))           ; c
+          ((if (= c 98) #t (if (= c 107) #t (= c 109)))                    ; b k m
+            (self tok (+ i 1) digits #f (substring tok i (+ i 1)) header more))
+          ((= c 108) (self tok (+ i 1) digits #t mult header more))        ; l
+          ((= c 113) (self tok (+ i 1) digits lines? mult (list "-q") more)) ; q
+          ((= c 118) (self tok (+ i 1) digits lines? mult (list "-v") more)) ; v
+          (#t (pair (lit bad) (substring tok i (+ i 1)))))))))
+
+; tail's arguments with an old count rewritten, when they have its shape: the
+; count and at most one operand that does not look like an option, or -- and one
+(def %cu-tail-old
+  (fn (_ argv)
+    (let ((n (length argv)))
+      (let ((count (if (if (> n 0) (%cu-dash-digit? (first argv)) #f)
+                     (%cu-tail-old-count (first argv))
+                     ())))
+        (if (if (null? count) #t
+              (not (match
+                     ((= n 1) #t)
+                     ((if (<= n 3) (string=? (%cu-nth 1 argv) "--") #f) #t)
+                     ((= n 2) (not (if (> (byte-len (%cu-nth 1 argv)) 1)
+                                     (= (byte-at (%cu-nth 1 argv) 0) 45) #f)))
+                     (#t #f))))
+          argv
+          (append count (rest argv)))))))
+
+; TOK as tail's old count, -NUM[bcl][f]: the -n or -c it means, and -f; or nil
+(def %cu-tail-old-count
+  (fn (_ tok)
+    (let ((e (%cu-digits-end tok 1)))
+      (let ((unit (if (< e (byte-len tok)) (byte-at tok e) 0)))
+        (let ((after (if (if (= unit 98) #t (if (= unit 99) #t (= unit 108)))
+                       (+ e 1) e))
+              (count (list (if (if (= unit 98) #t (= unit 99)) "-c" "-n")
+                           (string-append (substring tok 1 e)
+                             (if (= unit 98) "b" "")))))
+          (match
+            ((= after (byte-len tok)) count)
+            ((if (= (+ after 1) (byte-len tok)) (= (byte-at tok after) 102) #f)
+              (append count (list "-f")))                               ; f
+            (#t ())))))))
+
+; The first -NUM among ARGV where no count can be: before a --, and not the value
+; of an option before it whose last letter is one of VALUED.  Answers its first
+; digit, as a string, or nil.
+(def %cu-misplaced-count
+  (fn (self argv valued prev)
+    (match
+      ((null? argv) ())
+      ((string=? (first argv) "--") ())
+      ((if (%cu-dash-digit? (first argv)) (not (%cu-takes-value? prev valued)) #f)
+        (substring (first argv) 1 2))
+      (#t (self (rest argv) valued (first argv))))))
+
+; does TOK, an option, take the argument after it: one dash, then letters, the
+; last of them one of the bytes of VALUED
+(def %cu-takes-value?
+  (fn (_ tok valued)
+    (if (if (> (byte-len tok) 1) (= (byte-at tok 0) 45) #f)
+      (if (= (byte-at tok 1) 45) #f
+        (%cu-byte-in? valued (byte-at tok (- (byte-len tok) 1)) 0))
+      #f)))
+
+(def %cu-byte-in?
+  (fn (self s b i)
+    (if (>= i (byte-len s)) #f
+      (if (= (byte-at s i) b) #t (self s b (+ i 1))))))
+
 ; where each line of TEXT starts: 0, then one past each newline that has more
 ; text after it.  An empty text has no lines.
 (def %cu-line-starts
@@ -361,20 +493,35 @@
             (#t n)))))))
 
 ; head -n and -c: a leading - prints all but the last COUNT, and a leading + is
-; the count itself.  A header comes before each operand when there is more than
-; one; -v asks for them always and -q never.
+; the count itself; the later of the two options says what is counted.  A header
+; comes before each operand when there is more than one; -v asks for them always
+; and -q never, and the later of those wins too.
 (def %cu-head
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "head" argv))
-    (def ops (Opts operands o))
-    (let ((lines? (null? (Opts value o "-c"))))
-      (let ((spec (if lines? (Opts value o "-n" "10") (Opts value o "-c"))))
+    (let ((old (%cu-head-old argv)))
+      (let ((misplaced (if (eq? (first old) (lit ok))
+                         (%cu-misplaced-count (rest old) "nc" "")
+                         ())))
+        (match
+          ((eq? (first old) (lit bad))
+            (%cu-head-trailing (rest old)))
+          ((not (null? misplaced)) (%cu-head-trailing misplaced))
+          (#t (%cu-head-run (%cu-opts "head" (rest old)) stdin-thunk)))))))
+
+(def %cu-head-trailing
+  (fn (_ c)
+    (do (file-write 2
+          (string-concat (list "head: invalid trailing option -- " c "\n")))
+        1)))
+
+(def %cu-head-run
+  (fn (_ o stdin-thunk)
+    (let ((given (%cu-count-given o)) (ops (Opts operands o)))
+      (let ((lines? (first given)) (spec (rest given)))
         (let ((n (%cu-count-of (%cu-count-body spec)))
               (elide? (if (> (byte-len spec) 0) (= (byte-at spec 0) 45) #f)))
           (if (null? n) (%cu-count-refused "head" lines? spec)
-            (%cu-each-input "head" ops stdin-thunk
-              (if (Opts on? o "-q") #f
-                (if (Opts on? o "-v") #t (> (length ops) 1)))
+            (%cu-each-input "head" ops stdin-thunk (%cu-headers? o ops)
               (fn (_ name text file?)
                 (display (%cu-head-part text lines? elide? n))))))))))
 
@@ -483,21 +630,31 @@
           end)))))
 
 ; tail -n and -c: a leading + counts from the start, and a leading - is the
-; count itself.  -f follows by NAME the files that were read, polled every -s
+; count itself; the later of the two options says what is counted, and the later
+; of -q and -v decides the headers.  -f follows by NAME the files that were read,
+; polled every -s
 ; seconds (1 by default), each from where its read ended.  Standard input has
 ; been read whole by the time an applet runs, so it has nothing to follow: -f
 ; with only stdin prints the tail and returns, and -f with operands none of
 ; which could be read says so.
 (def %cu-tail
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "tail" argv))
-    (def ops (Opts operands o))
-    (let ((lines? (null? (Opts value o "-c")))
-          (head? (if (Opts on? o "-q") #f
-                   (if (Opts on? o "-v") #t (> (length ops) 1))))
+    (let ((args (%cu-tail-old argv)))
+      (let ((misplaced (%cu-misplaced-count args "ncs" "")))
+        (if (null? misplaced)
+          (%cu-tail-run (%cu-opts "tail" args) stdin-thunk)
+          (do (file-write 2
+                (string-concat
+                  (list "tail: option used in invalid context -- " misplaced "\n")))
+              1))))))
+
+(def %cu-tail-run
+  (fn (_ o stdin-thunk)
+    (let ((ops (Opts operands o)) (given (%cu-count-given o))
           ; each input shown, newest first: (NAME SIZE FILE?)
           (shown (list ())))
-      (let ((spec (if lines? (Opts value o "-n" "10") (Opts value o "-c"))))
+      (let ((lines? (first given)) (spec (rest given))
+            (head? (%cu-headers? o ops)))
         (let ((n (%cu-count-of (%cu-count-body spec)))
               (from-start? (if (> (byte-len spec) 0) (= (byte-at spec 0) 43) #f)))
           (if (null? n) (%cu-count-refused "tail" lines? spec)

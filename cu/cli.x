@@ -275,6 +275,14 @@
       (self (rest on) flags
         (if (%cu-member-s? (first on) flags) (first on) found)))))
 
+; Of the value-taking FLAGS, the one given last, or nil: head's -n and -c, where
+; the later one says what is counted.  The parse keeps each value with its flag,
+; in the order given.
+(def %cu-last-valued
+  (fn (_ o flags)
+    (%cu-last-given-in (map (fn (_ v) (first v)) (Assoc get (lit values) o))
+      flags ())))
+
 (def %cu-refuse-option
   (fn (_ applet tok)
     (do (file-write 2
