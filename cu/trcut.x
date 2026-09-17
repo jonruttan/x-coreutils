@@ -6,22 +6,112 @@
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)
 
-; A tr SET to a byte list: literals, the escapes cu/fmt-lex.x reads for tr, and
-; a-z ranges.  The escapes are read first, so a byte one names is a literal and
-; never a range's dash: `tr '\055' -` is the dash itself.
+; A tr SET to a byte list: literals, the escapes cu/fmt-lex.x reads for tr,
+; a-z ranges, and the bracket forms -- [:alpha:] and its fellows, [=c=], and
+; [c*n] for n copies of c.  The escapes and the brackets are read first, so a
+; byte either names is a literal and never a range's dash: `tr '\055' -` is the
+; dash itself.
+;
+; [c*] with no count is one c, which is all it needs to be: a SET2 shorter than
+; SET1 already repeats its last byte, which is what the form asks for.
 (def %cu-tr-set
   (fn (_ s) (%cu-tr-ranges (%cu-tr-items s 0 ()))))
 
-; the set's bytes before the ranges are filled: (BYTE . FROM-AN-ESCAPE?)
+; the set's bytes before the ranges are filled: (BYTE . WRITTEN-AS-ITSELF?),
+; false only for a plain byte, which a dash beside it can span
 (def %cu-tr-items
   (fn (self s i acc)
     (if (>= i (byte-len s)) (reverse acc)
-      (if (= (byte-at s i) 92)
-        (let ((e (%cu-esc-at s i (lit tr))))
-          (self s (%cu-nth 1 e)
-            (if (< (%cu-nth 3 e) 0) acc
-              (pair (pair (%cu-nth 3 e) #t) acc))))
-        (self s (+ i 1) (pair (pair (byte-at s i) #f) acc))))))
+      (match
+        ((= (byte-at s i) 92)
+          (let ((e (%cu-esc-at s i (lit tr))))
+            (self s (%cu-nth 1 e)
+              (if (< (%cu-nth 3 e) 0) acc
+                (pair (pair (%cu-nth 3 e) #t) acc)))))
+        ((= (byte-at s i) 91)                                      ; [
+          (let ((br (%cu-tr-bracket s i)))
+            (if (null? br) (self s (+ i 1) (pair (pair 91 #f) acc))
+              (self s (rest br)
+                (%cu-tr-marked (first br) acc)))))
+        (#t (self s (+ i 1) (pair (pair (byte-at s i) #f) acc)))))))
+
+(def %cu-tr-marked
+  (fn (self bs acc)
+    (if (null? bs) acc (self (rest bs) (pair (pair (first bs) #t) acc)))))
+
+; The bracket form at I, where S[I] is a [ : (BYTES . NEXT), or nil when what
+; is there is not one of the forms and the [ is a byte of its own.
+(def %cu-tr-bracket
+  (fn (_ s i)
+    (let ((close (%cu-tr-find s (+ i 1) 93)))                      ; ]
+      (if (< close 0) ()
+        (let ((body (substring s (+ i 1) close)))
+          (let ((end (byte-len body)))
+            (match
+              ((< end 2) ())
+              ((if (= (byte-at body 0) 58)                         ; [:name:]
+                 (= (byte-at body (- end 1)) 58) #f)
+                (let ((bs (%cu-tr-class (substring body 1 (- end 1)))))
+                  (if (null? bs) () (pair bs (+ close 1)))))
+              ((if (= (byte-at body 0) 61)                         ; [=c=]
+                 (if (= (byte-at body (- end 1)) 61) (= end 3) #f) #f)
+                (pair (list (byte-at body 1)) (+ close 1)))
+              ((if (> end 1) (= (byte-at body 1) 42) #f)           ; [c*n]
+                (pair (%cu-tr-copies (byte-at body 0)
+                        (if (= end 2) 1
+                          (%cu-num-prefix (substring body 2 end))))
+                  (+ close 1)))
+              (#t ()))))))))
+
+(def %cu-tr-find
+  (fn (self s i b)
+    (match
+      ((>= i (byte-len s)) (- 0 1))
+      ((= (byte-at s i) b) i)
+      (#t (self s (+ i 1) b)))))
+
+(def %cu-tr-copies
+  (fn (self b n) (if (< n 1) () (pair b (self b (- n 1))))))
+
+; The bytes of a character class, as the C locale holds them: the classes tr
+; names, in byte order.  An unknown name answers nil, which the applet refuses
+; before it reads either set.
+(def %cu-tr-class
+  (fn (_ name)
+    (match
+      ((string=? name "alpha") (append (%cu-tr-fill 65 90) (%cu-tr-fill 97 122)))
+      ((string=? name "digit") (%cu-tr-fill 48 57))
+      ((string=? name "alnum")
+        (append (%cu-tr-fill 48 57)
+          (append (%cu-tr-fill 65 90) (%cu-tr-fill 97 122))))
+      ((string=? name "upper") (%cu-tr-fill 65 90))
+      ((string=? name "lower") (%cu-tr-fill 97 122))
+      ((string=? name "space") (append (%cu-tr-fill 9 13) (list 32)))
+      ((string=? name "blank") (list 9 32))
+      ((string=? name "print") (%cu-tr-fill 32 126))
+      ((string=? name "graph") (%cu-tr-fill 33 126))
+      ((string=? name "cntrl") (append (%cu-tr-fill 0 31) (list 127)))
+      ((string=? name "xdigit")
+        (append (%cu-tr-fill 48 57)
+          (append (%cu-tr-fill 65 70) (%cu-tr-fill 97 102))))
+      ; the printable bytes that are neither alphanumeric nor a space
+      ((string=? name "punct")
+        (append (%cu-tr-fill 33 47)
+          (append (%cu-tr-fill 58 64)
+            (append (%cu-tr-fill 91 96) (%cu-tr-fill 123 126)))))
+      (#t ()))))
+
+; the class names a SET names, in order
+(def %cu-tr-class-names
+  (fn (self s i acc)
+    (match
+      ((>= (+ i 1) (byte-len s)) (reverse acc))
+      ((if (= (byte-at s i) 92) #t #f) (self s (+ i 2) acc))        ; an escape
+      ((if (= (byte-at s i) 91) (= (byte-at s (+ i 1)) 58) #f)      ; [:
+        (let ((close (%cu-tr-find s (+ i 2) 58)))                   ; :
+          (if (< close 0) (reverse acc)
+            (self s (+ close 2) (pair (substring s (+ i 2) close) acc)))))
+      (#t (self s (+ i 1) acc)))))
 
 ; a dash between two bytes, itself written as a dash, spans them
 (def %cu-tr-ranges
@@ -77,12 +167,54 @@
               (self (rest s1) (if (null? s2) () (rest s2)) v))))))
     (go set1 set2 (if (null? set2) b (first set2)))))
 
+; the first class name in SETS that tr does not know, or nil
+(def %cu-tr-bad-class
+  (fn (self sets)
+    (if (null? sets) ()
+      (let ((bad (%cu-tr-first-unknown (%cu-tr-class-names (first sets) 0 ()))))
+        (if (null? bad) (self (rest sets)) bad)))))
+
+(def %cu-tr-first-unknown
+  (fn (self names)
+    (if (null? names) ()
+      (if (null? (%cu-tr-class (first names))) (first names)
+        (self (rest names))))))
+
+; the first class in SET2 that is neither upper nor lower, or nil: a
+; translation through any other is refused, as tr refuses it
+(def %cu-tr-other-class
+  (fn (self names)
+    (if (null? names) ()
+      (if (%cu-member-s? (first names) (list "upper" "lower"))
+        (self (rest names))
+        (first names)))))
+
 (def %cu-tr
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "tr" argv))
     (def del? (Opts on? o "-d"))
-    (def sq? (Opts on? o "-s"))
     (def args (Opts operands o))
+    (let ((bad (%cu-tr-bad-class args))
+          (other (if (if del? #f (pair? (rest args)))
+                   (%cu-tr-other-class
+                     (%cu-tr-class-names (first (rest args)) 0 ()))
+                   ())))
+      (match
+        ((not (null? bad))
+          (do (file-write 2
+                (string-concat
+                  (list "tr: invalid character class '" bad "'\n")))
+              1))
+        ((not (null? other))
+          (do (file-write 2
+                (string-concat
+                  (list "tr: when translating, the only character classes that "
+                        "may appear in\nstring2 are 'upper' and 'lower'\n")))
+              1))
+        (#t (%cu-tr-run o del? (Opts on? o "-s") args stdin-thunk))))))
+
+(def %cu-tr-run
+  (fn (_ o del? sq? args stdin-thunk)
     (def set1
       (let ((s (%cu-tr-set (first args))))
         (if (Opts on? o "-c") (%cu-tr-complement s) s)))
