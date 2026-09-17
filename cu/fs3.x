@@ -545,16 +545,20 @@
             1)
         (do (file-unlink (first argv)) 0)))))
 
-; shred: N passes of random bytes over the file's length, then -u
-; removes it.  The filler avoids NUL -- a byte a C string cannot hold
-; (the same limit sha256sum records).
-(def %cu-shred-filler
-  (fn (_ r n)
-    (def go
-      (fn (self k acc)
-        (if (<= k 0) (string-concat acc)
-          (self (- k 1) (pair (%cu-b->s (+ 1 (rng-int r 255))) acc)))))
-    (go n ())))
+; shred: N passes of random bytes over the file's blocks, then -u removes it.
+; The bytes go out through the counted write (cu/prims.x), so every one of the
+; 256 is written, NUL included.
+
+; SIZE rounded up to whole BLKSIZE blocks, which is the length shred covers:
+; what is left of a block would still hold the bytes that were there.  An
+; empty file has no block to cover and stays empty.
+(def %cu-shred-blocks
+  (fn (_ size blksize)
+    (if (if (> size 0) (> blksize 0) #f)
+      (let ((over (% size blksize)))
+        (if (= over 0) size (+ size (- blksize over))))
+      size)))
+
 
 (def %cu-shred
   (fn (_ argv stdin-thunk)
@@ -577,11 +581,14 @@
           (if f? (guard (_ ()) (file-chmod path 384)) ())   ; 0600
           (let ((st (file-stat-full path)))
             (if (null? st) 1
-              (let ((size (%cu-stat-get st (lit size))))
+              (let ((size (%cu-shred-blocks
+                            (%cu-stat-get st (lit size))
+                            (%cu-stat-get st (lit blksize)))))
                 (def pass
                   (fn (self k)
                     (if (<= k 0) ()
-                      (do (file-write-all path (%cu-shred-filler r size))
+                      (do (let ((fd (file-open-write path)))
+                            (do (file-write-random fd r size) (file-close fd)))
                           (self (- k 1))))))
                 (do (pass passes)
                     (if z?

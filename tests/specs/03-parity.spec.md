@@ -439,6 +439,23 @@ overwritten
 gone
 ```
 
+### the passes cover whole blocks, whatever the file's length
+
+shred writes over the block a file's last bytes sit in, since what is left of
+that block would still hold them; an empty file has no block to cover.  A file
+larger than the buffer the passes are drawn into is covered too -- one of 8K
+was a crash before, not a shredded file.
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "cd /tmp/x-cu-par && : > empty && printf '%05000d' 0 > mid && printf '%08192d' 0 > big")) (def sized (fn (_ n) (do (display (cu-run (list "shred" "-n" "1" (string-append "/tmp/x-cu-par/" n)) "")) (display " ") (display (%cu-stat-get (file-stat-full (string-append "/tmp/x-cu-par/" n)) (lit size))) (newline)))) (sized "empty") (sized "mid") (sized "big"))
+```
+---
+```output
+0 0
+0 8192
+0 8192
+```
+
 ### du reports 1024-byte blocks; a path that is not there is zero
 
 ```cu
