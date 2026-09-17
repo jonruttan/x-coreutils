@@ -25,6 +25,10 @@
 (def %cu-mode-octal
   (fn (_ mode) (%cu-oct->str (bit-and mode 4095))))
 
+; four digits, as stat's Access line and chmod's reports show a mode: 0644
+(def %cu-mode-octal4
+  (fn (_ mode) (%cu-zero-pad (%cu-mode-octal mode) 4)))
+
 (def %cu-kind-letter
   (fn (_ kind)
     (match
@@ -47,19 +51,34 @@
       ((eq? kind (lit socket)) "socket")
       (#t "regular file"))))
 
-; rwx for one octal digit; the sticky and setid bits are not spelled
+; rwx for one octal digit, the execute place spelled X when the bit is set and
+; DASH when it is clear
 (def %cu-rwx
-  (fn (_ d)
+  (fn (_ d x dash)
     (string-append (if (= (bit-and d 4) 0) "-" "r")
       (string-append (if (= (bit-and d 2) 0) "-" "w")
-        (if (= (bit-and d 1) 0) "-" "x")))))
+        (if (= (bit-and d 1) 0) dash x)))))
+
+; the triple SHIFT bits up, its execute place spelled X or DASH when the
+; SPECIAL bit is set
+(def %cu-perm-triple
+  (fn (_ mode shift special x dash)
+    (if (= (bit-and mode special) 0)
+      (%cu-rwx (bit-and (bit-shr mode shift) 7) "x" "-")
+      (%cu-rwx (bit-and (bit-shr mode shift) 7) x dash))))
+
+; the nine places of a mode.  The setuid, setgid and sticky bits show in the
+; execute places of the user, the group and the others: s and t over a set
+; execute bit, S and T over a clear one -- rwsr-xr-x, rw-r--r-T
+(def %cu-perm-places
+  (fn (_ mode)
+    (string-append (%cu-perm-triple mode 6 2048 "s" "S")       ; 04000
+      (string-append (%cu-perm-triple mode 3 1024 "s" "S")     ; 02000
+        (%cu-perm-triple mode 0 512 "t" "T")))))               ; 01000
 
 (def %cu-perm-string
   (fn (_ kind mode)
-    (string-append (%cu-kind-letter kind)
-      (string-append (%cu-rwx (bit-and (bit-shr mode 6) 7))
-        (string-append (%cu-rwx (bit-and (bit-shr mode 3) 7))
-          (%cu-rwx (bit-and mode 7)))))))
+    (string-append (%cu-kind-letter kind) (%cu-perm-places mode))))
 
 ; --- stat ---------------------------------------------------------------------
 
@@ -182,7 +201,7 @@
                       (%cu-int->str (%cu-dev-minor rdev))))
               nlink)
             "\n"
-            "Access: (" (%cu-mode-octal mode) "/"
+            "Access: (" (%cu-mode-octal4 mode) "/"
             (%cu-perm-string kind mode) ")  Uid: ("
             (%cu-int->str (%cu-stat-get st (lit uid))) ")   Gid: ("
             (%cu-int->str (%cu-stat-get st (lit gid))) ")\n"))))

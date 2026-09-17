@@ -98,43 +98,128 @@
                     (self (rest cs) (%cu-apply-symbolic (first cs) m))))))
         (go (%cu-split-byte spec 44) current)))))               ; ,
 
-; --- chmod, chown, chgrp ------------------------------------------------------
+; --- chmod --------------------------------------------------------------------
 
+; -c reports each path whose mode changed and -v every path, and whichever came
+; later wins.  -f keeps chmod's complaints off stderr; the reports still go to
+; stdout and the status still says a path failed.  How a run reports rides the
+; walk as (VERBOSITY . QUIET?), VERBOSITY one of off, changes, all.
+(def %cu-chmod-how
+  (fn (_ o)
+    (let ((v (%cu-last-given o (list "-c" "-v"))))
+      (pair (match
+              ((null? v) (lit off))
+              ((string=? v "-c") (lit changes))
+              (#t (lit all)))
+        (Opts on? o "-f")))))
+
+; a mode as the reports show it: 0644 (rw-r--r--)
+(def %cu-chmod-shown
+  (fn (_ mode)
+    (string-concat (list (%cu-mode-octal4 mode) " (" (%cu-perm-places mode) ")"))))
+
+(def %cu-chmod-complain
+  (fn (_ how line)
+    (if (rest how) ()
+      (file-write 2 (string-concat (list "chmod: " line "\n"))))))
+
+; a path chmod could not reach: the complaint, and under -v a report saying so.
+; Answers the failing status.
+(def %cu-chmod-unreached
+  (fn (_ how path line)
+    (do (%cu-chmod-complain how line)
+        (if (eq? (first how) (lit all))
+          (display (string-concat (list "'" path "' could not be accessed\n")))
+          ())
+        1)))
+
+; why PATH could not be read, in chmod's words; a link to nothing is named as one
+(def %cu-chmod-stat-failure
+  (fn (_ path e)
+    (if (if (eq? (file-err-sym e) (lit enoent))
+          (eq? (file-lstat-kind path) (lit link))
+          #f)
+      (string-concat (list "cannot operate on dangling symlink '" path "'"))
+      (string-concat (list "cannot access '" path "': " (file-err-text e))))))
+
+; Did the mode change?  A system may drop a setuid, setgid or sticky bit without
+; failing the call, so a mode that asks for one is read back rather than trusted.
+(def %cu-chmod-changed?
+  (fn (_ how path old new)
+    (if (= (bit-and new 3584) 0) (not (= old new))              ; 07000
+      (let ((st (file-or-err (fn (_) (file-stat path)))))
+        (if (Err err? st)
+          (do (%cu-chmod-complain how
+                (string-concat
+                  (list "getting new attributes of '" path "': " (file-err-text st))))
+              #f)
+          (not (= old (bit-and (%cu-stat-get st (lit mode)) 4095))))))))
+
+; -c reports a change; -v a change, a failure, or a mode kept as it was
+(def %cu-chmod-report
+  (fn (_ how path old new failed?)
+    (if (eq? (first how) (lit off)) ()
+      (let ((changed? (if failed? #f (%cu-chmod-changed? how path old new))))
+        (match
+          (changed?
+            (display (string-concat
+                       (list "mode of '" path "' changed from " (%cu-chmod-shown old)
+                             " to " (%cu-chmod-shown new) "\n"))))
+          ((not (eq? (first how) (lit all))) ())
+          (failed?
+            (display (string-concat
+                       (list "failed to change mode of '" path "' from "
+                             (%cu-chmod-shown old) " to " (%cu-chmod-shown new) "\n"))))
+          (#t
+            (display (string-concat
+                       (list "mode of '" path "' retained as " (%cu-chmod-shown new)
+                             "\n")))))))))
+
+; One path: its mode set and reported, then under -R the entries of a directory,
+; read after the mode is set, as chmod reads them.  Answers 1 when anything along
+; the way failed, else 0.
 (def %cu-chmod-one
-  (fn (_ spec path recurse?)
-    (let ((st (file-stat-full path)))
-      (if (null? st) 1
-        (do (file-chmod path
-              (%cu-mode-of spec (bit-and (%cu-stat-get st (lit mode)) 4095)))
-            (if (if recurse? (eq? (%cu-stat-get st (lit kind)) (lit dir)) #f)
-              (%cu-chmod-kids spec path)
-              ())
-            0)))))
+  (fn (_ how spec path recurse?)
+    (let ((st (file-or-err (fn (_) (file-stat path)))))
+      (if (Err err? st)
+        (%cu-chmod-unreached how path (%cu-chmod-stat-failure path st))
+        (let ((old (bit-and (%cu-stat-get st (lit mode)) 4095)))
+          (let ((new (%cu-mode-of spec old)))
+            (let ((r (file-or-err (fn (_) (file-chmod path new)))))
+              (do (if (Err err? r)
+                    (%cu-chmod-complain how
+                      (string-concat
+                        (list "changing permissions of '" path "': " (file-err-text r))))
+                    ())
+                  (%cu-chmod-report how path old new (Err err? r))
+                  (%cu-max-status (if (Err err? r) 1 0)
+                    (if (if recurse? (eq? (%cu-stat-get st (lit kind)) (lit dir)) #f)
+                      (%cu-chmod-kids how spec path)
+                      0))))))))))
 
 (def %cu-chmod-kids
-  (fn (_ spec dir)
-    (%cu-walk-status dir
-      (fn (_ n)
-        (do (%cu-chmod-one spec (%cu-path-join dir n) #t) 0)))))
+  (fn (_ how spec dir)
+    (let ((names (file-or-err (fn (_) (%cu-walk-names dir)))))
+      (if (Err err? names)
+        (%cu-chmod-unreached how dir
+          (string-concat
+            (list "cannot read directory '" dir "': " (file-err-text names))))
+        (%cu-walk-worst names
+          (fn (_ n) (%cu-chmod-one how spec (%cu-path-join dir n) #t))
+          0)))))
 
 (def %cu-chmod
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "chmod" argv))
-    (def r? (Opts on? o "-R"))
     (def ops (Opts operands o))
     (if (null? (rest ops))
       (do (file-write 2 "chmod: need MODE and a path\n") 1)
-      (let ((spec (first ops)))
-        (def go
-          (fn (self ps st)
-            (if (null? ps) st
-              (let ((r (%cu-chmod-one spec (first ps) r?)))
-                (do (if (= r 0) ()
-                      (file-write 2
-                        (string-concat
-                          (list "chmod: cannot access '" (first ps) "'\n"))))
-                    (self (rest ps) (if (> r st) r st)))))))
-        (go (rest ops) 0)))))
+      (let ((how (%cu-chmod-how o)) (r? (Opts on? o "-R")) (spec (first ops)))
+        (%cu-walk-worst (rest ops)
+          (fn (_ p) (%cu-chmod-one how spec p r?))
+          0)))))
+
+; --- chown, chgrp -------------------------------------------------------------
 
 ; chown and chgrp take NUMERIC ids: there is no passwd or group door,
 ; so a name cannot be resolved.  USER:GROUP is accepted, either half
