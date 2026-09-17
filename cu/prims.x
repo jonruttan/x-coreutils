@@ -26,7 +26,8 @@
   file-open-write file-open-append file-close file-write file-read-fd
   file-list-dir file-rename file-rmdir file-open-excl file-dir?
   file-open-update
-  file-stat file-chmod file-chown file-link file-symlink file-readlink
+  file-stat file-stat-wide file-lstat-wide file-chmod file-chown file-lchown
+  file-link file-symlink file-readlink
   file-or-err file-err-text file-err-sym file-err-op
   file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
   file-write-nuls file-write-random file-write-field cu-stdin-fields!
@@ -419,8 +420,42 @@
 ; --- the metadata doors (x-lang PR #607) --------------------------------------
 
 (def file-stat (fn (_ path) (File stat path)))
+
+; the wide stat, raising the platform's io Err when the path cannot be read:
+; file-stat-full answers nil instead, and a caller that reports the reason
+; wants the Err.  The narrow stat is what raises; the wide one then decodes.
+(def file-stat-wide
+  (fn (_ path) (do (File stat path) (file-stat-full path))))
+
+; and the same without following a link: what a walk that does not traverse
+; links reads, and what -h reports
+(def file-lstat-wide
+  (fn (_ path) (do (File lstat path) (file-lstat-full path))))
 (def file-chmod (fn (_ path mode) (File chmod path mode)))
 (def file-chown (fn (_ path uid gid) (File chown path uid gid)))
+
+; The link's OWN ids, for -h and for a link met on a walk.  There is no lchown
+; method on File and no number for it in the platform's syscall table, so it is
+; reached through the FFI, as the umask is.  A libc without the symbol answers
+; nil, which the caller reports rather than changing the target instead.
+(def %cu-lchown-cell (list ()))
+
+(def %cu-lchown-fn
+  (fn (_)
+    (do (if (null? (first %cu-lchown-cell))
+          (set-first! %cu-lchown-cell
+            (list (%cu-dlsym (%cu-dlopen () 1) "lchown")))
+          ())
+        (first (first %cu-lchown-cell)))))
+
+; -1 for an id leaves that id alone, as chown's own call does.  Answers 0, or
+; the io Err the call failed with, or nil where there is no lchown.
+(def file-lchown
+  (fn (_ path uid gid)
+    (let ((f (%cu-lchown-fn)))
+      (if (null? f) ()
+        (let ((r (%cu-ptr-call f path uid gid)))
+          (if (< r 0) (Err from-errno (Err errno-of r) (lit lchown) path) 0))))))
 (def file-link (fn (_ target path) (File link target path)))
 (def file-symlink (fn (_ target path) (File symlink target path)))
 (def file-readlink (fn (_ path) (File readlink path)))
