@@ -102,8 +102,9 @@
         (%cu-fl-number tok (+ afterw 1) end)
         (pair (- 0 1) afterw)))
     (def conv (rest pr))
+    ; the token itself rides along: printf names the directive it refuses
     (list (lit dir) left? zero? (first wr) (first pr)
-      (if (< conv end) (substring tok conv (+ conv 1)) ""))))
+      (if (< conv end) (substring tok conv (+ conv 1)) "") tok)))
 
 (def %cu-fl-has-byte?
   (fn (self tok i end b)
@@ -123,6 +124,130 @@
 
 ; --- the escape --------------------------------------------------------------
 
+; What a backslash escape means.  The named ones are \a \b \f \n \r \t \v and
+; \\, with \e for escape where the tool has it; a number follows \ as up to
+; three octal digits, or \x and up to two hex digits.  The tools differ in
+; three places, which VARIANT names:
+;
+;   format  printf's format: \NNN, \xHH, \" , \e, and an unknown escape as
+;           written -- printf '\q' prints \q
+;   arg     echo -e and printf's %b: the same, with the leading 0 their manuals
+;           spell (\0NNN), and no \"
+;   tr      a tr SET: \NNN only, no \x and no \e, and an unknown escape without
+;           its backslash -- tr reads \q as q.  Three digits that would pass
+;           255 are read as two, which is what GNU tr calls the ambiguous
+;           octal escape \400
+;
+; \c is the caller's: it ends printf's and echo's output, and answers here as
+; the empty string with a stop.
+
+(def %cu-esc-named
+  (fn (_ c variant)
+    (match
+      ((= c 97) 7)                                               ; a
+      ((= c 98) 8)                                               ; b
+      ((= c 102) 12)                                             ; f
+      ((= c 110) 10)                                             ; n
+      ((= c 114) 13)                                             ; r
+      ((= c 116) 9)                                              ; t
+      ((= c 118) 11)                                             ; v
+      ((= c 92) 92)                                              ; backslash
+      ((if (= c 101) (not (eq? variant (lit tr))) #f) 27)         ; e
+      ((if (= c 34) (eq? variant (lit format)) #f) 34)            ; "
+      (#t (- 0 1)))))
+
+(def %cu-esc-octal? (fn (_ c) (if (>= c 48) (<= c 55) #f)))
+(def %cu-esc-hex?
+  (fn (_ c)
+    (match
+      ((if (>= c 48) (<= c 57) #f) #t)
+      ((if (>= c 97) (<= c 102) #f) #t)
+      (#t (if (>= c 65) (<= c 70) #f)))))
+(def %cu-esc-hex-value
+  (fn (_ c)
+    (match
+      ((<= c 57) (- c 48))
+      ((>= c 97) (- c 87))
+      (#t (- c 55)))))
+
+; the digits of S from I, at most MAX of them and of base BASE: (VALUE . NEXT)
+(def %cu-esc-digits
+  (fn (self s i max base acc)
+    (if (if (> max 0)
+          (if (< i (byte-len s))
+            (if (= base 8) (%cu-esc-octal? (byte-at s i))
+              (%cu-esc-hex? (byte-at s i)))
+            #f)
+          #f)
+      (self s (+ i 1) (- max 1) base
+        (+ (* acc base) (%cu-esc-hex-value (byte-at s i))))
+      (pair acc i))))
+
+; The escape at I, where S holds a backslash: (TEXT NEXT STOP? BYTE).  TEXT is
+; what it stands for, NEXT the index after it, STOP? true for the \c that ends
+; the output, and BYTE the one byte it names, or -1 where it names other text.
+; The byte is there because a NUL cannot travel in TEXT: a string's length
+; stops at one, so a caller that works in bytes -- tr's set -- reads it here.
+(def %cu-esc-at
+  (fn (_ s i variant)
+    (let ((c (if (< (+ i 1) (byte-len s)) (byte-at s (+ i 1)) (- 0 1))))
+      (let ((named (if (< c 0) (- 0 1) (%cu-esc-named c variant))))
+        (match
+          ((< c 0) (list "\\" (+ i 1) #f 92))
+          ((>= named 0) (list (%cu-b->s named) (+ i 2) #f named))
+          ((if (= c 99) (not (eq? variant (lit tr))) #f)             ; c
+            (list "" (+ i 2) #t (- 0 1)))
+          ((%cu-esc-octal? c) (%cu-esc-number s (+ i 1) variant))
+          ((if (= c 120) (not (eq? variant (lit tr))) #f)            ; x
+            (%cu-esc-hex-at s (+ i 2) i))
+          ((eq? variant (lit tr)) (list (%cu-b->s c) (+ i 2) #f c))
+          (#t (list (substring s i (+ i 2)) (+ i 2) #f (- 0 1))))))))
+
+; an octal escape at I, where S[I] is the first digit
+(def %cu-esc-number
+  (fn (_ s i variant)
+    (let ((from (if (if (eq? variant (lit arg)) (= (byte-at s i) 48) #f)
+                  (+ i 1) i)))                    ; \0NNN: the 0 is not a digit
+      (let ((d (%cu-esc-digits s from 3 8 0)))
+        (if (if (eq? variant (lit tr)) (> (first d) 255) #f)
+          ; three digits past 255 are two, as GNU tr reads \400
+          (let ((two (%cu-esc-digits s from 2 8 0)))
+            (list (%cu-b->s (first two)) (rest two) #f (first two)))
+          (let ((b (bit-and (first d) 255)))
+            (list (%cu-b->s b) (rest d) #f b)))))))
+
+; a hex escape, where I is past the x and AT the backslash: without a digit
+; after it, \x is what was written
+(def %cu-esc-hex-at
+  (fn (_ s i at)
+    (let ((d (%cu-esc-digits s i 2 16 0)))
+      (if (= (rest d) i) (list (substring s at (+ at 2)) i #f (- 0 1))
+        (let ((b (bit-and (first d) 255)))
+          (list (%cu-b->s b) (rest d) #f b))))))
+
+; S with its escapes decoded: (TEXT . STOPPED?), STOPPED? when a \c ended it
+(def %cu-esc-string
+  (fn (_ s variant) (%cu-esc-run s 0 variant ())))
+
+(def %cu-esc-run
+  (fn (self s i variant acc)
+    (match
+      ((>= i (byte-len s)) (pair (string-concat (reverse acc)) #f))
+      ((not (= (byte-at s i) 92))
+        (self s (+ i 1) variant (pair (%cu-b->s (byte-at s i)) acc)))
+      (#t
+        (let ((e (%cu-esc-at s i variant)))
+          (if (%cu-nth 2 e)
+            (pair (string-concat (reverse (pair (first e) acc))) #t)
+            (self s (%cu-nth 1 e) variant (pair (first e) acc))))))))
+
+; --- the escape, as the reader scores it --------------------------------------
+;
+; The token runs past the backslash for a number: three octal digits at most,
+; or x and two hex digits at most.  Each state marks a match and goes on, so
+; the longest one wins and \x with no digit after it is still the two bytes it
+; was written as.
+
 (def %cu-fl-t-esc
   (list
     (pair (lit analyse)
@@ -132,24 +257,44 @@
       (fn (_ . args) (%cu-fl-escape (%cu-fl-token (first args)))))))
 
 (def %cu-fl-esc-tail ())
+(def %cu-fl-esc-oct2 ())
+(def %cu-fl-esc-oct3 ())
+(def %cu-fl-esc-hex1 ())
+(def %cu-fl-esc-hex2 ())
 (set! %cu-fl-esc-tail
-  (fn (_ buffer score chr) (%score-set score 1 buffer)))
+  (fn (_ buffer score chr)
+    (match
+      ((%cu-esc-octal? chr) (%seq (%score-set score 1 buffer) %cu-fl-esc-oct2))
+      ((= chr 120) (%seq (%score-set score 1 buffer) %cu-fl-esc-hex1))   ; x
+      (#t (%score-set score 1 buffer)))))
+(set! %cu-fl-esc-oct2
+  (fn (_ buffer score chr)
+    (if (%cu-esc-octal? chr)
+      (%seq (%score-set score 1 buffer) %cu-fl-esc-oct3)
+      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
+(set! %cu-fl-esc-oct3
+  (fn (_ buffer score chr)
+    (if (%cu-esc-octal? chr) (%score-set score 1 buffer)
+      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
+(set! %cu-fl-esc-hex1
+  (fn (_ buffer score chr)
+    (if (%cu-esc-hex? chr) (%seq (%score-set score 1 buffer) %cu-fl-esc-hex2)
+      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
+(set! %cu-fl-esc-hex2
+  (fn (_ buffer score chr)
+    (if (%cu-esc-hex? chr) (%score-set score 1 buffer)
+      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
 
 (%cu-fl-type! "CU-FMT-ESC" %cu-fl-t-esc)
 
+; the token an escape scored, as the text it stands for; a \c answers the stop
+; its caller acts on, since a format's output ends there
 (def %cu-fl-escape
   (fn (_ tok)
-    (if (not (first %cu-fl-escapes))
-      tok
-      (if (< (byte-len tok) 2)
-        tok
-        (let ((e (byte-at tok 1)))
-          (match
-            ((= e 110) "\n")
-            ((= e 116) "\t")
-            ((= e 114) "\r")
-            ((= e 92) "\\")
-            (#t (substring tok 1 2))))))))
+    (if (not (first %cu-fl-escapes)) tok
+      (if (< (byte-len tok) 2) tok
+        (let ((e (%cu-esc-at tok 0 (lit format))))
+          (if (%cu-nth 2 e) (lit stop) (first e)))))))
 
 ; --- the literal run ---------------------------------------------------------
 
@@ -204,3 +349,4 @@
 (def %cu-fmt-width (fn (_ t) (%cu-nth 3 t)))
 (def %cu-fmt-prec (fn (_ t) (%cu-nth 4 t)))
 (def %cu-fmt-conv (fn (_ t) (%cu-nth 5 t)))
+(def %cu-fmt-raw (fn (_ t) (%cu-nth 6 t)))

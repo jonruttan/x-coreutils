@@ -6,30 +6,45 @@
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)
 
-; a tr SET to a byte list: literals, a-z ranges, \n \t \\ escapes
+; A tr SET to a byte list: literals, the escapes cu/fmt-lex.x reads for tr, and
+; a-z ranges.  The escapes are read first, so a byte one names is a literal and
+; never a range's dash: `tr '\055' -` is the dash itself.
 (def %cu-tr-set
-  (fn (_ s)
-    (def end (byte-len s))
-    (def go
-      (fn (self i acc)
-        (if (>= i end) (reverse acc)
-          (let ((b (byte-at s i)))
-            (if (if (= b 92) (< (+ i 1) end) #f)          ; backslash
-              (let ((e (byte-at s (+ i 1))))
-                (self (+ i 2)
-                  (pair (if (= e 110) 10 (if (= e 116) 9 e)) acc)))
-              (if (if (< (+ i 2) end)
-                    (if (= (byte-at s (+ i 1)) 45)        ; range a-z
-                      (not (= (byte-at s (+ i 2)) 92))
-                      #f)
-                    #f)
-                (let ((hi (byte-at s (+ i 2))))
-                  (def fill
-                    (fn (self2 v acc2)
-                      (if (> v hi) acc2 (self2 (+ v 1) (pair v acc2)))))
-                  (self (+ i 3) (fill b acc)))
-                (self (+ i 1) (pair b acc))))))))
-    (go 0 ())))
+  (fn (_ s) (%cu-tr-ranges (%cu-tr-items s 0 ()))))
+
+; the set's bytes before the ranges are filled: (BYTE . FROM-AN-ESCAPE?)
+(def %cu-tr-items
+  (fn (self s i acc)
+    (if (>= i (byte-len s)) (reverse acc)
+      (if (= (byte-at s i) 92)
+        (let ((e (%cu-esc-at s i (lit tr))))
+          (self s (%cu-nth 1 e)
+            (if (< (%cu-nth 3 e) 0) acc
+              (pair (pair (%cu-nth 3 e) #t) acc))))
+        (self s (+ i 1) (pair (pair (byte-at s i) #f) acc))))))
+
+; a dash between two bytes, itself written as a dash, spans them
+(def %cu-tr-ranges
+  (fn (self items)
+    (match
+      ((null? items) ())
+      ((%cu-tr-range? items)
+        (append (%cu-tr-fill (first (first items))
+                  (first (first (rest (rest items)))))
+          (self (rest (rest (rest items))))))
+      (#t (pair (first (first items)) (self (rest items)))))))
+
+(def %cu-tr-range?
+  (fn (_ items)
+    (if (if (pair? (rest items)) (pair? (rest (rest items))) #f)
+      (if (= (first (first (rest items))) 45)                    ; -
+        (not (rest (first (rest items))))
+        #f)
+      #f)))
+
+(def %cu-tr-fill
+  (fn (self lo hi)
+    (if (> lo hi) () (pair lo (self (+ lo 1) hi)))))
 
 (def %cu-member-b?
   (fn (_ b l)
