@@ -303,12 +303,18 @@
     (if (Opts on? o "-i") (sys-signal cu-sigint cu-sig-ign) ())
     (def ops (Opts operands o))
     (def text (stdin-thunk))
+    ; a file tee cannot open is said, and the copy goes on to the rest
     (def go
-      (fn (self os)
-        (if (null? os) ()
-          (let ((fd (if a? (file-open-append (first os))
-                      (file-open-write (first os)))))
-            (do (file-write fd text)
-                (file-close fd)
-                (self (rest os)))))))
-    (do (display text) (go ops) 0)))
+      (fn (self os st)
+        (if (null? os) st
+          (let ((fd (file-open-or-err
+                      (if a? file-open-append file-open-write) (first os))))
+            (if (Err err? fd)
+              (do (file-write 2
+                    (string-concat
+                      (list "tee: " (first os) ": " (file-err-text fd) "\n")))
+                  (self (rest os) 1))
+              (do (file-write fd text)
+                  (file-close fd)
+                  (self (rest os) st)))))))
+    (do (display text) (go ops 0))))

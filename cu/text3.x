@@ -349,17 +349,27 @@
       ((if (null? dest) z? #f) (do (%cu-print-fields picked 0) 0))
       ((null? dest) (do (%cu-print-lines picked) 0))
       (z?
-        (let ((fd (file-open-write dest)))
+        (let ((fd (file-open-or-err file-open-write dest)))
           (def go
             (fn (self ls)
               (if (null? ls) ()
                 (do (file-write-field fd (first ls) 0) (self (rest ls))))))
-          (do (go picked) (file-close fd) 0)))
+          (if (Err err? fd) (%cu-shuf-cannot dest fd)
+            (do (go picked) (file-close fd) 0))))
       (#t
-        (do (file-write-all dest
-              (string-concat
-                (map (fn (_ l) (string-append l "\n")) picked)))
-            0)))))
+        (let ((r (file-or-err
+                   (fn (_)
+                     (file-write-all dest
+                       (string-concat
+                         (map (fn (_ l) (string-append l "\n")) picked)))))))
+          (if (Err err? r) (%cu-shuf-cannot dest r) 0))))))
+
+; an -o file shuf cannot write, said as shuf says it
+(def %cu-shuf-cannot
+  (fn (_ dest r)
+    (do (file-write 2
+          (string-concat (list "shuf: " dest ": " (file-err-text r) "\n")))
+        1)))
 
 ; "LO-HI" -> the integers from LO to HI, as strings.
 (def %cu-shuf-range

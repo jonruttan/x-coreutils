@@ -582,53 +582,72 @@
             (string-concat
               (list "dd: unknown " (first bad) " value: " (rest bad) "\n")))
           1)
-      (do
-        (def count (let ((v (%cu-dd-operand argv "count")))
-                     (if (null? v) (- 0 1) (%cu-num-prefix v))))
-        (def skip (let ((v (%cu-dd-operand argv "skip")))
-                    (if (null? v) 0 (%cu-num-prefix v))))
-        (def seek (let ((v (%cu-dd-operand argv "seek")))
-                    (if (null? v) 0 (%cu-num-prefix v))))
-        (def quiet? (let ((v (%cu-dd-operand argv "status")))
-                      (if (null? v) #f (string=? v "none"))))
-        ; skip and count are blocks unless a flag says bytes; seek likewise.
-        (def from
-          (* skip (if (%cu-dd-has? iflag "skip_bytes") 1 ibs)))
-        (def at
-          (* seek (if (%cu-dd-has? oflag "seek_bytes") 1 obs)))
-        (def source (if (null? in) (stdin-thunk) (file-read-all in)))
-        (def avail (byte-len source))
-        (def want
-          (if (< count 0) (- avail from)
-            (* count (if (%cu-dd-has? iflag "count_bytes") 1 ibs))))
-        (def stop (let ((e (+ from want))) (if (> e avail) avail e)))
-        (def raw (if (>= from avail) "" (substring source from stop)))
-        (def chunk (%cu-dd-convert raw conv))
-        (def n (byte-len chunk))
-        (do
-          (if (null? out)
-            (display chunk)
-            (let ((fd (if (%cu-dd-has? oflag "append")
-                        (file-open-append out)
-                        (file-open-update out))))
-              (do (if (> at 0) (file-seek fd at) ())
-                  (file-write fd chunk)
-                  ; conv=notrunc leaves whatever followed the write in
-                  ; place, and appending says the same thing: truncating
-                  ; to at+n after an append cuts off what was just written.
-                  (if (if (%cu-dd-has? conv "notrunc") #t
-                        (%cu-dd-has? oflag "append")) ()
-                    (file-truncate fd (+ at n)))
-                  (file-close fd))))
-          ; records in are counted in ibs, records out in obs; they differ
-          ; whenever the two block sizes do.
-          (if quiet? ()
-            (file-write 2
-              (string-concat
-                (list (%cu-dd-records n ibs) " records in\n"
-                      (%cu-dd-records n obs) " records out\n"
-                      (%cu-int->str n) " bytes copied\n"))))
-          0)))))
+      ; the input is read before anything else, as dd opens it first; one
+      ; it cannot open is said, and nothing is written
+      (let ((source (if (null? in) (stdin-thunk)
+                      (file-or-err (fn (_) (file-read-all in))))))
+        (if (Err err? source) (%cu-dd-failed in source)
+          (do
+            (def count (let ((v (%cu-dd-operand argv "count")))
+                         (if (null? v) (- 0 1) (%cu-num-prefix v))))
+            (def skip (let ((v (%cu-dd-operand argv "skip")))
+                        (if (null? v) 0 (%cu-num-prefix v))))
+            (def seek (let ((v (%cu-dd-operand argv "seek")))
+                        (if (null? v) 0 (%cu-num-prefix v))))
+            (def quiet? (let ((v (%cu-dd-operand argv "status")))
+                          (if (null? v) #f (string=? v "none"))))
+            ; skip and count are blocks unless a flag says bytes; seek
+            ; likewise.
+            (def from
+              (* skip (if (%cu-dd-has? iflag "skip_bytes") 1 ibs)))
+            (def at
+              (* seek (if (%cu-dd-has? oflag "seek_bytes") 1 obs)))
+            (def avail (byte-len source))
+            (def want
+              (if (< count 0) (- avail from)
+                (* count (if (%cu-dd-has? iflag "count_bytes") 1 ibs))))
+            (def stop (let ((e (+ from want))) (if (> e avail) avail e)))
+            (def raw (if (>= from avail) "" (substring source from stop)))
+            (def chunk (%cu-dd-convert raw conv))
+            (def n (byte-len chunk))
+            (let ((st (if (null? out) (do (display chunk) 0)
+                        (%cu-dd-write out chunk at conv oflag))))
+              ; records in are counted in ibs, records out in obs; they
+              ; differ whenever the two block sizes do.  A write that
+              ; failed made no records.
+              (do (if (if quiet? #t (> st 0)) ()
+                    (file-write 2
+                      (string-concat
+                        (list (%cu-dd-records n ibs) " records in\n"
+                              (%cu-dd-records n obs) " records out\n"
+                              (%cu-int->str n) " bytes copied\n"))))
+                  st))))))))
+
+; CHUNK written to OUT at AT: opened to append under oflag=append, and cut
+; where the write ended -- unless conv=notrunc leaves whatever followed it in
+; place, as appending does too, since truncating to AT plus the chunk after
+; an append cuts off what was just written.  An OUT dd cannot open is said.
+(def %cu-dd-write
+  (fn (_ out chunk at conv oflag)
+    (let ((fd (file-open-or-err
+                (if (%cu-dd-has? oflag "append") file-open-append
+                  file-open-update)
+                out)))
+      (if (Err err? fd) (%cu-dd-failed out fd)
+        (do (if (> at 0) (file-seek fd at) ())
+            (file-write fd chunk)
+            (if (if (%cu-dd-has? conv "notrunc") #t
+                  (%cu-dd-has? oflag "append")) ()
+              (file-truncate fd (+ at (byte-len chunk))))
+            (file-close fd)
+            0)))))
+
+(def %cu-dd-failed
+  (fn (_ path r)
+    (do (file-write 2
+          (string-concat
+            (list "dd: failed to open '" path "': " (file-err-text r) "\n")))
+        1)))
 
 
 ; --- truncate, unlink, shred --------------------------------------------------
@@ -648,17 +667,24 @@
         ; The operands come from the parse, not from a fixed position:
         ; with -c in the line the old (rest (rest argv)) ate a file.
         (def ops (Opts operands o))
+        ; a file truncate cannot open is said, and the rest are still cut
         (def go
-          (fn (self os)
+          (fn (self os st)
             (match
-              ((null? os) 0)
+              ((null? os) st)
               ((if no-create? (not (file-exists? (first os))) #f)
-                (self (rest os)))
-              (#t (let ((fd (file-open-update (first os))))
-                    (do (file-truncate fd size)
-                        (file-close fd)
-                        (self (rest os))))))))
-        (go ops)))))
+                (self (rest os) st))
+              (#t (let ((fd (file-open-or-err file-open-update (first os))))
+                    (if (Err err? fd)
+                      (do (file-write 2
+                            (string-concat
+                              (list "truncate: cannot open '" (first os)
+                                    "' for writing: " (file-err-text fd) "\n")))
+                          (self (rest os) 1))
+                      (do (file-truncate fd size)
+                          (file-close fd)
+                          (self (rest os) st))))))))
+        (go ops 0)))))
 
 ; File unlink RAISES on a missing path rather than answering a
 ; negative, so the absence is tested before the door is opened.
@@ -688,6 +714,22 @@
       size)))
 
 
+; the length the passes cover, from what stat says of the file now
+(def %cu-shred-size
+  (fn (_ path)
+    (let ((st (file-stat-full path)))
+      (if (null? st) 0
+        (%cu-shred-blocks (%cu-stat-get st (lit size))
+          (%cu-stat-get st (lit blksize)))))))
+
+; K passes of random bytes over SIZE, each from the start
+(def %cu-shred-passes
+  (fn (self fd r size k)
+    (if (<= k 0) ()
+      (do (file-seek fd 0)
+          (file-write-random fd r size)
+          (self fd r size (- k 1))))))
+
 (def %cu-shred
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "shred" argv))
@@ -703,26 +745,24 @@
     (def z? (Opts on? o "-z"))
     (def ops (Opts operands o))
     (def r (rng-make (date-now-unix)))
+    ; One file: opened to write and nothing more -- a truncate would free the
+    ; very blocks the passes are there to write over -- then each pass from
+    ; the start of it.  One shred cannot open is said, and fails.
     (def one
       (fn (_ path)
         (do
           (if f? (guard (_ ()) (file-chmod path 384)) ())   ; 0600
-          (let ((st (file-stat-full path)))
-            (if (null? st) 1
-              (let ((size (%cu-shred-blocks
-                            (%cu-stat-get st (lit size))
-                            (%cu-stat-get st (lit blksize)))))
-                (def pass
-                  (fn (self k)
-                    (if (<= k 0) ()
-                      (do (let ((fd (file-open-write path)))
-                            (do (file-write-random fd r size) (file-close fd)))
-                          (self (- k 1))))))
-                (do (pass passes)
-                    (if z?
-                      (let ((fd (file-open-write path)))
-                        (do (file-write-nuls fd size) (file-close fd)))
-                      ())
+          (let ((fd (file-open-or-err file-open-wronly path)))
+            (if (Err err? fd)
+              (do (file-write 2
+                    (string-concat
+                      (list "shred: " path ": failed to open for writing: "
+                            (file-err-text fd) "\n")))
+                  1)
+              (let ((size (%cu-shred-size path)))
+                (do (%cu-shred-passes fd r size passes)
+                    (if z? (do (file-seek fd 0) (file-write-nuls fd size)) ())
+                    (file-close fd)
                     (if u? (file-unlink path) ())
                     0)))))))
     (def go
