@@ -233,7 +233,7 @@
     ; sort reads nothing past a file it cannot read, prints nothing, and
     ; fails as sort fails
     (def g
-      (if z? (pair (%cu-delim-fields ops stdin-thunk 0) 0)
+      (if z? (%cu-delim-fields-said ops stdin-thunk 0 %sort-cannot-read #t)
         (%cu-gather-said ops stdin-thunk %sort-cannot-read #t)))
     (def lines (if z? (first g) (%cu-lines (first g))))
     (def less? (%sort-less o spec sep))

@@ -292,10 +292,14 @@
     (def s? (Opts on? o "-s"))
     (def list? (Opts on? o "-l"))
     (def ops (Opts operands o))
-    (def a (if (string=? (first ops) "-") (stdin-thunk)
-             (file-read-all (first ops))))
-    (def b (if (string=? (first (rest ops)) "-") (stdin-thunk)
-             (file-read-all (first (rest ops)))))
+    ; both files are opened before either is read, and the first that fails
+    ; is said -- except under -s, which says nothing at all -- and is cmp's
+    ; trouble, status 2
+    (def texts (%cu-read-all-said (list (first ops) (first (rest ops)))
+                 stdin-thunk (if s? (fn (_ name err) ()) (%cu-says "cmp"))))
+    (def failed? (Err err? texts))
+    (def a (if failed? "" (first texts)))
+    (def b (if failed? "" (first (rest texts))))
     (def cap
       (let ((v (Opts value o "-n")))
         (if (null? v) (- 0 1) (%cu-num-prefix v))))
@@ -343,5 +347,8 @@
                             " differ: char " (%cu-int->str (+ i 1))
                             ", line " (%cu-int->str line) "\n"))))
                 1)))))
-    (if list? (listing 0 0) (go 0 1))))
+    (match
+      (failed? 2)
+      (list? (listing 0 0))
+      (#t (go 0 1)))))
 

@@ -269,12 +269,18 @@
       (let ((v (Opts value o "-d")))
         (if (null? v) "\t" (substring v 0 1))))
     (def ops (Opts operands o))
-    (def columns
-      (map (fn (_ op)
-             (%cu-lines
+    ; every file is opened before any is read: the first that will not open
+    ; is said and nothing is pasted.  One that opens and will not read -- a
+    ; directory -- is said and pasted as an empty column.
+    (def shut (%cu-first-unopened ops (%cu-says "paste")))
+    (def reads
+      (if (Err err? shut) ()
+        (map (fn (_ op)
                (if (string=? op "-") (stdin-thunk)
-                 (file-read-all op))))
-        ops))
+                 (%cu-read-said (%cu-says "paste") op)))
+          ops)))
+    (def columns (map (fn (_ t) (if (Err err? t) () (%cu-lines t))) reads))
+    (def st (if (null? (filter (fn (_ t) (Err err? t)) reads)) 0 1))
     ; -s pastes each file onto ONE line instead of pasting the files
     ; against each other line by line.
     (def serial
@@ -297,7 +303,8 @@
                     delim)
                   "\n"))
               (self (map (fn (_ c) (if (pair? c) (rest c) ())) cs))))))
-    (if (Opts on? o "-s") (serial columns) (go columns))))
+    (if (Err err? shut) 1
+      (do (if (Opts on? o "-s") (serial columns) (go columns)) st))))
 
 (def %cu-tee
   (fn (_ argv stdin-thunk)

@@ -360,7 +360,8 @@
       (match
         ((not (null? iv)) (pair (%cu-shuf-range iv) 0))
         (echo? (pair rest1 0))
-        (z? (pair (%cu-delim-fields rest1 stdin-thunk 0) 0))
+        (z? (%cu-delim-fields-said rest1 stdin-thunk 0 (%cu-read-error "shuf")
+               #f))
         (#t (let ((g (%cu-gather-said rest1 stdin-thunk (%cu-read-error "shuf")
                        #f)))
               (pair (%cu-lines (first g)) (rest g))))))
