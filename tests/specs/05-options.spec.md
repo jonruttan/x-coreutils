@@ -1113,6 +1113,36 @@ j
   x
 ```
 
+### -f keeps unexpand to the leading run whatever order -a comes in
+
+```cu
+(do (display (cu-cap (list "unexpand" "-a" "-f" "/tmp/x-cu-tx/runs"))) (display (cu-cap (list "unexpand" "-f" "-a" "/tmp/x-cu-tx/runs"))))
+```
+---
+```output
+^Ia        b
+^I  c
+  x
+^Ia        b
+^I  c
+  x
+```
+
+### -t takes every run as -a does, and -f still keeps it to the leading one
+
+```cu
+(do (display (cu-cap (list "unexpand" "-t" "4" "/tmp/x-cu-tx/runs"))) (display (cu-cap (list "unexpand" "-t" "4" "-f" "/tmp/x-cu-tx/runs"))))
+```
+---
+```output
+^I^Ia^I^I b
+^I^I  c
+  x
+^I^Ia        b
+^I^I  c
+  x
+```
+
 ### under -a a lone space on a stop stays a space; two become a tab; a trailing run counts
 
 ```cu
