@@ -473,16 +473,15 @@
 
 ; --- ln -----------------------------------------------------------------------
 
+; TARGET... [NAME]: one target and no name makes the link here; several, or
+; -t DIR, make them in a directory, which a NAME that is not one refuses.
 (def %cu-ln
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "ln" argv))
-    (def s? (Opts on? o "-s"))
-    (def f? (Opts on? o "-f"))
-    (def ops0 (Opts operands o))
+    (def ops (Opts operands o))
     ; -t DIR names the directory the links go in, and then every
     ; operand is a target
     (def dir (Opts value o "-t"))
-    (def ops (if (null? dir) ops0 ops0))
     (if (null? ops)
       (do (file-write 2 "ln: usage: ln [-sfnbtv] TARGET... [NAME]\n") 1)
       (let ((targets (if (null? dir)
@@ -490,25 +489,84 @@
                        ops))
             (into (if (null? dir)
                     (if (null? (rest ops)) "." (%cu-last ops))
-                    dir)))
-        (def go
-          (fn (self ts st)
-            (if (null? ts) st
-              (let ((name (if (if (null? dir) (null? (rest ops)) #f)
-                            (%cu-basename-of (first ts))
-                            (if (file-dir? into)
-                              (%cu-path-join into (%cu-basename-of (first ts)))
-                              into))))
-                (do
-                  ; -b keeps what it displaces, as NAME~
-                  (if (if (Opts on? o "-b") (file-exists? name) #f)
-                    (do (file-rename name (string-append name "~")) ()) ())
-                  (if (if f? (not (eq? (file-lstat-kind name) (lit none))) #f)
-                    (file-unlink name) ())
-                  (if s? (file-symlink (first ts) name)
-                    (file-link (first ts) name))
-                  (if (Opts on? o "-v")
-                    (display (string-concat
-                               (list "'" name "' -> '" (first ts) "'\n"))) ())
-                  (self (rest ts) st))))))
-        (go targets 0)))))
+                    dir))
+            (here? (if (null? dir) (null? (rest ops)) #f)))
+        (if (if (if (null? dir) (> (length ops) 2) #t)
+              (not (%ln-dir? into o)) #f)
+          (%ln-fails (list (%ln-not-dir into o (not (null? dir)))))
+          (%cu-walk-worst targets
+            (fn (_ t) (%ln-one t (%ln-name t into here? o) o))
+            0))))))
+
+; Why a name is no directory to make links in, in ln's words, which turn on
+; -t and on what is there: a link, under -n, is "Not a directory"; a name
+; with nothing behind it gives the reason; anything else under -t "is not a
+; directory".
+(def %ln-not-dir
+  (fn (_ into o t?)
+    (if (if (Opts on? o "-n") (eq? (file-lstat-kind into) (lit link)) #f)
+      (%ln-target into ": Not a directory")
+      (let ((st (file-or-err (fn (_) (file-stat-wide into)))))
+        (match
+          ((not (Err err? st))
+            (%ln-target into (if t? " is not a directory" ": Not a directory")))
+          (t? (string-concat
+                (list "ln: failed to access '" into "': " (file-err-text st))))
+          (#t (%ln-target into (string-append ": " (file-err-text st)))))))))
+
+(def %ln-target
+  (fn (_ into why) (string-concat (list "ln: target '" into "'" why))))
+
+; Whether a NAME is a directory to make the links in.  -n takes a link to a
+; directory as the link it is, so it names a file rather than the directory
+; it points at; a directory itself is one either way.
+(def %ln-dir?
+  (fn (_ path o)
+    (if (Opts on? o "-n") (eq? (file-lstat-kind path) (lit dir))
+      (file-dir? path))))
+
+(def %ln-name
+  (fn (_ t into here? o)
+    (match
+      (here? (%cu-basename-of t))
+      ((%ln-dir? into o) (%cu-path-join into (%cu-basename-of t)))
+      (#t into))))
+
+; One link, NAME to T: a symbolic one under -s, a hard one otherwise -- which
+; needs T to be there.  What is at NAME already is kept as NAME~ under -b and
+; dropped under -f; a link refused is said in ln's words, and fails.
+(def %ln-one
+  (fn (_ t name o)
+    (let ((there (if (Opts on? o "-s") 0
+                   (file-or-err (fn (_) (file-lstat-wide t))))))
+      (if (Err err? there)
+        (%ln-fails (list "ln: failed to access '" t "': " (file-err-text there)))
+        (do (%ln-displace! name o)
+            (let ((r (file-or-err
+                       (fn (_) (if (Opts on? o "-s") (file-symlink t name)
+                                 (file-link t name))))))
+              (if (Err err? r)
+                (%ln-fails
+                  (list "ln: failed to create "
+                        (if (Opts on? o "-s") "symbolic link" "hard link")
+                        " '" name "': " (file-err-text r)))
+                (do (if (Opts on? o "-v")
+                      (display (string-concat (list "'" name "' -> '" t "'\n")))
+                      ())
+                    0))))))))
+
+; -b keeps what is at NAME as NAME~, -f drops it; one that cannot be moved is
+; left for the link itself to be refused by
+(def %ln-displace!
+  (fn (_ name o)
+    (if (eq? (file-lstat-kind name) (lit none)) ()
+      (file-or-err
+        (fn (_)
+          (match
+            ((Opts on? o "-b") (file-rename name (string-append name "~")))
+            ((Opts on? o "-f") (file-unlink name))
+            (#t ())))))))
+
+(def %ln-fails
+  (fn (_ line)
+    (do (file-write 2 (string-concat (append line (list "\n")))) 1)))
