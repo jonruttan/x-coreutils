@@ -180,6 +180,52 @@
                         acc))))))
         (go operands ())))))
 
+; %cu-gather for an applet that says what it could not read.  A file that
+; would not open, or opened and would not read -- a directory -- is said on
+; stderr in the line SAYS answers for its name and io Err, and the rest are
+; still read; under STOP? the first failure ends the reading, as it does for
+; sort.  Answers (TEXT . STATUS), STATUS 1 when anything failed.
+(def %cu-gather-said
+  (fn (_ operands stdin-thunk says stop?)
+    (if (null? operands) (pair (stdin-thunk) 0)
+      (%cu-gather-said-go operands stdin-thunk says stop? () 0))))
+
+(def %cu-gather-said-go
+  (fn (self ops stdin-thunk says stop? acc st)
+    (if (if (null? ops) #t (if stop? (> st 0) #f))
+      (pair (string-concat (reverse acc)) st)
+      (if (string=? (first ops) "-")
+        (self (rest ops) stdin-thunk says stop? (pair (stdin-thunk) acc) st)
+        (let ((text (file-or-err (fn (_) (file-read-all (first ops))))))
+          (if (Err err? text)
+            (do (file-write 2 (string-append (says (first ops) text) "\n"))
+                (self (rest ops) stdin-thunk says stop? acc 1))
+            (self (rest ops) stdin-thunk says stop? (pair text acc) st)))))))
+
+; the words most applets say it in, whichever way the file failed:
+; "APPLET: NAME: REASON"
+(def %cu-says
+  (fn (_ applet)
+    (fn (_ name err)
+      (string-concat (list applet ": " name ": " (file-err-text err))))))
+
+; and for an applet with words of its own for a file that opened and would
+; not read: READ-SAYS answers that line, and a file that would not open is
+; said the common way
+(def %cu-says-read
+  (fn (_ applet read-says)
+    (fn (_ name err)
+      (if (eq? (file-err-op err) (lit read)) (read-says name err)
+        (string-concat (list applet ": " name ": " (file-err-text err)))))))
+
+; the words of shuf and base64, which name no file for one that opened and
+; would not read: "APPLET: read error: REASON"
+(def %cu-read-error
+  (fn (_ applet)
+    (%cu-says-read applet
+      (fn (_ name err)
+        (string-concat (list applet ": read error: " (file-err-text err)))))))
+
 ; The -z and -0 reading shape: operands (or standard input) as fields
 ; split on a byte, which is %cu-lines over %cu-gather when the delimiter
 ; is a newline and the bytes are a string.  A NUL is neither, so the

@@ -50,7 +50,14 @@
     (def o (%cu-opts "uniq" argv))
     (def count? (Opts on? o "-c"))
     (def ops (Opts operands o))
-    (def lines (%cu-lines (%cu-gather ops stdin-thunk)))
+    ; a file that opened and would not read is "error reading" to uniq
+    (def g (%cu-gather-said ops stdin-thunk
+             (%cu-says-read "uniq"
+               (fn (_ name err)
+                 (string-concat
+                   (list "uniq: error reading '" name "': " (file-err-text err)))))
+             #f))
+    (def lines (%cu-lines (first g)))
     (def emit
       (fn (_ n line)
         (if (not (%uniq-show? n o)) ()
@@ -68,7 +75,7 @@
               (self (rest ls) cur key (+ n 1))
               (do (if (null? cur) () (emit n cur))
                   (self (rest ls) (first ls) k 1)))))))
-    (do (go lines () "" 0) 0)))
+    (do (go lines () "" 0) (rest g))))
 
 ; --- nl -----------------------------------------------------------------------
 
@@ -115,4 +122,5 @@
                 (self (rest ls) (+ n step)))
             (do (display (string-concat (list blank sep (first ls) "\n")))
                 (self (rest ls) n))))))
-    (go (%cu-lines (%cu-gather ops stdin-thunk)) start)))
+    (def g (%cu-gather-said ops stdin-thunk (%cu-says "nl") #f))
+    (do (go (%cu-lines (first g)) start) (rest g))))

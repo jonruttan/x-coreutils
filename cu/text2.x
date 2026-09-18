@@ -192,16 +192,24 @@
 
 (def %cu-rev-applet
   (fn (_ argv stdin-thunk)
-    (do (%cu-print-lines
-          (map (fn (_ l) (%cu-rev-line l))
-            (%cu-lines (%cu-gather argv stdin-thunk))))
-        0)))
+    (let ((g (%cu-gather-said argv stdin-thunk (%cu-says "rev") #f)))
+      (do (%cu-print-lines
+            (map (fn (_ l) (%cu-rev-line l)) (%cu-lines (first g))))
+          (rest g)))))
 
+; tac says a file that would not open, and one that would not read, its own way
 (def %cu-tac
   (fn (_ argv stdin-thunk)
-    (do (%cu-print-lines
-          (reverse (%cu-lines (%cu-gather argv stdin-thunk))))
-        0)))
+    (let ((g (%cu-gather-said argv stdin-thunk
+               (fn (_ name err)
+                 (if (eq? (file-err-op err) (lit read))
+                   (string-concat
+                     (list "tac: " name ": read error: " (file-err-text err)))
+                   (string-concat
+                     (list "tac: failed to open '" name "' for reading: "
+                           (file-err-text err)))))
+               #f)))
+      (do (%cu-print-lines (reverse (%cu-lines (first g)))) (rest g)))))
 
 ; nl: %6d + TAB for nonempty lines; six spaces + TAB for empty ones
 ; nl moved to cu/sort.x's neighbours in cu/text4.x with -b -n -s -w -v -i.
@@ -251,7 +259,8 @@
         (if (null? ls) 0
           (do (%cu-print-lines (%cu-fold-line (first ls) w bytes? spaces?))
               (self (rest ls))))))
-    (go (%cu-lines (%cu-gather (Opts operands o) stdin-thunk)))))
+    (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "fold") #f))
+    (do (go (%cu-lines (first g))) (rest g))))
 
 (def %cu-paste
   (fn (_ argv stdin-thunk)

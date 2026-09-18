@@ -95,10 +95,10 @@
     (def o (%cu-opts "expand" argv))
     (def w (%cu-num-prefix (Opts value o "-t" "8")))
     (def init? (Opts on? o "-i"))
+    (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "expand") #f))
     (do (%cu-print-lines
-          (map (fn (_ l) (%cu-expand-line l w init?))
-            (%cu-lines (%cu-gather (Opts operands o) stdin-thunk))))
-        0)))
+          (map (fn (_ l) (%cu-expand-line l w init?)) (%cu-lines (first g))))
+        (rest g))))
 
 (def %cu-tabs
   (fn (self k) (if (<= k 0) "" (string-append "\t" (self (- k 1))))))
@@ -159,10 +159,11 @@
                 ((Opts on? o "-f") #f)
                 ((Opts on? o "-a") #t)
                 (#t (not (null? (Opts value o "-t"))))))
+    (def g
+      (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "unexpand") #f))
     (do (%cu-print-lines
-          (map (fn (_ l) (%cu-unexpand-line l w all?))
-            (%cu-lines (%cu-gather (Opts operands o) stdin-thunk))))
-        0)))
+          (map (fn (_ l) (%cu-unexpand-line l w all?)) (%cu-lines (first g))))
+        (rest g))))
 
 ; --- dos2unix / unix2dos ------------------------------------------------------
 
@@ -334,18 +335,23 @@
     (def iv (Opts value o "-i"))
     ; -z makes the NUL the delimiter on both sides, so a line may hold a
     ; newline; the input is then read as bytes (cu/prims.x).
-    (def items
+    ; what is shuffled, and whether reading it failed
+    (def read
       (match
-        ((not (null? iv)) (%cu-shuf-range iv))
-        (echo? rest1)
-        (z? (%cu-delim-fields rest1 stdin-thunk 0))
-        (#t (%cu-lines (%cu-gather rest1 stdin-thunk)))))
+        ((not (null? iv)) (pair (%cu-shuf-range iv) 0))
+        (echo? (pair rest1 0))
+        (z? (pair (%cu-delim-fields rest1 stdin-thunk 0) 0))
+        (#t (let ((g (%cu-gather-said rest1 stdin-thunk (%cu-read-error "shuf")
+                       #f)))
+              (pair (%cu-lines (first g)) (rest g))))))
+    (def items (first read))
     (def out (%cu-shuffle items))
     (def picked (if (null? nv) out (%cu-take out count)))
     ; -o writes where the shuffle goes, so a caller can shuffle a file in
     ; place without a shell redirect reading it at the same time.
     (def dest (Opts value o "-o"))
     (match
+      ((> (rest read) 0) 1)
       ((if (null? dest) z? #f) (do (%cu-print-fields picked 0) 0))
       ((null? dest) (do (%cu-print-lines picked) 0))
       (z?
@@ -458,7 +464,11 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "base64" argv))
     (def d? (Opts on? o "-d"))
-    (def text (%cu-gather (Opts operands o) stdin-thunk))
+    (def g (%cu-gather-said (Opts operands o) stdin-thunk
+             (%cu-read-error "base64") #f))
+    (def text (first g))
     ; -w sets the wrap column; 0 means one unbroken line.
     (def wrap (let ((v (Opts value o "-w"))) (if (null? v) 76 (%cu-num-prefix v))))
-    (do (display (if d? (%cu-b64-decode text) (%cu-b64-encode text wrap))) 0)))
+    ; an input that could not be read has nothing to encode, and says so
+    (if (> (rest g) 0) 1
+      (do (display (if d? (%cu-b64-decode text) (%cu-b64-encode text wrap))) 0))))

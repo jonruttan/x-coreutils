@@ -111,10 +111,10 @@
 (def %cu-cat
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "cat" argv))
-    (def text (%cu-gather (Opts operands o) stdin-thunk))
+    (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "cat") #f))
     ; numbering counts the SOURCE lines, so it runs before the rendering
     ; that may add a $ to each of them
-    (do (display (%cat-render (%cat-number text o) o)) 0)))
+    (do (display (%cat-render (%cat-number (first g) o) o)) (rest g))))
 
 ; --- cp -----------------------------------------------------------------------
 
