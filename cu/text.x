@@ -821,6 +821,15 @@
               (if (= b 10) (if (> col longest) col longest) longest))))))
     (go 0 0 0 #f 0 0)))
 
+; wc reads every input before it prints a row, because the rows share one
+; column width: the digits of what the regular files hold between them, and at
+; least seven where any input is not a regular file -- a pipe, a terminal, a
+; directory -- as wc sizes them.  One count of one input is not padded at all.
+; More than one input ends with their total, where the longest line is the
+; longest of them.  A file wc cannot read is said and fails; a directory, which
+; opens and will not read, still gets its row, of nothing.  What is said about
+; an input is said in its turn among the rows -- after a directory's row -- as
+; wc says it, though every input was read before the first row.
 (def %cu-wc
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "wc" argv))
@@ -830,54 +839,108 @@
         ((Opts on? o "-m") #t) ((Opts on? o "-L") #t)
         (#t #f)))
     ; With no flag at all wc shows lines, words and bytes -- not -m or -L,
-    ; which are asked for or not shown.
-    (def show?
-      (fn (_ f)
-        (if any? (Opts on? o f)
-          (match ((string=? f "-m") #f) ((string=? f "-L") #f) (#t #t)))))
+    ; which are asked for or not shown.  -m and -c report the same number
+    ; here, because this wc counts bytes and a character is a byte -- asking
+    ; for both prints it twice, which is what asking for both means.
+    (def cols
+      (filter
+        (fn (_ f)
+          (if any? (Opts on? o f)
+            (match ((string=? f "-m") #f) ((string=? f "-L") #f) (#t #t))))
+        (list "-l" "-w" "-m" "-c" "-L")))
+    (def ops (Opts operands o))
+    (def ins
+      (if (null? ops) (list (%cu-wc-stdin stdin-thunk ()))
+        (map (fn (_ op) (%cu-wc-input op stdin-thunk)) ops)))
+    (def rows (filter (fn (_ i) (%cu-nth 5 i)) ins))
+    (def width (%cu-wc-width rows (length cols) (length ins)))
     (def row
       (fn (_ counts name)
-        ; Columns in wc's order: lines, words, chars, bytes, longest line.
-        ; -m and -c report the same number here, because this wc counts
-        ; bytes and a character is a byte -- asking for both prints it
-        ; twice, which is what asking for both means.
-        (def col
-          (fn (_ flag n)
-            (if (show? flag)
-              (list (%cu-pad-left (%cu-int->str (%cu-nth n counts)) 8))
-              ())))
-        (def parts
-          (append (col "-l" 0)
-            (append (col "-w" 1)
-              (append (col "-m" 2)
-                (append (col "-c" 2) (col "-L" 3))))))
         (display
-          (string-append (%cu-join-sp parts)
-            (if (null? name) "\n"
-              (string-append " " (string-append name "\n")))))))
-    (if (null? (Opts operands o))
-      (do (row (%cu-wc-counts (stdin-thunk)) ()) 0)
-      ; a file wc cannot read is said and fails; a directory, which opens and
-      ; will not read, still gets its row, of nothing, as wc gives it one
-      (let ((go (fn (self ops st)
-                  (if (null? ops) st
-                    (let ((text (if (string=? (first ops) "-") (stdin-thunk)
-                                  (%cu-read-said (%cu-says "wc") (first ops)))))
-                      (match
-                        ((not (Err err? text))
-                          (do (row (%cu-wc-counts text) (first ops))
-                              (self (rest ops) st)))
-                        ((eq? (file-err-op text) (lit read))
-                          (do (row (%cu-wc-counts "") (first ops))
-                              (self (rest ops) 1)))
-                        (#t (self (rest ops) 1))))))))
-        (go (Opts operands o) 0)))))
+          (string-append
+            (%cu-join-with
+              (map (fn (_ f)
+                     (%cu-pad-left (%cu-int->str (%cu-wc-count counts f)) width))
+                cols)
+              " ")
+            (if (null? name) "\n" (string-concat (list " " name "\n")))))))
+    (def each
+      (fn (self is)
+        (if (null? is) ()
+          (do (if (%cu-nth 5 (first is))
+                (row (%cu-nth 1 (first is)) (first (first is))) ())
+              (if (null? (%cu-nth 4 (first is))) ()
+                (file-write 2 (string-append (%cu-nth 4 (first is)) "\n")))
+              (self (rest is))))))
+    (do (each ins)
+        (if (> (length ins) 1) (row (%cu-wc-total rows) "total") ())
+        (if (%cu-wc-failed? ins) 1 0))))
 
-(def %cu-join-sp
-  (fn (self ws)
-    (if (null? ws) ""
-      (if (null? (rest ws)) (first ws)
-        (string-append (first ws) (self (rest ws)))))))
+; One operand read: (NAME COUNTS REGULAR? SIZE SAID ROW?) -- SAID the line wc
+; says about it, or nil, and ROW? whether it gets a row: a file that would not
+; open gets none.
+(def %cu-wc-input
+  (fn (_ op stdin-thunk)
+    (if (string=? op "-") (%cu-wc-stdin stdin-thunk op)
+      (let ((text (file-or-err (fn (_) (file-read-all op)))))
+        (match
+          ((not (Err err? text))
+            (let ((st (file-stat-full op)))
+              (list op (%cu-wc-counts text)
+                (eq? (%cu-stat-get st (lit kind)) (lit file))
+                (%cu-stat-get st (lit size)) () #t)))
+          ((eq? (file-err-op text) (lit read))
+            (list op (%cu-wc-counts "") #f 0 ((%cu-says "wc") op text) #t))
+          (#t (list op () #f 0 ((%cu-says "wc") op text) #f)))))))
+
+; Standard input read, and then asked what it is: after the read it is fd 0,
+; whatever it came in as -- a file, a pipe, a terminal.
+(def %cu-wc-stdin
+  (fn (_ stdin-thunk name)
+    (let ((text (stdin-thunk)))
+      (let ((st (file-stat-full "/dev/fd/0")))
+        (list name (%cu-wc-counts text)
+          (eq? (%cu-stat-get st (lit kind)) (lit file))
+          (%cu-stat-get st (lit size)) () #t)))))
+
+(def %cu-wc-width
+  (fn (_ rows ncols nins)
+    (if (if (= ncols 1) (= nins 1) #f) 1
+      (let ((digits (byte-len (%cu-int->str (%cu-wc-regular-bytes rows 0)))))
+        (if (if (%cu-wc-other? rows) (< digits 7) #f) 7 digits)))))
+
+(def %cu-wc-regular-bytes
+  (fn (self rows n)
+    (if (null? rows) n
+      (self (rest rows)
+        (if (%cu-nth 2 (first rows)) (+ n (%cu-nth 3 (first rows))) n)))))
+
+(def %cu-wc-other?
+  (fn (self rows)
+    (if (null? rows) #f
+      (if (%cu-nth 2 (first rows)) (self (rest rows)) #t))))
+
+(def %cu-wc-failed?
+  (fn (self ins)
+    (if (null? ins) #f
+      (if (null? (%cu-nth 4 (first ins))) (self (rest ins)) #t))))
+
+; the count a column shows, from (LINES WORDS BYTES LONGEST)
+(def %cu-wc-count
+  (fn (_ counts f)
+    (%cu-nth
+      (match ((string=? f "-l") 0) ((string=? f "-w") 1) ((string=? f "-L") 3)
+        (#t 2))
+      counts)))
+
+; the rows summed, the longest line the longest of them
+(def %cu-wc-total
+  (fn (self rows)
+    (if (null? rows) (list 0 0 0 0)
+      (let ((c (%cu-nth 1 (first rows))) (t (self (rest rows))))
+        (list (+ (first c) (first t)) (+ (%cu-nth 1 c) (%cu-nth 1 t))
+              (+ (%cu-nth 2 c) (%cu-nth 2 t))
+              (if (> (%cu-nth 3 c) (%cu-nth 3 t)) (%cu-nth 3 c) (%cu-nth 3 t)))))))
 
 ; comm: three columns over two sorted inputs; -1 -2 -3 suppress
 (def %cu-comm
