@@ -28,8 +28,8 @@ option set, keys (`-k`, `-t`) included; `expr` is a recursive-descent
 parser over the argument list with its own anchored BRE matcher,
 `\(...\)` capture and all; `chmod` reads an octal mode and the whole
 symbolic grammar -- `X`, `s`, `t`, a copied class and the umask
-included, and `chown -R` takes `-H`, `-L` and `-P` for what it does
-with a link it meets; `realpath` restarts its walk
+included, and `chown -R` and `cp` both take `-H`, `-L` and `-P` for
+what they do with a link they meet; `realpath` restarts its walk
 over any prefix that turns out to be a link, so `/tmp` resolves
 through to `/private/tmp`; `od` follows the GNU/busybox layout (not
 the BSD one macOS ships) and collapses a repeated line to `*`; `diff`
