@@ -285,8 +285,8 @@
       (do
         (def delim (Opts value o "-d"))
         (def suppress? (Opts on? o "-s"))
-        (def text (%cu-gather ops stdin-thunk))
-        (def lines (%cu-lines text))
+        (def g (%cu-gather-said ops stdin-thunk (%cu-says "cut") #f))
+        (def lines (%cu-lines (first g)))
         (if (not (null? positions))
           (let ((ranges (%cu-cut-list positions)))
             (def cut-line
@@ -300,7 +300,7 @@
                           (pair (%cu-b->s (byte-at line i)) acc)
                           acc)))))
                 (go 0 ())))
-            (do (%cu-print-lines (map (fn (_ l) (cut-line l)) lines)) 0))
+            (do (%cu-print-lines (map (fn (_ l) (cut-line l)) lines)) (rest g)))
           (let ((ranges (%cu-cut-list flist)))
             (def db (if (null? delim) 9 (byte-at delim 0)))
             (def sep (%cu-b->s db))
@@ -321,5 +321,5 @@
                 (if suppress? (pair? (rest (%cu-split-byte line db))) #t)))
             (do (%cu-print-lines
                   (map (fn (_ l) (cut-line l)) (filter keep? lines)))
-                0)))))))
+                (rest g))))))))
 

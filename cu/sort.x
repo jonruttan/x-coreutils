@@ -230,28 +230,42 @@
     ; -z makes the NUL the delimiter on both sides, so a line may hold a
     ; newline; the input is then read as bytes (cu/prims.x).
     (def z? (Opts on? o "-z"))
-    (def lines
-      (if z? (%cu-delim-fields ops stdin-thunk 0)
-        (%cu-lines (%cu-gather ops stdin-thunk))))
+    ; sort reads nothing past a file it cannot read, prints nothing, and
+    ; fails as sort fails
+    (def g
+      (if z? (pair (%cu-delim-fields ops stdin-thunk 0) 0)
+        (%cu-gather-said ops stdin-thunk %sort-cannot-read #t)))
+    (def lines (if z? (first g) (%cu-lines (first g))))
     (def less? (%sort-less o spec sep))
-    (if (Opts on? o "-c")
-      (%sort-check lines less? ops)
-      (let ((sorted (%cu-msort lines less?)))
-        (def final
-          (if (Opts on? o "-u") (%sort-dedup sorted less?) sorted))
-        (if z?
-          (let ((fd (if (null? out) 1 (file-open-or-err file-open-write out))))
-            (def go
-              (fn (self ls)
-                (if (null? ls) ()
-                  (do (file-write-field fd (first ls) 0) (self (rest ls))))))
-            (if (Err err? fd) (%sort-open-failed out fd)
-              (do (go final) (if (null? out) () (file-close fd)) 0)))
-          (let ((text (string-concat
-                        (map (fn (_ l) (string-append l "\n")) final))))
-            (if (null? out) (do (display text) 0)
-              (let ((r (file-or-err (fn (_) (file-write-all out text)))))
-                (if (Err err? r) (%sort-open-failed out r) 0)))))))))
+    (match
+      ((> (rest g) 0) 2)
+      ((Opts on? o "-c") (%sort-check lines less? ops))
+      (#t
+        (let ((sorted (%cu-msort lines less?)))
+          (def final
+            (if (Opts on? o "-u") (%sort-dedup sorted less?) sorted))
+          (if z?
+            (let ((fd (if (null? out) 1 (file-open-or-err file-open-write out))))
+              (def go
+                (fn (self ls)
+                  (if (null? ls) ()
+                    (do (file-write-field fd (first ls) 0) (self (rest ls))))))
+              (if (Err err? fd) (%sort-open-failed out fd)
+                (do (go final) (if (null? out) () (file-close fd)) 0)))
+            (let ((text (string-concat
+                          (map (fn (_ l) (string-append l "\n")) final))))
+              (if (null? out) (do (display text) 0)
+                (let ((r (file-or-err (fn (_) (file-write-all out text)))))
+                  (if (Err err? r) (%sort-open-failed out r) 0))))))))))
+
+; a file sort cannot read, said as sort says it: "cannot read" for one that
+; would not open, "read failed" for one that opened and would not read
+(def %sort-cannot-read
+  (fn (_ name err)
+    (string-concat
+      (list (if (eq? (file-err-op err) (lit read)) "sort: read failed: "
+              "sort: cannot read: ")
+            name ": " (file-err-text err)))))
 
 ; an -o file sort cannot write, said as sort says it -- a failure of sort's own,
 ; status 2, as a file it cannot read is

@@ -223,7 +223,9 @@
           (filter (fn (_ e) (eq? (first e) (lit op))) st))))
     (def ty (%cu-od-opt st (lit type) (pair (lit o) 2)))
     (def lim (%cu-od-opt st (lit limit) (- 0 1)))
-    (def all (%cu-gather ops stdin-thunk))
+    ; a file od cannot read is said, and what the others hold is still dumped
+    (def g (%cu-gather-said ops stdin-thunk (%cu-says "od") #f))
+    (def all (first g))
     ; -j skips its bytes first and -N counts from what is left, as od
     ; does.  A skip past the end is refused the way od refuses it: there
     ; is nothing to number from there.
@@ -234,10 +236,11 @@
         (def text
           (if (if (>= lim 0) (< lim (byte-len text0)) #f)
             (substring text0 0 lim) text0))
-        (%cu-od-dump text (first ty) (rest ty)
-          (%cu-od-opt st (lit radix) (lit o))
-          (%cu-od-opt st (lit verbose) #f)
-          skip)))))
+        (%cu-max-status (rest g)
+          (%cu-od-dump text (first ty) (rest ty)
+            (%cu-od-opt st (lit radix) (lit o))
+            (%cu-od-opt st (lit verbose) #f)
+            skip))))))
 ; --- uuencode / uudecode --------------------------------------------------------
 
 ; the historical alphabet: six bits plus 32, with 0 written as a
@@ -277,22 +280,25 @@
     ; uuencode NAME, or uuencode FILE NAME
     (def name (if (null? ops) "-" (%cu-last ops)))
     (def src (if (pair? (rest ops)) (list (first ops)) ()))
-    (def text (%cu-gather src stdin-thunk))
+    (def g (%cu-gather-said src stdin-thunk (%cu-says "uuencode") #f))
+    (def text (first g))
     (def end (byte-len text))
-    (if m?
-      (do (display (string-concat (list "begin-base64 644 " name "\n")))
-          (display (%cu-b64-encode text 76))
-          (display "====\n")
-          0)
-      (let ((go (fn (self i)
-                  (if (>= i end) ()
-                    (let ((stop (if (> (+ i 45) end) end (+ i 45))))
-                      (do (display (string-append (%cu-uu-line text i stop) "\n"))
-                          (self stop)))))))
-        (do (display (string-concat (list "begin 644 " name "\n")))
-            (go 0)
-            (display "`\nend\n")
-            0)))))
+    ; a FILE that could not be read has nothing to encode
+    (if (> (rest g) 0) 1
+      (if m?
+        (do (display (string-concat (list "begin-base64 644 " name "\n")))
+            (display (%cu-b64-encode text 76))
+            (display "====\n")
+            0)
+        (let ((go (fn (self i)
+                    (if (>= i end) ()
+                      (let ((stop (if (> (+ i 45) end) end (+ i 45))))
+                        (do (display (string-append (%cu-uu-line text i stop) "\n"))
+                            (self stop)))))))
+          (do (display (string-concat (list "begin 644 " name "\n")))
+              (go 0)
+              (display "`\nend\n")
+              0))))))
 
 (def %cu-uu-decode-line
   (fn (_ line)
@@ -327,7 +333,9 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "uudecode" argv))
     (def out (let ((v (Opts value o "-o"))) (if (null? v) "-" v)))
-    (def ls (%cu-lines (%cu-gather (Opts operands o) stdin-thunk)))
+    (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "uudecode")
+             #f))
+    (def ls (%cu-lines (first g)))
     (def b64?
       (let ((go (fn (self xs)
                   (if (null? xs) #f
@@ -358,5 +366,19 @@
         (string-concat
           (map (fn (_ l) (%cu-uu-decode-line l))
             (filter (fn (_ l) (> (byte-len l) 0)) body)))))
-    (do (if (string=? out "-") (display bytes) (file-write-all out bytes))
-        0)))
+    ; an input that could not be read has nothing to decode; an -o file that
+    ; cannot be written is said as uudecode says it, naming the input first --
+    ; stdin when it was read from there
+    (match
+      ((> (rest g) 0) 1)
+      ((string=? out "-") (do (display bytes) 0))
+      (#t (let ((r (file-or-err (fn (_) (file-write-all out bytes))))
+                (from (let ((ops (Opts operands o)))
+                        (if (null? ops) "stdin" (first ops)))))
+            (if (Err err? r)
+              (do (file-write 2
+                    (string-concat
+                      (list "uudecode: " from ": " out ": " (file-err-text r)
+                            "\n")))
+                  1)
+              0))))))
