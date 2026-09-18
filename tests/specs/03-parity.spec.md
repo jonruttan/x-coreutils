@@ -456,16 +456,16 @@ was a crash before, not a shredded file.
 0 8192
 ```
 
-### du reports 1024-byte blocks; a path that is not there is zero
+### du names a path that is not there, prints no line for it, and fails
+
+The complaint goes to stderr, so what shows here is stdout -- nothing -- and
+the status.
 
 ```cu
 (display (cu-run (list "du" "-s" "/tmp/x-cu-par/nope") ""))
 ```
 ---
-```output
-0	/tmp/x-cu-par/nope
-0
-```
+    1
 
 ### [[ is test with the doubled closer
 
