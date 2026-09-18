@@ -264,9 +264,8 @@
 ; One line of a checksum file -> (DIGEST . NAME), or nil when the line is
 ; not one.  This family WRITES "DIGEST  NAME" -- digest, two spaces, name
 ; -- and GNU's binary form spells the separator " *" instead; busybox
-; reads both, so both are read here.  Anything else is an IMPROPERLY
-; FORMATTED line, which is skipped and reported only under -w, the flag
-; that exists to ask about them.
+; reads both, so both are read here.  Anything else is an improperly
+; formatted line: the list's warnings count it, and -w names it.
 (def %cu-sum-parse-line
   (fn (_ line)
     (def end (byte-len line))
@@ -285,94 +284,121 @@
             (pair (substring line 0 sp) (substring line (+ sp 2) end))
             ()))))))
 
-; -c: read the checksum lines back and recompute.  Returns 1 when
-; anything failed, which is the whole point of the mode -- a checker
-; whose status does not move is a checker nobody can script.
+; -c: read the checksum lines back and recompute, list by list.  Each list
+; ends with its own warnings, and the status says whether any list held a
+; checksum that did not match, a file that could not be read, or no line to
+; check at all -- a checker whose status does not move is one nobody can
+; script.  -s asks for the status alone: no OK or FAILED lines and no
+; warnings, though a file that could not be read is still said, and so is
+; a list with no checksum line in it.
 (def %cu-sum-check
   (fn (_ name digest ops stdin-thunk status? warn?)
-    (def nfail (list 0))   ; read, and did not match
-    (def nopen (list 0))   ; could not be read at all
-    (def nbad (list 0))    ; not a checksum line
+    (%cu-sum-check-lists name digest (if (null? ops) (list "-") ops)
+      stdin-thunk status? warn? 0)))
+
+(def %cu-sum-check-lists
+  (fn (self name digest lists stdin-thunk status? warn? st)
+    (if (null? lists) st
+      (self name digest (rest lists) stdin-thunk status? warn?
+        (%cu-max-status st
+          (%cu-sum-check-list name digest (first lists) stdin-thunk
+            status? warn?))))))
+
+; One list, read: a list that is a directory is only a "read error" to the
+; checker, and standard input is named as the checker names it.
+(def %cu-sum-check-list
+  (fn (_ name digest src stdin-thunk status? warn?)
+    (let ((shown (if (string=? src "-") "'standard input'" src))
+          (text (if (string=? src "-") (stdin-thunk)
+                  (file-or-err (fn (_) (file-read-all src))))))
+      (match
+        ((not (Err err? text))
+          (%cu-sum-check-lines name digest shown (%cu-lines text) status? warn?))
+        ((eq? (file-err-op text) (lit read))
+          (do (file-write 2 (string-concat (list name ": " shown ": read error\n")))
+              1))
+        (#t
+          (do (file-write 2
+                (string-concat
+                  (list name ": " shown ": " (file-err-text text) "\n")))
+              1))))))
+
+; The lines of one list checked in turn, and what the list comes to.  A blank
+; line is passed over; one that is no checksum line is counted, and named with
+; its number under -w.
+(def %cu-sum-check-lines
+  (fn (_ name digest shown lines status? warn?)
+    (def nbad (list 0))   ; not a checksum line
+    (def nopen (list 0))  ; could not be read at all
+    (def nfail (list 0))  ; read, and did not match
     (def nok (list 0))
-    (def bump!
-      (fn (_ cell) (set-first! cell (+ (first cell) 1))))
+    (def bump! (fn (_ cell) (set-first! cell (+ (first cell) 1))))
+    (def say (fn (_ line) (if status? () (display (string-append line "\n")))))
     (def check-line
-      (fn (_ line)
-        (if (= (byte-len line) 0)
-          ()
+      (fn (_ line n)
+        (if (= (byte-len line) 0) ()
           (let ((row (%cu-sum-parse-line line)))
             (if (null? row)
               (do (bump! nbad)
                   (if warn?
                     (file-write 2
-                      (string-append name
-                        ": improperly formatted checksum line\n"))
+                      (string-concat
+                        (list name ": " shown ": " (%cu-int->str n)
+                              ": improperly formatted " (%cu-sum-algo name)
+                              " checksum line\n")))
                     ()))
               (let ((want (first row)) (path (rest row)))
                 ; a listed file that cannot be read -- a directory as well
-                ; as one that is not there -- is one that failed to open
+                ; as one that is not there -- is said, and fails to open
                 (let ((text (file-or-err (fn (_) (file-read-all path)))))
-                  (if (Err err? text)
-                    (do (bump! nopen)
-                        (if status? ()
-                          (display
-                            (string-append path ": FAILED open or read\n"))))
-                    (if (%cu-hex=? (digest text) want)
-                      (do (bump! nok)
-                          (if status? ()
-                            (display (string-append path ": OK\n"))))
-                      (do (bump! nfail)
-                          (if status? ()
-                            (display (string-append path ": FAILED\n")))))))))))))
+                  (match
+                    ((Err err? text)
+                      (do (bump! nopen)
+                          (file-write 2
+                            (string-concat
+                              (list name ": " path ": " (file-err-text text) "\n")))
+                          (say (string-append path ": FAILED open or read"))))
+                    ((%cu-hex=? (digest text) want)
+                      (do (bump! nok) (say (string-append path ": OK"))))
+                    (#t
+                      (do (bump! nfail) (say (string-append path ": FAILED"))))))))))))
     (def walk
-      (fn (self lines)
-        (if (null? lines) ()
-          (do (check-line (first lines)) (self (rest lines))))))
-    (def each-source
-      (fn (self srcs)
-        (if (null? srcs) ()
-          (do
-            (let ((text (if (string=? (first srcs) "-") (stdin-thunk)
-                          (file-or-err (fn (_) (file-read-all (first srcs)))))))
-              (if (not (Err err? text)) (walk (%cu-lines text))
-                (do (bump! nfail)
-                    (file-write 2
-                      (string-append name
-                        (string-append ": can't open "
-                          (string-append (first srcs) "\n")))))))
-            (self (rest srcs))))))
-    (do
-      (each-source (if (null? ops) (list "-") ops))
-      ; -s asks for the STATUS ONLY, and that covers the summary too:
-      ; a caller who wanted no output does not want a warning either.
-      (if status? ()
-        (do
-          (if (> (first nbad) 0)
-            (file-write 2
-              (string-append name
-                (string-append ": WARNING: "
-                  (string-append (%cu-int->str (first nbad))
-                    " improperly formatted checksum line(s)\n"))))
-            ())
-          (if (> (first nopen) 0)
-            (file-write 2
-              (string-append name
-                (string-append ": WARNING: "
-                  (string-append (%cu-int->str (first nopen))
-                    " listed file(s) could not be read\n"))))
-            ())
-          (if (> (first nfail) 0)
-            (file-write 2
-              (string-append name
-                (string-append ": WARNING: "
-                  (string-append (%cu-int->str (first nfail))
-                    " computed checksum(s) did NOT match\n"))))
-            ())))
-      (if (> (+ (first nfail) (first nopen)) 0)
-        1
-        ; every line unreadable is a failure even when none MISMATCHED:
-        ; a check that verified nothing must not answer success.
-        (if (= (first nok) 0) 1 0)))))
+      (fn (self ls n)
+        (if (null? ls) ()
+          (do (check-line (first ls) n) (self (rest ls) (+ n 1))))))
+    (do (walk lines 1)
+        (if (= (+ (first nok) (+ (first nfail) (first nopen))) 0)
+          (do (file-write 2
+                (string-concat
+                  (list name ": " shown
+                        ": no properly formatted checksum lines found\n")))
+              1)
+          (do (if status? ()
+                (do (%cu-sum-warn name (first nbad) "line is improperly formatted"
+                      "lines are improperly formatted")
+                    (%cu-sum-warn name (first nopen) "listed file could not be read"
+                      "listed files could not be read")
+                    (%cu-sum-warn name (first nfail) "computed checksum did NOT match"
+                      "computed checksums did NOT match")))
+              (if (> (+ (first nfail) (first nopen)) 0) 1 0))))))
+
+; "NAME: WARNING: N ONE", or MANY where N is not one; nothing where N is none
+(def %cu-sum-warn
+  (fn (_ name n one many)
+    (if (= n 0) ()
+      (file-write 2
+        (string-concat
+          (list name ": WARNING: " (%cu-int->str n) " " (if (= n 1) one many)
+                "\n"))))))
+
+; the algorithm a checker names in -w's warning
+(def %cu-sum-algo
+  (fn (_ name)
+    (match
+      ((string=? name "md5sum") "MD5")
+      ((string=? name "sha1sum") "SHA1")
+      ((string=? name "sha256sum") "SHA256")
+      (#t "SHA512"))))
 
 (def %cu-sum-applet
   (fn (_ name digest argv stdin-thunk)
