@@ -31,7 +31,8 @@
   file-or-err file-err-text file-err-sym file-err-op
   file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
   file-write-nuls file-write-random file-write-field cu-stdin-fields!
-  file-seek file-truncate file-open-read file-stat-full file-lstat-full
+  file-seek file-truncate file-open-read file-open-wronly file-open-err
+  file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
   sys-fork sys-wait sys-exec sys-exec-or-err sys-kill sys-signal sys-isatty sys-usleep
@@ -121,6 +122,16 @@
 (def file-seek (fn (_ fd off) (File seek fd off)))
 (def file-truncate (fn (_ fd n) (File truncate fd n)))
 (def file-open-read (fn (_ path) (File open path (lit rdonly))))
+
+; to write only, creating nothing and truncating nothing: what sync falls back
+; to for a file it may not read
+(def file-open-wronly (fn (_ path) (File open path (lit wronly))))
+
+; An open answers -1 rather than raising; this is the io Err it failed with,
+; read from errno -- so it must come straight after the open, before any
+; other call can move errno.
+(def file-open-err
+  (fn (_ r path) (Err from-errno (Err errno-of r) (lit open) path)))
 
 ; THE WIDE STAT.  File stat answers four fields (size mode kind mtime);
 ; stat(1), du(1) and id(1) want the rest of the struct, so this decodes
