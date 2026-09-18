@@ -32,6 +32,7 @@
   file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
   file-write-nuls file-write-random file-write-field cu-stdin-fields!
   file-seek file-truncate file-open-read file-open-wronly file-open-err
+  file-open-or-err
   file-stat-full file-lstat-full
   vec-make vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
@@ -132,6 +133,13 @@
 ; other call can move errno.
 (def file-open-err
   (fn (_ r path) (Err from-errno (Err errno-of r) (lit open) path)))
+
+; OPENER's fd for PATH -- one of the file-open doors -- or the io Err it failed
+; with, read here, straight after the open
+(def file-open-or-err
+  (fn (_ opener path)
+    (let ((fd (opener path)))
+      (if (>= fd 0) fd (file-open-err fd path)))))
 
 ; THE WIDE STAT.  File stat answers four fields (size mode kind mtime);
 ; stat(1), du(1) and id(1) want the rest of the struct, so this decodes

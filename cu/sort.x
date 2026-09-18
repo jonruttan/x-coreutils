@@ -240,16 +240,27 @@
         (def final
           (if (Opts on? o "-u") (%sort-dedup sorted less?) sorted))
         (if z?
-          (let ((fd (if (null? out) 1 (file-open-write out))))
+          (let ((fd (if (null? out) 1 (file-open-or-err file-open-write out))))
             (def go
               (fn (self ls)
                 (if (null? ls) ()
                   (do (file-write-field fd (first ls) 0) (self (rest ls))))))
-            (do (go final) (if (null? out) () (file-close fd)) 0))
+            (if (Err err? fd) (%sort-open-failed out fd)
+              (do (go final) (if (null? out) () (file-close fd)) 0)))
           (let ((text (string-concat
                         (map (fn (_ l) (string-append l "\n")) final))))
             (if (null? out) (do (display text) 0)
-              (do (file-write-all out text) 0))))))))
+              (let ((r (file-or-err (fn (_) (file-write-all out text)))))
+                (if (Err err? r) (%sort-open-failed out r) 0)))))))))
+
+; an -o file sort cannot write, said as sort says it -- a failure of sort's own,
+; status 2, as a file it cannot read is
+(def %sort-open-failed
+  (fn (_ out r)
+    (do (file-write 2
+          (string-concat
+            (list "sort: open failed: " out ": " (file-err-text r) "\n")))
+        2)))
 
 ; sort's operands come off the parse: a value flag's argument is not an
 ; operand.
