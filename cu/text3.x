@@ -207,12 +207,22 @@
         (if to-dos? (%cu-add-cr (%cu-strip-cr s)) (%cu-strip-cr s))))
     (if (null? ops)
       (do (display (conv (stdin-thunk))) 0)
-      (let ((go (fn (self os)
-                  (if (null? os) 0
-                    (do (file-write-all (first os)
-                          (conv (file-read-all (first os))))
-                        (self (rest os)))))))
-        (go ops)))))
+      ; a file that cannot be read, or written back, is said, and the rest are
+      ; still converted
+      (let ((go (fn (self os st)
+                  (if (null? os) st
+                    (let ((text (%cu-read-said (%cu-says name) (first os))))
+                      (if (Err err? text) (self (rest os) 1)
+                        (let ((w (file-or-err
+                                   (fn (_)
+                                     (file-write-all (first os) (conv text))))))
+                          (if (Err err? w)
+                            (do (file-write 2
+                                  (string-append
+                                    ((%cu-says name) (first os) w) "\n"))
+                                (self (rest os) 1))
+                            (self (rest os) st)))))))))
+        (go ops 0)))))
 
 (def %cu-dos2unix
   (fn (_ argv stdin-thunk)
@@ -256,32 +266,42 @@
     (def text
       (if (null? ops) (stdin-thunk)
         (if (string=? (first ops) "-") (stdin-thunk)
-          (file-read-all (first ops)))))
-    (if by-bytes?
-      (let ((end (byte-len text)))
-        (def go
-          (fn (self i n)
-            (if (>= i end) 0
-              (let ((stop (if (> (+ i size) end) end (+ i size))))
-                (do (%cu-split-write prefix n width (substring text i stop))
-                    (self stop (+ n 1)))))))
-        (go 0 0))
-      (let ((ls (%cu-lines text)))
-        (def go
-          (fn (self rest-ls n)
-            (if (null? rest-ls) 0
-              (let ((take (let ((go2 (fn (self2 l k acc)
-                                       (if (if (= k 0) #t (null? l))
-                                         (pair (reverse acc) l)
-                                         (self2 (rest l) (- k 1)
-                                           (pair (first l) acc))))))
-                            (go2 rest-ls size ()))))
-                (do (%cu-split-write prefix n width
-                      (string-concat
-                        (map (fn (_ l) (string-append l "\n"))
-                          (first take))))
-                    (self (rest take) (+ n 1)))))))
-        (go ls 0)))))
+          (%cu-read-said %cu-split-says (first ops)))))
+    (if (Err err? text) 1
+      (if by-bytes?
+        (let ((end (byte-len text)))
+          (def go
+            (fn (self i n)
+              (if (>= i end) 0
+                (let ((stop (if (> (+ i size) end) end (+ i size))))
+                  (do (%cu-split-write prefix n width (substring text i stop))
+                      (self stop (+ n 1)))))))
+          (go 0 0))
+        (let ((ls (%cu-lines text)))
+          (def go
+            (fn (self rest-ls n)
+              (if (null? rest-ls) 0
+                (let ((take (let ((go2 (fn (self2 l k acc)
+                                         (if (if (= k 0) #t (null? l))
+                                           (pair (reverse acc) l)
+                                           (self2 (rest l) (- k 1)
+                                             (pair (first l) acc))))))
+                              (go2 rest-ls size ()))))
+                  (do (%cu-split-write prefix n width
+                        (string-concat
+                          (map (fn (_ l) (string-append l "\n"))
+                            (first take))))
+                      (self (rest take) (+ n 1)))))))
+          (go ls 0))))))
+
+; a file split cannot read, said as split says it: "cannot open 'F' for
+; reading" for one that would not open, "F: REASON" for one that would not read
+(def %cu-split-says
+  (fn (_ name err)
+    (if (eq? (file-err-op err) (lit read))
+      (string-concat (list "split: " name ": " (file-err-text err)))
+      (string-concat
+        (list "split: cannot open '" name "' for reading: " (file-err-text err))))))
 
 ; --- shuf ---------------------------------------------------------------------
 

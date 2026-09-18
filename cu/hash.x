@@ -309,18 +309,21 @@
                         ": improperly formatted checksum line\n"))
                     ()))
               (let ((want (first row)) (path (rest row)))
-                (if (not (file-exists? path))
-                  (do (bump! nopen)
-                      (if status? ()
-                        (display
-                          (string-append path ": FAILED open or read\n"))))
-                  (if (%cu-hex=? (digest (file-read-all path)) want)
-                    (do (bump! nok)
+                ; a listed file that cannot be read -- a directory as well
+                ; as one that is not there -- is one that failed to open
+                (let ((text (file-or-err (fn (_) (file-read-all path)))))
+                  (if (Err err? text)
+                    (do (bump! nopen)
                         (if status? ()
-                          (display (string-append path ": OK\n"))))
-                    (do (bump! nfail)
-                        (if status? ()
-                          (display (string-append path ": FAILED\n"))))))))))))
+                          (display
+                            (string-append path ": FAILED open or read\n"))))
+                    (if (%cu-hex=? (digest text) want)
+                      (do (bump! nok)
+                          (if status? ()
+                            (display (string-append path ": OK\n"))))
+                      (do (bump! nfail)
+                          (if status? ()
+                            (display (string-append path ": FAILED\n")))))))))))))
     (def walk
       (fn (self lines)
         (if (null? lines) ()
@@ -329,17 +332,14 @@
       (fn (self srcs)
         (if (null? srcs) ()
           (do
-            (if (if (string=? (first srcs) "-") #t
-                  (file-exists? (first srcs)))
-              (walk (%cu-lines
-                      (if (string=? (first srcs) "-")
-                        (stdin-thunk)
-                        (file-read-all (first srcs)))))
-              (do (bump! nfail)
-                  (file-write 2
-                    (string-append name
-                      (string-append ": can't open "
-                        (string-append (first srcs) "\n"))))))
+            (let ((text (if (string=? (first srcs) "-") (stdin-thunk)
+                          (file-or-err (fn (_) (file-read-all (first srcs)))))))
+              (if (not (Err err? text)) (walk (%cu-lines text))
+                (do (bump! nfail)
+                    (file-write 2
+                      (string-append name
+                        (string-append ": can't open "
+                          (string-append (first srcs) "\n")))))))
             (self (rest srcs))))))
     (do
       (each-source (if (null? ops) (list "-") ops))
@@ -388,14 +388,7 @@
         (Opts on? o "-s") (Opts on? o "-w"))
       (if (null? ops)
         (do (one "-" (stdin-thunk)) 0)
-        (let ((go (fn (self rest-ops)
-                    (if (null? rest-ops) 0
-                      (do (one (first rest-ops)
-                            (if (string=? (first rest-ops) "-")
-                              (stdin-thunk)
-                              (file-read-all (first rest-ops))))
-                          (self (rest rest-ops)))))))
-          (go ops))))))
+        (%cu-each-said ops stdin-thunk (%cu-says name) one 0)))))
 
 (def %cu-md5sum
   (fn (_ argv stdin-thunk)
@@ -463,14 +456,7 @@
                   (string-append " " (string-append name "\n")))))))))
     (if (null? argv)
       (do (one () (stdin-thunk)) 0)
-      (let ((go (fn (self ops)
-                  (if (null? ops) 0
-                    (do (one (first ops)
-                          (if (string=? (first ops) "-")
-                            (stdin-thunk)
-                            (file-read-all (first ops))))
-                        (self (rest ops)))))))
-        (go argv)))))
+      (%cu-each-said argv stdin-thunk (%cu-says "cksum") one 0))))
 
 ; --- sum: the two historical checksums ----------------------------------------
 
@@ -523,14 +509,7 @@
                     (string-append " " (string-append name "\n"))))))))))
     (if (null? ops)
       (do (one () (stdin-thunk)) 0)
-      (let ((go (fn (self os)
-                  (if (null? os) 0
-                    (do (one (first os)
-                          (if (string=? (first os) "-")
-                            (stdin-thunk)
-                            (file-read-all (first os))))
-                        (self (rest os)))))))
-        (go ops)))))
+      (%cu-each-said ops stdin-thunk (%cu-says "sum") one 0))))
 
 (def %cu-pad-zero
   (fn (_ s w)
