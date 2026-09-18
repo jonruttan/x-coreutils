@@ -61,7 +61,8 @@ status 1
 
 ### -c counts a listed file it cannot read as one that failed to open
 
-The OK and FAILED lines and the status; the warnings -c writes are its own.
+The OK and FAILED lines and the status; 33-sum-check has what -c writes to
+stderr.
 
 ```cu
 (do (proc-run (list "/bin/sh" "-c" "cd /tmp/x-cu-ef && printf '60b725f10c9c85c70d97880dfe8191b3  /tmp/x-cu-ef/a\\n60b725f10c9c85c70d97880dfe8191b3  /tmp/x-cu-ef/dd\\n' > list")) (sys-dup2 2 8) (let ((ee (file-open-write (eh ".err")))) (do (sys-dup2 ee 2) (def st (cu-run (list "md5sum" "-c" (eh "list")) "")) (sys-dup2 8 2) (file-close ee) (display "status ") (display st) (newline))))
