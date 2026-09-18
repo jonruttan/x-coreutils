@@ -202,6 +202,29 @@
                 (self (rest ops) stdin-thunk says stop? acc 1))
             (self (rest ops) stdin-thunk says stop? (pair text acc) st)))))))
 
+; One file read whole -- or, once SAYS has said on stderr why it could not be,
+; the io Err it failed with, for the caller to tell a file that would not open
+; from one that would not read.
+(def %cu-read-said
+  (fn (_ says name)
+    (let ((text (file-or-err (fn (_) (file-read-all name)))))
+      (if (Err err? text)
+        (do (file-write 2 (string-append (says name text) "\n")) text)
+        text))))
+
+; Each operand read whole and handed to ONE as NAME and TEXT, in order; `-`
+; is standard input.  A file that cannot be read is said by SAYS and passed
+; over.  Answers ST, or 1 once any operand failed.
+(def %cu-each-said
+  (fn (self ops stdin-thunk says one st)
+    (if (null? ops) st
+      (let ((text (if (string=? (first ops) "-") (stdin-thunk)
+                    (%cu-read-said says (first ops)))))
+        (if (Err err? text)
+          (self (rest ops) stdin-thunk says one 1)
+          (do (one (first ops) text)
+              (self (rest ops) stdin-thunk says one st)))))))
+
 ; the words most applets say it in, whichever way the file failed:
 ; "APPLET: NAME: REASON"
 (def %cu-says
@@ -781,15 +804,21 @@
               (string-append " " (string-append name "\n")))))))
     (if (null? (Opts operands o))
       (do (row (%cu-wc-counts (stdin-thunk)) ()) 0)
-      (let ((go (fn (self ops)
-                  (if (null? ops) 0
-                    (do (row (%cu-wc-counts
-                               (if (string=? (first ops) "-")
-                                 (stdin-thunk)
-                                 (file-read-all (first ops))))
-                          (first ops))
-                        (self (rest ops)))))))
-        (go (Opts operands o))))))
+      ; a file wc cannot read is said and fails; a directory, which opens and
+      ; will not read, still gets its row, of nothing, as wc gives it one
+      (let ((go (fn (self ops st)
+                  (if (null? ops) st
+                    (let ((text (if (string=? (first ops) "-") (stdin-thunk)
+                                  (%cu-read-said (%cu-says "wc") (first ops)))))
+                      (match
+                        ((not (Err err? text))
+                          (do (row (%cu-wc-counts text) (first ops))
+                              (self (rest ops) st)))
+                        ((eq? (file-err-op text) (lit read))
+                          (do (row (%cu-wc-counts "") (first ops))
+                              (self (rest ops) 1)))
+                        (#t (self (rest ops) 1))))))))
+        (go (Opts operands o) 0)))))
 
 (def %cu-join-sp
   (fn (self ws)
