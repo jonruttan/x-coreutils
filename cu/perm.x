@@ -1011,23 +1011,40 @@
 ; sync with no operand syncs everything. -d asks for a file's DATA and -f
 ; for the filesystem holding it; this has fsync and a whole-system sync,
 ; both of which are supersets of what is asked, so the guarantee each
-; flag wants is met by doing more than it wants rather than less.
+; flag wants is met by doing more than it wants rather than less.  -f opens
+; nothing, as sync opens nothing for it where there is no syncfs.  -d needs
+; a file to sync, and does not go with -f.
 (def %cu-sync
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "sync" argv))
     (def ops (Opts operands o))
-    (if (null? ops)
-      (do (sys-sync) 0)
-      (if (Opts on? o "-f")
-        (do (sys-sync) 0)
-        (let ((go (fn (self os st)
-                    (if (null? os) st
-                      (let ((fd (file-open-read (first os))))
-                        (if (null? fd)
-                          (do (file-write 2
-                                (string-concat
-                                  (list "sync: cannot open " (first os) "\n")))
-                              (self (rest os) 1))
-                          (do (sys-fsync fd) (file-close fd)
-                              (self (rest os) st))))))))
-          (go ops 0))))))
+    (match
+      ((if (Opts on? o "-d") (Opts on? o "-f") #f)
+        (%cu-sync-refused "cannot specify both --data and --file-system"))
+      ((if (Opts on? o "-d") (null? ops) #f)
+        (%cu-sync-refused "--data needs at least one argument"))
+      ((if (null? ops) #t (Opts on? o "-f")) (do (sys-sync) 0))
+      (#t (%cu-walk-worst ops (fn (_ p) (%cu-sync-one p)) 0)))))
+
+(def %cu-sync-refused
+  (fn (_ why)
+    (do (file-write 2 (string-concat (list "sync: " why "\n"))) 1)))
+
+; One file's data to disk: opened to read -- as a directory is too -- or,
+; where it may not be read, to write, and fsync'd.  One that opens neither
+; way is said with the reason reading gave, and fails.
+(def %cu-sync-one
+  (fn (_ path)
+    (let ((fd (file-open-read path)))
+      (if (>= fd 0) (%cu-sync-fd fd)
+        (let ((why (file-open-err fd path)))
+          (let ((wfd (file-open-wronly path)))
+            (if (>= wfd 0) (%cu-sync-fd wfd)
+              (do (file-write 2
+                    (string-concat
+                      (list "sync: error opening '" path "': "
+                            (file-err-text why) "\n")))
+                  1))))))))
+
+(def %cu-sync-fd
+  (fn (_ fd) (do (sys-fsync fd) (file-close fd) 0)))
