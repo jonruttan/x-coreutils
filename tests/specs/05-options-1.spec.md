@@ -478,7 +478,7 @@ Darwin arm64
 b 2
 a 10
 0
-       1       2
+      1       2
 0
 ```
 
@@ -587,8 +587,8 @@ for both prints it twice, which is what asking for both means.
 ```
 ---
 ```output
-       6
-0      13
+6
+013
 0
 ```
 
@@ -601,7 +601,7 @@ for both prints it twice, which is what asking for both means.
 ```
 ---
 ```output
-       2       3      13
+      2       3      13
 0
 ```
 

@@ -88,6 +88,7 @@ what this is about.
 1 1 2 a
 0 0 0 dd
 1 1 2 b
+2 2 4 total
 wc: nosuch: No such file or directory
 wc: dd: Is a directory
 status 1
