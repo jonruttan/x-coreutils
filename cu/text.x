@@ -208,9 +208,41 @@
 (def %cu-read-said
   (fn (_ says name)
     (let ((text (file-or-err (fn (_) (file-read-all name)))))
-      (if (Err err? text)
-        (do (file-write 2 (string-append (says name text) "\n")) text)
-        text))))
+      (if (Err err? text) (do (%cu-say says name text) text) text))))
+
+; the line SAYS gives for NAME and its io Err, on stderr -- or nothing, where
+; SAYS answers nil, as cmp -s does
+(def %cu-say
+  (fn (_ says name err)
+    (let ((line (says name err)))
+      (if (null? line) () (file-write 2 (string-append line "\n"))))))
+
+; The operands' texts as a tool reads them that opens every file before it
+; reads any: the first that will not open is said and nothing is read; then
+; each is read in turn, and the first that will not read is said and ends the
+; reading.  Answers the list of texts, or the io Err that stopped it.
+(def %cu-read-all-said
+  (fn (_ ops stdin-thunk says)
+    (let ((shut (%cu-first-unopened ops says)))
+      (if (Err err? shut) shut
+        (%cu-read-each-said ops stdin-thunk says ())))))
+
+; the first operand that will not open, said, or 0 when every one opens
+(def %cu-first-unopened
+  (fn (self ops says)
+    (if (null? ops) 0
+      (if (string=? (first ops) "-") (self (rest ops) says)
+        (let ((fd (file-open-or-err file-open-read (first ops))))
+          (if (Err err? fd) (do (%cu-say says (first ops) fd) fd)
+            (do (file-close fd) (self (rest ops) says))))))))
+
+(def %cu-read-each-said
+  (fn (self ops stdin-thunk says acc)
+    (if (null? ops) (reverse acc)
+      (let ((t (if (string=? (first ops) "-") (stdin-thunk)
+                 (%cu-read-said says (first ops)))))
+        (if (Err err? t) t
+          (self (rest ops) stdin-thunk says (pair t acc)))))))
 
 ; Each operand read whole and handed to ONE as NAME and TEXT, in order; `-`
 ; is standard input.  A file that cannot be read is said by SAYS and passed
@@ -256,19 +288,40 @@
 ; next, the way the tools read their inputs as one stream.
 (def %cu-delim-fields
   (fn (_ ops stdin-thunk delim)
-    (if (null? ops) (cu-stdin-fields! delim)
-      (let ((go (fn (self os partial acc)
-                  (if (null? os)
-                    (append acc
-                      (if (= (byte-len partial) 0) () (list partial)))
-                    (if (string=? (first os) "-")
-                      (self (rest os) "" (append acc (cu-stdin-fields! delim)))
-                      (let ((fd (file-open-read (first os))))
-                        (let ((r (%cu-fd-fields fd delim partial)))
-                          (do (file-close fd)
-                              (self (rest os) (rest r)
-                                (append acc (first r)))))))))))
-        (go ops "" ())))))
+    (first (%cu-delim-fields-said ops stdin-thunk delim (fn (_ name err) ()) #f))))
+
+; %cu-delim-fields for an applet that says what it could not read: a file that
+; will not open, or is a directory that will not read, is said by SAYS and
+; passed over -- or, under STOP?, ends the reading -- as %cu-gather-said does
+; it.  Answers (FIELDS . STATUS).
+(def %cu-delim-fields-said
+  (fn (_ ops stdin-thunk delim says stop?)
+    (if (null? ops) (pair (cu-stdin-fields! delim) 0)
+      (%cu-delim-fields-go ops stdin-thunk delim says stop? "" () 0))))
+
+(def %cu-delim-fields-go
+  (fn (self os stdin-thunk delim says stop? partial acc st)
+    (if (if (null? os) #t (if stop? (> st 0) #f))
+      (pair (append acc (if (= (byte-len partial) 0) () (list partial))) st)
+      (if (string=? (first os) "-")
+        (self (rest os) stdin-thunk delim says stop? ""
+          (append acc (cu-stdin-fields! delim)) st)
+        (let ((fd (file-open-or-err file-open-read (first os))))
+          (match
+            ((Err err? fd)
+              (do (%cu-say says (first os) fd)
+                  (self (rest os) stdin-thunk delim says stop? partial acc 1)))
+            ; a directory opens, and its read is the failure to say
+            ((file-dir? (first os))
+              (do (file-close fd)
+                  (%cu-say says (first os)
+                    (file-or-err (fn (_) (file-read-all (first os)))))
+                  (self (rest os) stdin-thunk delim says stop? partial acc 1)))
+            (#t
+              (let ((r (%cu-fd-fields fd delim partial)))
+                (do (file-close fd)
+                    (self (rest os) stdin-thunk delim says stop? (rest r)
+                      (append acc (first r)) st))))))))))
 
 ; each field, then its delimiter -- %cu-print-lines for a -z output
 (def %cu-print-fields
@@ -845,10 +898,14 @@
     (def s2 (not (digit? 50)))
     (def s3 (not (digit? 51)))
     (def ops (filter (fn (_ a) (not (%cu-option-token-ish? a))) argv))
-    (def read-op
-      (fn (_ op) (if (string=? op "-") (stdin-thunk) (file-read-all op))))
-    (def a (%cu-lines (read-op (first ops))))
-    (def b (%cu-lines (read-op (first (rest ops)))))
+    ; each file is opened and read in turn -- comm reads the first before it
+    ; opens the second -- and the first that fails is said and ends it: comm
+    ; prints nothing without its two inputs
+    (def texts (%cu-read-each-said (list (first ops) (first (rest ops)))
+                 stdin-thunk (%cu-says "comm") ()))
+    (def failed? (Err err? texts))
+    (def a (if failed? () (%cu-lines (first texts))))
+    (def b (if failed? () (%cu-lines (first (rest texts)))))
     (def ind2 (if s1 "\t" ""))
     (def ind3 (string-append (if s1 "\t" "") (if s2 "\t" "")))
     (def go
@@ -873,7 +930,7 @@
             (do (if s2 (display (string-append ind2
                                   (string-append (first lb) "\n"))) ())
                 (self la (rest lb)))))))
-    (do (go a b) 0)))
+    (if failed? 1 (do (go a b) 0))))
 
 ; join on field 1 of two sorted inputs; -t CHAR sets the delimiter
 (def %cu-split-line
@@ -914,10 +971,14 @@
     (def delim (Opts value o "-t"))
     (def ops (Opts operands o))
     (def sep (if (null? delim) " " delim))
-    (def read-op
-      (fn (_ op) (if (string=? op "-") (stdin-thunk) (file-read-all op))))
-    (def a (%cu-lines (read-op (first ops))))
-    (def b (%cu-lines (read-op (first (rest ops)))))
+    ; both files are opened before either is read, the first that fails is
+    ; said -- a read that fails as "read error", naming no file -- and join
+    ; prints nothing without its two inputs
+    (def texts (%cu-read-all-said (list (first ops) (first (rest ops)))
+                 stdin-thunk (%cu-read-error "join")))
+    (def failed? (Err err? texts))
+    (def a (if failed? () (%cu-lines (first texts))))
+    (def b (if failed? () (%cu-lines (first (rest texts)))))
     (def key (fn (_ line)
                (let ((fs (%cu-split-line line delim)))
                  (if (null? fs) "" (first fs)))))
@@ -965,7 +1026,7 @@
                 (if (%cu-str< ka kb)
                   (self (rest la) lb)
                   (self la (rest lb)))))))))
-    (do (go a b) 0)))
+    (if failed? 1 (do (go a b) 0))))
 
 (def %cu-join-with
   (fn (self ws sep)

@@ -272,11 +272,20 @@
     (def src (let ((a (Opts value o "-a"))) (if (null? a) () (list a))))
     ; -0 splits on the NUL and nothing else: a space or a newline inside an
     ; item is part of it, which is the whole reason for the flag.
+    ; an -a file xargs cannot read is said, and nothing is run
+    (def zread
+      (if zero? (%cu-delim-fields-said src stdin-thunk 0 (%cu-says "xargs") #t)
+        (pair () 0)))
+    (def input
+      (if (if zero? #t (null? src)) ()
+        (%cu-read-said (%cu-says "xargs") (first src))))
+    (def failed? (if (Err err? input) #t (> (rest zread) 0)))
     (def words0
-      (if zero?
-        (%cu-delim-fields src stdin-thunk 0)
-        (let ((text (if (null? src) (stdin-thunk) (file-read-all (first src)))))
-          (%cu-words-line (%cu-join-with (%cu-lines text) " ")))))
+      (match
+        (zero? (first zread))
+        (failed? ())
+        (#t (let ((text (if (null? src) (stdin-thunk) input)))
+              (%cu-words-line (%cu-join-with (%cu-lines text) " "))))))
     (def words (if (null? eof) words0 (%cu-xargs-until words0 eof)))
     (def run!
       (fn (_ ws)
@@ -289,6 +298,7 @@
             ())
           (proc-run (append cmd ws)))))
     (match
+      (failed? 1)
       ((null? words) (if (Opts on? o "-r") 0 (run! ())))
       ((not (null? repl)) (%cu-xargs-each cmd repl words trace? 0))
       ((if (Opts on? o "-x")
