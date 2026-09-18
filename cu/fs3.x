@@ -288,39 +288,174 @@
 (def %cu-dot?
   (fn (_ n) (if (string=? n ".") #t (string=? n ".."))))
 
-; LEVEL is how deep this path sits below the operand, and LIMIT is
-; -d's ceiling on what gets PRINTED -- the walk still descends past it,
-; because the totals above depend on what is below.
-(def %cu-du-walk
-  (fn (self path all? show-dirs? emit level limit)
-    (def st (file-stat-full path))
-    (if (null? st) 0
-      (if (eq? (%cu-stat-get st (lit kind)) (lit dir))
-        ; du SUMS rather than folding a status, so it takes the names
-        ; and keeps its own loop -- the listing is the shared part.
-        (let ((kids (%cu-walk-names path)))
-          (def sub
-            (fn (self2 ns acc)
-              (if (null? ns) acc
-                (self2 (rest ns)
-                  (+ acc
-                    (self (%cu-path-join path (first ns))
-                      all? show-dirs? emit (+ level 1) limit))))))
-          (let ((total (+ (%cu-du-blocks st) (sub kids 0))))
-            (do (if (if show-dirs? (%cu-du-deep? level limit) #f)
-                  (emit total path) ())
-                total)))
-        (let ((n (%cu-du-blocks st)))
-          (do (if (if all? (%cu-du-deep? level limit) #f) (emit n path) ())
-              n))))))
+; du: -a prints every file as well as each directory, -d N stops the printing
+; below a depth and -s is -d 0, -c adds a grand total, and -h and -m choose the
+; unit (-k, the default, is 1024-byte blocks).  A file named on the command
+; line is printed whatever -a says.
+;
+; What du does with a symlink is the last of -P, -H and -L: -P, the default,
+; counts the link itself; -H follows one named on the command line; -L
+; follows every one.  -x counts nothing on a device other than the operand's,
+; and -l counts a file under each of its names.
+;
+; Without -l an inode counts ONCE.  Where there are several operands, or -L,
+; that holds for every inode; otherwise for a file with several names -- and
+; under -L it is what keeps the walk out of a directory it is already inside,
+; reached again through a link, since that directory is counted already.
+;
+; A run's settings ride the walk as `way`, read once: (links . none|args|all),
+; (count-all . -l), (xdev . -x), (hash-all . as above), (all . -a),
+; (limit . -d), (emit . the printer), and two cells -- (seen . the (DEV . INO)
+; pairs counted so far) and (bad . the status).
+(def %cu-du-way
+  (fn (_ o many?)
+    (let ((links (%cu-du-links o)) (s? (Opts on? o "-s")))
+      (list (pair (lit links) links)
+            (pair (lit count-all) (Opts on? o "-l"))
+            (pair (lit xdev) (Opts on? o "-x"))
+            (pair (lit hash-all) (if many? #t (eq? links (lit all))))
+            (pair (lit all) (if s? #f (Opts on? o "-a")))
+            (pair (lit limit) (if s? 0 (%cu-du-depth o)))
+            (pair (lit emit)
+              (fn (_ n path)
+                (display
+                  (string-concat (list (%cu-du-show n o) "\t" path "\n")))))
+            (pair (lit seen) (list ()))
+            (pair (lit bad) (list 0))))))
+
+(def %cu-du-at (fn (_ way key) (rest (Assoc entry key way))))
+
+(def %cu-du-links
+  (fn (_ o)
+    (let ((v (%cu-last-given o (list "-H" "-L" "-P"))))
+      (if (null? v) (lit none)
+        (match
+          ((string=? v "-H") (lit args))
+          ((string=? v "-L") (lit all))
+          (#t (lit none)))))))
+
+(def %cu-du-depth
+  (fn (_ o)
+    (let ((v (Opts value o "-d"))) (if (null? v) (- 0 1) (%cu-num-prefix v)))))
 
 (def %cu-du-deep?
   (fn (_ level limit) (if (< limit 0) #t (<= level limit))))
 
-; du: -s totals only, -a every file, -d N stops the printing below a
-; depth, -c adds a grand total, -h and -m choose the unit (-k, the
-; default here, is 1024-byte blocks), -H -L follow links, -x and -l
-; are accepted and named below.
+; a complaint, which also leaves the run's status at 1
+(def %cu-du-bad!
+  (fn (_ way line)
+    (do (file-write 2 line) (set-first! (%cu-du-at way (lit bad)) 1))))
+
+; The stat a path is walked by: what a link points at where -H or -L says so,
+; the link's own otherwise.  A path that cannot be read is complained about and
+; answers nil -- with the reason, but for a link pointing nowhere, where du
+; names the path alone.
+(def %cu-du-read
+  (fn (_ way path top?)
+    (let ((through? (match
+                      ((eq? (%cu-du-at way (lit links)) (lit all)) #t)
+                      ((eq? (%cu-du-at way (lit links)) (lit args)) top?)
+                      (#t #f))))
+      (let ((st (file-or-err
+                  (fn (_) (if through? (file-stat-wide path)
+                            (file-lstat-wide path))))))
+        (if (not (Err err? st)) st
+          (do (%cu-du-bad! way
+                (string-concat
+                  (if (eq? (file-lstat-kind path) (lit link))
+                    (list "du: cannot access '" path "'\n")
+                    (list "du: cannot access '" path "': " (file-err-text st)
+                          "\n"))))
+              ()))))))
+
+; Whether a path counts for nothing: it is on another device under -x, or its
+; inode was counted already.  A path that counts is remembered from here on.
+(def %cu-du-skip?
+  (fn (_ way st top? root)
+    (match
+      ((if (%cu-du-at way (lit xdev))
+         (if top? #f (not (= (%cu-stat-get st (lit dev)) root)))
+         #f)
+        #t)
+      ((%cu-du-at way (lit count-all)) #f)
+      ((%cu-du-once? way st) (%cu-du-counted! way st))
+      (#t #f))))
+
+; whether an inode counts once: every one under hash-all, else a file -- not a
+; directory -- with more than one name
+(def %cu-du-once?
+  (fn (_ way st)
+    (if (%cu-du-at way (lit hash-all)) #t
+      (if (eq? (%cu-stat-get st (lit kind)) (lit dir)) #f
+        (> (%cu-stat-get st (lit nlink)) 1)))))
+
+; whether ST's inode was counted already; it is counted from now on either way
+(def %cu-du-counted!
+  (fn (_ way st)
+    (let ((cell (%cu-du-at way (lit seen)))
+          (id (pair (%cu-stat-get st (lit dev)) (%cu-stat-get st (lit ino)))))
+      (if (%cu-du-member? id (first cell)) #t
+        (do (set-first! cell (pair id (first cell))) #f)))))
+
+(def %cu-du-member?
+  (fn (self id ids)
+    (if (null? ids) #f
+      (if (if (= (first id) (first (first ids)))
+            (= (rest id) (rest (first ids))) #f)
+        #t
+        (self id (rest ids))))))
+
+; One path's usage, printed as the run asks and answered as a block count.
+; LEVEL is how deep it sits below the operand -- -d's ceiling is on what is
+; PRINTED, and the walk still goes past it, because the totals above depend on
+; what is below.  TOP? says the path was named on the command line, and ROOT is
+; the device its operand stands on.
+(def %cu-du-walk
+  (fn (_ way path level top? root)
+    (let ((st (%cu-du-read way path top?)))
+      (if (null? st) 0
+        (let ((here (if top? (%cu-stat-get st (lit dev)) root)))
+          (match
+            ((%cu-du-skip? way st top? here) 0)
+            ((eq? (%cu-stat-get st (lit kind)) (lit dir))
+              (%cu-du-dir way path level st here))
+            (#t
+              (let ((n (%cu-du-blocks st)))
+                (do (if (if top? #t (%cu-du-at way (lit all)))
+                      (%cu-du-emit way level n path) ())
+                    n)))))))))
+
+; a directory: its entries first, then its own line; one whose entries cannot
+; be read is complained about and counted for its own blocks alone
+(def %cu-du-dir
+  (fn (_ way path level st root)
+    (let ((names (file-or-err (fn (_) (%cu-walk-names path)))))
+      (let ((total
+              (+ (%cu-du-blocks st)
+                 (if (Err err? names)
+                   (do (%cu-du-bad! way
+                         (string-concat
+                           (list "du: cannot read directory '" path "': "
+                                 (file-err-text names) "\n")))
+                       0)
+                   (%cu-du-sum way path names (+ level 1) root 0)))))
+        (do (%cu-du-emit way level total path) total)))))
+
+; the entries' usage, summed as it goes: a directory can hold more entries
+; than a call stack holds frames
+(def %cu-du-sum
+  (fn (self way dir names level root acc)
+    (if (null? names) acc
+      (self way dir (rest names) level root
+        (+ acc
+          (%cu-du-walk way (%cu-path-join dir (first names)) level #f root))))))
+
+(def %cu-du-emit
+  (fn (_ way level n path)
+    (if (%cu-du-deep? level (%cu-du-at way (lit limit)))
+      ((%cu-du-at way (lit emit)) n path)
+      ())))
+
 (def %cu-du-show
   (fn (_ n o)
     ; Blocks to bytes: -k is du's own unit and %ls-human's is bytes, so a 268K
@@ -333,25 +468,18 @@
 (def %cu-du
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "du" argv))
-    (def s? (Opts on? o "-s"))
-    (def a? (Opts on? o "-a"))
-    (def depth (let ((v (Opts value o "-d"))) (if (null? v) (- 0 1) (%cu-num-prefix v))))
     (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list ".") ops0))
-    (def emit
-      (fn (_ n path)
-        (display
-          (string-concat (list (%cu-du-show n o) "\t" path "\n")))))
-    (def quiet (fn (_ n path) ()))
-    (def go
-      (fn (self os total)
-        (if (null? os) total
-          (let ((n (%cu-du-walk (first os) (if s? #f a?)
-                     (not s?) (if s? quiet emit) 0 depth)))
-            (do (if s? (emit n (first os)) ())
-                (self (rest os) (+ total n)))))))
-    (def grand (go ops 0))
-    (do (if (Opts on? o "-c") (emit grand "total") ()) 0)))
+    (def way (%cu-du-way o (> (length ops) 1)))
+    (def grand (%cu-du-operands way ops 0))
+    (do (if (Opts on? o "-c") ((%cu-du-at way (lit emit)) grand "total") ())
+        (first (%cu-du-at way (lit bad))))))
+
+(def %cu-du-operands
+  (fn (self way ops total)
+    (if (null? ops) total
+      (self way (rest ops)
+        (+ total (%cu-du-walk way (first ops) 0 #t 0))))))
 
 ; --- dd -----------------------------------------------------------------------
 

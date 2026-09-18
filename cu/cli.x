@@ -205,7 +205,7 @@
     (pair "shuf" (list (list "-e" "-z") (list "-n" "-i" "-o")))
     (pair "base64" (list (list "-d") (list "-w")))
     (pair "stat" (list (list "-L" "-f" "-t") (list "-c")))
-    (pair "du" (list (list "-s" "-a" "-k" "-c" "-h" "-m" "-x" "-l" "-H" "-L") (list "-d")))
+    (pair "du" (list (list "-s" "-a" "-k" "-c" "-h" "-m" "-x" "-l" "-H" "-L" "-P") (list "-d")))
     (pair "truncate" (list (list "-c") (list "-s")))
     (pair "od" (list (list "-v" "-c" "-b" "-x" "-d" "-o") (list "-A" "-t" "-N" "-j")))
     (pair "uuencode" (list (list "-m") ()))
