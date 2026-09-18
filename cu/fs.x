@@ -19,18 +19,23 @@
 ; is not an operand, and remembering that was what each hand-rolled
 ; operand filter here got to be wrong about separately.
 
-; -i: ask, and take silence for no
+; A question on stderr, answered yes or no.  With no terminal to answer it the
+; answer is no and the question is left standing, unended, as the tools leave
+; it when their input ends.
+(def %fs-ask
+  (fn (_ question)
+    (do (file-write 2 question)
+        (if (not (sys-isatty 0)) #f
+          (let ((answer (file-read-fd 0 8)))
+            (if (= (byte-len answer) 0) #f
+              (= (byte-at answer 0) 121)))))))                  ; y
+
+; -i: whether an existing PATH may be written over, asked in cp's and mv's words
 (def %fs-may-clobber?
   (fn (_ o path what)
     (if (not (Opts on? o "-i")) #t
       (if (not (file-exists? path)) #t
-        (do (file-write 2
-              (string-concat (list what ": overwrite '" path "'? ")))
-            (if (not (sys-isatty 0))
-              (do (file-write 2 "\n") #f)
-              (let ((answer (file-read-fd 0 8)))
-                (if (= (byte-len answer) 0) #f
-                  (= (byte-at answer 0) 121)))))))))            ; y
+        (%fs-ask (string-concat (list what ": overwrite '" path "'? ")))))))
 
 ; -u: only when the source is newer than the target
 (def %fs-newer?
@@ -206,7 +211,8 @@
                       (list "cp: cannot overwrite directory '" dst
                             "' with non-directory\n")))
                   1))
-            ((not (%fs-may-clobber? o dst "cp")) 0)
+            ; a question answered no is a copy not made, and cp says so in its status
+            ((not (%fs-may-clobber? o dst "cp")) 1)
             (#t
               (do (if (if (file-exists? dst) (Opts on? o "-f") #f)
                     (file-unlink dst) ())
@@ -263,14 +269,30 @@
 
 ; --- mv -----------------------------------------------------------------------
 
+; What mv does to a destination that is there already is the last of -f, -i
+; and -n given: -f moves over it, -i asks first, -n leaves it -- each taking
+; over from any given before it, so `mv -i -f` moves without asking.  Told
+; nothing, mv moves over it.  A question answered no leaves both names as they
+; were, and mv says so in its status; -n passing one over is no failure.
 (def %mv-one
   (fn (_ src dst o)
-    (if (if (Opts on? o "-n") (file-exists? dst) #f) 0
-      (if (not (%fs-may-clobber? o dst "mv")) 0
-        (let ((r (file-rename src dst)))
-          (if (if (number? r) (>= r 0) #t) 0
-            ; across devices rename refuses: copy, then drop the original
-            (do (file-copy src dst) (file-unlink src) 0)))))))
+    (let ((told (%cu-last-given o (list "-f" "-i" "-n"))))
+      (match
+        ((not (file-exists? dst)) (%mv-move src dst))
+        ((null? told) (%mv-move src dst))
+        ((string=? told "-n") 0)
+        ((string=? told "-i")
+          (if (%fs-ask (string-concat (list "mv: overwrite '" dst "'? ")))
+            (%mv-move src dst)
+            1))
+        (#t (%mv-move src dst))))))
+
+(def %mv-move
+  (fn (_ src dst)
+    (let ((r (file-rename src dst)))
+      (if (if (number? r) (>= r 0) #t) 0
+        ; across devices rename refuses: copy, then drop the original
+        (do (file-copy src dst) (file-unlink src) 0)))))
 
 (def %cu-mv
   (fn (_ argv stdin-thunk)
@@ -288,38 +310,98 @@
 
 ; --- rm -----------------------------------------------------------------------
 
-; -r ONCE ACCEPTED AND DID NOTHING: the guard listed it, %cu-rm ignored
-; it, and unlink on a directory simply failed.  It recurses now.
+; What rm asks is the last of -f and -i given: -f asks nothing and passes
+; over a path that is not there, -i asks before each removal -- and a path
+; that is not there is a failure again.  A question answered no leaves the
+; path where it is, and is no failure.
+(def %rm-told?
+  (fn (_ o flag)
+    (let ((v (%cu-last-given o (list "-f" "-i"))))
+      (if (null? v) #f (string=? v flag)))))
+
 (def %rm-one
   (fn (self path o)
-    (def kind (file-lstat-kind path))
-    (match
-      ((eq? kind (lit none))
-        (if (Opts on? o "-f") 0
-          (do (file-write 2
-                (string-concat
-                  (list "rm: cannot remove '" path
-                        "': No such file or directory\n")))
-              1)))
-      ((eq? kind (lit dir))
-        (if (not (%rm-recursive? o))
-          (do (file-write 2
-                (string-concat
-                  (list "rm: cannot remove '" path "': Is a directory\n")))
-              1)
-          (let ((r (%cu-walk-status path
-                     (fn (_ n) (self (%cu-path-join path n) o)))))
-            (do (file-rmdir path) (%rm-say path o) r))))
-      ((not (%fs-may-clobber? o path "rm")) 0)
-      (#t (do (file-unlink path) (%rm-say path o) 0)))))
+    (let ((st (file-or-err (fn (_) (file-lstat-wide path)))))
+      (match
+        ((Err err? st)
+          (if (if (%rm-told? o "-f") (eq? (file-err-sym st) (lit enoent)) #f)
+            0
+            (%rm-cannot path (file-err-text st))))
+        ((eq? (%cu-stat-get st (lit kind)) (lit dir))
+          (if (%rm-recursive? o) (%rm-dir self path o st)
+            (%rm-cannot path "Is a directory")))
+        ((not (%rm-may? o path st)) 0)
+        (#t (%rm-gone path o (file-or-err (fn (_) (file-unlink path)))
+              "removed '"))))))
+
+; A directory under -r.  -i asks first whether to go into one that holds
+; anything; its entries go before it, and then it is asked about and removed.
+; One whose entries could not all be removed -- or not read -- is left without
+; another word, as rm leaves it; one whose entry was only declined is asked
+; about, and its removal fails as not empty.
+(def %rm-dir
+  (fn (_ one path o st)
+    (let ((names (file-or-err (fn (_) (%cu-walk-names path)))))
+      (match
+        ((Err err? names) (%rm-cannot path (file-err-text names)))
+        ((not (%rm-may-enter? o path names)) 0)
+        (#t
+          (let ((r (%cu-walk-worst names
+                     (fn (_ n) (one (%cu-path-join path n) o)) 0)))
+            (match
+              ((> r 0) r)
+              ((not (%rm-may? o path st)) 0)
+              (#t (%rm-gone path o (file-or-err (fn (_) (file-rmdir path)))
+                    "removed directory '")))))))))
 
 (def %rm-recursive? (fn (_ o)
   (if (Opts on? o "-r") #t (Opts on? o "-R"))))
 
-(def %rm-say
-  (fn (_ path o)
-    (if (Opts on? o "-v")
-      (display (string-concat (list "removed '" path "'\n"))) ())))
+; under -i, whether to remove PATH, asked in rm's words for what it is
+(def %rm-may?
+  (fn (_ o path st)
+    (if (not (%rm-told? o "-i")) #t
+      (%fs-ask
+        (string-concat
+          (list "rm: remove " (%rm-kind-words st) " '" path "'? "))))))
+
+; and whether to go into a directory that holds anything
+(def %rm-may-enter?
+  (fn (_ o path names)
+    (if (if (%rm-told? o "-i") (not (null? names)) #f)
+      (%fs-ask
+        (string-concat (list "rm: descend into directory '" path "'? ")))
+      #t)))
+
+; what rm calls a path, in the file-type words the coreutils share
+(def %rm-kind-words
+  (fn (_ st)
+    (let ((kind (%cu-stat-get st (lit kind))))
+      (match
+        ((eq? kind (lit dir)) "directory")
+        ((eq? kind (lit link)) "symbolic link")
+        ((eq? kind (lit fifo)) "fifo")
+        ((eq? kind (lit socket)) "socket")
+        ((eq? kind (lit char)) "character special file")
+        ((eq? kind (lit block)) "block special file")
+        ((= (%cu-stat-get st (lit size)) 0) "regular empty file")
+        (#t "regular file")))))
+
+; the removal made, and said under -v -- SAID is how -v begins the line -- or
+; refused, with the reason
+(def %rm-gone
+  (fn (_ path o r said)
+    (if (Err err? r) (%rm-cannot path (file-err-text r))
+      (do (if (Opts on? o "-v")
+            (display (string-concat (list said path "'\n")))
+            ())
+          0))))
+
+(def %rm-cannot
+  (fn (_ path why)
+    (do (file-write 2
+          (string-concat (list "rm: cannot remove '" path "': " why "\n")))
+        1)))
 
 (def %cu-rm
   (fn (_ argv stdin-thunk)
