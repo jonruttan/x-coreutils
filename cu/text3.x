@@ -117,8 +117,8 @@
       (#t (string-append (%cu-tabs stops) (%cu-spaces (% to w)))))))
 
 ; unexpand: the leading run of blanks -- spaces and tabs both -- becomes
-; tabs plus a remainder, which is -f and the default; -a respells every
-; run.  Under -f the line past its leading run is copied as it is.
+; tabs plus a remainder; with ALL? every run does.  When only the leading
+; run is respelled, the line past it is copied as it is.
 (def %cu-unexpand-line
   (fn (_ s w all?)
     (def end (byte-len s))
@@ -148,11 +148,17 @@
               (#t (string-concat (reverse (pair (substring s i end) acc)))))))))
     (go 0 0 #t ())))
 
+; Which runs are respelled: the leading one, unless -a -- or -t, which says it
+; too -- asks for every one; and -f, first only, keeps it to the leading run
+; whatever else was given, and in whichever order.
 (def %cu-unexpand
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "unexpand" argv))
     (def w (%cu-num-prefix (Opts value o "-t" "8")))
-    (def all? (Opts on? o "-a"))
+    (def all? (match
+                ((Opts on? o "-f") #f)
+                ((Opts on? o "-a") #t)
+                (#t (not (null? (Opts value o "-t"))))))
     (do (%cu-print-lines
           (map (fn (_ l) (%cu-unexpand-line l w all?))
             (%cu-lines (%cu-gather (Opts operands o) stdin-thunk))))
