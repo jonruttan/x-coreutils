@@ -197,19 +197,38 @@
             (map (fn (_ l) (%cu-rev-line l)) (%cu-lines (first g))))
           (rest g)))))
 
-; tac says a file that would not open, and one that would not read, its own way
+; tac reverses each file on its own, record by record.  A record ends with its
+; newline; a last one without a newline is put out as it is, so it runs into
+; the record after it.  A file that would not open, and one that would not
+; read, is said tac's own way and passed over.
 (def %cu-tac
   (fn (_ argv stdin-thunk)
-    (let ((g (%cu-gather-said argv stdin-thunk
-               (fn (_ name err)
-                 (if (eq? (file-err-op err) (lit read))
-                   (string-concat
-                     (list "tac: " name ": read error: " (file-err-text err)))
-                   (string-concat
-                     (list "tac: failed to open '" name "' for reading: "
-                           (file-err-text err)))))
-               #f)))
-      (do (%cu-print-lines (reverse (%cu-lines (first g)))) (rest g)))))
+    (%cu-each-said (if (null? argv) (list "-") argv) stdin-thunk
+      (fn (_ name err)
+        (if (eq? (file-err-op err) (lit read))
+          (string-concat
+            (list "tac: " name ": read error: " (file-err-text err)))
+          (string-concat
+            (list "tac: failed to open '" name "' for reading: "
+                  (file-err-text err)))))
+      (fn (_ name text)
+        (%cu-tac-put (%cu-tac-records text (byte-len text) 0 0 ())))
+      0)))
+
+; the records of S from I on, pushed onto ACC, so they come out last first,
+; each with the newline it ends with
+(def %cu-tac-records
+  (fn (self s end i start acc)
+    (match
+      ((>= i end) (if (> end start) (pair (substring s start end) acc) acc))
+      ((= (byte-at s i) 10)
+        (self s end (+ i 1) (+ i 1) (pair (substring s start (+ i 1)) acc)))
+      (#t (self s end (+ i 1) start acc)))))
+
+(def %cu-tac-put
+  (fn (self rs)
+    (if (null? rs) ()
+      (do (display (first rs)) (self (rest rs))))))
 
 ; nl: %6d + TAB for nonempty lines; six spaces + TAB for empty ones
 ; nl moved to cu/sort.x's neighbours in cu/text4.x with -b -n -s -w -v -i.
