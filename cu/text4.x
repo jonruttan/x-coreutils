@@ -45,23 +45,53 @@
     (if (Opts on? o "-d") (> n 1)
       (if (Opts on? o "-u") (= n 1) #t))))
 
+; uniq [IN [OUT]]: IN, or standard input where there is none or it is `-`, and
+; OUT, or standard output likewise.  A third operand is refused before anything
+; opens.  IN is opened before OUT, as uniq opens them, so an IN that will not
+; open leaves OUT uncreated; OUT is truncated before IN is read, so the same
+; file for both comes out empty.
 (def %cu-uniq
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "uniq" argv))
-    (def count? (Opts on? o "-c"))
     (def ops (Opts operands o))
-    ; a file that opened and would not read is "error reading" to uniq
-    (def g (%cu-gather-said ops stdin-thunk
-             (%cu-says-read "uniq"
-               (fn (_ name err)
-                 (string-concat
-                   (list "uniq: error reading '" name "': " (file-err-text err)))))
-             #f))
-    (def lines (%cu-lines (first g)))
+    (match
+      ((> (length ops) 2)
+        (do (file-write 2
+              (string-concat (list "uniq: extra operand '" (%cu-nth 2 ops) "'\n")))
+            1))
+      ((null? ops) (%uniq-into o "-" "-" stdin-thunk))
+      ((null? (rest ops)) (%uniq-into o (first ops) "-" stdin-thunk))
+      (#t (%uniq-into o (first ops) (%cu-nth 1 ops) stdin-thunk)))))
+
+; a file that opened and would not read is "error reading" to uniq
+(def %uniq-says
+  (%cu-says-read "uniq"
+    (fn (_ name err)
+      (string-concat
+        (list "uniq: error reading '" name "': " (file-err-text err))))))
+
+; IN checked, OUT opened, then IN read and its runs written to OUT
+(def %uniq-into
+  (fn (_ o in out stdin-thunk)
+    (let ((shut (%cu-first-unopened (list in) %uniq-says)))
+      (if (Err err? shut) 1
+        (let ((fd (if (string=? out "-") 1 (file-open-or-err file-open-write out))))
+          (if (Err err? fd)
+            (do (%cu-say (%cu-says "uniq") out fd) 1)
+            (let ((text (if (string=? in "-") (stdin-thunk)
+                          (%cu-read-said %uniq-says in))))
+              (do (if (Err err? text) () (%uniq-runs o (%cu-lines text) fd))
+                  (if (= fd 1) () (file-close fd))
+                  (if (Err err? text) 1 0)))))))))
+
+; each run of LINES that the flags keep, once, to FD
+(def %uniq-runs
+  (fn (_ o lines fd)
+    (def count? (Opts on? o "-c"))
     (def emit
       (fn (_ n line)
         (if (not (%uniq-show? n o)) ()
-          (display
+          (file-write fd
             (if count?
               (string-concat
                 (list (%cu-pad-left (%cu-int->str n) 4) " " line "\n"))
@@ -75,7 +105,7 @@
               (self (rest ls) cur key (+ n 1))
               (do (if (null? cur) () (emit n cur))
                   (self (rest ls) (first ls) k 1)))))))
-    (do (go lines () "" 0) (rest g))))
+    (go lines () "" 0)))
 
 ; --- nl -----------------------------------------------------------------------
 
