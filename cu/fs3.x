@@ -699,18 +699,26 @@
                           (self (rest os) st))))))))
         (go ops 0)))))
 
-; File unlink RAISES on a missing path rather than answering a
-; negative, so the absence is tested before the door is opened.
+; unlink FILE is unlink(2) and no more: one operand, and the call names the
+; path itself, so a link is removed whether or not it leads anywhere.  File
+; unlink raises where the call fails; the raise is caught and its errno's text
+; reported.
 (def %cu-unlink
   (fn (_ argv stdin-thunk)
-    (if (null? argv)
-      (do (file-write 2 "unlink: missing operand\n") 1)
-      (if (not (file-exists? (first argv)))
+    (match
+      ((null? argv) (do (file-write 2 "unlink: missing operand\n") 1))
+      ((pair? (rest argv))
         (do (file-write 2
-              (string-concat
-                (list "unlink: cannot unlink '" (first argv) "'\n")))
-            1)
-        (do (file-unlink (first argv)) 0)))))
+              (string-concat (list "unlink: extra operand '" (%cu-nth 1 argv) "'\n")))
+            1))
+      (#t
+        (let ((r (file-or-err (fn (_) (file-unlink (first argv))))))
+          (if (not (Err err? r)) 0
+            (do (file-write 2
+                  (string-concat
+                    (list "unlink: cannot unlink '" (first argv) "': "
+                          (file-err-text r) "\n")))
+                1)))))))
 
 ; shred: N passes of random bytes over the file's blocks, then -u removes it.
 ; The bytes go out through the counted write (cu/prims.x), so every one of the
