@@ -338,16 +338,105 @@
 
 ; --- chown, chgrp -------------------------------------------------------------
 
-; chown and chgrp take NUMERIC ids: there is no passwd or group door,
-; so a name cannot be resolved.  USER:GROUP is accepted, either half
-; may be empty, and -1 leaves that half alone.
-(def %cu-owner-pair
+; chown takes OWNER[:[GROUP]] and chgrp a GROUP.  Each half is a name the
+; system knows or a number, and +N is always a number; an empty half, and -1,
+; leave that id alone.  OWNER: is the owner and the owner's login group, which
+; a numeric OWNER has none of.  OWNER.GROUP is read as OWNER:GROUP, with the
+; warning chown gives, where the whole of it names no user.  A name the system
+; does not know refuses the spec.
+;
+; A spec comes to (UID GID USER GROUP): the ids, and what a report shows for
+; them, nil for a half not asked for.  A half written as a name is shown as
+; written, one written as a number as its digits; where the group is a name and
+; the owner is not, chown shows the owner as nothing -- its reports do.
+
+; S's digits as a number, or nil where S is empty or holds anything else
+(def %cu-chown-number
+  (fn (_ s)
+    (def end (byte-len s))
+    (def go
+      (fn (self i acc)
+        (if (>= i end) acc
+          (let ((b (byte-at s i)))
+            (if (if (>= b 48) (<= b 57) #f)
+              (self (+ i 1) (+ (* acc 10) (- b 48)))
+              ())))))
+    (if (= end 0) () (go 0 0))))
+
+; a half, (ID . NAME): the id and the name as written, NAME nil for a number;
+; (-1) for an empty half, and nil for one that is neither
+(def %cu-chown-half
+  (fn (_ s by-name)
+    (match
+      ((= (byte-len s) 0) (pair (- 0 1) ()))
+      ((= (byte-at s 0) 43)                                           ; +
+        (let ((n (%cu-chown-number (substring s 1 (byte-len s)))))
+          (if (null? n) () (pair n ()))))
+      (#t
+        (let ((id (by-name s)))
+          (if (null? id)
+            (let ((n (%cu-chown-number s))) (if (null? n) () (pair n ())))
+            (pair id s)))))))
+
+; the index of the first B in S, or nil
+(def %cu-byte-index
+  (fn (_ s b)
+    (def end (byte-len s))
+    (def go
+      (fn (self i)
+        (match ((>= i end) ()) ((= (byte-at s i) b) i) (#t (self (+ i 1))))))
+    (go 0)))
+
+; (UID GID USER GROUP) from the two halves' ids and names; BLANK? is chown's
+; rule that a group named by name shows an owner not named by name as nothing
+(def %cu-chown-ids
+  (fn (_ uid gid uname gname blank?)
+    (let ((un (if (if blank? (null? uname) #f) (if (null? gname) () "") uname)))
+      (list uid gid
+            (if (null? un) (if (< uid 0) () (%cu-int->str uid)) un)
+            (if (null? gname) (if (< gid 0) () (%cu-int->str gid)) gname)))))
+
+; chown's spec, split at the index AT, nil for no split: the ids, or the
+; complaint that refuses it
+(def %cu-chown-split
+  (fn (_ spec at)
+    (def u (if (null? at) spec (substring spec 0 at)))
+    (def g (if (null? at) "" (substring spec (+ at 1) (byte-len spec))))
+    (def uh (%cu-chown-half u sys-user-id))
+    (def login? (if (null? at) #f (if (= (byte-len g) 0) (> (byte-len u) 0) #f)))
+    (def gh
+      (match
+        ((not login?) (%cu-chown-half g sys-group-id))
+        ((null? uh) ())
+        ((null? (rest uh)) ())
+        (#t (let ((gid (sys-user-group (rest uh))))
+              (if (null? gid) () (pair gid (sys-group-name gid)))))))
+    (match
+      ((null? uh) (string-concat (list "invalid user: '" spec "'")))
+      ((if login? (null? (rest uh)) #f) (string-concat (list "invalid spec: '" spec "'")))
+      ((null? gh) (string-concat (list "invalid group: '" spec "'")))
+      (#t (%cu-chown-ids (first uh) (first gh) (rest uh) (rest gh) #t)))))
+
+(def %cu-chown-spec
   (fn (_ spec)
-    (def parts (%cu-split-byte spec 58))                        ; :
-    (def u (if (null? parts) "" (first parts)))
-    (def g (if (null? parts) "" (if (null? (rest parts)) "" (first (rest parts)))))
-    (pair (if (= (byte-len u) 0) (- 0 1) (%cu-num-prefix u))
-      (if (= (byte-len g) 0) (- 0 1) (%cu-num-prefix g)))))
+    (let ((colon (%cu-byte-index spec 58)))                               ; :
+      (if (not (null? colon)) (%cu-chown-split spec colon)
+        (let ((whole (%cu-chown-split spec ()))
+              (dot (%cu-byte-index spec 46)))                             ; .
+          (if (if (pair? whole) #t (null? dot)) whole
+            (let ((split (%cu-chown-split spec dot)))
+              (do (if (pair? split)
+                    (file-write 2
+                      (string-concat
+                        (list "chown: warning: '.' should be ':': '" spec "'\n")))
+                    ())
+                  (if (pair? split) split whole)))))))))
+
+(def %cu-chgrp-spec
+  (fn (_ spec)
+    (let ((gh (%cu-chown-half spec sys-group-id)))
+      (if (null? gh) (string-concat (list "invalid group: '" spec "'"))
+        (%cu-chown-ids (- 0 1) (first gh) () (rest gh) #f)))))
 
 ; -c reports each path whose ids changed and -v every path, as chmod's do,
 ; and -f keeps the complaints off stderr while the status still says a path
@@ -365,18 +454,44 @@
 ; -h still says the link itself changes, -L or no -L, so `-R -L -h` walks
 ; through a link and changes the link.  Without -R the three say nothing.
 
-; what a report names: the group alone where no user was asked for, the user
-; alone where no group was, and both where the spec named the two
-(def %cu-chown-shown
-  (fn (_ ids u g)
-    (match
-      ((< (first ids) 0) (%cu-int->str g))
-      ((< (rest ids) 0) (%cu-int->str u))
-      (#t (string-concat (list (%cu-int->str u) ":" (%cu-int->str g)))))))
+; an owner and a group as a report joins them, or whichever one there is
+(def %cu-chown-join
+  (fn (_ u g)
+    (match ((null? u) g) ((null? g) u) (#t (string-concat (list u ":" g))))))
 
-; and what it calls the change: the ids asked for decide the word, not the
-; applet -- `chown :g` reports a group, as chgrp does
+; the ids asked for, as a report shows them
+(def %cu-chown-asked
+  (fn (_ ids) (%cu-chown-join (%cu-nth 2 ids) (%cu-nth 3 ids))))
+
+; the ids a path has, as a report shows them beside the ones asked for: the
+; same halves, by the names the system has for them, or their numbers
+(def %cu-chown-had
+  (fn (_ ids st)
+    (%cu-chown-join
+      (if (null? (%cu-nth 2 ids)) ()
+        (let ((uid (%cu-stat-get st (lit uid))))
+          (let ((n (sys-user-name uid))) (if (null? n) (%cu-int->str uid) n))))
+      (if (null? (%cu-nth 3 ids)) ()
+        (let ((gid (%cu-stat-get st (lit gid))))
+          (let ((n (sys-group-name gid))) (if (null? n) (%cu-int->str gid) n)))))))
+
+; whether the ids asked for differ from the ones the path has
+(def %cu-chown-changes?
+  (fn (_ ids st)
+    (if (if (< (first ids) 0) #f (not (= (first ids) (%cu-stat-get st (lit uid)))))
+      #t
+      (if (< (%cu-nth 1 ids) 0) #f
+        (not (= (%cu-nth 1 ids) (%cu-stat-get st (lit gid))))))))
+
+; what a report calls the change: ownership where it shows an owner, group
+; where it shows only a group
 (def %cu-chown-what
+  (fn (_ ids)
+    (if (if (null? (%cu-nth 2 ids)) (not (null? (%cu-nth 3 ids))) #f)
+      "group" "ownership")))
+
+; and what a complaint calls it: ownership where an owner was asked for
+(def %cu-chown-changing
   (fn (_ ids) (if (< (first ids) 0) "group" "ownership")))
 
 ; a path that could not be read: the complaint LINE says which way it failed,
@@ -390,35 +505,39 @@
 (def %cu-chown-failed-to
   (fn (_ how ids path)
     (if (eq? (first how) (lit all))
-      (display
-        (string-concat
-          (list "failed to change " (%cu-chown-what ids) " of '" path
-                "' to " (%cu-chown-shown ids (first ids) (rest ids)) "\n")))
+      (let ((new (%cu-chown-asked ids)))
+        (display
+          (string-concat
+            (if (null? new) (list "failed to change " (%cu-chown-what ids) " of '" path "'\n")
+              (list "failed to change " (%cu-chown-what ids) " of '" path
+                    "' to " new "\n")))))
       ())))
 
-; -c reports a change; -v a change, a failure, or ids kept as they were
+; -c reports a change; -v a change, a failure, or ids kept as they were.  OLD is
+; the path's ids as the report shows them, and CHANGED? whether the ids asked
+; for differ from them -- the ids decide, not how they are written.
 (def %cu-chown-report
-  (fn (_ how ids path old new failed?)
+  (fn (_ how ids path old failed? changed?)
     (if (eq? (first how) (lit off)) ()
-      (let ((changed? (if failed? #f (not (string=? old new))))
-            (all? (eq? (first how) (lit all))))
+      (let ((all? (eq? (first how) (lit all)))
+            (new (%cu-chown-asked ids))
+            (what (%cu-chown-what ids)))
         (match
-          (changed?
+          ((if failed? #f changed?)
             (display
               (string-concat
-                (list "changed " (%cu-chown-what ids) " of '" path
-                      "' from " old " to " new "\n"))))
+                (list "changed " what " of '" path "' from " old " to " new "\n"))))
           ((not all?) ())
           (failed?
             (display
               (string-concat
-                (list "failed to change " (%cu-chown-what ids) " of '" path
-                      "' from " old " to " new "\n"))))
+                (if (null? new) (list "failed to change " what " of '" path "'\n")
+                  (list "failed to change " what " of '" path "' from " old
+                        " to " new "\n")))))
+          ((null? new) (display (string-concat (list what " of '" path "' retained\n"))))
           (#t
             (display
-              (string-concat
-                (list (%cu-chown-what ids) " of '" path "' retained as "
-                      old "\n")))))))))
+              (string-concat (list what " of '" path "' retained as " old "\n")))))))))
 
 ; How a run treats what it walks: (RECURSE? LINKS -h?), LINKS one of none,
 ; args and all, from the last of -P, -H and -L given.  It rides every path of
@@ -500,8 +619,7 @@
     (do (%cu-report-complain how applet
           (string-concat
             (list "cannot dereference '" path "': " (file-err-text err))))
-        (%cu-chown-report how ids path (%cu-chown-had ids lst)
-          (%cu-chown-asked ids lst) #t)
+        (%cu-chown-report how ids path (%cu-chown-had ids lst) #t #f)
         1)))
 
 ; The entries of a path first, then the path itself.  A directory the walk is
@@ -543,31 +661,18 @@
 (def %cu-chown-set
   (fn (_ how applet ids path st)
     (let ((r (if (eq? (%cu-stat-get st (lit kind)) (lit link))
-               (%cu-chown-link path (first ids) (rest ids))
+               (%cu-chown-link path (first ids) (%cu-nth 1 ids))
                (file-or-err
-                 (fn (_) (file-chown path (first ids) (rest ids)))))))
+                 (fn (_) (file-chown path (first ids) (%cu-nth 1 ids)))))))
       (do (if (Err err? r)
             (%cu-report-complain how applet
               (string-concat
-                (list "changing " (%cu-chown-what ids) " of '" path "': "
+                (list "changing " (%cu-chown-changing ids) " of '" path "': "
                       (file-err-text r))))
             ())
-          (%cu-chown-report how ids path (%cu-chown-had ids st)
-            (%cu-chown-asked ids st) (Err err? r))
+          (%cu-chown-report how ids path (%cu-chown-had ids st) (Err err? r)
+            (%cu-chown-changes? ids st))
           (if (Err err? r) 1 0)))))
-
-; the ids a path has, and the ones it was asked for, each as the spec shapes
-; them: an id the spec left out is the one the path already had
-(def %cu-chown-had
-  (fn (_ ids st)
-    (%cu-chown-shown ids (%cu-stat-get st (lit uid))
-      (%cu-stat-get st (lit gid)))))
-
-(def %cu-chown-asked
-  (fn (_ ids st)
-    (%cu-chown-shown ids
-      (if (< (first ids) 0) (%cu-stat-get st (lit uid)) (first ids))
-      (if (< (rest ids) 0) (%cu-stat-get st (lit gid)) (rest ids)))))
 
 ; the link itself, through the lchown door; where a libc has no lchown the path
 ; is refused rather than the target changed behind the caller's back, and the
@@ -614,7 +719,7 @@
     (def ops (Opts operands o))
     (if (null? (rest ops))
       (do (file-write 2 "chown: need OWNER and a path\n") 1)
-      (%cu-chown-with (%cu-owner-pair (first ops)) (rest ops) o "chown"))))
+      (%cu-chown-run (%cu-chown-spec (first ops)) (rest ops) o "chown"))))
 
 (def %cu-chgrp
   (fn (_ argv stdin-thunk)
@@ -622,7 +727,14 @@
     (def ops (Opts operands o))
     (if (null? (rest ops))
       (do (file-write 2 "chgrp: need GROUP and a path\n") 1)
-      (%cu-chown-with (pair (- 0 1) (%cu-num-prefix (first ops))) (rest ops) o "chgrp"))))
+      (%cu-chown-run (%cu-chgrp-spec (first ops)) (rest ops) o "chgrp"))))
+
+; the spec's ids walked over the paths, or the complaint that refused the spec
+; said, and nothing touched
+(def %cu-chown-run
+  (fn (_ ids paths o applet)
+    (if (pair? ids) (%cu-chown-with ids paths o applet)
+      (do (file-write 2 (string-concat (list applet ": " ids "\n"))) 1))))
 
 ; --- ln, link, readlink, realpath ---------------------------------------------
 
