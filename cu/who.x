@@ -99,8 +99,7 @@
 ; after its name and a colon.  A USER is a name -- groups reads no uid -- and
 ; one that is no user is said and passed over.
 (def %cu-groups
-  (fn (_ argv stdin-thunk)
-    (def ops (Opts operands (%cu-opts "groups" argv)))
+  (fn (_ ops stdin-thunk)
     (def line
       (fn (_ who) (%cu-join-with (map %cu-group-shown (%cu-group-line who)) " ")))
     (if (null? ops)
