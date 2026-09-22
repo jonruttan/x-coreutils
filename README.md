@@ -58,8 +58,9 @@ Self-contained: no `(requires-lang ...)`.
     and a string's length stops at its first NUL byte, so `cat`, `od`,
     `wc`, `cmp`, `dd`, the digests and the other readers see a file or
     a stream only up to its first NUL -- `cmp` can call two different
-    files the same.  An escape that names NUL is dropped for the same
-    reason: `printf '\0'` writes nothing.  `cp`, `mv` and `install`
+    files the same.  What a tool *writes* carries its own count, so an
+    escape that names NUL writes the byte: `printf '\0'`, `echo -e
+    '\0'` and `tr a '\0'` all do.  `cp`, `mv` and `install`
     copy every byte; `sort -z`, `shuf -z` and `xargs -0` read NUL as a
     separator, and `env -0` writes it.
   - **`expr`'s regular expressions are its own grammar**: literals,

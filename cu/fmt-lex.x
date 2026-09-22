@@ -225,21 +225,44 @@
         (let ((b (bit-and (first d) 255)))
           (list (%cu-b->s b) (rest d) #f b))))))
 
-; S with its escapes decoded: (TEXT . STOPPED?), STOPPED? when a \c ended it
-(def %cu-esc-string
-  (fn (_ s variant) (%cu-esc-run s 0 variant ())))
-
+; S with its escapes decoded: (RUN . STOPPED?), STOPPED? when a \c ended it.
+; The run is bytes and their count (cu/prims.x) because \0 names a NUL, which
+; no text can carry past: the bytes are gathered as the reader names them and
+; packed once.
 (def %cu-esc-run
-  (fn (self s i variant acc)
+  (fn (_ s variant) (%cu-esc-walk s 0 variant () 0)))
+
+(def %cu-esc-walk
+  (fn (self s i variant acc n)
     (match
-      ((>= i (byte-len s)) (pair (string-concat (reverse acc)) #f))
+      ((>= i (byte-len s)) (pair (%cu-run-bytes (reverse acc) n) #f))
       ((not (= (byte-at s i) 92))
-        (self s (+ i 1) variant (pair (%cu-b->s (byte-at s i)) acc)))
+        (self s (+ i 1) variant (pair (byte-at s i) acc) (+ n 1)))
       (#t
         (let ((e (%cu-esc-at s i variant)))
-          (if (%cu-nth 2 e)
-            (pair (string-concat (reverse (pair (first e) acc))) #t)
-            (self s (%cu-nth 1 e) variant (pair (first e) acc))))))))
+          (let ((next (%cu-esc-onto e acc)))
+            (if (%cu-nth 2 e)
+              (pair (%cu-run-bytes (reverse (first next)) (+ n (rest next))) #t)
+              (self s (%cu-nth 1 e) variant (first next) (+ n (rest next))))))))))
+
+; the bytes of the escape E onto ACC, which holds the run in reverse: the one
+; byte E names, or the bytes of the text it stands for where it names none.
+; Answers (ACC . HOW-MANY-MORE).
+(def %cu-esc-onto
+  (fn (_ e acc)
+    (if (>= (%cu-nth 3 e) 0) (pair (pair (%cu-nth 3 e) acc) 1)
+      (%cu-bytes-onto (first e) 0 acc 0))))
+
+(def %cu-bytes-onto
+  (fn (self s i acc n)
+    (if (>= i (byte-len s)) (pair acc n)
+      (self s (+ i 1) (pair (byte-at s i) acc) (+ n 1)))))
+
+; the run one escape stands for, for a caller that holds the escape alone
+(def %cu-esc-one-run
+  (fn (_ e)
+    (if (>= (%cu-nth 3 e) 0) (pair (%cu-b->s (%cu-nth 3 e)) 1)
+      (%cu-run-of (first e)))))
 
 ; --- the escape, as the reader scores it --------------------------------------
 ;
@@ -287,14 +310,16 @@
 
 (%cu-fl-type! "CU-FMT-ESC" %cu-fl-t-esc)
 
-; the token an escape scored, as the text it stands for; a \c answers the stop
-; its caller acts on, since a format's output ends there
+; the token an escape scored, as the run it stands for -- bytes and their
+; count, since \0 names a NUL that no text carries past; a \c answers the stop
+; its caller acts on, since a format's output ends there.  A caller that reads
+; no escapes is handed the token's own text.
 (def %cu-fl-escape
   (fn (_ tok)
     (if (not (first %cu-fl-escapes)) tok
       (if (< (byte-len tok) 2) tok
         (let ((e (%cu-esc-at tok 0 (lit format))))
-          (if (%cu-nth 2 e) (lit stop) (first e)))))))
+          (if (%cu-nth 2 e) (lit stop) (%cu-esc-one-run e)))))))
 
 ; --- the literal run ---------------------------------------------------------
 

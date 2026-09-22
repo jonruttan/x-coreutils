@@ -9,9 +9,9 @@ as up to three octal digits and \" as a quote, echo -e and printf's %b take the
 leading 0 as well (\0NNN), and tr takes neither \x nor \e and drops the
 backslash from an escape it does not know.
 
-An escape naming NUL is dropped: a string's length stops at its first NUL, so
-`printf '\0'` writes nothing where GNU writes the byte (the limit the README
-records).
+An escape naming NUL writes the byte.  A string's length stops at its first
+NUL, so what the three tools gather is a run -- the bytes and their count --
+and the count is what the write is given.
 
 ## the fixtures
 
@@ -153,6 +153,55 @@ spans them.
 78 79 7a 62 0a | status 0
 78 2d 7a 79 0a | status 0
 78 79 7a 0a | status 0
+```
+
+## the NUL byte
+
+### printf's format writes the NUL an escape names
+
+```cu
+(do (hx (list "printf" "\\0") "") (hx (list "printf" "a\\0b") "") (hx (list "printf" "\\000x") "") (hx (list "printf" "%s\\0" "x" "y") ""))
+```
+---
+```output
+00 | status 0
+61 00 62 | status 0
+00 78 | status 0
+78 00 79 00 | status 0
+```
+
+### and so does %b
+
+```cu
+(do (hx (list "printf" "%b" "a\\0b") "") (hx (list "printf" "%b" "\\0\\0") ""))
+```
+---
+```output
+61 00 62 | status 0
+00 00 | status 0
+```
+
+### echo -e writes it, and the newline after it
+
+```cu
+(do (hx (list "echo" "-e" "a\\0b") "") (hx (list "echo" "-ne" "\\0\\0") "") (hx (list "echo" "-e" "\\0101\\0") ""))
+```
+---
+```output
+61 00 62 0a | status 0
+00 00 | status 0
+41 00 0a | status 0
+```
+
+### a tr set that names it writes it
+
+```cu
+(do (hx (list "tr" "a" "\\0") "aaa") (hx (list "tr" "b" "\\000") "abc"))
+```
+---
+```output
+00 00 00 | status 0
+61 00 63 | status 0
 ```
 
 ## cleanup

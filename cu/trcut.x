@@ -222,17 +222,19 @@
     (def text (stdin-thunk))
     (def end (byte-len text))
     (def squeeze-set (if sq? (if (null? set2) set1 set2) ()))
+    ; the bytes are gathered as bytes and written as a run (cu/prims.x), so a
+    ; set that names a NUL writes one
     (def go
-      (fn (self i acc prev)
-        (if (>= i end) (string-concat (reverse acc))
+      (fn (self i acc n prev)
+        (if (>= i end) (%cu-run-bytes (reverse acc) n)
           (let ((b (byte-at text i)))
             (if (if del? (%cu-member-b? b set1) #f)
-              (self (+ i 1) acc prev)
+              (self (+ i 1) acc n prev)
               (let ((v (if (null? set2) b (%cu-tr-map set1 set2 b))))
                 (if (if sq? (if (= v prev) (%cu-member-b? v squeeze-set) #f) #f)
-                  (self (+ i 1) acc prev)
-                  (self (+ i 1) (pair (%cu-b->s v) acc) v))))))))
-    (do (display (go 0 () (- 0 1))) 0)))
+                  (self (+ i 1) acc n prev)
+                  (self (+ i 1) (pair v acc) (+ n 1) v))))))))
+    (do (file-write-run 1 (go 0 () 0 (- 0 1))) 0)))
 
 ; a cut LIST: N, N-M, N-, -M, comma-separated; answers (lo . hi) pairs
 ; with hi () for open

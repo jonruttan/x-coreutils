@@ -439,6 +439,16 @@
         (if (= delim 0) (file-write-nuls fd 1)
           (File write fd (%cu-b->s delim) 1)))))
 
+; A RUN is text and the count of its bytes: (TEXT . COUNT).  The count is
+; carried rather than asked of the text, which would stop at the first NUL,
+; and it is what the counted write needs.  %cu-run-of packs text that holds
+; none; %cu-run-bytes packs the bytes a caller gathered, in order.
+(def %cu-run-of (fn (_ s) (pair s (byte-len s))))
+
+(def %cu-run-bytes (fn (_ bs n) (pair (bytes->str bs) n)))
+
+(def file-write-run (fn (_ fd r) (File write fd (first r) (rest r))))
+
 ; FD's bytes as fields split on the byte DELIM, continuing a field left
 ; over from an earlier descriptor: answers (FIELDS . PARTIAL), so a
 ; caller reading several files sees one stream.  A field holds no DELIM
