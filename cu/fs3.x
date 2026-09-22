@@ -817,8 +817,9 @@
     ; so the parent still learns the command's own status from one wait.
     (def kill-arg (Opts value o "-k"))
     (def rest1 (Opts operands o))
-    (if (null? (rest rest1))
-      (do (file-write 2 "timeout: need SECONDS COMMAND\n") 1)
+    ; too few operands: GNU's refusal is its --help line alone, which no
+    ; applet here has, and 125, the status of timeout's own failure
+    (if (< (length rest1) 2) 125
       (let ((secs (%cu-num-prefix (first rest1))))
         (def cmd (rest rest1))
         (def pid (sys-fork))

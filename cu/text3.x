@@ -262,7 +262,7 @@
       (let ((v (if (null? bv) lv bv)))
         (if (null? v) 1000 (%cu-num-prefix v))))
     (def ops (Opts operands o))
-    (def prefix (if (pair? (rest ops)) (first (rest ops)) "x"))
+    (def prefix (if (if (pair? ops) (pair? (rest ops)) #f) (first (rest ops)) "x"))
     (def text
       (if (null? ops) (stdin-thunk)
         (if (string=? (first ops) "-") (stdin-thunk)

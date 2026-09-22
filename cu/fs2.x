@@ -286,9 +286,19 @@
 ; cmp: first differing byte, 1-based, with its line; -s is silent
 ; -l lists every differing byte and keeps going; without it cmp stops at the
 ; first difference and names where it was. -n bounds how far either is read.
+;
+; Both files are needed.  There is no GNU build here to measure; BSD's refuses
+; with fewer with a usage line and 2, cmp's trouble, and so does this one,
+; naming its own options.
 (def %cu-cmp
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "cmp" argv))
+    (if (< (length (Opts operands o)) 2)
+      (do (file-write 2 "cmp: usage: cmp [-ls] [-n N] FILE1 FILE2\n") 2)
+      (%cu-cmp-run o stdin-thunk))))
+
+(def %cu-cmp-run
+  (fn (_ o stdin-thunk)
     (def s? (Opts on? o "-s"))
     (def list? (Opts on? o "-l"))
     (def ops (Opts operands o))

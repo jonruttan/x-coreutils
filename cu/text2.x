@@ -175,6 +175,11 @@
 (def %cu-seq
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "seq" argv))
+    (if (null? (Opts operands o)) (%cu-missing-operand "seq" ())
+      (%cu-seq-run o))))
+
+(def %cu-seq-run
+  (fn (_ o)
     (def ops (Opts operands o))
     (def n (length ops))
     (def a (if (>= n 2) (%cu-num-prefix (first ops)) 1))

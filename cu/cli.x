@@ -348,6 +348,19 @@
               (string-append tok "\n"))))
         2)))
 
+; Too few operands, in GNU's words: none at all is `missing operand`, and some
+; is `missing operand after 'LAST'`, LAST the last of them.  GNU follows either
+; with a line pointing at --help, which no applet here has.  Answers 1.  An
+; applet asks before it takes an operand: the first of an empty list is a crash,
+; not an error a guard could catch.
+(def %cu-missing-operand
+  (fn (_ applet ops)
+    (do (file-write 2
+          (string-concat
+            (if (null? ops) (list applet ": missing operand\n")
+              (list applet ": missing operand after '" (%cu-last ops) "'\n"))))
+        1)))
+
 (def cu-run
   (fn (_ argv input)
     (if (null? argv)

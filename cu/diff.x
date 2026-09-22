@@ -502,9 +502,22 @@
           (self (rest l) (+ k 1) (pair (first l) acc)))))
     (if (< n 3) () (go argv 0 ()))))
 
+; Both paths are needed.  There is no GNU build here to measure; BSD's refuses
+; with fewer with a usage line and 2, diff's trouble, and so does this one,
+; naming its own options.
 (def %cu-diff
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "diff" argv))
+    (if (< (length (Opts operands o)) 2)
+      (do (file-write 2
+            (string-concat
+              (list "diff: usage: diff [-ibwBqsadTtrN] [-U N] [-L LABEL] "
+                    "[-S FILE] FILE1 FILE2\n")))
+          2)
+      (%cu-diff-run o argv stdin-thunk))))
+
+(def %cu-diff-run
+  (fn (_ o argv stdin-thunk)
     (def ops (Opts operands o))
     (def pa (first ops))
     (def pb (first (rest ops)))

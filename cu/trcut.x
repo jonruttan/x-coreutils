@@ -193,7 +193,29 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "tr" argv))
     (def del? (Opts on? o "-d"))
+    (def sq? (Opts on? o "-s"))
     (def args (Opts operands o))
+    ; translating wants two SETs, and so does deleting while squeezing;
+    ; deleting or squeezing alone wants one
+    (if (< (length args) (if del? (if sq? 2 1) (if sq? 1 2)))
+      (%cu-tr-few args sq?)
+      (%cu-tr-classes o del? args stdin-thunk))))
+
+; too few SETs, in GNU's words; where one was given, a second line says why
+; another is wanted
+(def %cu-tr-few
+  (fn (_ args sq?)
+    (do (%cu-missing-operand "tr" args)
+        (if (null? args) ()
+          (file-write 2
+            (if sq?
+              "Two strings must be given when both deleting and squeezing repeats.\n"
+              "Two strings must be given when translating.\n")))
+        1)))
+
+; the SETs' classes checked, then the run
+(def %cu-tr-classes
+  (fn (_ o del? args stdin-thunk)
     (let ((bad (%cu-tr-bad-class args))
           (other (if (if del? #f (pair? (rest args)))
                    (%cu-tr-other-class
