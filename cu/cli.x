@@ -121,13 +121,16 @@
 
 ; The option declaration. One row per applet: the flags that stand alone, the
 ; flags that take an argument, and -- for an applet whose operands can look like
-; flags -- the word `leading`, which stops the parse at the first operand so
-; `echo hi -n` prints `hi -n` and `timeout 5 prog -x` leaves -x to prog.
+; flags -- a word for how far the options go: `leading` stops the parse at the
+; first operand, so `echo hi -n` prints `hi -n` and `timeout 5 prog -x` leaves
+; -x to prog; `none` says there are no options at all, so `printf -x` prints
+; -x, and only a first -- is dropped.
 ;
 ; The guard and the applet read the same row (both through %cu-opts), so a flag
 ; that is accepted but never read is unspellable rather than a bug to find. An
-; applet absent from this table takes no options; test's whole vocabulary is
-; here because the guard must know every dash-word the grammar accepts.
+; applet absent from this table takes no options, and is handed its operands
+; with the -- that ends the options gone; test's whole vocabulary is here
+; because the guard must know every dash-word the grammar accepts.
 (def %cu-test-operators
   (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
         "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
@@ -219,6 +222,15 @@
     (pair "id" (list (list "-u" "-g" "-G" "-n" "-r") ()))
     (pair "uname" (list (list "-a" "-s" "-n" "-r" "-v" "-m" "-p" "-i" "-o") ()))
     (pair "nice" (list () (list "-n") (lit leading)))
+    ; the command a runner runs takes its own flags
+    (pair "nohup" (list () () (lit leading)))
+    (pair "chroot" (list () () (lit leading)))
+    ; a format, and an expression's words, may start with a -, and true and
+    ; false ignore whatever they are given
+    (pair "printf" (list () () (lit none)))
+    (pair "expr" (list () () (lit none)))
+    (pair "true" (list () () (lit none)))
+    (pair "false" (list () () (lit none)))
     (pair "shred" (list (list "-u" "-f" "-z") (list "-n")))
     (pair "timeout" (list () (list "-s" "-k") (lit leading)))
     (pair "tty" (list (list "-s") ()))
@@ -257,9 +269,23 @@
     (def values (if (null? spec) () (first (rest spec))))
     (def mode (if (null? spec) ()
                 (if (null? (rest (rest spec))) () (first (rest (rest spec))))))
-    (if (eq? mode (lit leading))
-      (Opts parse-leading flags values argv)
-      (Opts parse flags values argv))))
+    (match
+      ((eq? mode (lit leading)) (Opts parse-leading flags values argv))
+      ; no options at all: a first -- goes, as getopt's would, and the rest
+      ; reach the parse behind a -- of its own, so each is an operand
+      ((eq? mode (lit none))
+        (Opts parse () ()
+          (pair "--" (if (if (pair? argv) (string=? (first argv) "--") #f)
+                       (rest argv) argv))))
+      (#t (Opts parse flags values argv)))))
+
+; An applet that declares no flags reads no options, only operands: the parse
+; hands it those, so the -- that ends the options is gone before it looks.
+(def %cu-flagless?
+  (fn (_ applet)
+    (let ((spec (%cu-spec-of applet)))
+      (if (null? spec) #t
+        (if (null? (first spec)) (null? (first (rest spec))) #f)))))
 
 ; Of FLAGS, the one given last, or nil: for flags where a later one overrides an
 ; earlier, as chmod's -v overrides -c.  The parse lists the flags it saw in the
@@ -301,10 +327,17 @@
                 (string-append "coreutils: no such applet: "
                   (string-append (first argv) "\n")))
               2)
-          (let ((bad (Opts unknown (%cu-opts (first argv) (rest argv)))))
-            (if (null? bad)
-              (h (rest argv) (fn (_) input))
-              (%cu-refuse-option (first argv) bad))))))))
+          (%cu-dispatch h (first argv) (rest argv) (fn (_) input)))))))
+
+; One applet run, for cu-run and cu-main alike: its arguments checked against
+; its row, and the applet handed them -- only its operands where it declares no
+; flags -- or the first option it does not know refused.
+(def %cu-dispatch
+  (fn (_ h applet args stdin-thunk)
+    (let ((o (%cu-opts applet args)))
+      (if (null? (Opts unknown o))
+        (h (if (%cu-flagless? applet) (Opts operands o) args) stdin-thunk)
+        (%cu-refuse-option applet (Opts unknown o))))))
 
 (def %cu-cli-engine-flag?
   (fn (_ s)
@@ -338,7 +371,4 @@
       (let ((h (%cu-find-applet (first argv))))
         (if (null? h)
           (sys-exit (cu-run argv ""))
-          (let ((bad (Opts unknown (%cu-opts (first argv) (rest argv)))))
-            (if (null? bad)
-              (sys-exit (h (rest argv) stdin-thunk))
-              (sys-exit (%cu-refuse-option (first argv) bad)))))))))
+          (sys-exit (%cu-dispatch h (first argv) (rest argv) stdin-thunk)))))))
