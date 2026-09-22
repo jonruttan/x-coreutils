@@ -57,15 +57,15 @@ a
 0
 ```
 
-### uniq collapses adjacent; -c counts in fours
+### uniq collapses adjacent; -c counts in a column seven wide
 
 ```cu
 (display (cu-run (list "uniq" "-c") "a\na\na\nb\n"))
 ```
 ---
 ```output
-   3 a
-   1 b
+      3 a
+      1 b
 0
 ```
 

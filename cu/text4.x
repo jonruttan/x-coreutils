@@ -84,7 +84,8 @@
                   (if (= fd 1) () (file-close fd))
                   (if (Err err? text) 1 0)))))))))
 
-; each run of LINES that the flags keep, once, to FD
+; each run of LINES that the flags keep, once, to FD -- under -c after its count,
+; right-aligned in seven columns and wider when it needs to be
 (def %uniq-runs
   (fn (_ o lines fd)
     (def count? (Opts on? o "-c"))
@@ -94,7 +95,7 @@
           (file-write fd
             (if count?
               (string-concat
-                (list (%cu-pad-left (%cu-int->str n) 4) " " line "\n"))
+                (list (%cu-pad-left (%cu-int->str n) 7) " " line "\n"))
               (string-append line "\n"))))))
     (def go
       (fn (self ls cur key n)
