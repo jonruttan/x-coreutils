@@ -10,14 +10,6 @@
 ; GNU/busybox layout, NOT the BSD one macOS ships: no trailing pad to a
 ; fixed line width, and `*` for a repeated line.
 
-; --- number formatting, zero- and space-padded ---------------------------------
-
-(def %cu-zero-pad
-  (fn (_ s w)
-    (def gap (- w (byte-len s)))
-    (def z (fn (self k) (if (<= k 0) "" (string-append "0" (self (- k 1))))))
-    (if (<= gap 0) s (string-append (z gap) s))))
-
 ; --- od ------------------------------------------------------------------------
 
 ; the escapes od -c spells; everything printable is itself, everything
@@ -34,7 +26,7 @@
       ((= b 12) "\\f")
       ((= b 13) "\\r")
       ((if (>= b 32) (<= b 126) #f) (%cu-b->s b))
-      (#t (%cu-zero-pad (%cu-oct->str b) 3)))))
+      (#t (%cu-pad-zero (%cu-oct->str b) 3)))))
 
 ; a word of `size` bytes, LITTLE-endian, from position i
 (def %cu-od-word
@@ -64,9 +56,9 @@
       (let ((v (%cu-od-word s i size)))
         (match
           ((eq? kind (lit o))
-            (string-append " " (%cu-zero-pad (%cu-oct->str v) (w 3 6 11))))
+            (string-append " " (%cu-pad-zero (%cu-oct->str v) (w 3 6 11))))
           ((eq? kind (lit x))
-            (string-append " " (%cu-zero-pad (%cu-hexs v) (w 2 4 8))))
+            (string-append " " (%cu-pad-zero (%cu-hexs v) (w 2 4 8))))
           ((eq? kind (lit u))
             (%cu-pad-left (%cu-int->str v) (w 4 6 11)))
           (#t (%cu-pad-left (%cu-int->str (%cu-od-signed v size))
@@ -76,9 +68,9 @@
   (fn (_ n radix)
     (match
       ((eq? radix (lit n)) "")
-      ((eq? radix (lit d)) (%cu-zero-pad (%cu-int->str n) 7))
-      ((eq? radix (lit x)) (%cu-zero-pad (%cu-hexs n) 7))
-      (#t (%cu-zero-pad (%cu-oct->str n) 7)))))
+      ((eq? radix (lit d)) (%cu-pad-zero (%cu-int->str n) 7))
+      ((eq? radix (lit x)) (%cu-pad-zero (%cu-hexs n) 7))
+      (#t (%cu-pad-zero (%cu-oct->str n) 7)))))
 
 ; -t's argument is a letter and an optional size: o2, x1, c, d4
 (def %cu-od-type

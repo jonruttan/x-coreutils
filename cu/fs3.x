@@ -27,7 +27,7 @@
 
 ; four digits, as stat's Access line and chmod's reports show a mode: 0644
 (def %cu-mode-octal4
-  (fn (_ mode) (%cu-zero-pad (%cu-mode-octal mode) 4)))
+  (fn (_ mode) (%cu-pad-zero (%cu-mode-octal mode) 4)))
 
 (def %cu-kind-letter
   (fn (_ kind)

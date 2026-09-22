@@ -44,13 +44,11 @@
 
 (def %cu-date-get (fn (_ d k) (Assoc get k d)))
 
+; N in WIDTH columns, filled before it with FILLER: "0", or " "
 (def %cu-date-pad
   (fn (_ n width filler)
-    (def s (%cu-int->str n))
-    (def go
-      (fn (self acc k)
-        (if (<= k 0) acc (self (string-append filler acc) (- k 1)))))
-    (go s (- width (byte-len s)))))
+    (if (string=? filler "0") (%cu-pad-zero (%cu-int->str n) width)
+      (%cu-pad-left (%cu-int->str n) width))))
 
 (def %cu-date-pad2 (fn (_ n) (%cu-date-pad n 2 "0")))
 

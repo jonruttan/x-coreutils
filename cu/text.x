@@ -141,28 +141,38 @@
     (if (not (rest ir)) 0
       (if neg (- 0 (first ir)) (first ir)))))
 
+; N in decimal.  Its digits are packed as bytes by bytes->str, at a third of
+; what the list->string conversion costs; the tower's % and / keep a bignum
+; right.
 (def %cu-int->str
   (fn (_ n)
     (if (= n 0) "0"
       (let ((go (fn (self t acc)
                   (if (= t 0) acc
-                    (self (/ (- t (% t 10)) 10)
-                      (pair (integer->char (+ 48 (% t 10))) acc))))))
+                    (self (/ (- t (% t 10)) 10) (pair (+ 48 (% t 10)) acc))))))
         (if (< n 0)
-          (string-append "-" (list->string (go (- 0 n) ())))
-          (list->string (go n ())))))))
+          (bytes->str (pair 45 (go (- 0 n) ())))
+          (bytes->str (go n ())))))))
 
+; S padded to W columns with spaces, before it or after it.  %str-make-raw
+; answers a run of spaces in one allocation, where a space at a time was one
+; string-append each.
 (def %cu-pad-left
   (fn (_ s w)
     (def gap (- w (byte-len s)))
-    (def sp (fn (self k) (if (<= k 0) "" (string-append " " (self (- k 1))))))
-    (if (<= gap 0) s (string-append (sp gap) s))))
+    (if (<= gap 0) s (string-append (%str-make-raw gap) s))))
 
 (def %cu-pad-right
   (fn (_ s w)
     (def gap (- w (byte-len s)))
-    (def sp (fn (self k) (if (<= k 0) "" (string-append " " (self (- k 1))))))
-    (if (<= gap 0) s (string-append s (sp gap)))))
+    (if (<= gap 0) s (string-append s (%str-make-raw gap)))))
+
+; S padded to W columns with zeros before it
+(def %cu-pad-zero
+  (fn (_ s w)
+    (def gap (- w (byte-len s)))
+    (def zeros (fn (self k acc) (if (<= k 0) (bytes->str acc) (self (- k 1) (pair 48 acc)))))
+    (if (<= gap 0) s (string-append (zeros gap ()) s))))
 
 ; operands to one text: files in order, - or none meaning stdin
 (def %cu-gather

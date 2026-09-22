@@ -30,34 +30,29 @@
 ; argument's escapes.  The escapes and the % scanning are cu/fmt-lex.x's; what
 ; stays here is the table of what a conversion means to printf.
 
+; N in octal and in lower-case hex, the digits packed as bytes, as
+; %cu-int->str packs them
 (def %cu-oct->str
   (fn (_ n)
     (if (= n 0) "0"
       (let ((go (fn (self t acc)
-                  (if (= t 0) (list->string acc)
-                    (self (/ (- t (% t 8)) 8)
-                      (pair (integer->char (+ 48 (% t 8))) acc))))))
+                  (if (= t 0) (bytes->str acc)
+                    (self (/ (- t (% t 8)) 8) (pair (+ 48 (% t 8)) acc))))))
         (go n ())))))
 
 (def %cu-hexs
   (fn (_ n)
     (if (= n 0) "0"
       (let ((go (fn (self t acc)
-                  (if (= t 0) (list->string acc)
+                  (if (= t 0) (bytes->str acc)
                     (let ((d (% t 16)))
                       (self (/ (- t d) 16)
-                        (pair (integer->char
-                                (if (< d 10) (+ 48 d) (+ 87 d)))
-                          acc)))))))
+                        (pair (if (< d 10) (+ 48 d) (+ 87 d)) acc)))))))
         (go n ())))))
 
 (def %cu-pad
   (fn (_ s w left)
-    (def gap (- w (byte-len s)))
-    (def sp (fn (self k) (if (<= k 0) "" (string-append " " (self (- k 1))))))
-    (if (<= gap 0) s
-      (if left (string-append s (sp gap))
-        (string-append (sp gap) s)))))
+    (if left (%cu-pad-right s w) (%cu-pad-left s w))))
 
 ; One pass of the format over the argument list, printing as it goes.  Answers
 ; (USED-AN-ARGUMENT? REST WHAT-NEXT): WHAT-NEXT is `more` to go on with the
@@ -167,7 +162,7 @@
     (def fmt
       (fn (_ i)
         (let ((t (%cu-int->str i)))
-          (if (<= width (byte-len t)) t (%cu-pad-left-zero t width)))))
+          (if (<= width (byte-len t)) t (%cu-pad-zero t width)))))
     (def vals
       (let ((go (fn (self i acc)
                   (if (if (> step 0) (> i z) (< i z)) (reverse acc)
@@ -175,11 +170,6 @@
         (go a ())))
     (if (null? vals) 0
       (do (display (string-append (%cu-join-with vals sep) "\n")) 0))))
-
-(def %cu-pad-left-zero
-  (fn (self t width)
-    (if (>= (byte-len t) width) t
-      (self (string-append "0" t) width))))
 
 (def %cu-rev-line
   (fn (_ s)
