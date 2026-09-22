@@ -536,9 +536,3 @@
     (if (null? ops)
       (do (one () (stdin-thunk)) 0)
       (%cu-each-said ops stdin-thunk (%cu-says "sum") one 0))))
-
-(def %cu-pad-zero
-  (fn (_ s w)
-    (def gap (- w (byte-len s)))
-    (def z (fn (self k) (if (<= k 0) "" (string-append "0" (self (- k 1))))))
-    (if (<= gap 0) s (string-append (z gap) s))))

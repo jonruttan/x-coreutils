@@ -6,8 +6,9 @@ costs: at tens of thousands of objects a line, a few thousand lines exhaust
 the machine.  An option read costs thousands of objects, so a tool reads its
 options once per run, never once per line or per comparison.  Each case
 asks whether a tool stays under a bound set well above what it costs and
-well below what it cost when it read its options per line: the bounds catch
-a return to that, not a single stray read.
+well below what it cost when it read its options per line, or padded a
+number a space at a time: the bounds catch a return to that, not a single
+stray read.
 
 Each count is the (Heap count) growth over a warm run, with the tool's
 output sent to /dev/null.  The per-line cases take the difference between
@@ -31,6 +32,25 @@ The lines are the numbers from N down to 1, one to a line.
 
 ```cu
 (display (< (per-900 (list "uniq")) (* 900 15000)))
+```
+---
+    #t
+
+### nl, which numbers each line, costs under 22,000
+
+The number is padded to its column, so this bounds the padding and the
+digits as well as the option reads.
+
+```cu
+(display (< (per-900 (list "nl")) (* 900 22000)))
+```
+---
+    #t
+
+### and uniq -c, which pads a count before each, under 22,000
+
+```cu
+(display (< (per-900 (list "uniq" "-c")) (* 900 22000)))
 ```
 ---
     #t
