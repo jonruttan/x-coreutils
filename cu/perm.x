@@ -750,11 +750,29 @@
             (self (- i 1))))))
     (go (- end 1))))
 
+; link FILE1 FILE2 is link(2) and no more: too few operands or too many are
+; refused before anything is made, and a call that fails is reported with its
+; errno's text, as link names the two files
 (def %cu-link
   (fn (_ argv stdin-thunk)
-    (if (null? (rest argv))
-      (do (file-write 2 "link: need TARGET and a name\n") 1)
-      (do (file-link (first argv) (first (rest argv))) 0))))
+    (match
+      ((null? argv) (do (file-write 2 "link: missing operand\n") 1))
+      ((null? (rest argv))
+        (do (file-write 2
+              (string-concat (list "link: missing operand after '" (first argv) "'\n")))
+            1))
+      ((pair? (rest (rest argv)))
+        (do (file-write 2
+              (string-concat (list "link: extra operand '" (%cu-nth 2 argv) "'\n")))
+            1))
+      (#t
+        (let ((r (file-or-err (fn (_) (file-link (first argv) (%cu-nth 1 argv))))))
+          (if (not (Err err? r)) 0
+            (do (file-write 2
+                  (string-concat
+                    (list "link: cannot create link '" (%cu-nth 1 argv) "' to '"
+                          (first argv) "': " (file-err-text r) "\n")))
+                1)))))))
 
 (def %cu-dirname-of
   (fn (_ p)
