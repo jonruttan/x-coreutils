@@ -41,7 +41,7 @@
   sys-getcwd sys-environ sys-getenv sys-setenv sys-unsetenv sys-sleep sys-umask
   date-now-iso date-now-unix rng-make rng-int
   sys-getuid sys-geteuid sys-getgid sys-getegid sys-getgroups
-  sys-user-name sys-group-name
+  sys-user-name sys-group-name sys-user-id sys-user-group sys-group-id
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   cu-stdin! cu-stdin-to-command!)
 
@@ -256,6 +256,28 @@
 
 (def sys-user-name (fn (_ uid) (%cu-id-name %cu-getpwuid-cell "getpwuid" uid)))
 (def sys-group-name (fn (_ gid) (%cu-id-name %cu-getgrgid-cell "getgrgid" gid)))
+
+; And back: the id a name stands for, or nil where the system knows no such
+; name -- getpwnam's pw_uid and getgrnam's gr_gid, the four bytes after the
+; struct's two pointers -- and a user's login group, pw_gid, the four after
+; that, on Darwin and Linux alike.
+(def %cu-ptr-ref (prim-ref (lit ptr) (lit ref)))
+(def %cu-getpwnam-cell (list ()))
+(def %cu-getgrnam-cell (list ()))
+
+(def %cu-name-field
+  (fn (_ cell sym name offset)
+    (do (if (null? (first cell))
+          (set-first! cell (list (%cu-dlsym (%cu-dlopen () 1) sym)))
+          ())
+        (let ((f (first (first cell))))
+          (if (null? f) ()
+            (let ((r (%cu-ptr-call f name)))
+              (if (= r 0) () (%cu-ptr-ref (%cu-int->ptr r) offset 4))))))))
+
+(def sys-user-id (fn (_ name) (%cu-name-field %cu-getpwnam-cell "getpwnam" name 16)))
+(def sys-user-group (fn (_ name) (%cu-name-field %cu-getpwnam-cell "getpwnam" name 20)))
+(def sys-group-id (fn (_ name) (%cu-name-field %cu-getgrnam-cell "getgrnam" name 16)))
 
 (def sys-setenv (fn (_ n v) (Sys setenv n v)))
 (def sys-unsetenv (fn (_ n) (Sys unsetenv n)))

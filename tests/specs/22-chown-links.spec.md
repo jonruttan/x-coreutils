@@ -6,8 +6,11 @@ at and goes through one named on the command line; -L changes what it points
 at and goes through every one.  -h still says the link itself changes.  The
 expected text is GNU chgrp's for the same trees.
 
-The ids are written back as OLD and NEW through their measured values, as in
-21-chown, so a report naming an id it was not asked for keeps its digits.
+What the reports name is written back through its measured value, as in
+21-chown: OLD for the name of the group a new file gets, and NEW for the
+user's group -- its id where a report shows the spec, which gives the id, and
+its name where a report shows what a path has.  A report naming anything else
+keeps it as it is.
 
 ## the fixtures
 
@@ -18,7 +21,7 @@ The ids are written back as OLD and NEW through their measured values, as in
 `link-is` what became of a link's own.
 
 ```cu
-(do (def ch (fn (_ n) (string-append "/tmp/x-cu-chl/" n))) (def mk (fn (_) (proc-run (list "/bin/sh" "-c" "chmod -R u+rwx /tmp/x-cu-chl 2>/dev/null; rm -rf /tmp/x-cu-chl && mkdir -p /tmp/x-cu-chl/d/inside /tmp/x-cu-chl/outside && : > /tmp/x-cu-chl/d/inside/a && : > /tmp/x-cu-chl/outside/b && cd /tmp/x-cu-chl/d && ln -s ../outside out-link && cd /tmp/x-cu-chl && ln -s d top-link")))) (mk) (def u (%cu-int->str (sys-geteuid))) (def g (%cu-int->str (sys-getegid))) (def o (%cu-int->str (%cu-stat-get (file-stat-full (ch "d/inside/a")) (lit gid)))) (def show (fn (_ s) (Str8 replace (string-concat (list " to " g "\n")) " to NEW\n" (Str8 replace (string-concat (list "retained as " g)) "retained as NEW" (Str8 replace (string-concat (list "from " o " to " g)) "from OLD to NEW" s))))) (def co (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (ch ".out"))) (ee (file-open-write (ch ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def co-st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (show (file-read-all (ch ".out")))) (display "stderr:\n") (display (show (file-read-all (ch ".err")))) (display "status ") (display co-st) (newline)))))) (def is (fn (_ p) (if (= (%cu-stat-get (file-stat-full (ch p)) (lit gid)) (sys-getegid)) "changed" "left"))) (def link-is (fn (_ p) (if (= (%cu-stat-get (file-lstat-full (ch p)) (lit gid)) (sys-getegid)) "changed" "left"))) (def says (fn (_ ps) (display (string-append (%cu-join-with (map (fn (_ p) (string-concat (list p " " (is p)))) ps) ", ") "\n")))) (display "made"))
+(do (def ch (fn (_ n) (string-append "/tmp/x-cu-chl/" n))) (def mk (fn (_) (proc-run (list "/bin/sh" "-c" "chmod -R u+rwx /tmp/x-cu-chl 2>/dev/null; rm -rf /tmp/x-cu-chl && mkdir -p /tmp/x-cu-chl/d/inside /tmp/x-cu-chl/outside && : > /tmp/x-cu-chl/d/inside/a && : > /tmp/x-cu-chl/outside/b && cd /tmp/x-cu-chl/d && ln -s ../outside out-link && cd /tmp/x-cu-chl && ln -s d top-link")))) (mk) (def u (%cu-int->str (sys-geteuid))) (def g (%cu-int->str (sys-getegid))) (def named (fn (_ n id) (if (null? n) (%cu-int->str id) n))) (def gn (named (sys-group-name (sys-getegid)) (sys-getegid))) (def o (let ((gid (%cu-stat-get (file-stat-full (ch "d/inside/a")) (lit gid)))) (named (sys-group-name gid) gid))) (def show (fn (_ s) (Str8 replace (string-concat (list " to " g "\n")) " to NEW\n" (Str8 replace (string-concat (list "retained as " gn)) "retained as NEW" (Str8 replace (string-concat (list "from " o " to " g)) "from OLD to NEW" s))))) (def co (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (ch ".out"))) (ee (file-open-write (ch ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def co-st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (show (file-read-all (ch ".out")))) (display "stderr:\n") (display (show (file-read-all (ch ".err")))) (display "status ") (display co-st) (newline)))))) (def is (fn (_ p) (if (= (%cu-stat-get (file-stat-full (ch p)) (lit gid)) (sys-getegid)) "changed" "left"))) (def link-is (fn (_ p) (if (= (%cu-stat-get (file-lstat-full (ch p)) (lit gid)) (sys-getegid)) "changed" "left"))) (def says (fn (_ ps) (display (string-append (%cu-join-with (map (fn (_ p) (string-concat (list p " " (is p)))) ps) ", ") "\n")))) (display "made"))
 ```
 ---
     made

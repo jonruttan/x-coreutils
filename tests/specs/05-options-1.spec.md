@@ -858,16 +858,17 @@ dir
 ### chown -v reports every path, and -R reaches into a directory
 
 The caller's own id is the one id a case may set, so these paths keep theirs.
-The reports are shown with that id written back as ID; what the words are is
+A report of ids kept shows the path's own by name, and the reports are shown
+with the caller's name written back as USER; what the words are is
 21-chown's business.
 
 ```cu
-(display (let ((u (%cu-int->str (sys-geteuid)))) (Str8 replace u "ID" (cu-out (list "chown" "-R" "-v" u "/tmp/x-cu-fm/sub")))))
+(display (let ((u (%cu-int->str (sys-geteuid))) (un (let ((n (sys-user-name (sys-geteuid)))) (if (null? n) (%cu-int->str (sys-geteuid)) n)))) (Str8 replace (string-append "retained as " un) "retained as USER" (cu-out (list "chown" "-R" "-v" u "/tmp/x-cu-fm/sub")))))
 ```
 ---
 ```output
-ownership of '/tmp/x-cu-fm/sub/one' retained as ID
-ownership of '/tmp/x-cu-fm/sub' retained as ID
+ownership of '/tmp/x-cu-fm/sub/one' retained as USER
+ownership of '/tmp/x-cu-fm/sub' retained as USER
 ```
 
 ### uname says `unknown` for what it cannot ask
