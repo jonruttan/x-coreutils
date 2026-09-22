@@ -4,7 +4,8 @@
 where it writes, `-` for either being standard input or output.  A third
 operand is refused before anything opens.  IN is opened before OUT, so an
 IN that will not open leaves OUT uncreated; OUT is truncated before IN is
-read, so the same file for both comes out empty.  The expected text and
+read, so the same file for both comes out empty.  Under `-c` each count is
+right-aligned in seven columns.  The expected text and
 statuses are GNU uniq's for the same files, less the line GNU adds after a
 refused operand pointing at its `--help`, which x has no counterpart for.
 
@@ -92,6 +93,24 @@ o3: [a
 ]
 status 0
 o4: [b
+]
+```
+
+## the counts
+
+### -c right-aligns each count in seven columns, into OUT as well
+
+```cu
+(do (uq (list "-c") "a\na\na\na\na\na\na\na\na\na\nb\n" ()) (uq (list "-c" (kh "in") (kh "o9")) "" (list "o9")))
+```
+---
+```output
+     10 a
+      1 b
+status 0
+status 0
+o9: [      2 a
+      1 b
 ]
 ```
 
