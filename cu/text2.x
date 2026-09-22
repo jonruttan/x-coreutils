@@ -19,11 +19,13 @@
     (def e? (if (null? v) #f (string=? v "-e")))
     (def ops (Opts operands o))
     ; the escapes are cu/fmt-lex.x's, read as echo's manual spells them; a \c
-    ; ends the output, newline and all
+    ; ends the output, newline and all.  What goes out is a run -- bytes and
+    ; their count -- so a \0 is written like any other byte
     (let ((r (let ((joined (%cu-join-with ops " ")))
-               (if e? (%cu-esc-string joined (lit arg)) (pair joined #f)))))
-      (do (display (first r))
-          (if (if n? #t (rest r)) () (display "\n"))
+               (if e? (%cu-esc-run joined (lit arg))
+                 (pair (%cu-run-of joined) #f)))))
+      (do (file-write-run 1 (first r))
+          (if (if n? #t (rest r)) () (file-write 1 "\n"))
           0))))
 
 ; printf(1): the format REUSES until the arguments run out.  The conversions
@@ -60,19 +62,23 @@
 ; (USED-AN-ARGUMENT? REST WHAT-NEXT): WHAT-NEXT is `more` to go on with the
 ; arguments left, `stop` where a \c ended the output, and otherwise the
 ; directive printf does not read, which it refuses by name.
+;
+; What the pass gathers are runs -- bytes and their count (cu/prims.x) -- so a
+; \0 travels as the byte it names.  A token the reader escaped is a run
+; already; a literal one is its own text.
 (def %cu-printf-once
   (fn (_ toks args)
     (def go
       (fn (self ts as used acc)
         (if (null? ts)
-          (do (display (string-concat (reverse acc)))
-              (list used as (lit more)))
+          (do (%cu-printf-put acc) (list used as (lit more)))
           (let ((t (first ts)))
             (match
               ((eq? t (lit stop))
-                (do (display (string-concat (reverse acc)))
-                    (list used as (lit stop))))
-              ((not (%cu-fmt-dir? t)) (self (rest ts) as used (pair t acc)))
+                (do (%cu-printf-put acc) (list used as (lit stop))))
+              ((not (%cu-fmt-dir? t))
+                (self (rest ts) as used
+                  (pair (if (pair? t) t (%cu-run-of t)) acc)))
               (#t
                 (let ((conv (%cu-fmt-conv t))
                       (w (%cu-fmt-width t))
@@ -80,38 +86,54 @@
                       (arg (if (null? as) "" (first as)))
                       (as2 (if (null? as) () (rest as))))
                   (match
-                    ((string=? conv "%") (self (rest ts) as used (pair "%" acc)))
+                    ((string=? conv "%")
+                      (self (rest ts) as used (pair (%cu-run-of "%") acc)))
                     ((string=? conv "s")
-                      (self (rest ts) as2 #t (pair (%cu-pad arg w left) acc)))
+                      (self (rest ts) as2 #t
+                        (pair (%cu-run-of (%cu-pad arg w left)) acc)))
                     ((%cu-member-s? conv (list "d" "i" "u"))
                       (self (rest ts) as2 #t
-                        (pair (%cu-pad (%cu-int->str (%cu-num-prefix arg)) w left)
+                        (pair (%cu-run-of
+                                (%cu-pad (%cu-int->str (%cu-num-prefix arg)) w left))
                           acc)))
                     ((string=? conv "x")
                       (self (rest ts) as2 #t
-                        (pair (%cu-hexs (%cu-num-prefix arg)) acc)))
+                        (pair (%cu-run-of (%cu-hexs (%cu-num-prefix arg))) acc)))
                     ((string=? conv "X")
                       (self (rest ts) as2 #t
-                        (pair (Str8 upcase (%cu-hexs (%cu-num-prefix arg))) acc)))
+                        (pair (%cu-run-of
+                                (Str8 upcase (%cu-hexs (%cu-num-prefix arg))))
+                          acc)))
                     ((string=? conv "o")
                       (self (rest ts) as2 #t
-                        (pair (%cu-oct->str (%cu-num-prefix arg)) acc)))
+                        (pair (%cu-run-of (%cu-oct->str (%cu-num-prefix arg)))
+                          acc)))
                     ((string=? conv "c")
                       (self (rest ts) as2 #t
-                        (pair (if (> (byte-len arg) 0) (substring arg 0 1) "")
+                        (pair (%cu-run-of
+                                (if (> (byte-len arg) 0) (substring arg 0 1) ""))
                           acc)))
                     ; %b reads the argument's escapes, as echo -e reads them
                     ((string=? conv "b")
-                      (let ((r (%cu-esc-string arg (lit arg))))
+                      (let ((r (%cu-esc-run arg (lit arg))))
                         (if (rest r)
-                          (do (display
-                                (string-concat (reverse (pair (first r) acc))))
+                          (do (%cu-printf-put (pair (first r) acc))
                               (list #t as2 (lit stop)))
                           (self (rest ts) as2 #t (pair (first r) acc)))))
                     (#t
-                      (do (display (string-concat (reverse acc)))
+                      (do (%cu-printf-put acc)
                           (list used as (%cu-fmt-raw t))))))))))))
     (go toks args #f ())))
+
+; the runs a pass gathered, in the order they were made: each goes out through
+; the counted write, so a NUL in one is written rather than ending the pass
+(def %cu-printf-put
+  (fn (_ acc)
+    (def go
+      (fn (self rs)
+        (if (null? rs) ()
+          (do (file-write-run 1 (first rs)) (self (rest rs))))))
+    (go (reverse acc))))
 
 (def %cu-printf
   (fn (_ argv stdin-thunk)
