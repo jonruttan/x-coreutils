@@ -42,6 +42,7 @@
   date-now-iso date-now-unix rng-make rng-int
   sys-getuid sys-geteuid sys-getgid sys-getegid sys-getgroups
   sys-user-name sys-group-name sys-user-id sys-user-group sys-group-id
+  sys-user-groups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   cu-stdin! cu-stdin-to-command!)
 
@@ -278,6 +279,35 @@
 (def sys-user-id (fn (_ name) (%cu-name-field %cu-getpwnam-cell "getpwnam" name 16)))
 (def sys-user-group (fn (_ name) (%cu-name-field %cu-getpwnam-cell "getpwnam" name 20)))
 (def sys-group-id (fn (_ name) (%cu-name-field %cu-getgrnam-cell "getgrnam" name 16)))
+
+; The groups the system lists for the user NAME, whose login group is BASE:
+; getgrouplist, through the FFI, filling a buffer of four-byte ids and counting
+; them into a second -- which may count more than the buffer holds, so what is
+; read stops at the buffer.  Just BASE where there is no getgrouplist.
+(def %cu-getgrouplist-cell (list ()))
+
+(def sys-user-groups
+  (fn (_ name base)
+    (do (if (null? (first %cu-getgrouplist-cell))
+          (set-first! %cu-getgrouplist-cell
+            (list (%cu-dlsym (%cu-dlopen () 1) "getgrouplist")))
+          ())
+        (let ((f (first (first %cu-getgrouplist-cell))))
+          (if (null? f) (list base)
+            (let ((gs (%str-make-raw 4096)) (ns (%str-make-raw 4)))
+              (do (%cu-ptr-set! (%cu-str->ptr ns) 0 1024 4)
+                  (%cu-ptr-call f name base (%cu-str->ptr gs) (%cu-str->ptr ns))
+                  (%cu-int32s (%cu-str->ptr gs)
+                    (let ((n (%cu-ptr-ref (%cu-str->ptr ns) 0 4)))
+                      (if (> n 1024) 1024 n))))))))))
+
+; N four-byte ids from P, in order
+(def %cu-int32s
+  (fn (_ p n)
+    (def go
+      (fn (self i acc)
+        (if (< i 0) acc (self (- i 1) (pair (%cu-ptr-ref p (* 4 i) 4) acc)))))
+    (go (- n 1) ())))
 
 (def sys-setenv (fn (_ n v) (Sys setenv n v)))
 (def sys-unsetenv (fn (_ n) (Sys unsetenv n)))
