@@ -180,42 +180,51 @@
                           (self (+ i 1)))))))
             (go 0)))))))
 
-(def %sort-prepare
-  (fn (_ s o spec)
-    (def t (if (%sort-opt? o spec "-b") (%sort-trim-left s) s))
-    (def u (%sort-filter t (%sort-opt? o spec "-d") (%sort-opt? o spec "-i")))
-    (if (%sort-opt? o spec "-f") (%sort-fold u) u)))
-
-; -1, 0 or 1 for one key, so the fallback can see a tie
-(def %sort-cmp
-  (fn (_ a b o spec sep)
-    (def ka (%sort-prepare (%sort-key a spec sep) o spec))
-    (def kb (%sort-prepare (%sort-key b spec sep) o spec))
-    (def c
-      (match
-        ((%sort-opt? o spec "-n")
-          (%cu-cmp-int (%cu-num-prefix ka) (%cu-num-prefix kb)))
-        ((%sort-opt? o spec "-g")
-          (%cu-cmp-int (%sort-general ka) (%sort-general kb)))
-        ((%sort-opt? o spec "-M")
-          (%cu-cmp-int (%sort-month ka) (%sort-month kb)))
-        ((string=? ka kb) 0)
-        ((%cu-str< ka kb) (- 0 1))
-        (#t 1)))
-    (if (%sort-opt? o spec "-r") (- 0 c) c)))
-
 (def %cu-cmp-int
   (fn (_ x y) (if (< x y) (- 0 1) (if (> x y) 1 0))))
 
-; the whole line breaks a tie, unless -s asks for the input's order
+; The ordering, made once from the flags: the key is trimmed, filtered and
+; folded as its letters ask, compared as they ask, and the whole line breaks a
+; tie unless -s asks for the input's order.  The flags are read here and not
+; per comparison -- each read costs thousands of objects, a sort makes n log n
+; comparisons, and nothing is collected while an applet runs.
 (def %sort-less
   (fn (_ o spec sep)
+    (def b? (%sort-opt? o spec "-b"))
+    (def d? (%sort-opt? o spec "-d"))
+    (def i? (%sort-opt? o spec "-i"))
+    (def f? (%sort-opt? o spec "-f"))
+    (def n? (%sort-opt? o spec "-n"))
+    (def g? (%sort-opt? o spec "-g"))
+    (def m? (%sort-opt? o spec "-M"))
+    (def r? (%sort-opt? o spec "-r"))
+    (def stable? (Opts on? o "-s"))
+    (def reverse? (Opts on? o "-r"))
+    (def prepare
+      (fn (_ s)
+        (def t (if b? (%sort-trim-left s) s))
+        (def u (%sort-filter t d? i?))
+        (if f? (%sort-fold u) u)))
+    ; -1, 0 or 1 for the key, so the fallback can see a tie
+    (def cmp
+      (fn (_ a b)
+        (def ka (prepare (%sort-key a spec sep)))
+        (def kb (prepare (%sort-key b spec sep)))
+        (def c
+          (match
+            (n? (%cu-cmp-int (%cu-num-prefix ka) (%cu-num-prefix kb)))
+            (g? (%cu-cmp-int (%sort-general ka) (%sort-general kb)))
+            (m? (%cu-cmp-int (%sort-month ka) (%sort-month kb)))
+            ((string=? ka kb) 0)
+            ((%cu-str< ka kb) (- 0 1))
+            (#t 1)))
+        (if r? (- 0 c) c)))
     (fn (_ a b)
-      (let ((c (%sort-cmp a b o spec sep)))
+      (let ((c (cmp a b)))
         (match
           ((not (= c 0)) (< c 0))
-          ((Opts on? o "-s") #f)
-          ((Opts on? o "-r") (%cu-str< b a))
+          (stable? #f)
+          (reverse? (%cu-str< b a))
           (#t (%cu-str< a b)))))))
 
 ; --- the applet ---------------------------------------------------------------

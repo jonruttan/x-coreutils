@@ -92,8 +92,10 @@
 (def file-open-append
   (fn (_ path) (File open path (list (lit wronly) (lit creat) (lit append)))))
 (def file-close (fn (_ fd) (File close fd)))
+; the count is byte-len's: string-length counts the same bytes, at ten times the
+; objects on a string just built
 (def file-write
-  (fn (_ fd s) (File write fd s (string-length s))))
+  (fn (_ fd s) (File write fd s (byte-len s))))
 (def file-read-fd
   (fn (_ fd n)
     (def buf (%str-make-raw n))
