@@ -12,38 +12,42 @@
 
 ; --- uniq ---------------------------------------------------------------------
 
-; what uniq actually compares: the line past -f fields and -s chars,
-; cut to -w, folded when -i asks
+; What uniq compares a line by, made once from the options: the line past -f
+; fields and -s chars, cut to -w, folded when -i asks.  The options are read
+; here and not per line -- each read costs thousands of objects, and nothing
+; is collected while an applet runs.
 (def %uniq-key
-  (fn (_ line o)
+  (fn (_ o)
     (def skip-f (let ((v (Opts value o "-f")))
                   (if (null? v) 0 (%cu-num-prefix v))))
     (def skip-s (let ((v (Opts value o "-s")))
                   (if (null? v) 0 (%cu-num-prefix v))))
     (def width (let ((v (Opts value o "-w")))
                  (if (null? v) (- 0 1) (%cu-num-prefix v))))
-    (def after-fields
-      (if (= skip-f 0) line
-        (let ((fs (%cu-words-line line)))
-          (%cu-join-with
-            (let ((go (fn (self xs i acc)
-                        (if (null? xs) (reverse acc)
-                          (self (rest xs) (+ i 1)
-                            (if (> i skip-f) (pair (first xs) acc) acc))))))
-              (go fs 1 ()))
-            " "))))
-    (def end (byte-len after-fields))
-    (def from (if (> skip-s end) end skip-s))
-    (def cut (substring after-fields from end))
-    (def sized (if (< width 0) cut
-                 (if (> width (byte-len cut)) cut (substring cut 0 width))))
-    (if (Opts on? o "-i") (%sort-fold sized) sized)))
+    (def fold? (Opts on? o "-i"))
+    (fn (_ line)
+      (def after-fields
+        (if (= skip-f 0) line
+          (let ((fs (%cu-words-line line)))
+            (%cu-join-with
+              (let ((go (fn (self xs i acc)
+                          (if (null? xs) (reverse acc)
+                            (self (rest xs) (+ i 1)
+                              (if (> i skip-f) (pair (first xs) acc) acc))))))
+                (go fs 1 ()))
+              " "))))
+      (def end (byte-len after-fields))
+      (def from (if (> skip-s end) end skip-s))
+      (def cut (if (= from 0) after-fields (substring after-fields from end)))
+      (def sized (if (< width 0) cut
+                   (if (> width (byte-len cut)) cut (substring cut 0 width))))
+      (if fold? (%sort-fold sized) sized))))
 
 ; -d prints only what repeated, -u only what did not; neither is both
 (def %uniq-show?
-  (fn (_ n o)
-    (if (Opts on? o "-d") (> n 1)
-      (if (Opts on? o "-u") (= n 1) #t))))
+  (fn (_ n dups? singles?)
+    (if dups? (> n 1)
+      (if singles? (= n 1) #t))))
 
 ; uniq [IN [OUT]]: IN, or standard input where there is none or it is `-`, and
 ; OUT, or standard output likewise.  A third operand is refused before anything
@@ -89,9 +93,12 @@
 (def %uniq-runs
   (fn (_ o lines fd)
     (def count? (Opts on? o "-c"))
+    (def dups? (Opts on? o "-d"))
+    (def singles? (Opts on? o "-u"))
+    (def key-of (%uniq-key o))
     (def emit
       (fn (_ n line)
-        (if (not (%uniq-show? n o)) ()
+        (if (not (%uniq-show? n dups? singles?)) ()
           (file-write fd
             (if count?
               (string-concat
@@ -101,7 +108,7 @@
       (fn (self ls cur key n)
         (if (null? ls)
           (if (null? cur) () (emit n cur))
-          (let ((k (%uniq-key (first ls) o)))
+          (let ((k (key-of (first ls))))
             (if (if (null? cur) #f (string=? k key))
               (self (rest ls) cur key (+ n 1))
               (do (if (null? cur) () (emit n cur))
@@ -110,24 +117,25 @@
 
 ; --- nl -----------------------------------------------------------------------
 
-; -b a numbers every line, t only the non-empty (the default), n none
+; Which lines -b numbers, chosen once from its STYLE: a every line, t only the
+; non-empty (the default), n none.  nl reads its options once, not per line --
+; each read costs thousands of objects, and nothing is collected while an
+; applet runs.
 (def %nl-number?
-  (fn (_ line o)
-    (def style (let ((v (Opts value o "-b"))) (if (null? v) "t" v)))
-    (if (string=? style "a") #t
-      (if (string=? style "n") #f
-        (> (byte-len line) 0)))))
+  (fn (_ style)
+    (match
+      ((string=? style "a") (fn (_ line) #t))
+      ((string=? style "n") (fn (_ line) #f))
+      (#t (fn (_ line) (> (byte-len line) 0))))))
 
-; -n ln left, rn right (the default), rz right with zeros
+; How -n lays a number out in WIDTH columns, chosen once from its STYLE: ln
+; left, rn right (the default), rz right with zeros
 (def %nl-format
-  (fn (_ n o)
-    (def width (let ((v (Opts value o "-w")))
-                 (if (null? v) 6 (%cu-num-prefix v))))
-    (def style (let ((v (Opts value o "-n"))) (if (null? v) "rn" v)))
-    (def s (%cu-int->str n))
-    (if (string=? style "ln") (%cu-pad s width #t)
-      (if (string=? style "rz") (%cu-pad-zero s width)
-        (%cu-pad-left s width)))))
+  (fn (_ style width)
+    (match
+      ((string=? style "ln") (fn (_ n) (%cu-pad (%cu-int->str n) width #t)))
+      ((string=? style "rz") (fn (_ n) (%cu-pad-zero (%cu-int->str n) width)))
+      (#t (fn (_ n) (%cu-pad-left (%cu-int->str n) width))))))
 
 (def %cu-nl
   (fn (_ argv stdin-thunk)
@@ -139,6 +147,8 @@
                 (if (null? v) 1 (%cu-num-prefix v))))
     (def width (let ((v (Opts value o "-w")))
                  (if (null? v) 6 (%cu-num-prefix v))))
+    (def numbered? (%nl-number? (let ((v (Opts value o "-b"))) (if (null? v) "t" v))))
+    (def layout (%nl-format (let ((v (Opts value o "-n"))) (if (null? v) "rn" v)) width))
     (def ops (Opts operands o))
     (def blank (let ((go (fn (self k acc)
                            (if (<= k 0) acc (self (- k 1) (string-append " " acc))))))
@@ -146,10 +156,10 @@
     (def go
       (fn (self ls n)
         (if (null? ls) 0
-          (if (%nl-number? (first ls) o)
+          (if (numbered? (first ls))
             (do (display
                   (string-concat
-                    (list (%nl-format n o) sep (first ls) "\n")))
+                    (list (layout n) sep (first ls) "\n")))
                 (self (rest ls) (+ n step)))
             (do (display (string-concat (list blank sep (first ls) "\n")))
                 (self (rest ls) n))))))
