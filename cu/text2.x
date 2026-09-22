@@ -140,7 +140,9 @@
     (if (null? argv)
       (do (file-write 2 "printf: need a format\n") 1)
       ; Parsed once, walked per argument group: printf repeats its format
-      ; until the arguments run out.
+      ; until the arguments run out.  A pass that read none of them would
+      ; read none on the next, so what is left is named, once, and printf
+      ; still succeeds.
       (let ((toks (%cu-fmt-parse (first argv) #t)))
         (def go
           (fn (self as)
@@ -154,6 +156,12 @@
                                 ": invalid conversion specification\n")))
                       1))
                 ((if (first r) (pair? (%cu-nth 1 r)) #f) (self (%cu-nth 1 r)))
+                ((pair? (%cu-nth 1 r))
+                  (do (file-write 2
+                        (string-concat
+                          (list "printf: warning: ignoring excess arguments, "
+                                "starting with '" (first (%cu-nth 1 r)) "'\n")))
+                      0))
                 (#t 0)))))
         (go (rest argv))))))
 
