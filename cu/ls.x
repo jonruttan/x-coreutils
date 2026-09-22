@@ -16,8 +16,7 @@
 ; -s -h -F -p).  The stat is lstat unless -L (or -H, for operands)
 ; asks to follow the link, so a link prints as itself, with its target.
 ;
-; Divergences, loud: uid and gid print as NUMBERS (no passwd door, so
-; -n and -l are the same line), and the date column is UTC.
+; Divergence, loud: the date column is UTC.
 
 ; ls reads its options off the record cu/cli.x's declaration produced;
 ; the listing walk carries that record, not o, so a -R descent
@@ -204,7 +203,46 @@
     (if (%ls-flag? o "-h") (%ls-human (%ls-get e (lit size)))
       (%cu-int->str (%ls-get e (lit size))))))
 
-; the widths a listing's long lines share, so the columns line up
+; An owner or group as a long line shows it, (NAME? . TEXT): under -l the
+; system's name, or the id where the system has none; under -n the id.  A
+; name is left-aligned in its column and an id right-aligned, as ls lays them
+; out.  Each id is looked up once in a run -- a listing's entries share few.
+(def %ls-user-cell (list ()))
+(def %ls-group-cell (list ()))
+
+(def %ls-id-text
+  (fn (_ id numeric? cell look)
+    (let ((n (if numeric? () (%ls-memo-name cell id look))))
+      (if (null? n) (pair #f (%cu-int->str id)) (pair #t n)))))
+
+(def %ls-memo-name
+  (fn (_ cell id look)
+    (let ((hit (%ls-id-assoc id (first cell))))
+      (if (pair? hit) (rest hit)
+        (let ((n (look id)))
+          (do (set-first! cell (pair (pair id n) (first cell))) n))))))
+
+(def %ls-id-assoc
+  (fn (self id al)
+    (match
+      ((null? al) ())
+      ((= (first (first al)) id) (first al))
+      (#t (self id (rest al))))))
+
+(def %ls-owner
+  (fn (_ e numeric?)
+    (%ls-id-text (%ls-get e (lit uid)) numeric? %ls-user-cell sys-user-name)))
+
+(def %ls-group
+  (fn (_ e numeric?)
+    (%ls-id-text (%ls-get e (lit gid)) numeric? %ls-group-cell sys-group-name)))
+
+(def %ls-id-column
+  (fn (_ t w) (if (first t) (%cu-pad-right (rest t) w) (%cu-pad-left (rest t) w))))
+
+; the widths a listing's long lines share, so the columns line up, and whether
+; the owner and group are shown as ids (-n); the owner and group are looked up
+; only for a long listing
 (def %ls-widths
   (fn (_ es o)
     (def w (fn (_ f) (let ((go (fn (self xs m)
@@ -212,12 +250,15 @@
                                    (let ((n (byte-len (f (first xs)))))
                                      (self (rest xs) (if (> n m) n m)))))))
                        (go es 0))))
+    (def numeric? (%ls-flag? o "-n"))
+    (def long? (if numeric? #t (%ls-flag? o "-l")))
     (list (w (fn (_ e) (%cu-int->str (%ls-get e (lit nlink)))))
-          (w (fn (_ e) (%cu-int->str (%ls-get e (lit uid)))))
-          (w (fn (_ e) (%cu-int->str (%ls-get e (lit gid)))))
+          (if long? (w (fn (_ e) (rest (%ls-owner e numeric?)))) 0)
+          (if long? (w (fn (_ e) (rest (%ls-group e numeric?)))) 0)
           (w (fn (_ e) (%ls-size-str e o)))
           (w (fn (_ e) (%cu-int->str (%ls-get e (lit ino)))))
-          (w (fn (_ e) (%cu-int->str (%cu-du-blocks (%ls-st e))))))))
+          (w (fn (_ e) (%cu-int->str (%cu-du-blocks (%ls-st e)))))
+          numeric?)))
 
 ; one entry as it is listed, without its newline: the cell a column
 ; layout arranges, or the line the plain listing prints
@@ -236,8 +277,8 @@
           (string-concat
             (list (%cu-perm-string (%ls-get e (lit kind)) (%ls-get e (lit mode))) " "
                   (%cu-pad-left (%cu-int->str (%ls-get e (lit nlink))) (%cu-nth 0 ws)) " "
-                  (%cu-pad-left (%cu-int->str (%ls-get e (lit uid))) (%cu-nth 1 ws)) " "
-                  (%cu-pad-left (%cu-int->str (%ls-get e (lit gid))) (%cu-nth 2 ws)) " "
+                  (%ls-id-column (%ls-owner e (%cu-nth 6 ws)) (%cu-nth 1 ws)) " "
+                  (%ls-id-column (%ls-group e (%cu-nth 6 ws)) (%cu-nth 2 ws)) " "
                   (%cu-pad-left (%ls-size-str e o) (%cu-nth 3 ws)) " "
                   (%ls-date (%ls-get e (%ls-time-key o)) now) " "
                   name
