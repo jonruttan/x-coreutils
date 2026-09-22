@@ -8,31 +8,14 @@
 ;
 ; id whoami groups logname uname arch nproc nice chroot.
 ;
-; The name problem: there is no passwd or group door, so nothing here turns uid
-; 501 into "jon". /etc/passwd is read when it holds the id (true on Linux, and
-; for system accounts on macOS), and $USER or $LOGNAME stands in otherwise; the
-; numeric id is the last resort and is never wrong. `id -u` and friends need no
-; name at all.
+; A uid's name is the system's, from sys-user-name (cu/prims.x); where the
+; system has none, $USER or $LOGNAME stands in, and the numeric id is the last
+; resort.  `id -u` and friends need no name at all.
 
-(def %cu-passwd-name
-  (fn (_ uid)
-    (def want (%cu-int->str uid))
-    (def go
-      (fn (self ls)
-        (if (null? ls) ()
-          (let ((fs (%cu-split-byte (first ls) 58)))               ; :
-            (if (< (length fs) 3) (self (rest ls))
-              (if (string=? (%cu-nth 2 fs) want) (first fs)
-                (self (rest ls))))))))
-    (if (file-exists? "/etc/passwd")
-      (go (%cu-lines (file-read-all "/etc/passwd")))
-      ())))
-
-; the name for a uid: the passwd file, then the environment, then the
-; number itself
+; the name for a uid: the system's, then the environment, then the number itself
 (def %cu-user-name
   (fn (_ uid)
-    (let ((p (%cu-passwd-name uid)))
+    (let ((p (sys-user-name uid)))
       (if (not (null? p)) p
         (let ((u (sys-getenv "USER")))
           (if (not (null? u)) u

@@ -95,6 +95,14 @@
     (if os-darwin? (bit-and dev 16777215)
       (+ (bit-and dev 255) (bit-and (bit-shr dev 12) 4294967040)))))
 
+; the name stat shows for an owner or a group, or UNKNOWN where the system has
+; none, as stat says it
+(def %cu-stat-user
+  (fn (_ uid) (let ((n (sys-user-name uid))) (if (null? n) "UNKNOWN" n))))
+
+(def %cu-stat-group
+  (fn (_ gid) (let ((n (sys-group-name gid))) (if (null? n) "UNKNOWN" n))))
+
 ; -c FMT: the GNU specifiers busybox carries. Anything else is copied through,
 ; so a format is never silently eaten.
 (def %cu-stat-spec
@@ -112,7 +120,9 @@
       ((= c 97)  (%cu-mode-octal mode))         ; a
       ((= c 65)  (%cu-perm-string kind mode))   ; A
       ((= c 117) (num (lit uid)))               ; u
+      ((= c 85)  (%cu-stat-user (%cu-stat-get st (lit uid))))    ; U
       ((= c 103) (num (lit gid)))               ; g
+      ((= c 71)  (%cu-stat-group (%cu-stat-get st (lit gid))))   ; G
       ((= c 104) (num (lit nlink)))             ; h
       ((= c 105) (num (lit ino)))               ; i
       ((= c 100) (num (lit dev)))               ; d
@@ -172,15 +182,16 @@
     (go (%cu-fmt-parse fmt #f) ())))
 
 ; the default block, as stat lays it out: the device as major,minor,
-; the inode padded to ten, a device's own type after its link count.
-; The user and group are NUMERIC: there is no passwd door, so the name
-; column real stat(1) prints is not available.
+; the inode padded to ten, a device's own type after its link count, and
+; the owner and group as their ids in five columns and names in eight.
 (def %cu-stat-default
   (fn (_ name st)
     (def kind (%cu-stat-get st (lit kind)))
     (def mode (%cu-stat-get st (lit mode)))
     (def dev (%cu-stat-get st (lit dev)))
     (def rdev (%cu-stat-get st (lit rdev)))
+    (def uid (%cu-stat-get st (lit uid)))
+    (def gid (%cu-stat-get st (lit gid)))
     (def nlink (%cu-int->str (%cu-stat-get st (lit nlink))))
     (def device? (if (eq? kind (lit char)) #t (eq? kind (lit block))))
     (string-concat
@@ -203,8 +214,10 @@
             "\n"
             "Access: (" (%cu-mode-octal4 mode) "/"
             (%cu-perm-string kind mode) ")  Uid: ("
-            (%cu-int->str (%cu-stat-get st (lit uid))) ")   Gid: ("
-            (%cu-int->str (%cu-stat-get st (lit gid))) ")\n"))))
+            (%cu-pad-left (%cu-int->str uid) 5) "/"
+            (%cu-pad-left (%cu-stat-user uid) 8) ")   Gid: ("
+            (%cu-pad-left (%cu-int->str gid) 5) "/"
+            (%cu-pad-left (%cu-stat-group gid) 8) ")\n"))))
 
 ; the filesystem block under -f, in stat -f's column widths
 (def %cu-stat-fs-default

@@ -41,6 +41,7 @@
   sys-getcwd sys-environ sys-getenv sys-setenv sys-unsetenv sys-sleep sys-umask
   date-now-iso date-now-unix rng-make rng-int
   sys-getuid sys-geteuid sys-getgid sys-getegid sys-getgroups
+  sys-user-name sys-group-name
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   cu-stdin! cu-stdin-to-command!)
 
@@ -230,6 +231,31 @@
       (if (null? f) 0
         (let ((old (%cu-ptr-call f 0)))
           (do (%cu-ptr-call f old) old))))))
+
+; The name for a user or group id, or nil where the system has none: getpwuid's
+; pw_name and getgrgid's gr_name, the first field of their structs on Darwin
+; and Linux alike.  There is no passwd door on Sys, so both are reached through
+; the FFI, as the umask is.
+(def %cu-ptr-word (prim-ref (lit ptr) (lit ref-word)))
+(def %cu-ptr->str (prim-ref (lit ptr) (lit ->str)))
+(def %cu-int->ptr (prim-ref (lit int) (lit ->ptr)))
+(def %cu-getpwuid-cell (list ()))
+(def %cu-getgrgid-cell (list ()))
+
+(def %cu-id-name
+  (fn (_ cell sym id)
+    (do (if (null? (first cell))
+          (set-first! cell (list (%cu-dlsym (%cu-dlopen () 1) sym)))
+          ())
+        (let ((f (first (first cell))))
+          (if (null? f) ()
+            (let ((r (%cu-ptr-call f id)))
+              (if (= r 0) ()
+                (%cu-ptr->str
+                  (%cu-int->ptr (%cu-ptr-word (%cu-int->ptr r) 0))))))))))
+
+(def sys-user-name (fn (_ uid) (%cu-id-name %cu-getpwuid-cell "getpwuid" uid)))
+(def sys-group-name (fn (_ gid) (%cu-id-name %cu-getgrgid-cell "getgrgid" gid)))
 
 (def sys-setenv (fn (_ n v) (Sys setenv n v)))
 (def sys-unsetenv (fn (_ n) (Sys unsetenv n)))
