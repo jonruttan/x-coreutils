@@ -122,9 +122,11 @@
 ; The option declaration. One row per applet: the flags that stand alone, the
 ; flags that take an argument, and -- for an applet whose operands can look like
 ; flags -- a word for how far the options go: `leading` stops the parse at the
-; first operand, so `echo hi -n` prints `hi -n` and `timeout 5 prog -x` leaves
-; -x to prog; `none` says there are no options at all, so `printf -x` prints
-; -x, and only a first -- is dropped.
+; first operand, so `timeout 5 prog -x` leaves -x to prog; `known` stops it at
+; the first word that is not a cluster of the flags, and keeps that word, so
+; `echo -x` and `echo -- a` print their words, as echo reads them; `none` says
+; there are no options at all, so `printf -x` prints -x, and only a first -- is
+; dropped.
 ;
 ; The guard and the applet read the same row (both through %cu-opts), so a flag
 ; that is accepted but never read is unspellable rather than a bug to find. An
@@ -188,7 +190,7 @@
     (pair "mkdir" (list (list "-p") (list "-m")))
     (pair "rmdir" (list (list "-p") ()))
     (pair "ln" (list (list "-s" "-f" "-n" "-b" "-v") (list "-t")))
-    (pair "echo" (list (list "-n" "-e" "-E") () (lit leading)))
+    (pair "echo" (list (list "-n" "-e" "-E") () (lit known)))
     (pair "basename" (list () (list "-s")))
     (pair "fold" (list (list "-b" "-s") (list "-w")))
     (pair "paste" (list (list "-s") (list "-d")))
@@ -271,6 +273,13 @@
                 (if (null? (rest (rest spec))) () (first (rest (rest spec))))))
     (match
       ((eq? mode (lit leading)) (Opts parse-leading flags values argv))
+      ; options up to the first word that is not a cluster of the flags; each
+      ; letter reaches the parse as a word of its own, so the flags are listed
+      ; in the order given (the parse reverses a cluster's), and the rest come
+      ; behind a -- of its own
+      ((eq? mode (lit known))
+        (let ((split (%cu-known-flags flags argv ())))
+          (Opts parse flags values (append (first split) (pair "--" (rest split))))))
       ; no options at all: a first -- goes, as getopt's would, and the rest
       ; reach the parse behind a -- of its own, so each is an operand
       ((eq? mode (lit none))
@@ -278,6 +287,28 @@
           (pair "--" (if (if (pair? argv) (string=? (first argv) "--") #f)
                        (rest argv) argv))))
       (#t (Opts parse flags values argv)))))
+
+; The leading words of ARGV that are clusters of FLAGS, and the words from the
+; first that is not one: (LETTERS . REST), each letter a flag word of its own,
+; in the order given.  A --, a lone - or a -x ends the run and is kept.
+(def %cu-known-flags
+  (fn (self flags argv acc)
+    (def ls (if (null? argv) () (%cu-flag-letters flags (first argv))))
+    (if (null? ls)
+      (pair (reverse acc) argv)
+      (self flags (rest argv) (append (reverse ls) acc)))))
+
+; WORD's letters as the flags they spell, in order, where WORD is a - and one
+; or more letters, each one of FLAGS; nil where it is anything else
+(def %cu-flag-letters
+  (fn (_ flags word)
+    (def n (byte-len word))
+    (def go
+      (fn (self i acc)
+        (if (= i n) (reverse acc)
+          (let ((f (bytes->str (list 45 (byte-at word i)))))
+            (if (%cu-member-s? f flags) (self (+ i 1) (pair f acc)) ())))))
+    (if (= (byte-at word 0) 45) (go 1 ()) ())))
 
 ; An applet that declares no flags reads no options, only operands: the parse
 ; hands it those, so the -- that ends the options is gone before it looks.

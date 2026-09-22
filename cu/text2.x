@@ -12,9 +12,11 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "echo" argv))
     (def n? (Opts on? o "-n"))
-    ; -E turns escapes off and is the default; it exists so a caller can
-    ; undo an -e that came earlier on the same line.
-    (def e? (if (Opts on? o "-E") #f (Opts on? o "-e")))
+    ; -e reads the escapes and -E, the default, leaves them; the one given last
+    ; wins, so each undoes the other before it, in a cluster as well: echo's
+    ; row is `known`, which hands the parse a cluster letter by letter
+    (def v (%cu-last-given o (list "-e" "-E")))
+    (def e? (if (null? v) #f (string=? v "-e")))
     (def ops (Opts operands o))
     ; the escapes are cu/fmt-lex.x's, read as echo's manual spells them; a \c
     ; ends the output, newline and all
