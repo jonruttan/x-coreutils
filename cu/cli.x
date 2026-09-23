@@ -361,6 +361,24 @@
               (list applet ": missing operand after '" (%cu-last ops) "'\n"))))
         1)))
 
+; An operand past the last an applet takes, in GNU's words: `extra operand
+; 'OP'`, OP the first of them.  Answers 1.
+(def %cu-extra-operand
+  (fn (_ applet op)
+    (do (file-write 2 (string-concat (list applet ": extra operand '" op "'\n")))
+        1)))
+
+; THUNK's answer where OPS number LO to HI, HI nil for no limit; otherwise the
+; refusal, in GNU's words: too few is %cu-missing-operand's, and too many
+; names the first past HI.
+(def %cu-operands
+  (fn (_ applet ops lo hi thunk)
+    (let ((n (length ops)))
+      (match
+        ((< n lo) (%cu-missing-operand applet ops))
+        ((if (null? hi) #f (> n hi)) (%cu-extra-operand applet (%cu-nth hi ops)))
+        (#t (thunk))))))
+
 (def cu-run
   (fn (_ argv input)
     (if (null? argv)

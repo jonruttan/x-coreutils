@@ -24,15 +24,18 @@
 
 (def %cu-whoami
   (fn (_ argv stdin-thunk)
-    (do (display (string-append (%cu-user-name (sys-geteuid)) "\n")) 0)))
+    (%cu-operands "whoami" argv 0 0
+      (fn (_) (do (display (string-append (%cu-user-name (sys-geteuid)) "\n")) 0)))))
 
 ; logname is the LOGIN name -- the real uid, not the effective one
 (def %cu-logname
   (fn (_ argv stdin-thunk)
-    (let ((l (sys-getenv "LOGNAME")))
-      (do (display
-            (string-append (if (null? l) (%cu-user-name (sys-getuid)) l) "\n"))
-          0))))
+    (%cu-operands "logname" argv 0 0
+      (fn (_)
+        (let ((l (sys-getenv "LOGNAME")))
+          (do (display
+                (string-append (if (null? l) (%cu-user-name (sys-getuid)) l) "\n"))
+              0))))))
 
 ; --- whom id and groups describe ----------------------------------------------
 
@@ -208,6 +211,10 @@
 (def %cu-uname
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "uname" argv))
+    (%cu-operands "uname" (Opts operands o) 0 0 (fn (_) (%cu-uname-run o)))))
+
+(def %cu-uname-run
+  (fn (_ o)
     (def u (sys-uname))
     (def a? (Opts on? o "-a"))
     (def want
@@ -235,11 +242,14 @@
             "\n"))
         0)))
 
+; arch is GNU's uname.c built another way, and refuses an operand as uname does
 (def %cu-arch
   (fn (_ argv stdin-thunk)
-    (do (display
-          (string-append (%cu-uname-field (sys-uname) (lit machine)) "\n"))
-        0)))
+    (%cu-operands "arch" argv 0 0
+      (fn (_)
+        (do (display
+              (string-append (%cu-uname-field (sys-uname) (lit machine)) "\n"))
+            0)))))
 
 ; nproc: the processors this process may use, which the OpenMP variables
 ; narrow.  OMP_NUM_THREADS, when it holds a count, is the answer -- even above
@@ -281,6 +291,10 @@
 (def %cu-nproc
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "nproc" argv))
+    (%cu-operands "nproc" (Opts operands o) 0 0 (fn (_) (%cu-nproc-run o)))))
+
+(def %cu-nproc-run
+  (fn (_ o)
     (def cpus (sys-cpu-count))
     (def limit (%cu-omp-count (sys-getenv "OMP_THREAD_LIMIT")))
     (def threads (%cu-omp-count (sys-getenv "OMP_NUM_THREADS")))

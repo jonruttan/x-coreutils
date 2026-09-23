@@ -196,10 +196,23 @@
     (def sq? (Opts on? o "-s"))
     (def args (Opts operands o))
     ; translating wants two SETs, and so does deleting while squeezing;
-    ; deleting or squeezing alone wants one
-    (if (< (length args) (if del? (if sq? 2 1) (if sq? 1 2)))
-      (%cu-tr-few args sq?)
-      (%cu-tr-classes o del? args stdin-thunk))))
+    ; deleting or squeezing alone wants one, and deleting alone takes no more
+    (def most (if del? (if sq? 2 1) 2))
+    (match
+      ((< (length args) (if del? (if sq? 2 1) (if sq? 1 2))) (%cu-tr-few args sq?))
+      ((> (length args) most) (%cu-tr-many args most))
+      (#t (%cu-tr-classes o del? args stdin-thunk)))))
+
+; too many SETs, in GNU's words: the first past MOST is named, and where a
+; delete was given two, a second line says it takes one
+(def %cu-tr-many
+  (fn (_ args most)
+    (do (%cu-extra-operand "tr" (%cu-nth most args))
+        (if (= (length args) 2)
+          (file-write 2
+            "Only one string may be given when deleting without squeezing repeats.\n")
+          ())
+        1)))
 
 ; too few SETs, in GNU's words; where one was given, a second line says why
 ; another is wanted

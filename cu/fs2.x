@@ -135,7 +135,11 @@
           ((not (= (byte-at p 0) 47)) here)
           ((string=? (%cu-realpath-of p) here) p)
           (#t here))))
-    (do (display (string-append shown "\n")) 0)))
+    ; an operand is said and passed over, as GNU's pwd does
+    (do (if (null? (Opts operands o)) ()
+          (file-write 2 "pwd: ignoring non-option arguments\n"))
+        (display (string-append shown "\n"))
+        0)))
 
 ; mv moved to cu/fs.x with busybox's option set (-f -i -n -T).
 
@@ -223,9 +227,17 @@
 ; loop, alnum from the PRNG seeded by the clock
 ; -d makes a directory, -p DIR / -t place the template under a
 ; directory, -u prints a name without creating it, -q keeps quiet
+;
+; One TEMPLATE at most; a second is refused in GNU's words.
 (def %cu-mktemp
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "mktemp" argv))
+    (if (> (length (Opts operands o)) 1)
+      (do (file-write 2 "mktemp: too many templates\n") 1)
+      (%cu-mktemp-run o))))
+
+(def %cu-mktemp-run
+  (fn (_ o)
     (def ops (Opts operands o))
     (def dir? (Opts on? o "-d"))
     (def dry? (Opts on? o "-u"))
@@ -287,15 +299,16 @@
 ; -l lists every differing byte and keeps going; without it cmp stops at the
 ; first difference and names where it was. -n bounds how far either is read.
 ;
-; Both files are needed.  There is no GNU build here to measure; BSD's refuses
-; with fewer with a usage line and 2, cmp's trouble, and so does this one,
-; naming its own options.
+; Two files, no fewer and no more.  There is no GNU build here to measure;
+; BSD's refuses a wrong count with a usage line and 2, cmp's trouble, and so
+; does this one, naming its own options.  BSD reads two byte offsets after the
+; files; they are not read here, so they are refused rather than ignored.
 (def %cu-cmp
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "cmp" argv))
-    (if (< (length (Opts operands o)) 2)
-      (do (file-write 2 "cmp: usage: cmp [-ls] [-n N] FILE1 FILE2\n") 2)
-      (%cu-cmp-run o stdin-thunk))))
+    (if (= (length (Opts operands o)) 2)
+      (%cu-cmp-run o stdin-thunk)
+      (do (file-write 2 "cmp: usage: cmp [-ls] [-n N] FILE1 FILE2\n") 2))))
 
 (def %cu-cmp-run
   (fn (_ o stdin-thunk)

@@ -175,8 +175,7 @@
 (def %cu-seq
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "seq" argv))
-    (if (null? (Opts operands o)) (%cu-missing-operand "seq" ())
-      (%cu-seq-run o))))
+    (%cu-operands "seq" (Opts operands o) 1 3 (fn (_) (%cu-seq-run o)))))
 
 (def %cu-seq-run
   (fn (_ o)

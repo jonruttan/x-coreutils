@@ -250,9 +250,15 @@
   (fn (_ prefix n width text)
     (file-write-all (string-append prefix (%cu-split-suffix n width)) text)))
 
+; split [FILE [PREFIX]]: a third operand is refused
 (def %cu-split
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "split" argv))
+    (%cu-operands "split" (Opts operands o) 0 2
+      (fn (_) (%cu-split-run o stdin-thunk)))))
+
+(def %cu-split-run
+  (fn (_ o stdin-thunk)
     (def bv (Opts value o "-b"))
     (def lv (Opts value o "-l"))
     (def width
@@ -343,9 +349,20 @@
     (if (if (<= k 0) #t (null? l)) ()
       (pair (first l) (self (rest l) (- k 1))))))
 
+; With -e the operands are what is shuffled, as many as are given; -i shuffles
+; a range and takes none; otherwise there is one FILE at most.
 (def %cu-shuf
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "shuf" argv))
+    (%cu-operands "shuf" (Opts operands o) 0
+      (match
+        ((Opts on? o "-e") ())
+        ((not (null? (Opts value o "-i"))) 0)
+        (#t 1))
+      (fn (_) (%cu-shuf-run o stdin-thunk)))))
+
+(def %cu-shuf-run
+  (fn (_ o stdin-thunk)
     (def nv (Opts value o "-n"))
     (def count (if (null? nv) 0 (%cu-num-prefix nv)))
     (def echo? (Opts on? o "-e"))
@@ -484,6 +501,11 @@
 (def %cu-base64
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "base64" argv))
+    (%cu-operands "base64" (Opts operands o) 0 1
+      (fn (_) (%cu-base64-run o stdin-thunk)))))
+
+(def %cu-base64-run
+  (fn (_ o stdin-thunk)
     (def d? (Opts on? o "-d"))
     (def g (%cu-gather-said (Opts operands o) stdin-thunk
              (%cu-read-error "base64") #f))
