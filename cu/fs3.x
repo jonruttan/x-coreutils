@@ -856,14 +856,17 @@
 ; -s answers with the status alone.  The name is not discoverable through
 ; the doors this bundle has -- ttyname(3) is not among them -- so the
 ; reporting form names the controlling terminal generically.
+; An operand is refused with 2, the status tty keeps for a usage error.
 (def %cu-tty
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "tty" argv))
     (def quiet? (Opts on? o "-s"))
+    (def ops (Opts operands o))
     (def say (fn (_ s) (if quiet? () (display s))))
-    (if (sys-isatty 0)
-      (do (say "/dev/tty\n") 0)
-      (do (say "not a tty\n") 1))))
+    (match
+      ((pair? ops) (do (%cu-extra-operand "tty" (first ops)) 2))
+      ((sys-isatty 0) (do (say "/dev/tty\n") 0))
+      (#t (do (say "not a tty\n") 1)))))
 
 (def %cu-nohup
   (fn (_ argv stdin-thunk)

@@ -345,6 +345,10 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "date" argv))
     (def ops (Opts operands o))
+    (%cu-operands "date" ops 0 1 (fn (_) (%cu-date-run o ops)))))
+
+(def %cu-date-run
+  (fn (_ o ops)
     (def rfile (Opts value o "-r"))
     (def dspec (Opts value o "-d"))
     ; A -d that will not parse is an error, not a fall back to now; the two

@@ -956,8 +956,7 @@
 (def %cu-comm
   (fn (_ argv stdin-thunk)
     (def ops (filter (fn (_ a) (not (%cu-option-token-ish? a))) argv))
-    (if (< (length ops) 2) (%cu-missing-operand "comm" ops)
-      (%cu-comm-run argv ops stdin-thunk))))
+    (%cu-operands "comm" ops 2 2 (fn (_) (%cu-comm-run argv ops stdin-thunk)))))
 
 (def %cu-comm-run
   (fn (_ argv ops stdin-thunk)
@@ -1046,9 +1045,8 @@
 (def %cu-join
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "join" argv))
-    (def ops (Opts operands o))
-    (if (< (length ops) 2) (%cu-missing-operand "join" ops)
-      (%cu-join-run o stdin-thunk))))
+    (%cu-operands "join" (Opts operands o) 2 2
+      (fn (_) (%cu-join-run o stdin-thunk)))))
 
 (def %cu-join-run
   (fn (_ o stdin-thunk)
@@ -1120,17 +1118,25 @@
           (string-append sep (self (rest ws) sep)))))))
 
 ; The suffix is either -s SUFFIX or a second operand; busybox takes both
-; spellings and they mean the same thing.
+; spellings and they mean the same thing.  -s takes it off every NAME given,
+; as many as there are; without it there is one NAME, and a third operand is
+; refused.
 (def %cu-basename
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "basename" argv))
-    (if (null? (Opts operands o)) (%cu-missing-operand "basename" ())
-      (%cu-basename-run o))))
-
-(def %cu-basename-run
-  (fn (_ o)
     (def ops (Opts operands o))
-    (def p (first ops))
+    (def suf (Opts value o "-s"))
+    (%cu-operands "basename" ops 1 (if (null? suf) 2 ())
+      (fn (_)
+        (if (null? suf)
+          (%cu-basename-put (first ops)
+            (if (null? (rest ops)) () (first (rest ops))))
+          (%cu-walk-worst ops (fn (_ p) (%cu-basename-put p suf)) 0))))))
+
+; P's last name on a line, SUF taken off its end where SUF is given and is not
+; the whole of it
+(def %cu-basename-put
+  (fn (_ p suf)
     (def stripped
       (let ((go (fn (self e)
                   (if (if (> e 1) (= (byte-at p (- e 1)) 47) #f)
@@ -1145,12 +1151,6 @@
         (go 0 (- 0 1))))
     (def base (if (< slash 0) stripped
                 (substring stripped (+ slash 1) (byte-len stripped))))
-    (def suf
-      (let ((v (Opts value o "-s")))
-        (match
-          ((not (null? v)) v)
-          ((null? (rest ops)) ())
-          (#t (first (rest ops))))))
     (def final
       (if (null? suf) base
         (let ((lb (byte-len base)) (ls (byte-len suf)))

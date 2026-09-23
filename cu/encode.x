@@ -264,15 +264,16 @@
                 acc))))))
     (string-append (%cu-b->s (%cu-uu-char n)) (go from ()))))
 
-; The NAME the output carries is the operand uuencode cannot do without.
-; There is no GNU build here to measure; BSD's refuses without it with a usage
-; line and 1, and so does this one, naming its own options.
+; uuencode [FILE] NAME: one operand or two.  There is no GNU build here to
+; measure; BSD's refuses any other count with a usage line and 1, and so does
+; this one, naming its own options.
 (def %cu-uuencode
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "uuencode" argv))
-    (if (null? (Opts operands o))
-      (do (file-write 2 "uuencode: usage: uuencode [-m] [FILE] NAME\n") 1)
-      (%cu-uuencode-run o stdin-thunk))))
+    (def n (length (Opts operands o)))
+    (if (if (> n 0) (<= n 2) #f)
+      (%cu-uuencode-run o stdin-thunk)
+      (do (file-write 2 "uuencode: usage: uuencode [-m] [FILE] NAME\n") 1))))
 
 (def %cu-uuencode-run
   (fn (_ o stdin-thunk)
