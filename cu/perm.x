@@ -322,8 +322,7 @@
     (def o (%cu-opts "chmod" argv))
     (def ops (Opts operands o))
     (match
-      ((null? (rest ops))
-        (do (file-write 2 "chmod: need MODE and a path\n") 1))
+      ((< (length ops) 2) (%cu-missing-operand "chmod" ops))
       ((not (%cu-mode-valid? (first ops)))
         (do (file-write 2
               (string-concat
@@ -717,16 +716,14 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "chown" argv))
     (def ops (Opts operands o))
-    (if (null? (rest ops))
-      (do (file-write 2 "chown: need OWNER and a path\n") 1)
+    (if (< (length ops) 2) (%cu-missing-operand "chown" ops)
       (%cu-chown-run (%cu-chown-spec (first ops)) (rest ops) o "chown"))))
 
 (def %cu-chgrp
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "chgrp" argv))
     (def ops (Opts operands o))
-    (if (null? (rest ops))
-      (do (file-write 2 "chgrp: need GROUP and a path\n") 1)
+    (if (< (length ops) 2) (%cu-missing-operand "chgrp" ops)
       (%cu-chown-run (%cu-chgrp-spec (first ops)) (rest ops) o "chgrp"))))
 
 ; the spec's ids walked over the paths, or the complaint that refused the spec

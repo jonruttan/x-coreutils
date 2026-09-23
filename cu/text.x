@@ -955,6 +955,12 @@
 ; comm: three columns over two sorted inputs; -1 -2 -3 suppress
 (def %cu-comm
   (fn (_ argv stdin-thunk)
+    (def ops (filter (fn (_ a) (not (%cu-option-token-ish? a))) argv))
+    (if (< (length ops) 2) (%cu-missing-operand "comm" ops)
+      (%cu-comm-run argv ops stdin-thunk))))
+
+(def %cu-comm-run
+  (fn (_ argv ops stdin-thunk)
     ; comm's flags are digits, and v0.13.0's Opts decides `-12` is a negative
     ; number before consulting the declaration, so comm reads its three digits
     ; itself until x-lang#650 ships. Everything else comes off the one parse.
@@ -970,7 +976,6 @@
     (def s1 (not (digit? 49)))
     (def s2 (not (digit? 50)))
     (def s3 (not (digit? 51)))
-    (def ops (filter (fn (_ a) (not (%cu-option-token-ish? a))) argv))
     ; each file is opened and read in turn -- comm reads the first before it
     ; opens the second -- and the first that fails is said and ends it: comm
     ; prints nothing without its two inputs
@@ -1041,6 +1046,12 @@
 (def %cu-join
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "join" argv))
+    (def ops (Opts operands o))
+    (if (< (length ops) 2) (%cu-missing-operand "join" ops)
+      (%cu-join-run o stdin-thunk))))
+
+(def %cu-join-run
+  (fn (_ o stdin-thunk)
     (def delim (Opts value o "-t"))
     (def ops (Opts operands o))
     (def sep (if (null? delim) " " delim))
@@ -1113,6 +1124,11 @@
 (def %cu-basename
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "basename" argv))
+    (if (null? (Opts operands o)) (%cu-missing-operand "basename" ())
+      (%cu-basename-run o))))
+
+(def %cu-basename-run
+  (fn (_ o)
     (def ops (Opts operands o))
     (def p (first ops))
     (def stripped
@@ -1147,6 +1163,11 @@
 
 (def %cu-dirname
   (fn (_ argv stdin-thunk)
+    (if (null? argv) (%cu-missing-operand "dirname" argv)
+      (%cu-dirname-run argv))))
+
+(def %cu-dirname-run
+  (fn (_ argv)
     (def p (first argv))
     (def stripped
       (let ((go (fn (self e)

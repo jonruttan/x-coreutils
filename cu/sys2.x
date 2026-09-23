@@ -145,7 +145,8 @@
 
 (def %cu-sleep
   (fn (_ argv stdin-thunk)
-    (do (sys-sleep (%cu-num-prefix (first argv))) 0)))
+    (if (null? argv) (%cu-missing-operand "sleep" argv)
+      (do (sys-sleep (%cu-num-prefix (first argv))) 0))))
 
 ; date: ISO-8601 UTC by default (a recorded divergence from the locale
 ; format), +%s for unix seconds
