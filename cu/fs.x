@@ -64,8 +64,11 @@
             (if (< low 32) (string-append "^" (%cu-b->s (+ low 64)))
               (if (= low 127) "^?" (%cu-b->s low)))))))))
 
-(def %cat-render
-  (fn (_ s o)
+; What -v, -e, -t and -A make of a text, from the options read once: a
+; function of the text, or nil where none of them is given.  It maps each byte
+; on its own, so a text rendered a piece at a time comes out the same.
+(def %cat-renderer
+  (fn (_ o)
     (def v? (match
               ((Opts on? o "-A") #t)
               ((Opts on? o "-v") #t)
@@ -73,33 +76,36 @@
               (#t (Opts on? o "-t"))))
     (def e? (if (Opts on? o "-A") #t (Opts on? o "-e")))
     (def t? (if (Opts on? o "-A") #t (Opts on? o "-t")))
-    (if (if v? #f (if e? #f (not t?))) s
-      (let ((end (byte-len s)))
-        (def go
-          (fn (self i acc)
-            (if (>= i end) (string-concat (reverse acc))
-              (let ((b (byte-at s i)))
-                (self (+ i 1)
-                  (pair
-                    (match
-                      ((= b 10) (if e? "$\n" "\n"))
-                      ((= b 9) (if t? "^I" "\t"))
-                      (v? (%cat-visible b))
-                      (#t (%cu-b->s b)))
-                    acc))))))
-        (go 0 ())))))
+    (if (if v? #f (if e? #f (not t?))) ()
+      (fn (_ s)
+        (let ((end (byte-len s)))
+          (def go
+            (fn (self i acc)
+              (if (>= i end) (string-concat (reverse acc))
+                (let ((b (byte-at s i)))
+                  (self (+ i 1)
+                    (pair
+                      (match
+                        ((= b 10) (if e? "$\n" "\n"))
+                        ((= b 9) (if t? "^I" "\t"))
+                        (v? (%cat-visible b))
+                        (#t (%cu-b->s b)))
+                      acc))))))
+          (go 0 ()))))))
 
-; -n numbers every line, -b only the non-empty ones (and -b wins)
+; -n numbers every line, -b only the non-empty ones (and -b wins): the pieces
+; that go out, a numbered line to a piece, made in a pass that sweeps as it
+; goes.  Without either, the text is its one piece.
 (def %cat-number
   (fn (_ text o)
     (def b? (Opts on? o "-b"))
-    (if (if b? #f (not (Opts on? o "-n"))) text
+    (if (if b? #f (not (Opts on? o "-n"))) (list text)
       (let ((ls (%cu-lines text)))
         (def go
           (fn (self xs n acc)
-            (if (null? xs) (string-concat (reverse acc))
-              (let ((blank? (= (byte-len (first xs)) 0)))
-                (if (if b? blank? #f)
+            (if (null? xs) (reverse acc)
+              (do (%cu-sweep-tick! %cu-sweep-lines)
+                (if (if b? (= (byte-len (first xs)) 0) #f)
                   (self (rest xs) n (pair "\n" acc))
                   (self (rest xs) (+ n 1)
                     (pair (string-concat
@@ -112,9 +118,14 @@
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "cat" argv))
     (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "cat") #f))
+    (def render (%cat-renderer o))
     ; numbering counts the SOURCE lines, so it runs before the rendering
-    ; that may add a $ to each of them
-    (do (display (%cat-render (%cat-number (first g) o) o)) (rest g))))
+    ; that may add a $ to each of them.  Each is a pass of its own, and the
+    ; pieces go out in a third: a pass that did all three by turns would
+    ; alternate between methods, and pay for it in dispatch.
+    (def pieces (%cat-number (first g) o))
+    (do (%cu-put-each (if (null? render) pieces (%cu-map-swept render pieces)))
+        (rest g))))
 
 ; --- cp -----------------------------------------------------------------------
 

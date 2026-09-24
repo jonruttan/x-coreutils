@@ -104,16 +104,17 @@
               (string-concat
                 (list (%cu-pad-left (%cu-int->str n) 7) " " line "\n"))
               (string-append line "\n"))))))
+    ; I counts the lines walked, for the sweeps; N the current run's
     (def go
-      (fn (self ls cur key n)
+      (fn (self ls cur key n i)
         (if (null? ls)
           (if (null? cur) () (emit n cur))
-          (let ((k (key-of (first ls))))
+          (let ((k (do (%cu-sweep-at i %cu-sweep-lines) (key-of (first ls)))))
             (if (if (null? cur) #f (string=? k key))
-              (self (rest ls) cur key (+ n 1))
+              (self (rest ls) cur key (+ n 1) (+ i 1))
               (do (if (null? cur) () (emit n cur))
-                  (self (rest ls) (first ls) k 1)))))))
-    (go lines () "" 0)))
+                  (self (rest ls) (first ls) k 1 (+ i 1))))))))
+    (go lines () "" 0 0)))
 
 ; --- nl -----------------------------------------------------------------------
 
@@ -153,15 +154,17 @@
     (def blank (let ((go (fn (self k acc)
                            (if (<= k 0) acc (self (- k 1) (string-append " " acc))))))
                  (go width "")))
+    ; N is the next number, I the lines walked, for the sweeps
     (def go
-      (fn (self ls n)
+      (fn (self ls n i)
         (if (null? ls) 0
-          (if (numbered? (first ls))
-            (do (display
-                  (string-concat
-                    (list (layout n) sep (first ls) "\n")))
-                (self (rest ls) (+ n step)))
-            (do (display (string-concat (list blank sep (first ls) "\n")))
-                (self (rest ls) n))))))
+          (do (%cu-sweep-at i %cu-sweep-lines)
+            (if (numbered? (first ls))
+              (do (display
+                    (string-concat
+                      (list (layout n) sep (first ls) "\n")))
+                  (self (rest ls) (+ n step) (+ i 1)))
+              (do (display (string-concat (list blank sep (first ls) "\n")))
+                  (self (rest ls) n (+ i 1))))))))
     (def g (%cu-gather-said ops stdin-thunk (%cu-says "nl") #f))
-    (do (go (%cu-lines (first g)) start) (rest g))))
+    (do (go (%cu-lines (first g)) start 0) (rest g))))

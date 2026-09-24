@@ -337,7 +337,7 @@
                           (pair (%cu-b->s (byte-at line i)) acc)
                           acc)))))
                 (go 0 ())))
-            (do (%cu-print-lines (map (fn (_ l) (cut-line l)) lines)) (rest g)))
+            (do (%cu-print-lines (%cu-map-swept cut-line lines)) (rest g)))
           (let ((ranges (%cu-cut-list flist)))
             (def db (if (null? delim) 9 (byte-at delim 0)))
             (def sep (%cu-b->s db))
@@ -356,7 +356,9 @@
             (def keep?
               (fn (_ line)
                 (if suppress? (pair? (rest (%cu-split-byte line db))) #t)))
+            ; a line -s leaves out is made nil, and the nils are dropped after
             (do (%cu-print-lines
-                  (map (fn (_ l) (cut-line l)) (filter keep? lines)))
+                  (filter (fn (_ x) (not (null? x)))
+                    (%cu-map-swept (fn (_ l) (if (keep? l) (cut-line l) ())) lines)))
                 (rest g))))))))
 

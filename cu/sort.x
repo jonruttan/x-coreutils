@@ -255,17 +255,15 @@
             (if (Opts on? o "-u") (%sort-dedup sorted less?) sorted))
           (if z?
             (let ((fd (if (null? out) 1 (file-open-or-err file-open-write out))))
-              (def go
-                (fn (self ls)
-                  (if (null? ls) ()
-                    (do (file-write-field fd (first ls) 0) (self (rest ls))))))
               (if (Err err? fd) (%sort-open-failed out fd)
-                (do (go final) (if (null? out) () (file-close fd)) 0)))
-            (let ((text (string-concat
-                          (map (fn (_ l) (string-append l "\n")) final))))
-              (if (null? out) (do (display text) 0)
-                (let ((r (file-or-err (fn (_) (file-write-all out text)))))
-                  (if (Err err? r) (%sort-open-failed out r) 0))))))))))
+                (do (%cu-print-fields-to fd final 0)
+                    (if (null? out) () (file-close fd))
+                    0)))
+            ; each line put out as it is walked, which sweeps as it goes
+            (if (null? out) (do (%cu-print-lines final) 0)
+              (let ((fd (file-open-or-err file-open-write out)))
+                (if (Err err? fd) (%sort-open-failed out fd)
+                  (do (%cu-print-lines-to fd final) (file-close fd) 0))))))))))
 
 ; a file sort cannot read, said as sort says it: "cannot read" for one that
 ; would not open, "read failed" for one that opened and would not read
@@ -294,13 +292,14 @@
     (def go
       (fn (self xs acc)
         (if (null? xs) (reverse acc)
-          (self (rest xs)
-            (if (if (pair? acc)
-                  (if (less? (first acc) (first xs)) #f
-                    (not (less? (first xs) (first acc))))
-                  #f)
-              acc
-              (pair (first xs) acc))))))
+          (do (%cu-sweep-tick! %cu-sweep-steps)
+            (self (rest xs)
+              (if (if (pair? acc)
+                    (if (less? (first acc) (first xs)) #f
+                      (not (less? (first xs) (first acc))))
+                    #f)
+                acc
+                (pair (first xs) acc)))))))
     (go ls ())))
 
 ; -c reports the FIRST line out of order, and says nothing when sorted
@@ -312,7 +311,7 @@
         (match
           ((null? xs) 0)
           ((null? (rest xs)) 0)
-          ((less? (first (rest xs)) (first xs))
+          ((do (%cu-sweep-at n %cu-sweep-steps) (less? (first (rest xs)) (first xs)))
             (do (file-write 2
                   (string-concat
                     (list "sort: " name ":" (%cu-int->str (+ n 1))
