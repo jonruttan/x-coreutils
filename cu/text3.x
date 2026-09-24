@@ -97,7 +97,7 @@
     (def init? (Opts on? o "-i"))
     (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "expand") #f))
     (do (%cu-print-lines
-          (map (fn (_ l) (%cu-expand-line l w init?)) (%cu-lines (first g))))
+          (%cu-map-swept (fn (_ l) (%cu-expand-line l w init?)) (%cu-lines (first g))))
         (rest g))))
 
 (def %cu-tabs
@@ -313,20 +313,28 @@
 
 ; Fisher-Yates over a vector, seeded from the clock; -n truncates the
 ; result, -e takes the operands themselves as the lines
+
+; the N items of L as a vector.  Vector build asks for each slot in turn, and
+; the filler walks L, sweeping as it goes; a vector made first and set after
+; would pay for filling every slot twice, the first time in a loop of the
+; platform's that no sweep reaches.
 (def %cu-list->vec
   (fn (_ l n)
-    (def v (vec-make n ""))
-    (def go
-      (fn (self i xs)
-        (if (null? xs) v
-          (do (vec-set! v i (first xs)) (self (+ i 1) (rest xs))))))
-    (go 0 l)))
+    (let ((cur (list l)))
+      (vec-build n
+        (fn (_ i)
+          (let ((xs (first cur)))
+            (do (%cu-sweep-at i %cu-sweep-steps)
+                (set-first! cur (rest xs))
+                (first xs))))))))
 
 (def %cu-vec->list
   (fn (_ v n)
     (def go
       (fn (self i acc)
-        (if (< i 0) acc (self (- i 1) (pair (vec-ref v i) acc)))))
+        (if (< i 0) acc
+          (do (%cu-sweep-at i %cu-sweep-steps)
+              (self (- i 1) (pair (vec-ref v i) acc))))))
     (go (- n 1) ())))
 
 (def %cu-shuffle
@@ -337,7 +345,7 @@
     (def go
       (fn (self i)
         (if (<= i 0) (%cu-vec->list v n)
-          (let ((j (rng-int r (+ i 1))))
+          (let ((j (do (%cu-sweep-at i %cu-sweep-lines) (rng-int r (+ i 1)))))
             (let ((tmp (vec-ref v i)))
               (do (vec-set! v i (vec-ref v j))
                   (vec-set! v j tmp)
@@ -394,19 +402,13 @@
       ((null? dest) (do (%cu-print-lines picked) 0))
       (z?
         (let ((fd (file-open-or-err file-open-write dest)))
-          (def go
-            (fn (self ls)
-              (if (null? ls) ()
-                (do (file-write-field fd (first ls) 0) (self (rest ls))))))
           (if (Err err? fd) (%cu-shuf-cannot dest fd)
-            (do (go picked) (file-close fd) 0))))
+            (do (%cu-print-fields-to fd picked 0) (file-close fd) 0))))
+      ; each line put out as it is walked, which sweeps as it goes
       (#t
-        (let ((r (file-or-err
-                   (fn (_)
-                     (file-write-all dest
-                       (string-concat
-                         (map (fn (_ l) (string-append l "\n")) picked)))))))
-          (if (Err err? r) (%cu-shuf-cannot dest r) 0))))))
+        (let ((fd (file-open-or-err file-open-write dest)))
+          (if (Err err? fd) (%cu-shuf-cannot dest fd)
+            (do (%cu-print-lines-to fd picked) (file-close fd) 0)))))))
 
 ; an -o file shuf cannot write, said as shuf says it
 (def %cu-shuf-cannot
@@ -426,10 +428,12 @@
     (if (< dash 0) ()
       (let ((lo (%cu-num-prefix (substring spec 0 dash)))
             (hi (%cu-num-prefix (substring spec (+ dash 1) (byte-len spec)))))
-        (let ((go (fn (self n acc)
+        ; K counts the numbers made, for the sweeps
+        (let ((go (fn (self n k acc)
                     (if (< n lo) acc
-                      (self (- n 1) (pair (%cu-int->str n) acc))))))
-          (go hi ()))))))
+                      (do (%cu-sweep-at k %cu-sweep-steps)
+                          (self (- n 1) (+ k 1) (pair (%cu-int->str n) acc)))))))
+          (go hi 0 ()))))))
 
 ; --- base64 -------------------------------------------------------------------
 

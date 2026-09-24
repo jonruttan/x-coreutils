@@ -20,13 +20,14 @@
 
 (def %cu-lines-go
   (fn (self s end i start acc)
-    (if (>= i end)
-      (if (> i start)
-        (reverse (pair (substring s start i) acc))
-        (reverse acc))
-      (if (= (byte-at s i) 10)
-        (self s end (+ i 1) (+ i 1) (pair (substring s start i) acc))
-        (self s end (+ i 1) start acc)))))
+    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+      (if (>= i end)
+        (if (> i start)
+          (reverse (pair (substring s start i) acc))
+          (reverse acc))
+        (if (= (byte-at s i) 10)
+          (self s end (+ i 1) (+ i 1) (pair (substring s start i) acc))
+          (self s end (+ i 1) start acc))))))
 (def %cu-lines
   (fn (_ s) (%cu-lines-go s (byte-len s) 0 0 ())))
 
@@ -80,11 +81,33 @@
       (display (string-concat (list (if first? "" "\n") "==> " name " <==\n")))
       ())))
 
+; LS each on a line of its own, put out as they are walked, sweeping as they
+; go.  Made into one string first they would cost thousands of objects a line
+; inside string-concat, where no sweep reaches; each line and its newline go
+; out as two writes, since joining them first costs three times as much.
 (def %cu-print-lines
   (fn (self ls)
     (if (null? ls) ()
-      (do (display (string-append (first ls) "\n"))
+      (do (%cu-sweep-tick! %cu-sweep-steps)
+          (display (first ls))
+          (display "\n")
           (self (rest ls))))))
+
+; PS put out in turn as they are, sweeping as they go
+(def %cu-put-each
+  (fn (self ps)
+    (if (null? ps) ()
+      (do (%cu-sweep-tick! %cu-sweep-steps)
+          (display (first ps))
+          (self (rest ps))))))
+
+; F of each of LS, made in a pass of its own that sweeps as it goes; the lines
+; are put out after, in another.  Making a line and putting it out by turns
+; costs twice as much: the two alternate between methods of different classes,
+; and neither one's dispatch stays warm.
+(def %cu-map-swept
+  (fn (_ f ls)
+    (map (fn (_ l) (do (%cu-sweep-tick! %cu-sweep-lines) (f l))) ls)))
 
 (def %cu-str<
   (fn (_ a b)
@@ -99,14 +122,18 @@
                 (if (> ca cb) #f (self (+ i 1)))))))))
     (go 0)))
 
-; merge sort: n log n, shallow recursion
+; merge sort: n log n, recursing only as deep as the halving.  The merge takes
+; each line onto ACC, newest first, and turns it round onto whatever is left;
+; one that recursed a line at a time would go as deep as its output is long,
+; and a few thousand lines is deeper than the stack.
 (def %cu-merge
-  (fn (self a b less?)
+  (fn (self a b less? acc)
     (match
-      ((null? a) b)
-      ((null? b) a)
-      ((less? (first b) (first a)) (pair (first b) (self a (rest b) less?)))
-      (#t (pair (first a) (self (rest a) b less?))))))
+      ((null? a) (%cu-rev acc b))
+      ((null? b) (%cu-rev acc a))
+      ((do (%cu-sweep-tick! %cu-sweep-steps) (less? (first b) (first a)))
+        (self a (rest b) less? (pair (first b) acc)))
+      (#t (self (rest a) b less? (pair (first a) acc))))))
 (def %cu-msort
   (fn (self l less?)
     (if (null? l) ()
@@ -118,7 +145,7 @@
                                    (pair (reverse acc) slow)))))
                        (go l l ()))))
           (%cu-merge (self (first split) less?)
-            (self (rest split) less?) less?))))))
+            (self (rest split) less?) less? ()))))))
 
 ; a leading number for sort -n: optional blanks, sign, digits[.digits]
 (def %cu-num-prefix
@@ -333,12 +360,16 @@
                     (self (rest os) stdin-thunk delim says stop? (rest r)
                       (append acc (first r)) st))))))))))
 
-; each field, then its delimiter -- %cu-print-lines for a -z output
-(def %cu-print-fields
-  (fn (self ls delim)
+; each field to FD, then its delimiter -- %cu-print-lines-to for a -z output
+(def %cu-print-fields-to
+  (fn (self fd ls delim)
     (if (null? ls) ()
-      (do (file-write-field 1 (first ls) delim)
-          (self (rest ls) delim)))))
+      (do (%cu-sweep-tick! %cu-sweep-steps)
+          (file-write-field fd (first ls) delim)
+          (self fd (rest ls) delim)))))
+
+(def %cu-print-fields
+  (fn (_ ls delim) (%cu-print-fields-to 1 ls delim)))
 
 ; The last hand-rolled option read: everything reads its options off cu/cli.x's
 ; declaration except comm, whose flags are digits -- v0.13.0's Opts decides
@@ -597,10 +628,11 @@
 
 (def %cu-line-starts-at
   (fn (self text end i acc)
-    (match
-      ((>= (+ i 1) end) (reverse acc))
-      ((= (byte-at text i) 10) (self text end (+ i 1) (pair (+ i 1) acc)))
-      (#t (self text end (+ i 1) acc)))))
+    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+      (match
+        ((>= (+ i 1) end) (reverse acc))
+        ((= (byte-at text i) 10) (self text end (+ i 1) (pair (+ i 1) acc)))
+        (#t (self text end (+ i 1) acc))))))
 
 ; where line K starts, counting from 0, or END when there are not that many
 (def %cu-line-at
@@ -671,7 +703,9 @@
 (def %cu-print-lines-to
   (fn (self fd ls)
     (if (null? ls) ()
-      (do (file-write fd (string-append (first ls) "\n"))
+      (do (%cu-sweep-tick! %cu-sweep-steps)
+          (file-write fd (first ls))
+          (file-write fd "\n")
           (self fd (rest ls))))))
 
 ; -s's interval: "2", "0.5", "1.25" -- whole seconds through sleep and
@@ -988,7 +1022,7 @@
     (def go
       (fn (self la lb)
         (match
-          ((null? la)
+          ((do (%cu-sweep-tick! %cu-sweep-steps) (null? la))
             (if (null? lb) ()
               (do (if s2 (display (string-append ind2
                                     (string-append (first lb) "\n"))) ())
@@ -1089,7 +1123,8 @@
       (fn (self la lb)
         (if (null? la) ()
           (if (null? lb) ()
-            (let ((ka (key (first la))) (kb (key (first lb))))
+            (let ((ka (do (%cu-sweep-tick! %cu-sweep-lines) (key (first la))))
+                  (kb (key (first lb))))
               (if (string=? ka kb)
                 (let ((ra (take-run la ka)))
                   (def rb (take-run lb ka))
@@ -1099,7 +1134,8 @@
                       (if (null? xs) ()
                         (do (let ((inner (fn (self3 ys)
                                            (if (null? ys) ()
-                                             (do (emit (first xs) (first ys))
+                                             (do (%cu-sweep-tick! %cu-sweep-lines)
+                                                 (emit (first xs) (first ys))
                                                  (self3 (rest ys)))))))
                               (inner (first rb)))
                             (self2 (rest xs))))))

@@ -34,7 +34,7 @@
   file-seek file-truncate file-open-read file-open-wronly file-open-err
   file-open-or-err
   file-stat-full file-lstat-full
-  vec-make vec-ref vec-set!
+  vec-make vec-build vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
   sys-fork sys-wait sys-exec sys-exec-or-err sys-kill sys-signal sys-isatty sys-usleep
   cu-sigterm cu-sigkill cu-sigint cu-sighup cu-sig-ign
@@ -201,6 +201,7 @@
           d)))))
 
 (def vec-make (fn (_ n fill) (Vector make n fill)))
+(def vec-build (fn (_ n f) (Vector build n f)))
 (def vec-ref (fn (_ v i) (Vector ref i v)))
 (def vec-set! (fn (_ v i x) (Vector set! i x v)))
 
@@ -364,6 +365,48 @@
             (string-concat (reverse acc))))))
     (slurp ())))
 
+; --- sweeps -------------------------------------------------------------------
+;
+; Nothing is collected while an applet runs unless it asks, and every step of
+; a loop leaves an environment behind, so a loop over an input leaves garbage
+; in proportion to the input.  A loop that walks an input sweeps as it goes:
+; (%cu-sweep-at I MASK) collects when I, the loop's own count of what it has
+; walked, has none of MASK's bits set -- once every MASK+1 steps.  What the loop
+; holds is in its arguments, and so rooted across the collect.  The cell turns
+; the sweeps off, for a caller that measures what a loop allocates.
+(def %cu-heap-collect (prim-ref (lit heap) (lit collect)))
+(def %cu-sweeps-cell (list #t))
+
+; the masks, so each sweep clears a million objects or a few: a step over a
+; byte leaves hundreds, a step that makes a line tens of thousands, and a cheap
+; step -- a line put out, a comparison, a copy -- one to a few thousand.  A
+; sweep costs a walk of the whole heap, so a loop of cheap steps that swept as
+; often as one of dear ones would spend its time walking.
+(def %cu-sweep-bytes 2047)
+(def %cu-sweep-lines 63)
+(def %cu-sweep-steps 511)
+
+(def %cu-sweep-at
+  (fn (_ i mask)
+    (if (= (& i mask) 0) (%cu-sweep! i) ())))
+
+; the collect itself, once the step's bits say so.  A loop over bytes writes
+; the test out, (if (= (& I %cu-sweep-bytes) 0) (%cu-sweep! I) ()), since the
+; call to %cu-sweep-at would be the dearest thing in a step over one byte.
+(def %cu-sweep!
+  (fn (_ i)
+    (if (if (first %cu-sweeps-cell) (> i 0) #f) (%cu-heap-collect) ())))
+
+; a step of a loop that keeps no count of its own -- a merge, which recurses
+; into its own result -- counted on one shared counter instead
+(def %cu-sweep-ticks (list 0))
+
+(def %cu-sweep-tick!
+  (fn (_ mask)
+    (let ((n (+ (first %cu-sweep-ticks) 1)))
+      (do (set-first! %cu-sweep-ticks n)
+          (%cu-sweep-at n mask)))))
+
 ; --- NUL bytes ----------------------------------------------------------------
 ;
 ; A NUL is reachable, and only the length-computing helpers say otherwise:
@@ -432,10 +475,11 @@
 
 ; S then one DELIM byte, which is the -z and -0 output shape.  Both go
 ; through File write: display would reach fd 1 by another road, and the
-; two orders are not guaranteed to agree.
+; two orders are not guaranteed to agree.  The count is byte-len's, as
+; file-write's is.
 (def file-write-field
   (fn (_ fd s delim)
-    (do (File write fd s (string-length s))
+    (do (File write fd s (byte-len s))
         (if (= delim 0) (file-write-nuls fd 1)
           (File write fd (%cu-b->s delim) 1)))))
 
@@ -467,13 +511,16 @@
       (fn (self part acc)
         (let ((n (File read fd buf 65536)))
           (if (if (number? n) (> n 0) #f)
+            ; a byte here costs a thousand objects or so, its field's slice
+            ; with it, so the scan sweeps as often as a loop of cheap steps
             (let ((scan
                     (fn (self2 i start p acc2)
-                      (if (>= i n) (pair (string-append p (slice start i)) acc2)
-                        (if (= (byte-at buf i) delim)
-                          (self2 (+ i 1) (+ i 1) ""
-                            (pair (string-append p (slice start i)) acc2))
-                          (self2 (+ i 1) start p acc2))))))
+                      (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+                        (if (>= i n) (pair (string-append p (slice start i)) acc2)
+                          (if (= (byte-at buf i) delim)
+                            (self2 (+ i 1) (+ i 1) ""
+                              (pair (string-append p (slice start i)) acc2))
+                            (self2 (+ i 1) start p acc2)))))))
               (let ((r (scan 0 0 part acc)))
                 (self (first r) (rest r))))
             (pair (reverse acc) part)))))

@@ -219,8 +219,7 @@
 (def %cu-rev-applet
   (fn (_ argv stdin-thunk)
     (let ((g (%cu-gather-said argv stdin-thunk (%cu-says "rev") #f)))
-      (do (%cu-print-lines
-            (map (fn (_ l) (%cu-rev-line l)) (%cu-lines (first g))))
+      (do (%cu-print-lines (%cu-map-swept %cu-rev-line (%cu-lines (first g))))
           (rest g)))))
 
 ; tac reverses each file on its own, record by record.  A record ends with its
@@ -238,23 +237,19 @@
             (list "tac: failed to open '" name "' for reading: "
                   (file-err-text err)))))
       (fn (_ name text)
-        (%cu-tac-put (%cu-tac-records text (byte-len text) 0 0 ())))
+        (%cu-put-each (%cu-tac-records text (byte-len text) 0 0 ())))
       0)))
 
 ; the records of S from I on, pushed onto ACC, so they come out last first,
 ; each with the newline it ends with
 (def %cu-tac-records
   (fn (self s end i start acc)
-    (match
-      ((>= i end) (if (> end start) (pair (substring s start end) acc) acc))
-      ((= (byte-at s i) 10)
-        (self s end (+ i 1) (+ i 1) (pair (substring s start (+ i 1)) acc)))
-      (#t (self s end (+ i 1) start acc)))))
-
-(def %cu-tac-put
-  (fn (self rs)
-    (if (null? rs) ()
-      (do (display (first rs)) (self (rest rs))))))
+    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+      (match
+        ((>= i end) (if (> end start) (pair (substring s start end) acc) acc))
+        ((= (byte-at s i) 10)
+          (self s end (+ i 1) (+ i 1) (pair (substring s start (+ i 1)) acc)))
+        (#t (self s end (+ i 1) start acc))))))
 
 ; nl: %6d + TAB for nonempty lines; six spaces + TAB for empty ones
 ; nl moved to cu/sort.x's neighbours in cu/text4.x with -b -n -s -w -v -i.
@@ -299,13 +294,15 @@
     (def w (let ((v (Opts value o "-w"))) (if (null? v) 80 (%cu-num-prefix v))))
     (def bytes? (Opts on? o "-b"))
     (def spaces? (Opts on? o "-s"))
+    ; I counts the lines walked, for the sweeps
     (def go
-      (fn (self ls)
+      (fn (self ls i)
         (if (null? ls) 0
-          (do (%cu-print-lines (%cu-fold-line (first ls) w bytes? spaces?))
-              (self (rest ls))))))
+          (do (%cu-sweep-at i %cu-sweep-lines)
+              (%cu-print-lines (%cu-fold-line (first ls) w bytes? spaces?))
+              (self (rest ls) (+ i 1))))))
     (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "fold") #f))
-    (do (go (%cu-lines (first g))) (rest g))))
+    (do (go (%cu-lines (first g)) 0) (rest g))))
 
 (def %cu-paste
   (fn (_ argv stdin-thunk)
@@ -328,11 +325,19 @@
     (def st (if (null? (filter (fn (_ t) (Err err? t)) reads)) 0 1))
     ; -s pastes each file onto ONE line instead of pasting the files
     ; against each other line by line.
+    ; a file's lines put out one after another, the delimiter between, as
+    ; they are walked
+    (def serial-one
+      (fn (self ls first?)
+        (if (null? ls) (display "\n")
+          (do (%cu-sweep-tick! %cu-sweep-steps)
+              (if first? () (display delim))
+              (display (first ls))
+              (self (rest ls) #f)))))
     (def serial
       (fn (self cs)
         (if (null? cs) 0
-          (do (display
-                (string-append (%cu-join-with (first cs) delim) "\n"))
+          (do (serial-one (first cs) #t)
               (self (rest cs))))))
     (def any?
       (fn (self cs)
@@ -341,7 +346,8 @@
     (def go
       (fn (self cs)
         (if (not (any? cs)) 0
-          (do (display
+          (do (%cu-sweep-tick! %cu-sweep-lines)
+              (display
                 (string-append
                   (%cu-join-with
                     (map (fn (_ c) (if (pair? c) (first c) "")) cs)
