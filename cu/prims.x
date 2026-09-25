@@ -60,11 +60,23 @@
 (def list->string (fn (_ l) (if (null? l) "" (%cvt l %string))))
 
 (def string-append (fn (_ . ss) (string-concat ss)))
+
+; SS joined end to end by the platform's own concat (lib/x/boot/string.x),
+; which loops over the list rather than recursing, so a list of any length
+; joins, at a few dozen objects a piece.  It reads its pieces raw, as bytes,
+; so each is checked first: a piece that is not a string is a type error
+; here, not a read of whatever it points at.
+(def %cu-type-of (prim-ref (lit type) (lit of)))
+(def %cu-string-type (%cu-type-of ""))
+(def %cu-strings
+  (fn (self ss all)
+    (match
+      ((null? ss) all)
+      ((if (null? (first ss)) #f (eq? (%cu-type-of (first ss)) %cu-string-type))
+        (self (rest ss) all))
+      (#t (Err raise (lit type) "string-concat: not a string" ())))))
 (def string-concat
-  (fn (self ss)
-    (if (null? ss)
-      ""
-      (if (null? (rest ss)) (first ss) (Str8 append (first ss) (self (rest ss)))))))
+  (fn (_ ss) (%str-concat (%cu-strings ss ss))))
 
 (def length (fn (_ l) (List length l)))
 (def reverse (fn (_ l) (%cu-rev l ())))

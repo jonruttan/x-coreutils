@@ -76,30 +76,47 @@
               (#t (Opts on? o "-t"))))
     (def e? (if (Opts on? o "-A") #t (Opts on? o "-e")))
     (def t? (if (Opts on? o "-A") #t (Opts on? o "-t")))
+    ; LEFT counts down the bytes until the next sweep, across pieces: a piece
+    ; as short as a line never reaches a step of its own that sweeps
     (if (if v? #f (if e? #f (not t?))) ()
-      (fn (_ s)
-        (let ((end (byte-len s)))
-          (def go
-            (fn (self i acc)
-              (if (>= i end) (string-concat (reverse acc))
-                (let ((b (byte-at s i)))
-                  (self (+ i 1)
-                    (pair
-                      (match
-                        ((= b 10) (if e? "$\n" "\n"))
-                        ((= b 9) (if t? "^I" "\t"))
-                        (v? (%cat-visible b))
-                        (#t (%cu-b->s b)))
-                      acc))))))
-          (go 0 ()))))))
+      (let ((left (list (+ %cu-sweep-bytes 1))))
+        (fn (_ s)
+          (let ((end (byte-len s)))
+            (def go
+              (fn (self i acc)
+                (if (>= i end) (string-concat (reverse acc))
+                  (let ((b (byte-at s i)))
+                    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+                      (self (+ i 1)
+                        (pair
+                          (match
+                            ((= b 10) (if e? "$\n" "\n"))
+                            ((= b 9) (if t? "^I" "\t"))
+                            (v? (%cat-visible b))
+                            (#t (%cu-b->s b)))
+                          acc)))))))
+            (let ((r (go 0 ())))
+              (do (set-first! left (- (first left) end))
+                  (if (> (first left) 0) ()
+                    (do (set-first! left (+ %cu-sweep-bytes 1)) (%cu-sweep! 1)))
+                  r))))))))
+
+; TEXT from START on, in pieces of 4,096 bytes
+(def %cat-chunks
+  (fn (self text start acc)
+    (let ((end (byte-len text)))
+      (if (>= start end) (reverse acc)
+        (let ((stop (if (> (+ start 4096) end) end (+ start 4096))))
+          (self text stop (pair (substring text start stop) acc)))))))
 
 ; -n numbers every line, -b only the non-empty ones (and -b wins): the pieces
 ; that go out, a numbered line to a piece, made in a pass that sweeps as it
-; goes.  Without either, the text is its one piece.
+; goes.  Without either, the text goes out in pieces of 4,096 bytes, so a
+; rendering holds one piece's bytes at a time rather than the whole text's.
 (def %cat-number
   (fn (_ text o)
     (def b? (Opts on? o "-b"))
-    (if (if b? #f (not (Opts on? o "-n"))) (list text)
+    (if (if b? #f (not (Opts on? o "-n"))) (%cat-chunks text 0 ())
       (let ((ls (%cu-lines text)))
         (def go
           (fn (self xs n acc)
