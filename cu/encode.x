@@ -292,7 +292,7 @@
     (if (> (rest g) 0) 1
       (if m?
         (do (display (string-concat (list "begin-base64 644 " name "\n")))
-            (display (%cu-b64-encode text 76))
+            (%cu-b64-put text 76)
             (display "====\n")
             0)
         (let ((go (fn (self i)

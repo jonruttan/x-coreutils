@@ -443,8 +443,7 @@
 (def %cu-b64-char
   (fn (_ v) (byte-at %cu-b64-alphabet v)))
 
-; the inverse: -1 for anything outside the alphabet, so whitespace and
-; the pad both fall out of the decoder's accumulator
+; the inverse: -1 for anything outside the alphabet, the pad among them
 (def %cu-b64-value
   (fn (_ b)
     (match
@@ -455,52 +454,108 @@
       ((= b 47) 63)
       (#t (- 0 1)))))
 
-(def %cu-b64-encode
+; S in base64, put out as it is made: lines of WRAP characters, each ended by a
+; newline, the last one too when it holds any; WRAP 0 is one line and no
+; newline.  LINE holds the characters made since the last write, newest first,
+; and COL how many: a line goes out as it fills, and an unwrapped encoding
+; every 4,096 characters, so the encoding is never held whole.  A step takes
+; three bytes, and the walk sweeps as it goes.
+(def %cu-b64-put
   (fn (_ s wrap)
     (def end (byte-len s))
+    (def full (if (= wrap 0) 4096 wrap))
+    (def out
+      (fn (_ line)
+        (display (bytes->str (reverse (if (= wrap 0) line (pair 10 line)))))))
+    ; the characters CS onto LINE, and a line out when it fills
+    (def push
+      (fn (self cs line col)
+        (match
+          ((null? cs) (pair line col))
+          ((= (+ col 1) full) (do (out (pair (first cs) line)) (self (rest cs) () 0)))
+          (#t (self (rest cs) (pair (first cs) line) (+ col 1))))))
     (def go
-      (fn (self i col acc)
-        (if (>= i end) (string-concat (reverse acc))
+      (fn (self i line col)
+        (if (>= i end) (if (= col 0) () (out line))
           (let ((b0 (byte-at s i)))
             (def have (- end i))
             (def b1 (if (> have 1) (byte-at s (+ i 1)) 0))
             (def b2 (if (> have 2) (byte-at s (+ i 2)) 0))
             (def n (+ (bit-shl b0 16) (+ (bit-shl b1 8) b2)))
-            (def quad
-              (list->string
-                (list
-                  (integer->char (%cu-b64-char (bit-and (bit-shr n 18) 63)))
-                  (integer->char (%cu-b64-char (bit-and (bit-shr n 12) 63)))
-                  (integer->char
-                    (if (> have 1) (%cu-b64-char (bit-and (bit-shr n 6) 63)) 61))
-                  (integer->char
-                    (if (> have 2) (%cu-b64-char (bit-and n 63)) 61)))))
-            (def col2 (+ col 4))
-            (self (+ i 3) (if (>= col2 wrap) 0 col2)
-              (if (>= col2 wrap) (pair "\n" (pair quad acc)) (pair quad acc)))))))
-    (def body (go 0 0 ()))
-    ; a final partial line still ends in a newline
-    (if (= (byte-len body) 0) ""
-      (if (= (byte-at body (- (byte-len body) 1)) 10) body
-        (string-append body "\n")))))
+            (def r
+              (push
+                (list (%cu-b64-char (bit-and (bit-shr n 18) 63))
+                      (%cu-b64-char (bit-and (bit-shr n 12) 63))
+                      (if (> have 1) (%cu-b64-char (bit-and (bit-shr n 6) 63)) 61)
+                      (if (> have 2) (%cu-b64-char (bit-and n 63)) 61))
+                line col))
+            (do (%cu-sweep-at i %cu-sweep-lines)
+                (self (+ i 3) (first r) (rest r)))))))
+    (go 0 () 0)))
 
+; S decoded, as GNU's base64 -d reads it: newlines are passed over, the rest is
+; taken four characters at a time, and the last one or two of a quantum may be
+; the pad, which ends it -- decoding goes on after it.  At the end of the input
+; a quantum of two or three characters stands without its pad.  What decodes
+; goes to PUT a run at a time -- bytes and their count, so a NUL goes too --
+; every 4,096 bytes, and at the end.
+;
+; Answers #t, or #f at the first thing that is not base64: a byte outside the
+; alphabet, a pad early in a quantum or followed by more of it, or a quantum
+; cut short by the end of the input after one character or after a pad.  The
+; bytes the characters before it in that quantum spell are put first, as GNU
+; puts them.  GARBAGE? passes over what is not base64 instead, which is how
+; uudecode reads a body.
+(def %cu-b64-decode-to
+  (fn (_ s put garbage?)
+    (def end (byte-len s))
+    ; the bytes K characters spell, BITS their value, onto OUT
+    (def spell
+      (fn (_ k bits out)
+        (match
+          ((= k 4) (pair (bit-and bits 255)
+                     (pair (bit-and (bit-shr bits 8) 255)
+                       (pair (bit-shr bits 16) out))))
+          ((= k 3) (pair (bit-and (bit-shr bits 2) 255)
+                     (pair (bit-shr bits 10) out)))
+          ((= k 2) (pair (bit-shr bits 4) out))
+          (#t out))))
+    (def spelt (fn (_ k) (match ((= k 4) 3) ((= k 3) 2) ((= k 2) 1) (#t 0))))
+    (def flush (fn (_ out n) (put (%cu-run-bytes (reverse out) n))))
+    ; OUT the bytes decoded since the last put, newest first, and N how many;
+    ; K the quantum's characters so far, BITS their value, PADS its pads
+    (def go
+      (fn (self i out n k bits pads)
+        (match
+          ((>= n 4096) (do (flush out n) (self i () 0 k bits pads)))
+          ((>= i end)
+            (do (flush (spell k bits out) (+ n (spelt k)))
+                (if (> pads 0) #f (not (= k 1)))))
+          (#t
+            (let ((b (byte-at s i)))
+              (def v (%cu-b64-value b))
+              (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+                (match
+                  ((= b 10) (self (+ i 1) out n k bits pads))
+                  ((if (= b 61) (>= k 2) #f)
+                    (if (= (+ k pads 1) 4)
+                      (self (+ i 1) (spell k bits out) (+ n (spelt k)) 0 0 0)
+                      (self (+ i 1) out n k bits (+ pads 1))))
+                  ((if (>= v 0) (= pads 0) #f)
+                    (if (= k 3)
+                      (self (+ i 1) (spell 4 (+ (bit-shl bits 6) v) out) (+ n 3) 0 0 0)
+                      (self (+ i 1) out n (+ k 1) (+ (bit-shl bits 6) v) 0)))
+                  (garbage? (self (+ i 1) out n k bits pads))
+                  (#t (do (flush (spell k bits out) (+ n (spelt k))) #f)))))))))
+    (go 0 () 0 0 0 0)))
+
+; S decoded to a string, what is not base64 passed over: uudecode's -m body
 (def %cu-b64-decode
   (fn (_ s)
-    (def end (byte-len s))
-    (def go
-      (fn (self i acc bits nbits)
-        (if (>= i end) (string-concat (reverse acc))
-          (let ((v (%cu-b64-value (byte-at s i))))
-            (if (< v 0) (self (+ i 1) acc bits nbits)
-              (let ((bits2 (+ (bit-shl bits 6) v)))
-                (if (>= (+ nbits 6) 8)
-                  (self (+ i 1)
-                    (pair (%cu-b->s
-                            (bit-and (bit-shr bits2 (- (+ nbits 6) 8)) 255))
-                      acc)
-                    bits2 (- (+ nbits 6) 8))
-                  (self (+ i 1) acc bits2 (+ nbits 6)))))))))
-    (go 0 () 0 0)))
+    (let ((texts (list ())))
+      (do (%cu-b64-decode-to s
+            (fn (_ r) (set-first! texts (pair (first r) (first texts)))) #t)
+          (string-concat (reverse (first texts)))))))
 
 (def %cu-base64
   (fn (_ argv stdin-thunk)
@@ -508,14 +563,56 @@
     (%cu-operands "base64" (Opts operands o) 0 1
       (fn (_) (%cu-base64-run o stdin-thunk)))))
 
+; -w's column, as GNU reads it: blanks, a sign, and decimal digits, nothing
+; after them.  Past the largest 64-bit integer it is 0, no wrapping, as it is
+; in GNU; below zero, anything else, or no digits at all is nil.
+(def %cu-b64-wrap
+  (fn (_ v)
+    (def end (byte-len v))
+    (def skip
+      (fn (self i)
+        (if (if (< i end) (if (= (byte-at v i) 32) #t (= (byte-at v i) 9)) #f)
+          (self (+ i 1)) i)))
+    (def i0 (skip 0))
+    (def minus? (if (< i0 end) (= (byte-at v i0) 45) #f))
+    (def i1 (if (if (< i0 end) (if minus? #t (= (byte-at v i0) 43)) #f) (+ i0 1) i0))
+    ; the digits' value, -1 once it passes the largest 64-bit integer -- the
+    ; arithmetic would wrap past it -- or nil at anything but a digit
+    (def digits
+      (fn (self i acc)
+        (match
+          ((>= i end) acc)
+          ((if (>= (byte-at v i) 48) (<= (byte-at v i) 57) #f)
+            (self (+ i 1)
+              (let ((d (- (byte-at v i) 48)))
+                (match
+                  ((< acc 0) acc)
+                  ((> acc 922337203685477580) (- 0 1))
+                  ((if (= acc 922337203685477580) (> d 7) #f) (- 0 1))
+                  (#t (+ (* acc 10) d))))))
+          (#t ()))))
+    (if (>= i1 end) ()
+      (let ((n (digits i1 0)))
+        (match
+          ((null? n) ())
+          ((< n 0) (if minus? () 0))
+          ((if minus? (> n 0) #f) ())
+          (#t n))))))
+
 (def %cu-base64-run
   (fn (_ o stdin-thunk)
     (def d? (Opts on? o "-d"))
-    (def g (%cu-gather-said (Opts operands o) stdin-thunk
-             (%cu-read-error "base64") #f))
-    (def text (first g))
-    ; -w sets the wrap column; 0 means one unbroken line.
-    (def wrap (let ((v (Opts value o "-w"))) (if (null? v) 76 (%cu-num-prefix v))))
-    ; an input that could not be read has nothing to encode, and says so
-    (if (> (rest g) 0) 1
-      (do (display (if d? (%cu-b64-decode text) (%cu-b64-encode text wrap))) 0))))
+    (def wv (Opts value o "-w"))
+    ; -w sets the wrap column, 0 one unbroken line; it is read before the input
+    (def wrap (if (null? wv) 76 (%cu-b64-wrap wv)))
+    (if (null? wrap)
+      (do (file-write 2 (string-concat (list "base64: invalid wrap size: '" wv "'\n")))
+          1)
+      (let ((g (%cu-gather-said (Opts operands o) stdin-thunk
+                 (%cu-read-error "base64") #f)))
+        (match
+          ; an input that could not be read has nothing to encode, and says so
+          ((> (rest g) 0) 1)
+          (d? (if (%cu-b64-decode-to (first g) (fn (_ r) (file-write-run 1 r)) #f) 0
+                (do (file-write 2 "base64: invalid input\n") 1)))
+          (#t (do (%cu-b64-put (first g) wrap) 0)))))))
