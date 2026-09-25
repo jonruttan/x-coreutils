@@ -258,18 +258,26 @@
     (def end (byte-len text))
     (def squeeze-set (if sq? (if (null? set2) set1 set2) ()))
     ; the bytes are gathered as bytes and written as a run (cu/prims.x), so a
-    ; set that names a NUL writes one
+    ; set that names a NUL writes one.  A run goes out every 4,096 bytes, so
+    ; the output is never held whole, and the walk sweeps as it goes: a byte
+    ; costs a few thousand objects, a walk of the sets with it.
     (def go
       (fn (self i acc n prev)
-        (if (>= i end) (%cu-run-bytes (reverse acc) n)
-          (let ((b (byte-at text i)))
-            (if (if del? (%cu-member-b? b set1) #f)
-              (self (+ i 1) acc n prev)
-              (let ((v (if (null? set2) b (%cu-tr-map set1 set2 b))))
-                (if (if sq? (if (= v prev) (%cu-member-b? v squeeze-set) #f) #f)
+        (match
+          ((>= i end) (file-write-run 1 (%cu-run-bytes (reverse acc) n)))
+          ((>= n 4096)
+            (do (file-write-run 1 (%cu-run-bytes (reverse acc) n))
+                (self i () 0 prev)))
+          (#t
+            (let ((b (byte-at text i)))
+              (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+                (if (if del? (%cu-member-b? b set1) #f)
                   (self (+ i 1) acc n prev)
-                  (self (+ i 1) (pair v acc) (+ n 1) v))))))))
-    (do (file-write-run 1 (go 0 () 0 (- 0 1))) 0)))
+                  (let ((v (if (null? set2) b (%cu-tr-map set1 set2 b))))
+                    (if (if sq? (if (= v prev) (%cu-member-b? v squeeze-set) #f) #f)
+                      (self (+ i 1) acc n prev)
+                      (self (+ i 1) (pair v acc) (+ n 1) v))))))))))
+    (do (go 0 () 0 (- 0 1)) 0)))
 
 ; a cut LIST: N, N-M, N-, -M, comma-separated; answers (lo . hi) pairs
 ; with hi () for open

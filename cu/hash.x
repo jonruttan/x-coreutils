@@ -459,10 +459,13 @@
 (def cu-cksum
   (fn (_ text)
     (def end (byte-len text))
+    ; a byte here costs a few thousand objects, a table lookup's dispatch
+    ; with it, so the walk sweeps as often as a loop of cheap steps
     (def over
       (fn (self i crc)
         (if (>= i end) crc
-          (self (+ i 1) (%cu-crc-byte crc (byte-at text i))))))
+          (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+              (self (+ i 1) (%cu-crc-byte crc (byte-at text i)))))))
     ; POSIX folds the LENGTH in after the bytes, low octet first
     (def tail
       (fn (self n crc)
@@ -493,11 +496,12 @@
     (def go
       (fn (self i s)
         (if (>= i end) s
-          (self (+ i 1)
-            (bit-and
-              (+ (+ (bit-shr s 1) (bit-shl (bit-and s 1) 15))
-                (byte-at text i))
-              65535)))))
+          (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+              (self (+ i 1)
+                (bit-and
+                  (+ (+ (bit-shr s 1) (bit-shl (bit-and s 1) 15))
+                    (byte-at text i))
+                  65535))))))
     (go 0 0)))
 
 ; System V (-s): the byte sum, folded twice into 16 bits, blocks of 512
@@ -506,7 +510,9 @@
     (def end (byte-len text))
     (def total
       (let ((go (fn (self i s)
-                  (if (>= i end) s (self (+ i 1) (+ s (byte-at text i)))))))
+                  (if (>= i end) s
+                    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+                        (self (+ i 1) (+ s (byte-at text i))))))))
         (go 0 0)))
     (def r (+ (bit-and total 65535) (bit-shr total 16)))
     (bit-and (+ (bit-and r 65535) (bit-shr r 16)) 65535)))
