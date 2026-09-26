@@ -1,4 +1,4 @@
-# @weight 7
+# @weight 2
 
 What the tools that write files say when a file will not open: tee,
 truncate, dd, sort -o, shuf -o and shred.  Each says it in its own words and

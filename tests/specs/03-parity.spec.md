@@ -1,4 +1,4 @@
-# @weight 6
+# @weight 3
 
 Parity with busybox's coreutils set: the digests, the encodings, the
 line tools and the file-and-process half.  Every digest expectation

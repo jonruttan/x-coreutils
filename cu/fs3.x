@@ -721,8 +721,8 @@
                 1)))))))
 
 ; shred: N passes of random bytes over the file's blocks, then -u removes it.
-; The bytes go out through the counted write (cu/prims.x), so every one of the
-; 256 is written, NUL included.
+; The bytes are the system's, from /dev/urandom, and go out through the
+; counted write (cu/prims.x), so every one of the 256 is written, NUL included.
 
 ; SIZE rounded up to whole BLKSIZE blocks, which is the length shred covers:
 ; what is left of a block would still hold the bytes that were there.  An
@@ -745,11 +745,11 @@
 
 ; K passes of random bytes over SIZE, each from the start
 (def %cu-shred-passes
-  (fn (self fd r size k)
+  (fn (self fd size k)
     (if (<= k 0) ()
       (do (file-seek fd 0)
-          (file-write-random fd r size)
-          (self fd r size (- k 1))))))
+          (file-write-random fd size)
+          (self fd size (- k 1))))))
 
 (def %cu-shred
   (fn (_ argv stdin-thunk)
@@ -765,7 +765,6 @@
     ; than freeing them the way a truncate would.
     (def z? (Opts on? o "-z"))
     (def ops (Opts operands o))
-    (def r (rng-make (date-now-unix)))
     ; One file: opened to write and nothing more -- a truncate would free the
     ; very blocks the passes are there to write over -- then each pass from
     ; the start of it.  One shred cannot open is said, and fails.
@@ -781,7 +780,7 @@
                             (file-err-text fd) "\n")))
                   1)
               (let ((size (%cu-shred-size path)))
-                (do (%cu-shred-passes fd r size passes)
+                (do (%cu-shred-passes fd size passes)
                     (if z? (do (file-seek fd 0) (file-write-nuls fd size)) ())
                     (file-close fd)
                     (if u? (file-unlink path) ())
