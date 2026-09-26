@@ -16,8 +16,8 @@ above the heap the child starts from: a run whose live heap ever grows past
 it is stopped, and the child's status says so.  That is the peak, which is
 what exhausts a machine -- a count taken after a run would miss a loop whose
 leavings a later sweep clears.  Each bound sits about half again above what
-the tool holds at its fullest here, and several times under what it held
-unswept: a sweep taken out of any of its loops puts it over.
+the tool holds at its fullest on the release lang.xon declares, and under
+what it holds unswept: a sweep taken out of any of its loops puts it over.
 
 tac also runs on 8,000 short lines, where each line costs little to split and
 its own step is most of what a line leaves.
@@ -40,7 +40,7 @@ repeating; the short lines are one digit each, built a hundred at a time.
 ### each line put out as the walk reaches it, on 800 lines
 
 ```cu
-(display (list (under? (list "cat" "-n") in800 3000000) (under? (list "nl") in800 3000000) (under? (list "uniq" "-c") in800 3000000) (under? (list "tac") in800 3000000) (under? (list "head" "-n" "700") in800 3000000) (under? (list "tail" "-n" "700") in800 3000000)))
+(display (list (under? (list "cat" "-n") in800 2600000) (under? (list "nl") in800 2400000) (under? (list "uniq" "-c") in800 2400000) (under? (list "tac") in800 2300000) (under? (list "head" "-n" "700") in800 2400000) (under? (list "tail" "-n" "700") in800 2400000)))
 ```
 ---
     (#t #t #t #t #t #t)
@@ -48,7 +48,7 @@ repeating; the short lines are one digit each, built a hundred at a time.
 ### and tac on 8,000 short lines
 
 ```cu
-(display (list (under? (list "tac") short8000 5500000)))
+(display (list (under? (list "tac") short8000 5400000)))
 ```
 ---
     (#t)

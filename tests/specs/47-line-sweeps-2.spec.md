@@ -16,8 +16,8 @@ above the heap the child starts from: a run whose live heap ever grows past
 it is stopped, and the child's status says so.  That is the peak, which is
 what exhausts a machine -- a count taken after a run would miss a loop whose
 leavings a later sweep clears.  Each bound sits about half again above what
-the tool holds at its fullest here, and several times under what it held
-unswept: a sweep taken out of any of its loops puts it over.
+the tool holds at its fullest on the release lang.xon declares, and under
+what it holds unswept: a sweep taken out of any of its loops puts it over.
 
 paste -s and rev also run on 8,000 short lines, where each line costs little
 to split or to make, and putting it out is most of what a line leaves.
@@ -40,7 +40,7 @@ repeating; the short lines are one digit each, built a hundred at a time.
 ### each line made as it is put out, on 800 lines
 
 ```cu
-(display (list (under? (list "cut" "-d" " " "-f" "2") in800 5500000) (under? (list "rev") in800 3000000) (under? (list "fold" "-w" "20") in800 5500000) (under? (list "expand") in800 6000000) (under? (list "paste" "-" "-") in800 7000000) (under? (list "paste" "-s" "-") in800 3000000)))
+(display (list (under? (list "cut" "-d" " " "-f" "2") in800 3300000) (under? (list "rev") in800 2400000) (under? (list "fold" "-w" "20") in800 3500000) (under? (list "expand") in800 3000000) (under? (list "paste" "-" "-") in800 6300000) (under? (list "paste" "-s" "-") in800 2700000)))
 ```
 ---
     (#t #t #t #t #t #t)
@@ -48,7 +48,7 @@ repeating; the short lines are one digit each, built a hundred at a time.
 ### and paste -s and rev on 8,000 short lines
 
 ```cu
-(display (list (under? (list "paste" "-s" "-") short8000 5500000) (under? (list "rev") short8000 5500000)))
+(display (list (under? (list "paste" "-s" "-") short8000 6000000) (under? (list "rev") short8000 5400000)))
 ```
 ---
     (#t #t)

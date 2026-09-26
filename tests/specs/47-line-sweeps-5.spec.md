@@ -16,8 +16,8 @@ above the heap the child starts from: a run whose live heap ever grows past
 it is stopped, and the child's status says so.  That is the peak, which is
 what exhausts a machine -- a count taken after a run would miss a loop whose
 leavings a later sweep clears.  Each bound sits about half again above what
-the tool holds at its fullest here, and several times under what it held
-unswept: a sweep taken out of any of its loops puts it over.
+the tool holds at its fullest on the release lang.xon declares, and under
+what it holds unswept: a sweep taken out of any of its loops puts it over.
 
 A cheap step -- a comparison, a copy, a line written -- leaves little, so a
 loop of them sweeps less often, and shows what it holds only over thousands of
@@ -75,7 +75,7 @@ holds them.
 ### the -z reader, on 2,000 fields
 
 ```cu
-(display (list (under-th? (fn (_) (%cu-fd-fields (file-open-read "/tmp/x-cu-ls5-z") 0 "")) 1100000)))
+(display (list (under-th? (fn (_) (%cu-fd-fields (file-open-read "/tmp/x-cu-ls5-z") 0 "")) 900000)))
 ```
 ---
     (#t)

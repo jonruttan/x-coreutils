@@ -14,9 +14,9 @@ puts its output out in runs of 4,096 bytes rather than holding it whole.
 Each run is made in a forked child, with the allocator's guard armed a bound
 above the heap it starts from, as in 47-line-sweeps: a run whose live heap
 ever grows past it is stopped, and the child's status says so.  Each bound
-sits about half again above what the tool holds at its fullest here, and
-several times under what an unswept walk leaves over the same input: the
-walks whose bytes cost the least run on 15,997 bytes, the dearer ones on
+sits about half again above what the tool holds at its fullest on the release
+lang.xon declares, and under what an unswept walk leaves over the same input:
+the walks whose bytes cost the least run on 15,997 bytes, the dearer ones on
 3,995.  tr's runs are counted in a child that counts the writes it makes.
 
 ## the fixtures
