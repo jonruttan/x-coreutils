@@ -14,17 +14,30 @@
 
 ; yes(1) does not terminate; it ends when its writer fails, which is
 ; what a closed pipe does.  The loop therefore tests the write, not a
-; counter -- the one applet with no bounded spec.
+; counter.  Each write leaves objects behind, so the line goes out as
+; many copies of it at a time as fill up to 8,192 bytes, as GNU's yes
+; fills a buffer, and the loop sweeps every 512 writes, since there is
+; no end to them.
 (def %cu-yes
   (fn (_ argv stdin-thunk)
-    (def line
-      (string-append
-        (if (null? argv) "y" (%cu-join-with argv " "))
-        "\n"))
+    (def buf
+      (%cu-yes-copies
+        (string-append
+          (if (null? argv) "y" (%cu-join-with argv " "))
+          "\n")))
     (def go
-      (fn (self)
-        (if (< (file-write 1 line) 0) 0 (self))))
-    (go)))
+      (fn (self i)
+        (if (< (file-write 1 buf) 0) 0
+          (do (%cu-sweep-at i %cu-sweep-steps) (self (+ i 1))))))
+    (go 1)))
+
+; LINE doubled until another doubling would pass 8,192 bytes: a dozen appends
+; where a copy at a time would cost hundreds of objects a copy
+(def %cu-yes-copies
+  (fn (_ line)
+    (def go
+      (fn (self s) (if (> (* 2 (byte-len s)) 8192) s (self (string-append s s)))))
+    (go line)))
 
 ; --- factor -------------------------------------------------------------------
 

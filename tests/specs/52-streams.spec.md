@@ -97,6 +97,50 @@ What is shown is the filters whose outputs differed, none.
 ---
     (() () #t #t)
 
+## yes, which feeds them
+
+yes writes into a named pipe from a forked child, which takes a broken pipe
+(SIGPIPE, 13) as a failed write rather than as its end; the parent reads the
+other end a buffer at a time, checks that each read is `y` lines, and closes
+it after 16 MB, or after 30 seconds if they are slower coming, so a yes that
+writes little at a time fails the case rather than holding up the file.  The
+child arms the allocator's guard 1,400,000 objects above
+the heap it starts from: about half again above what yes holds at its
+fullest on the release lang.xon declares, the leavings of 512 writes between
+sweeps, and under what it holds with its sweeps turned off over the same
+16 MB.
+
+### the pipe, and a reader for it
+
+```cu
+(do (def ywant (string-append (let ((go (fn (self s k) (if (= k 0) s (self (string-append s s) (- k 1)))))) (go "y\n" 15)) "y\n")) (def yes-read (fn (_ bound mb) (do (proc-run (list "/bin/sh" "-c" "rm -f /tmp/x-cu-st/p")) (file-mkfifo "/tmp/x-cu-st/p" 384) (let ((pid (sys-fork))) (if (= pid 0) (let ((w (file-open-wronly "/tmp/x-cu-st/p")) (nul (file-open-write "/dev/null"))) (do (sys-dup2 w 1) (sys-dup2 nul 2) (sys-signal 13 cu-sig-ign) (cu-run (list "true") "") (%cu-heap-collect) ((prim-ref (lit alloc) (lit limit!)) (+ (Heap count) bound)) (sys-exit (cu-run (list "yes") "")))) (let ((r (file-open-read "/tmp/x-cu-st/p")) (buf (%str-make-raw 65536)) (until (+ (date-now-unix) 30))) (let ((go (fn (self k got bad) (if (if (>= got (* mb 1048576)) #t (> (date-now-unix) until)) (list got bad) (let ((n (File read r buf 65536))) (if (<= n 0) (list got bad) (do (if (= (% k 64) 0) (%cu-heap-collect) ()) (self (+ k 1) (+ got n) (if (string=? (substring buf 0 n) (substring ywant (% got 2) (+ (% got 2) n))) bad (+ bad 1)))))))))) (let ((res (go 1 0 0))) (do (file-close r) (list (first res) (first (rest res)) (sys-wait pid))))))))))) (display "made"))
+```
+---
+    made
+
+### 16 MB of `y` lines under the guard, and status 0 once its reader goes
+
+Shown: the bytes read, the reads that were not `y` lines, and yes's status.
+
+```cu
+(display (yes-read 1400000 16))
+```
+---
+    (16777216 0 0)
+
+### a write carries 8,192 bytes of lines
+
+The child counts yes's writes while the parent reads 64 KB: eight writes,
+and as many again as the pipe holds ahead of its reader, and the one that
+fails -- where a write a line would take more than 30,000.  Shown: whether
+the 64 KB came, and whether it took fewer than 40 writes.
+
+```cu
+(do (def yes-writes (fn (_ bytes) (do (proc-run (list "/bin/sh" "-c" "rm -f /tmp/x-cu-st/p /tmp/x-cu-st/n")) (file-mkfifo "/tmp/x-cu-st/p" 384) (let ((pid (sys-fork))) (if (= pid 0) (let ((w (file-open-wronly "/tmp/x-cu-st/p")) (nul (file-open-write "/dev/null")) (writes (list 0)) (put file-write)) (do (sys-dup2 w 1) (sys-dup2 nul 2) (sys-signal 13 cu-sig-ign) (set! file-write (fn (_ fd s) (do (set-first! writes (+ (first writes) 1)) (put fd s)))) (cu-run (list "yes") "") (file-write-all "/tmp/x-cu-st/n" (%cu-int->str (first writes))) (sys-exit 0))) (let ((r (file-open-read "/tmp/x-cu-st/p")) (buf (%str-make-raw 65536))) (let ((go (fn (self got) (if (>= got bytes) got (let ((n (File read r buf 65536))) (if (<= n 0) got (self (+ got n)))))))) (let ((got (go 0))) (do (file-close r) (sys-wait pid) (list (>= got bytes) (< (%cu-num-prefix (file-read-all "/tmp/x-cu-st/n")) 40))))))))))) (display (yes-writes 65536)))
+```
+---
+    (#t #t)
+
 ### cleanup
 
 ```cu
