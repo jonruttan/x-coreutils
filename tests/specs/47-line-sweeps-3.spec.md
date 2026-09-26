@@ -16,8 +16,8 @@ above the heap the child starts from: a run whose live heap ever grows past
 it is stopped, and the child's status says so.  That is the peak, which is
 what exhausts a machine -- a count taken after a run would miss a loop whose
 leavings a later sweep clears.  Each bound sits about half again above what
-the tool holds at its fullest here, and several times under what it held
-unswept: a sweep taken out of any of its loops puts it over.
+the tool holds at its fullest on the release lang.xon declares, and under
+what it holds unswept: a sweep taken out of any of its loops puts it over.
 
 comm also runs on two files of 4,000 short lines, where each line costs little
 to split and the walk is most of what a line leaves.
@@ -41,7 +41,7 @@ short file one digit a line, built a hundred at a time.
 ### sort and shuf hold the lines, and put them out a line at a time
 
 ```cu
-(display (list (under? (list "sort") in400 2500000) (under? (list "shuf") in800 4000000)))
+(display (list (under? (list "sort") in400 3600000) (under? (list "shuf") in800 4100000)))
 ```
 ---
     (#t #t)
@@ -51,7 +51,7 @@ short file one digit a line, built a hundred at a time.
 ### comm, on 400 keyed lines and on 4,000 short ones
 
 ```cu
-(display (list (under? (list "comm" "/tmp/x-cu-ls3-k" "/tmp/x-cu-ls3-k") "" 3000000) (under? (list "comm" "/tmp/x-cu-ls3-s" "/tmp/x-cu-ls3-s") "" 10000000)))
+(display (list (under? (list "comm" "/tmp/x-cu-ls3-k" "/tmp/x-cu-ls3-k") "" 3000000) (under? (list "comm" "/tmp/x-cu-ls3-s" "/tmp/x-cu-ls3-s") "" 10200000)))
 ```
 ---
     (#t #t)

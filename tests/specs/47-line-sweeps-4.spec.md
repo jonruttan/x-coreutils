@@ -16,8 +16,8 @@ above the heap the child starts from: a run whose live heap ever grows past
 it is stopped, and the child's status says so.  That is the peak, which is
 what exhausts a machine -- a count taken after a run would miss a loop whose
 leavings a later sweep clears.  Each bound sits about half again above what
-the tool holds at its fullest here, and several times under what it held
-unswept: a sweep taken out of any of its loops puts it over.
+the tool holds at its fullest on the release lang.xon declares, and under
+what it holds unswept: a sweep taken out of any of its loops puts it over.
 
 join is walked three ways, since two of its loops sweep: over keys that match,
 over keys that never do, and over one key on every line, which pairs each line
@@ -41,7 +41,7 @@ from 2001, and the last one number on all twenty of its lines.
 ### join over keys that match, that never do, and that are all one
 
 ```cu
-(display (list (under? (list "join" "/tmp/x-cu-ls4-k" "/tmp/x-cu-ls4-k") "" 9000000) (under? (list "join" "/tmp/x-cu-ls4-k" "/tmp/x-cu-ls4-d") "" 3500000) (under? (list "join" "/tmp/x-cu-ls4-r" "/tmp/x-cu-ls4-r") "" 10000000)))
+(display (list (under? (list "join" "/tmp/x-cu-ls4-k" "/tmp/x-cu-ls4-k") "" 7800000) (under? (list "join" "/tmp/x-cu-ls4-k" "/tmp/x-cu-ls4-d") "" 3000000) (under? (list "join" "/tmp/x-cu-ls4-r" "/tmp/x-cu-ls4-r") "" 7200000)))
 ```
 ---
     (#t #t #t)

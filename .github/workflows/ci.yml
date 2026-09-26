@@ -1,0 +1,168 @@
+name: CI
+
+# The matrix runs two x-lang refs: the release this bundle declares in
+# lang.xon (requires-release ...) and current main. The pinned leg proves the
+# bundle still runs on the platform it declares; the main leg is an early
+# warning that x-lang has moved underneath it, and is allowed to fail.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  # Weekly, because the interesting failure here is one nothing in this
+  # repository triggers: x-lang moving while this bundle sits still.
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  # The pinned matrix leg is derived from lang.xon, not written here, so there
+  # is no second copy to keep in sync.
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      legs: ${{ steps.legs.outputs.legs }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: legs
+        name: Read the declared release from lang.xon
+        run: |
+          declared=$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' lang.xon)
+          if [ -z "$declared" ]; then
+            echo "lang.xon declares no (requires-release ...)" >&2
+            exit 1
+          fi
+          echo "legs=[\"$declared\", \"main\"]" >> "$GITHUB_OUTPUT"
+          echo "matrix: $declared and main"
+
+  # macOS on arm64: the suite states facts of the machine it was measured on --
+  # `uname -sm` answers Darwin arm64, and /tmp is a link.
+  specs:
+    needs: prepare
+    name: specs @ x-lang ${{ matrix.x-lang }}
+    runs-on: macos-latest
+    continue-on-error: ${{ matrix.x-lang == 'main' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        x-lang: ${{ fromJSON(needs.prepare.outputs.legs) }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: x-coreutils
+
+      - name: Check out x-lang
+        uses: actions/checkout@v4
+        with:
+          repository: jonruttan/x-lang
+          ref: ${{ matrix.x-lang }}
+          path: .x-lang
+
+      # The engine is acquired, not built: x-lang pins one and knows how to
+      # fetch it.  Nothing here reimplements that.
+      - name: Build the platform
+        working-directory: .x-lang
+        run: |
+          make engine      # acquire the pinned engine
+          make             # x-bin at the repo root -- `make engine` does not build it
+          make boot        # the launcher-free amalgams the harness loads
+
+      # spec-gate compares the failing test names against
+      # tests/contract/known-failures.txt and is red when they differ in either
+      # direction -- a new failure, or a recorded one that now passes.  Each
+      # spec file runs in a process of its own, booted from the state image
+      # tests/spec-runner.sh writes, three at a time on the runner's three
+      # cores.  A file's @weight is what its process holds: one weighted 4 or
+      # more (a gigabyte and up) runs at a time, beside the rest, since the
+      # runner has 7 GB.
+      - name: Run the specs
+        working-directory: x-coreutils
+        env:
+          SPEC_BATCH: 1
+          PARALLEL: 1
+          PARALLEL_JOBS: 3
+          SPEC_HEAVY_JOBS: 1
+          SPEC_HEAVY_MIN: 4
+        run: X="$GITHUB_WORKSPACE/.x-lang/x.sh" sh tests/spec-gate.sh
+
+  # The platform's linter, over this bundle's sources.  It reads every file as
+  # text, including the branches no spec reaches, so the OS is not under test.
+  #
+  # x-lang main, not the declared release, as x-r5rs's if-ladders job does: the
+  # question is this repository's source shape, the platform is a parser it
+  # borrows, and the linter is tooling that `make install` does not ship.
+  # v0.14.0's cannot open its own includes from a checkout, so pinning it would
+  # let a release bump break the lint.
+  lint:
+    name: lint @ x-lang main
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: x-coreutils
+
+      - name: Check out x-lang
+        uses: actions/checkout@v4
+        with:
+          repository: jonruttan/x-lang
+          ref: main
+          path: .x-lang
+
+      # `make boot` is required: the linter loads the boot amalgam.
+      - name: Build the platform
+        working-directory: .x-lang
+        run: |
+          make engine
+          make
+          make boot
+
+      - name: Lint the bundle
+        working-directory: x-coreutils
+        run: X="$GITHUB_WORKSPACE/.x-lang/x.sh" sh tests/lint.sh
+
+  relocatable:
+    # A bundle needs no root-relative path literal, not even in run.x (x.sh
+    # boots the dialect and arms this root before run.x is read).  One would
+    # nail the bundle to the directory it was written in, and the symptom only
+    # appears once someone moves it.
+    name: no path literals at all
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The kit ships with the platform, so this job needs x-lang present -- a
+      # shallow checkout of the release lang.xon declares, not a build.
+      - name: Check out the lang kit
+        run: |
+          declared=$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' lang.xon)
+          git clone --depth 1 --branch "$declared" \
+            https://github.com/jonruttan/x-lang.git .x-lang
+
+      - name: The declared versions are named once
+        env:
+          X_LANG_KIT: ${{ github.workspace }}/.x-lang/tools/lang-kit
+        run: sh tools/check/release-refs.sh
+
+      - name: No path literals outside run.x
+        run: |
+          # Ignore comments -- a file may quote a literal it does not use.
+          # Exclude the platform clone: x-lang's own boot files use root-
+          # relative includes, and this job asks only whether THIS bundle
+          # relocates.
+          hits=$(grep -rn '(include "[a-zA-Z]' --include='*.x' \
+                 --exclude-dir='.x-lang' . \
+                 | grep -Ev ':[0-9]+:[[:space:]]*;' || true)
+          if [ -n "$hits" ]; then
+            echo "root-relative include (a bundle needs none, not even in run.x):" >&2
+            echo "$hits" >&2
+            exit 1
+          fi
+
+      - name: The generated harness is not committed
+        run: |
+          if [ -e tests/lib/harness.gen.x ]; then
+            echo "tests/lib/harness.gen.x is generated and machine-specific;" >&2
+            echo "it must not be committed (see .gitignore)" >&2
+            exit 1
+          fi

@@ -1,4 +1,4 @@
-# @weight 2
+# @weight 5
 
 Joining strings.  string-concat hands its list to the platform's concat,
 which loops over it, so a list of any length joins; a piece that is not a
@@ -11,7 +11,8 @@ renderer in pieces of 4,096 bytes, and the renderer sweeps as it goes,
 counting its bytes across pieces, so what a rendering holds is bounded by
 the bytes between sweeps: a run is made in a forked child with the
 allocator's guard armed a bound above the heap it starts from, as in
-47-line-sweeps, and the bound sits about half again above what cat holds.
+47-line-sweeps, and the bound sits about half again above what cat holds on
+the release lang.xon declares.
 
 ## string-concat
 

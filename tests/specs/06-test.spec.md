@@ -1,4 +1,4 @@
-# @weight 6
+# @weight 2
 
 test, `[` and `[[` -- the whole expression grammar, and the file
 questions it asks.  Its own file: these blocks stat a great deal, and

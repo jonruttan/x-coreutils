@@ -1,4 +1,4 @@
-# @weight 4
+# @weight 2
 
 xargs and the seven busybox options it now takes.  Its own file: every
 block here SPAWNS A PROCESS, and the suite runs a file's snippets in one

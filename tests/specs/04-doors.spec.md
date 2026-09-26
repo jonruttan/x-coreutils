@@ -1,4 +1,4 @@
-# @weight 4
+# @weight 2
 
 The applets that ride a door x-lang opened for this bundle: chmod,
 chown, chgrp, ln, link, readlink, realpath, mkfifo, df, sync, id,

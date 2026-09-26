@@ -1,4 +1,4 @@
-# @weight 4
+# @weight 2
 
 The checksum family's `-c`, and the two flags that shape what it says.
 Its own file: these blocks write fixtures and read them back, and the

@@ -145,21 +145,23 @@ status 1
 
 ### a mode the system will not set
 
-/ belongs to root and is 0755, so this is the refusal when the suite runs as
-anyone else.  -v reports the failure even though the mode asked for is the one
+/private/etc belongs to root and is 0755, so this is the refusal when the suite
+runs as anyone else.  It is on the writable data volume: / is on the sealed
+system volume, where some kernels answer that it is read-only before they ask
+who owns it.  -v reports the failure even though the mode asked for is the one
 it has.
 
 ```cu
-(do (cm (list "chmod" "-v" "755" "/")) (cm (list "chmod" "-c" "755" "/")) (cm (list "chmod" "-f" "755" "/")))
+(do (cm (list "chmod" "-v" "755" "/private/etc")) (cm (list "chmod" "-c" "755" "/private/etc")) (cm (list "chmod" "-f" "755" "/private/etc")))
 ```
 ---
 ```output
-failed to change mode of '/' from 0755 (rwxr-xr-x) to 0755 (rwxr-xr-x)
+failed to change mode of '/private/etc' from 0755 (rwxr-xr-x) to 0755 (rwxr-xr-x)
 stderr:
-chmod: changing permissions of '/': Operation not permitted
+chmod: changing permissions of '/private/etc': Operation not permitted
 status 1
 stderr:
-chmod: changing permissions of '/': Operation not permitted
+chmod: changing permissions of '/private/etc': Operation not permitted
 status 1
 stderr:
 status 1
