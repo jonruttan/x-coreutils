@@ -314,6 +314,27 @@
                     (let ((n (%cu-ptr-ref (%cu-str->ptr ns) 0 4)))
                       (if (> n 1024) 1024 n))))))))))
 
+; The process's groups.  Darwin's getgroups stops at NGROUPS_MAX, 16, and a
+; user in more groups loses the rest; getgroups$DARWIN_EXTSN is the same call
+; without the limit, and the one the system's id and GNU's read.  Where there
+; is no such symbol, the platform's getgroups.  A count past 2^31 is a -1.
+(def %cu-getgroups-cell (list ()))
+
+(def sys-getgroups
+  (fn (_)
+    (do (if (null? (first %cu-getgroups-cell))
+          (set-first! %cu-getgroups-cell
+            (list (%cu-dlsym (%cu-dlopen () 1) "getgroups$DARWIN_EXTSN")))
+          ())
+        (let ((f (first (first %cu-getgroups-cell))))
+          (if (null? f) (Sys getgroups)
+            (let ((n (%cu-ptr-call f 0 0)))
+              (if (if (< n 1) #t (> n 2147483647)) (Sys getgroups)
+                (let ((gs (%str-make-raw (* 4 n))))
+                  (let ((m (%cu-ptr-call f n (%cu-str->ptr gs))))
+                    (if (if (< m 1) #t (> m n)) (Sys getgroups)
+                      (%cu-int32s (%cu-str->ptr gs) m)))))))))))
+
 ; N four-byte ids from P, in order
 (def %cu-int32s
   (fn (_ p n)
@@ -832,7 +853,6 @@
 (def sys-geteuid (fn (_) (Sys geteuid)))
 (def sys-getgid (fn (_) (Sys getgid)))
 (def sys-getegid (fn (_) (Sys getegid)))
-(def sys-getgroups (fn (_) (Sys getgroups)))
 (def sys-uname (fn (_) (Sys uname)))
 (def sys-cpu-count (fn (_) (Sys cpu-count)))
 (def sys-sync (fn (_) (Sys sync)))
