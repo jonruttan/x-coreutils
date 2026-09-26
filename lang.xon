@@ -17,6 +17,11 @@
 ; mkfifo, id, whoami, groups, logname, sync and nice all ride doors x-lang
 ; opened for this bundle (PR #607), and `install -m` applies the mode it once
 ; accepted and ignored. The bundle does not load without them.
-(requires-release "v0.13.0")
+;
+; v0.14.0: (Err tag e), which file-or-err (cu/prims.x) reads to tell an io
+; error from any other raise.
+;
+; v0.15.0 is the release the suite and its sweep bounds are measured on.
+(requires-release "v0.15.0")
 
 (entry "run.x")
