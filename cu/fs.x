@@ -109,40 +109,54 @@
         (let ((stop (if (> (+ start 4096) end) end (+ start 4096))))
           (self text stop (pair (substring text start stop) acc)))))))
 
-; -n numbers every line, -b only the non-empty ones (and -b wins): the pieces
-; that go out, a numbered line to a piece, made in a pass that sweeps as it
-; goes.  Without either, the text goes out in pieces of 4,096 bytes, so a
-; rendering holds one piece's bytes at a time rather than the whole text's.
+; -n numbers every line, -b only the non-empty ones: TEXT's lines numbered from
+; N, a numbered line to a piece, made in a pass that sweeps as it goes.
+; Answers (PIECES . NEXT), NEXT the number the line after them takes.
 (def %cat-number
-  (fn (_ text o)
-    (def b? (Opts on? o "-b"))
-    (if (if b? #f (not (Opts on? o "-n"))) (%cat-chunks text 0 ())
-      (let ((ls (%cu-lines text)))
-        (def go
-          (fn (self xs n acc)
-            (if (null? xs) (reverse acc)
-              (do (%cu-sweep-tick! %cu-sweep-lines)
-                (if (if b? (= (byte-len (first xs)) 0) #f)
-                  (self (rest xs) n (pair "\n" acc))
-                  (self (rest xs) (+ n 1)
-                    (pair (string-concat
-                            (list (%cu-pad-left (%cu-int->str n) 6) "\t"
-                                  (first xs) "\n"))
-                      acc)))))))
-        (go ls 1 ())))))
+  (fn (_ text b? n)
+    (def go
+      (fn (self xs n acc)
+        (if (null? xs) (pair (reverse acc) n)
+          (do (%cu-sweep-tick! %cu-sweep-lines)
+            (if (if b? (= (byte-len (first xs)) 0) #f)
+              (self (rest xs) n (pair "\n" acc))
+              (self (rest xs) (+ n 1)
+                (pair (string-concat
+                        (list (%cu-pad-left (%cu-int->str n) 6) "\t"
+                              (first xs) "\n"))
+                  acc)))))))
+    (go (%cu-lines text) n ())))
 
+; The input goes out as it is read.  Without -n or -b it goes piece by piece,
+; and a rendering takes each piece 4,096 bytes at a time, so it holds that
+; many bytes' rendering rather than the whole text's.  -n and -b take whole
+; lines, and the numbering goes on from one block of them to the next (-b
+; wins).
 (def %cu-cat
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "cat" argv))
-    (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "cat") #f))
+    (def ops (Opts operands o))
+    (def says (%cu-says "cat"))
+    (def b? (Opts on? o "-b"))
     (def render (%cat-renderer o))
     ; numbering counts the SOURCE lines, so it runs before the rendering
     ; that may add a $ to each of them.  Each is a pass of its own, and the
     ; pieces go out in a third: a pass that did all three by turns would
     ; alternate between methods, and pay for it in dispatch.
-    (def pieces (%cat-number (first g) o))
-    (do (%cu-put-each (if (null? render) pieces (%cu-map-swept render pieces)))
-        (rest g))))
+    (def put
+      (fn (_ pieces)
+        (%cu-put-each (if (null? render) pieces (%cu-map-swept render pieces)))))
+    (rest
+      (if (if b? #f (not (Opts on? o "-n")))
+        (%cu-fold-said ops stdin-thunk says
+          (fn (_ p s)
+            (do (if (null? render) (display p) (put (%cat-chunks p 0 ()))) s))
+          ())
+        (%cu-fold-lines-said ops stdin-thunk says
+          (fn (_ block n)
+            (let ((r (%cat-number block b? n)))
+              (do (put (first r)) (rest r))))
+          1)))))
 
 ; --- cp -----------------------------------------------------------------------
 

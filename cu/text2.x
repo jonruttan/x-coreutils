@@ -216,11 +216,15 @@
           (self (+ i 1) (pair (byte-at s i) acc)))))
     (go 0 ())))
 
+; each block of whole lines reversed and put out as it is read
 (def %cu-rev-applet
   (fn (_ argv stdin-thunk)
-    (let ((g (%cu-gather-said argv stdin-thunk (%cu-says "rev") #f)))
-      (do (%cu-print-lines (%cu-map-swept %cu-rev-line (%cu-lines (first g))))
-          (rest g)))))
+    (rest
+      (%cu-fold-lines-said argv stdin-thunk (%cu-says "rev")
+        (fn (_ block s)
+          (do (%cu-print-lines (%cu-map-swept %cu-rev-line (%cu-lines block)))
+              s))
+        ()))))
 
 ; tac reverses each file on its own, record by record.  A record ends with its
 ; newline; a last one without a newline is put out as it is, so it runs into
@@ -297,12 +301,15 @@
     ; I counts the lines walked, for the sweeps
     (def go
       (fn (self ls i)
-        (if (null? ls) 0
+        (if (null? ls) ()
           (do (%cu-sweep-at i %cu-sweep-lines)
               (%cu-print-lines (%cu-fold-line (first ls) w bytes? spaces?))
               (self (rest ls) (+ i 1))))))
-    (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "fold") #f))
-    (do (go (%cu-lines (first g)) 0) (rest g))))
+    ; each block of whole lines folded and put out as it is read
+    (rest
+      (%cu-fold-lines-said (Opts operands o) stdin-thunk (%cu-says "fold")
+        (fn (_ block s) (do (go (%cu-lines block) 0) s))
+        ()))))
 
 (def %cu-paste
   (fn (_ argv stdin-thunk)
@@ -369,19 +376,28 @@
     ; what it means.
     (if (Opts on? o "-i") (sys-signal cu-sigint cu-sig-ign) ())
     (def ops (Opts operands o))
-    (def text (stdin-thunk))
-    ; a file tee cannot open is said, and the copy goes on to the rest
-    (def go
-      (fn (self os st)
-        (if (null? os) st
+    ; every file is opened before the copy starts, as tee opens them; one it
+    ; cannot open is said, and the copy goes on to the rest: (FDS . STATUS)
+    (def open-all
+      (fn (self os fds st)
+        (if (null? os) (pair fds st)
           (let ((fd (file-open-or-err
                       (if a? file-open-append file-open-write) (first os))))
             (if (Err err? fd)
               (do (file-write 2
                     (string-concat
                       (list "tee: " (first os) ": " (file-err-text fd) "\n")))
-                  (self (rest os) 1))
-              (do (file-write fd text)
-                  (file-close fd)
-                  (self (rest os) st)))))))
-    (do (display text) (go ops 0))))
+                  (self (rest os) fds 1))
+              (self (rest os) (pair fd fds) st))))))
+    (def opened (open-all ops () 0))
+    (def to-all
+      (fn (self fds p)
+        (if (null? fds) () (do (file-write (first fds) p) (self (rest fds) p)))))
+    (def close-all
+      (fn (self fds)
+        (if (null? fds) () (do (file-close (first fds)) (self (rest fds))))))
+    ; each piece goes to standard output and to every file as it is read
+    (do (%cu-fold-stdin stdin-thunk
+          (fn (_ p s) (do (display p) (to-all (first opened) p) s)) ())
+        (close-all (first opened))
+        (rest opened))))

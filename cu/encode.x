@@ -151,33 +151,57 @@
       ((string=? a "-o") (pair (lit type) (pair (lit o) 2)))
       (#t (pair (lit op) a)))))
 
-; a line repeated from the one before collapses to `*`, unless -v.
-; BASE is what -j skipped: the addresses count from it, the way od
-; numbers the bytes of the input rather than of what it printed.
+; What puts the lines of a text out, sixteen bytes to a line: (TEXT AT PREV
+; STARRED LAST?) puts every whole line of TEXT, and under LAST? the short one
+; at its end too.  AT is the address of TEXT's first byte -- the addresses
+; count from what -j skipped, the way od numbers the bytes of the input rather
+; than of what it printed.  A line repeated from the one before, PREV,
+; collapses to `*`, unless -v, and STARRED says the `*` is out already.
+; Answers (NEXT PREV STARRED), NEXT where the lines stopped.
 (def %cu-od-dump
-  (fn (_ text kind size rad v? base)
-    (def end (byte-len text))
-    (def tail
-      (fn (_)
-        (do (if (eq? rad (lit n)) ()
-              (display (string-append (%cu-od-address (+ base end) rad) "\n")))
-            0)))
-    ; a line costs tens of thousands of objects, so the walk sweeps every 512
-    ; bytes, 32 lines, on the byte index it already keeps
-    (def go
-      (fn (self i prev starred)
-        (if (>= i end) (tail)
+  (fn (_ kind size rad v?)
+    (fn (_ text at prev starred last?)
+      (def end (byte-len text))
+      ; a line costs tens of thousands of objects, so the walk sweeps every
+      ; 512 bytes, 32 lines, on the byte index it already keeps
+      (def go
+        (fn (self i prev starred)
           (let ((stop (if (> (+ i 16) end) end (+ i 16))))
-            (do (%cu-sweep-at i %cu-sweep-steps)
-              (let ((body (%cu-od-line text i stop kind size)))
-                (if (%cu-od-repeat? v? body prev (- stop i))
-                  (do (if starred () (display "*\n"))
-                      (self stop body #t))
-                  (do (display
-                        (string-append (%cu-od-address (+ base i) rad)
-                          (string-append body "\n")))
-                      (self stop body #f)))))))))
-    (go 0 () #f)))
+            (if (if (>= i end) #t (if (< (- stop i) 16) (not last?) #f))
+              (list i prev starred)
+              (do (%cu-sweep-at i %cu-sweep-steps)
+                (let ((body (%cu-od-line text i stop kind size)))
+                  (if (%cu-od-repeat? v? body prev (- stop i))
+                    (do (if starred () (display "*\n"))
+                        (self stop body #t))
+                    (do (display
+                          (string-append (%cu-od-address (+ at i) rad)
+                            (string-append body "\n")))
+                        (self stop body #f)))))))))
+      (go 0 prev starred))))
+
+; od's TAKE: the state is (SKIP LEFT PART AT PREV STARRED) -- the bytes -j has
+; still to skip, the bytes -N still takes (-1 for every one), the start of a
+; line that waits for the rest of its sixteen bytes, its address, and the
+; line before and whether it was starred.  Once -N has its bytes nothing more
+; is read.
+(def %cu-od-take
+  (fn (_ dump)
+    (fn (_ p s)
+      (let ((skip (first s)) (left (%cu-nth 1 s)) (end (byte-len p)))
+        (def from (if (> skip end) end skip))
+        (def upto
+          (if (if (>= left 0) (< (+ from left) end) #f) (+ from left) end))
+        (def taken (if (if (= from 0) (= upto end) #f) p (substring p from upto)))
+        (def text
+          (if (= (byte-len (%cu-nth 2 s)) 0) taken
+            (string-append (%cu-nth 2 s) taken)))
+        (def r (dump text (%cu-nth 3 s) (%cu-nth 4 s) (%cu-nth 5 s) #f))
+        (def left2 (if (< left 0) left (- left (- upto from))))
+        (let ((s2 (list (- skip from) left2
+                    (substring text (first r) (byte-len text))
+                    (+ (%cu-nth 3 s) (first r)) (%cu-nth 1 r) (%cu-nth 2 r))))
+          (if (if (= left2 0) (= skip from) #f) (%cu-enough s2) s2))))))
 
 (def %cu-od-repeat?
   (fn (_ v? body prev width)
@@ -218,24 +242,27 @@
           (filter (fn (_ e) (eq? (first e) (lit op))) st))))
     (def ty (%cu-od-opt st (lit type) (pair (lit o) 2)))
     (def lim (%cu-od-opt st (lit limit) (- 0 1)))
-    ; a file od cannot read is said, and what the others hold is still dumped
-    (def g (%cu-gather-said ops stdin-thunk (%cu-says "od") #f))
-    (def all (first g))
-    ; -j skips its bytes first and -N counts from what is left, as od
-    ; does.  A skip past the end is refused the way od refuses it: there
-    ; is nothing to number from there.
+    (def rad (%cu-od-opt st (lit radix) (lit o)))
+    (def dump (%cu-od-dump (first ty) (rest ty) rad (%cu-od-opt st (lit verbose) #f)))
+    ; -j skips its bytes first and -N counts from what is left, as od does,
+    ; and the lines go out as the input is read.  A file od cannot read is
+    ; said, and what the others hold is still dumped.
     (def skip (%cu-od-opt st (lit skip) 0))
-    (if (> skip (byte-len all))
+    (def g (%cu-fold-said ops stdin-thunk (%cu-says "od") (%cu-od-take dump)
+             (list skip lim "" skip () #f)))
+    (def s (first g))
+    ; a skip past the end is refused the way od refuses it: there is nothing
+    ; to number from there.  Otherwise the short line at the end goes out,
+    ; and the address past the last byte.
+    (if (> (first s) 0)
       (do (file-write 2 "od: cannot skip past end of combined input\n") 1)
-      (let ((text0 (substring all skip (byte-len all))))
-        (def text
-          (if (if (>= lim 0) (< lim (byte-len text0)) #f)
-            (substring text0 0 lim) text0))
-        (%cu-max-status (rest g)
-          (%cu-od-dump text (first ty) (rest ty)
-            (%cu-od-opt st (lit radix) (lit o))
-            (%cu-od-opt st (lit verbose) #f)
-            skip))))))
+      (let ((part (%cu-nth 2 s)))
+        (do (dump part (%cu-nth 3 s) (%cu-nth 4 s) (%cu-nth 5 s) #t)
+            (if (eq? rad (lit n)) ()
+              (display
+                (string-append
+                  (%cu-od-address (+ (%cu-nth 3 s) (byte-len part)) rad) "\n")))
+            (rest g))))))
 ; --- uuencode / uudecode --------------------------------------------------------
 
 ; the historical alphabet: six bits plus 32, with 0 written as a

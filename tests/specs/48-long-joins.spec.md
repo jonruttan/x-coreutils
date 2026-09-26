@@ -64,7 +64,7 @@ the release lang.xon declares.
 ### the pieces the text is rendered in
 
 ```cu
-(display (map byte-len (%cat-number all80 (%cu-opts "cat" (list "-v")))))
+(display (map byte-len (%cat-chunks all80 0 ())))
 ```
 ---
     (4096 4096 4096 4096 4016)
