@@ -466,45 +466,47 @@
             (set-first! %cu-zeros-cell (list b))
             b)))))
 
-; N random bytes to FD: one buffer of them, written over and over, through the
-; counted write -- which carries a NUL as readily as any other byte.
-;
-; Two costs shape this.  As a string the bytes would cost one Str8 append per
-; byte, and the appends nest, so a file of 8K was a C-stack overflow rather
-; than a shredded file.  And a draw costs objects that nothing here sweeps, so
-; the buffer is drawn ONCE per pass and repeated rather than drawn per byte:
-; three bytes to a draw, 64K to a buffer.  A pass over a file larger than the
-; buffer therefore repeats it, which is what shred's pattern passes do anyway.
-(def file-write-random
-  (fn (_ fd rng n)
-    (def chunk (if (> n 65536) 65536 n))
-    (def buf (%str-make-raw chunk))
-    (def at (%cu-str->ptr buf))
-    (def put
-      (fn (_ i v) (if (< i chunk) (%cu-ptr-set! at i (bit-and v 255) 1) ())))
-    (def fill
-      (fn (self i)
-        (if (>= i chunk) ()
-          (let ((v (rng-int rng 16777216)))
-            (do (put i (bit-shr v 16))
-                (put (+ i 1) (bit-shr v 8))
-                (put (+ i 2) v)
-                (self (+ i 3)))))))
-    (def go
-      (fn (self left)
-        (if (<= left 0) ()
-          (let ((k (if (> left chunk) chunk left)))
-            (do (File write fd buf k) (self (- left k)))))))
-    (if (<= n 0) () (do (fill 0) (go n)))))
+; File's read and write, resolved once.  Two methods of one class called in
+; turn pay the class's whole lookup on every call, thousands of objects; a
+; resolved method is called directly, with the class as its first argument.
+(def %cu-file-read (method-of File (lit read)))
+(def %cu-file-write (method-of File (lit write)))
 
+; N random bytes to FD: the system's, read from /dev/urandom a buffer of up to
+; 64K at a time and written through the counted write -- which carries a NUL
+; as readily as any other byte.  Each buffer is fresh, as GNU shred's stream
+; is.  A draw made here costs thousands of objects, and a pass over one block
+; of 4K took some 1,400 of them.  A buffer costs about 2,000 objects, so the
+; pass sweeps every 512 buffers.  A read that answers nothing ends the pass.
+(def file-write-random
+  (fn (_ fd n)
+    (if (<= n 0) ()
+      (let ((src (file-open-read "/dev/urandom")))
+        (def chunk (if (> n 65536) 65536 n))
+        (def buf (%str-make-raw chunk))
+        (def go
+          (fn (self i left)
+            (if (<= left 0) ()
+              (let ((got (%cu-file-read File src buf (if (> left chunk) chunk left))))
+                (if (<= got 0) ()
+                  (do (%cu-sweep-at i %cu-sweep-steps)
+                      (%cu-file-write File fd buf got)
+                      (self (+ i 1) (- left got))))))))
+        (do (go 0 n) (file-close src))))))
+
+; N zero bytes to FD, a buffer of them at a time, sweeping every 512 buffers
+; as a random pass does.  One method called over and over finds itself at
+; once, so this loop has no lookup to save.
 (def file-write-nuls
   (fn (_ fd n)
     (def go
-      (fn (self left)
+      (fn (self i left)
         (if (<= left 0) ()
           (let ((k (if (> left 65536) 65536 left)))
-            (do (File write fd (%cu-zeros) k) (self (- left k)))))))
-    (go n)))
+            (do (%cu-sweep-at i %cu-sweep-steps)
+                (File write fd (%cu-zeros) k)
+                (self (+ i 1) (- left k)))))))
+    (go 0 n)))
 
 ; S then one DELIM byte, which is the -z and -0 output shape.  Both go
 ; through File write: display would reach fd 1 by another road, and the

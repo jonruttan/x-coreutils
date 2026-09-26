@@ -1,4 +1,4 @@
-# @weight 4
+# @weight 2
 
 Bytes above 0x7F go out as the bytes they are.  A byte turned into a character
 and then into a string is written in UTF-8, two bytes for anything above 0x7F,
