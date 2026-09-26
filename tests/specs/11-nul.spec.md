@@ -1,4 +1,4 @@
-# @weight 2
+# @weight 4
 
 The NUL delimiters: sort -z, shuf -z, env -0, xargs -0, shred -z.
 

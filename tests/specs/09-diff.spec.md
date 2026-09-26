@@ -1,4 +1,4 @@
-# @weight 4
+# @weight 3
 
 diff's comparison and report options.  diff had none at all, and no
 specs either.

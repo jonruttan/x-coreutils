@@ -1,4 +1,4 @@
-# @weight 2
+# @weight 4
 
 What the line tools hold at their fullest: the passes sort makes besides its
 merge, and the loops that take a cheap step, each run on its own.

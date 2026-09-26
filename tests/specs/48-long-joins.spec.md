@@ -1,4 +1,4 @@
-# @weight 2
+# @weight 5
 
 Joining strings.  string-concat hands its list to the platform's concat,
 which loops over it, so a list of any length joins; a piece that is not a

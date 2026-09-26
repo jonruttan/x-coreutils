@@ -1,4 +1,4 @@
-# @weight 5
+# @weight 4
 
 Option parity with busybox, tranche by tranche.  docs/options.md is the
 generated scoreboard; each section here is one applet's busybox option
