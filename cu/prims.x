@@ -44,7 +44,7 @@
   sys-user-name sys-group-name sys-user-id sys-user-group sys-group-id
   sys-user-groups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
-  cu-stdin! cu-stdin-to-command!)
+  cu-stdin! cu-stdin-chunk! cu-stdin-to-command!)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -384,6 +384,20 @@
 (def cu-stdin-to-command!
   (fn (_)
     (if (< (sys-dup2 3 0) 0) () (sys-close 3))))
+
+; The size of the pieces an applet reads as it goes.  A list made from a piece
+; -- its lines, or its bytes -- is at most this long, and a collect marks a list
+; one C frame to an element, so one much past 30,000 elements overflows the
+; stack in the middle of a collect; pieces of 16K keep every such list well
+; short of that.
+(def %cu-piece-bytes 16384)
+
+; The next piece of stdin, or "" at its end, for an applet that reads as it
+; goes: head on the output of yes, which has no end.
+(def cu-stdin-chunk!
+  (fn (_)
+    (do (cu-stdin-to-command!)
+        (file-read-fd 0 %cu-piece-bytes))))
 
 ; stdin, read once from fd 3 (the platform's arrangement; see x-awk)
 (def cu-stdin!

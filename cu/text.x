@@ -81,6 +81,181 @@
       (display (string-concat (list (if first? "" "\n") "==> " name " <==\n")))
       ())))
 
+; The same inputs, headers and complaints, for a head that reads only as far as
+; it needs: each input's pieces are folded by TAKE from STATE, afresh for each
+; input, and the reading of one ends where TAKE has had enough of it.  No
+; operand at all is `-`.
+(def %cu-each-input-stream
+  (fn (_ applet ops stdin-thunk head? take state)
+    (%cu-each-input-stream-from applet (if (null? ops) (list "-") ops)
+      stdin-thunk head? take state #t 0)))
+
+(def %cu-each-input-stream-from
+  (fn (self applet ops stdin-thunk head? take state first? st)
+    (if (null? ops) st
+      (let ((name (first ops)) (src (%cu-pieces (first ops) stdin-thunk)))
+        (if (Err err? src)
+          (do (file-write 2
+                (string-concat
+                  (list applet ": cannot open '" name "' for reading: "
+                        (file-err-text src) "\n")))
+              (self applet (rest ops) stdin-thunk head? take state first? 1))
+          (do (%cu-input-header head?
+                (if (string=? name "-") "standard input" name) first?)
+              (let ((r (%cu-fold-pieces src take state)))
+                (do (src (lit close))
+                    (if (null? (rest r))
+                      (self applet (rest ops) stdin-thunk head? take state #f st)
+                      (do (file-write 2
+                            (string-concat
+                              (list applet ": error reading '" name "': "
+                                    (file-err-text (rest r)) "\n")))
+                          (self applet (rest ops) stdin-thunk head? take state
+                            #f 1)))))))))))
+
+; --- inputs a piece at a time -------------------------------------------------
+;
+; A filter puts out what it has read before it reads more, so an input with no
+; end -- the output of yes -- costs it a piece at a time, and a reader after it
+; that stops, as head does, stops it too.  An input is read in pieces of up to
+; %cu-piece-bytes, and each is handed to a TAKE with the state so far; TAKE
+; answers the state after it, or that state marked by %cu-enough where it wants
+; no more, and then nothing more is read.
+
+; NAME's pieces: a thunk answering the next piece, "" at the end, or the io Err
+; a read raised -- and closing what it reads when called with (lit close).
+; `-` is standard input.  Answers the io Err instead where NAME will not open.
+(def %cu-pieces
+  (fn (_ name stdin-thunk)
+    (if (string=? name "-") (%cu-stdin-pieces stdin-thunk)
+      (%cu-file-pieces name))))
+
+(def %cu-stdin-pieces
+  (fn (_ stdin-thunk)
+    (fn (_ . how) (if (null? how) (stdin-thunk (lit chunk)) ()))))
+
+; a file's pieces, `-` a name like any other
+(def %cu-file-pieces
+  (fn (_ name)
+    (let ((fd (file-open-or-err file-open-read name)))
+      (if (Err err? fd) fd (%cu-fd-chunks fd name)))))
+
+; what FD holds, a piece at a time, as %cu-pieces answers it
+(def %cu-fd-chunks
+  (fn (_ fd name)
+    (def buf (%str-make-raw %cu-piece-bytes))
+    (fn (_ . how)
+      (if (pair? how) (file-close fd)
+        (let ((r (%cu-file-read File fd buf %cu-piece-bytes)))
+          (match
+            ((< r 0) (Err from-errno (Err errno-of r) (lit read) name))
+            ((= r 0) "")
+            (#t (substring buf 0 r))))))))
+
+; STATE marked as the last one a TAKE wants, and the mark tested and taken off
+(def %cu-enough (fn (_ state) (pair (lit enough) state)))
+
+(def %cu-enough?
+  (fn (_ s) (if (pair? s) (eq? (first s) (lit enough)) #f)))
+
+(def %cu-unmarked (fn (_ s) (if (%cu-enough? s) (rest s) s)))
+
+; SRC's pieces folded by TAKE from STATE, to the end, to a state marked enough,
+; or to the io Err a read answered: (STATE . ERR), ERR nil but for that.  K
+; counts the pieces: one as short as a line reaches no sweep of its own, so
+; the fold sweeps every 64 of them.
+(def %cu-fold-pieces
+  (fn (_ src take state)
+    (def go
+      (fn (self k s)
+        (if (%cu-enough? s) (pair s ())
+          (let ((p (src)))
+            (match
+              ((Err err? p) (pair s p))
+              ((= (byte-len p) 0) (pair s ()))
+              (#t (do (%cu-sweep-at k %cu-sweep-lines)
+                      (self (+ k 1) (take p s)))))))))
+    (go 1 state)))
+
+; one operand's pieces folded by TAKE from STATE: (STATE . ERR), ERR nil but
+; for the io Err its open or a read failed with
+(def %cu-fold-one
+  (fn (_ name stdin-thunk take state)
+    (let ((src (%cu-pieces name stdin-thunk)))
+      (if (Err err? src) (pair state src)
+        (let ((r (%cu-fold-pieces src take state)))
+          (do (src (lit close)) r))))))
+
+; standard input's pieces folded by TAKE from STATE: the state at the end
+(def %cu-fold-stdin
+  (fn (_ stdin-thunk take state)
+    (%cu-unmarked (first (%cu-fold-one "-" stdin-thunk take state)))))
+
+; The operands' pieces in turn, folded by TAKE from STATE as the one input they
+; make together: `-`, and no operand at all, is standard input.  An operand that
+; will not open, or opens and will not read -- a directory -- is said on stderr
+; in its turn, in the line SAYS answers for its name and io Err, and the rest
+; are still read, unless TAKE has had enough.  Answers (STATE . STATUS), STATUS
+; 1 when anything failed.
+(def %cu-fold-said
+  (fn (_ ops stdin-thunk says take state)
+    (%cu-fold-said-go (if (null? ops) (list "-") ops) stdin-thunk says take
+      state 0)))
+
+(def %cu-fold-said-go
+  (fn (self ops stdin-thunk says take state st)
+    (if (if (null? ops) #t (%cu-enough? state)) (pair (%cu-unmarked state) st)
+      (let ((r (%cu-fold-one (first ops) stdin-thunk take state)))
+        (if (null? (rest r))
+          (self (rest ops) stdin-thunk says take (first r) st)
+          (do (%cu-say says (first ops) (rest r))
+              (self (rest ops) stdin-thunk says take (first r) 1)))))))
+
+; The operands' lines, read as %cu-fold-said reads them, a block of whole lines
+; at a time: EACH is handed each block with the state so far and answers the
+; state after it.  A last line with no newline is a block of its own, at the
+; end.  Answers (STATE . STATUS).
+(def %cu-fold-lines-said
+  (fn (_ ops stdin-thunk says each state)
+    (let ((r (%cu-fold-said ops stdin-thunk says (%cu-by-lines each)
+               (pair () state))))
+      (pair (let ((s (first r)))
+              (if (null? (first s)) (rest s)
+                (each (string-concat (reverse (first s))) (rest s))))
+            (rest r)))))
+
+; EACH, a taker of whole lines, as a TAKE of pieces.  A piece is cut after its
+; last newline: what comes before, joined to what the pieces before it left
+; over, goes to EACH as a block of whole lines, and what comes after is left
+; over for the next.  The state is (LEFT . STATE), LEFT the pieces left over,
+; newest first, so a line longer than a piece waits whole for its newline.
+(def %cu-by-lines
+  (fn (_ each)
+    (fn (_ p s)
+      (let ((cut (%cu-past-newline p)) (end (byte-len p)))
+        (match
+          ((= cut 0) (pair (pair p (first s)) (rest s)))
+          ((= cut end) (pair () (each (%cu-joined (first s) p) (rest s))))
+          (#t (pair (list (substring p cut end))
+                (each (%cu-joined (first s) (substring p 0 cut)) (rest s)))))))))
+
+; the index just past P's last newline, or 0 where it holds none
+(def %cu-past-newline
+  (fn (_ p)
+    (def go
+      (fn (self i)
+        (match
+          ((< i 0) 0)
+          ((= (byte-at p i) 10) (+ i 1))
+          (#t (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+                  (self (- i 1)))))))
+    (go (- (byte-len p) 1))))
+
+; the pieces LEFT, newest first, then P, as one text
+(def %cu-joined
+  (fn (_ left p)
+    (if (null? left) p (string-concat (reverse (pair p left))))))
+
 ; LS each on a line of its own, put out as they are walked, sweeping as they
 ; go.  Made into one string first they would cost thousands of objects a line
 ; inside string-concat, where no sweep reaches; each line and its newline go
@@ -686,10 +861,48 @@
       (let ((lines? (first given)) (spec (rest given)))
         (let ((n (%cu-count-of (%cu-count-body spec)))
               (elide? (if (> (byte-len spec) 0) (= (byte-at spec 0) 45) #f)))
-          (if (null? n) (%cu-count-refused "head" lines? spec)
-            (%cu-each-input "head" ops stdin-thunk (%cu-headers? o ops)
-              (fn (_ name text file?)
-                (display (%cu-head-part text lines? elide? n))))))))))
+          (match
+            ((null? n) (%cu-count-refused "head" lines? spec))
+            ; all but the last N: the end has to be reached first
+            (elide?
+              (%cu-each-input "head" ops stdin-thunk (%cu-headers? o ops)
+                (fn (_ name text file?)
+                  (display (%cu-head-part text lines? #t n)))))
+            (#t
+              (%cu-each-input-stream "head" ops stdin-thunk (%cu-headers? o ops)
+                (%cu-head-take lines?) (if (> n 0) n (%cu-enough n))))))))))
+
+; head's TAKE of the first lines or bytes: each piece is put out as far as the
+; count reaches, and the state is what is left of the count -- marked enough
+; at none, so nothing past it is read, and an input with no end, the output of
+; yes, ends where the count does
+(def %cu-head-take
+  (fn (_ lines?)
+    (fn (_ c left)
+      (let ((after
+              (if lines?
+                (let ((cut (%cu-newlines-to c left)))
+                  (do (display (substring c 0 (first cut)))
+                      (- left (rest cut))))
+                (let ((k (if (< left (byte-len c)) left (byte-len c))))
+                  (do (display (substring c 0 k))
+                      (- left k))))))
+        (if (> after 0) after (%cu-enough after))))))
+
+; where TEXT's Kth newline ends, and how many newlines were found: K, or fewer
+; with the end at TEXT's end
+(def %cu-newlines-to
+  (fn (_ text k)
+    (def end (byte-len text))
+    (def go
+      (fn (self i found)
+        (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+            (match
+              ((>= found k) (pair i found))
+              ((>= i end) (pair end found))
+              ((= (byte-at text i) 10) (self (+ i 1) (+ found 1)))
+              (#t (self (+ i 1) found))))))
+    (go 0 0)))
 
 (def %cu-member-s?
   (fn (_ s l)
@@ -801,10 +1014,9 @@
 ; count itself; the later of the two options says what is counted, and the later
 ; of -q and -v decides the headers.  -f follows by NAME the files that were read,
 ; polled every -s
-; seconds (1 by default), each from where its read ended.  Standard input has
-; been read whole by the time an applet runs, so it has nothing to follow: -f
-; with only stdin prints the tail and returns, and -f with operands none of
-; which could be read says so.
+; seconds (1 by default), each from where its read ended.  tail reads standard
+; input whole, so it has nothing to follow: -f with only stdin prints the tail
+; and returns, and -f with operands none of which could be read says so.
 (def %cu-tail
   (fn (_ argv stdin-thunk)
     (let ((args (%cu-tail-old argv)))
@@ -847,14 +1059,16 @@
 ; counts for one text: (lines words bytes)
 ; (LINES WORDS BYTES LONGEST). LONGEST is the longest line without its
 ; newline, which is what -L reports.
-(def %cu-wc-counts
-  (fn (_ s)
+; wc's TAKE: the counts carried on over the piece S from ST, (LINES WORDS BYTES
+; IN-WORD? COLUMN LONGEST) -- a word is counted where a blank follows it, so
+; one cut between two pieces is counted once
+(def %cu-wc-take
+  (fn (_ s st)
     (def end (byte-len s))
     (def go
       (fn (self i nl nw in-word col longest)
         (if (>= i end)
-          (list nl (if in-word (+ nw 1) nw) end
-            (if (> col longest) col longest))
+          (list nl nw (+ (%cu-nth 2 st) end) in-word col longest)
           (let ((b (byte-at s i)))
             (def ws (match ((= b 32) #t) ((= b 9) #t) (#t (= b 10))))
             (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
@@ -864,7 +1078,18 @@
                 (not ws)
                 (if (= b 10) 0 (+ col 1))
                 (if (= b 10) (if (> col longest) col longest) longest)))))))
-    (go 0 0 0 #f 0 0)))
+    (go 0 (first st) (%cu-nth 1 st) (%cu-nth 3 st) (%cu-nth 4 st) (%cu-nth 5 st))))
+
+(def %cu-wc-none (list 0 0 0 #f 0 0))
+
+; the counts at the end of an input, (LINES WORDS BYTES LONGEST): a word still
+; open is counted, and a last line with no newline measured
+(def %cu-wc-counted
+  (fn (_ st)
+    (list (first st)
+      (if (%cu-nth 3 st) (+ (%cu-nth 1 st) 1) (%cu-nth 1 st))
+      (%cu-nth 2 st)
+      (if (> (%cu-nth 4 st) (%cu-nth 5 st)) (%cu-nth 4 st) (%cu-nth 5 st)))))
 
 ; wc reads every input before it prints a row, because the rows share one
 ; column width: the digits of what the regular files hold between them, and at
@@ -895,8 +1120,8 @@
         (list "-l" "-w" "-m" "-c" "-L")))
     (def ops (Opts operands o))
     (def ins
-      (if (null? ops) (list (%cu-wc-stdin stdin-thunk ()))
-        (map (fn (_ op) (%cu-wc-input op stdin-thunk)) ops)))
+      (if (null? ops) (list (%cu-wc-input "-" () stdin-thunk))
+        (map (fn (_ op) (%cu-wc-input op op stdin-thunk)) ops)))
     (def rows (filter (fn (_ i) (%cu-nth 5 i)) ins))
     (def width (%cu-wc-width rows (length cols) (length ins)))
     (def row
@@ -921,32 +1146,25 @@
         (if (> (length ins) 1) (row (%cu-wc-total rows) "total") ())
         (if (%cu-wc-failed? ins) 1 0))))
 
-; One operand read: (NAME COUNTS REGULAR? SIZE SAID ROW?) -- SAID the line wc
-; says about it, or nil, and ROW? whether it gets a row: a file that would not
-; open gets none.
+; One operand counted as it is read, a piece at a time, and shown as NAME: (NAME
+; COUNTS REGULAR? SIZE SAID ROW?) -- SAID the line wc says about it, or nil,
+; and ROW? whether it gets a row: a file that would not open gets none, and
+; one that opened and would not read the counts it read before it failed.
+; Standard input is asked what it is after the read, when it is fd 0 whatever
+; it came in as -- a file, a pipe, a terminal.
 (def %cu-wc-input
-  (fn (_ op stdin-thunk)
-    (if (string=? op "-") (%cu-wc-stdin stdin-thunk op)
-      (let ((text (file-or-err (fn (_) (file-read-all op)))))
-        (match
-          ((not (Err err? text))
-            (let ((st (file-stat-full op)))
-              (list op (%cu-wc-counts text)
-                (eq? (%cu-stat-get st (lit kind)) (lit file))
-                (%cu-stat-get st (lit size)) () #t)))
-          ((eq? (file-err-op text) (lit read))
-            (list op (%cu-wc-counts "") #f 0 ((%cu-says "wc") op text) #t))
-          (#t (list op () #f 0 ((%cu-says "wc") op text) #f)))))))
-
-; Standard input read, and then asked what it is: after the read it is fd 0,
-; whatever it came in as -- a file, a pipe, a terminal.
-(def %cu-wc-stdin
-  (fn (_ stdin-thunk name)
-    (let ((text (stdin-thunk)))
-      (let ((st (file-stat-full "/dev/fd/0")))
-        (list name (%cu-wc-counts text)
-          (eq? (%cu-stat-get st (lit kind)) (lit file))
-          (%cu-stat-get st (lit size)) () #t)))))
+  (fn (_ op name stdin-thunk)
+    (let ((r (%cu-fold-one op stdin-thunk %cu-wc-take %cu-wc-none)))
+      (match
+        ((null? (rest r))
+          (let ((st (file-stat-full (if (string=? op "-") "/dev/fd/0" op))))
+            (list name (%cu-wc-counted (first r))
+              (eq? (%cu-stat-get st (lit kind)) (lit file))
+              (%cu-stat-get st (lit size)) () #t)))
+        ((eq? (file-err-op (rest r)) (lit read))
+          (list name (%cu-wc-counted (first r)) #f 0
+            ((%cu-says "wc") op (rest r)) #t))
+        (#t (list name () #f 0 ((%cu-says "wc") op (rest r)) #f))))))
 
 (def %cu-wc-width
   (fn (_ rows ncols nins)

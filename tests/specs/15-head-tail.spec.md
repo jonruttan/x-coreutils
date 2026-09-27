@@ -427,6 +427,48 @@ status 0
 status 0
 ```
 
+## as it goes
+
+head puts out the first lines or bytes of its input as the pieces come, and
+asks for no piece past them: an input with no end -- the output of yes -- ends
+where the count does.  Standard input here is a thunk that hands out pieces one
+at a time and counts them, and refuses to answer the whole text; each case
+shows what head printed, then how many pieces it asked for.
+
+### -n 2 of an input with no end asks for one piece
+
+```cu
+(do (def endless (fn (_ piece) (let ((taken (list 0))) (list (fn (_ . how) (if (null? how) (error "head asked for the whole input") (do (set-first! taken (+ (first taken) 1)) piece))) taken)))) (def feed (fn (_ l) (let ((left (list l)) (taken (list 0))) (list (fn (_ . how) (if (null? how) (error "head asked for the whole input") (if (null? (first left)) "" (let ((p (first (first left)))) (do (set-first! left (rest (first left))) (set-first! taken (+ (first taken) 1)) p))))) taken)))) (def from (fn (_ argv src) (do (%cu-dispatch %cu-head "head" argv (first src)) (display (list (first (first (rest src)))))))) (from (list "-n" "2") (endless "y\ny\ny\n")))
+```
+---
+```output
+y
+y
+(1)
+```
+
+### -c 10 of pieces of six bytes asks for two
+
+```cu
+(from (list "-c" "10") (endless "abcdef"))
+```
+---
+    abcdefabcd(2)
+
+### a line split between two pieces, and an input that ends first
+
+```cu
+(do (from (list "-n" "2") (feed (list "ab\ncd" "ef\ngh\n" "ij\n"))) (newline) (from (list "-n" "5") (feed (list "one\n"))))
+```
+---
+```output
+ab
+cdef
+(2)
+one
+(1)
+```
+
 ## cleanup
 
 ### the scratch directory goes

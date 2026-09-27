@@ -74,7 +74,8 @@
       (string-concat
         (list "uniq: error reading '" name "': " (file-err-text err))))))
 
-; IN checked, OUT opened, then IN read and its runs written to OUT
+; IN checked, OUT opened, then IN read a block of whole lines at a time and its
+; runs written to OUT as they end
 (def %uniq-into
   (fn (_ o in out stdin-thunk)
     (let ((shut (%cu-first-unopened (list in) %uniq-says)))
@@ -82,16 +83,20 @@
         (let ((fd (if (string=? out "-") 1 (file-open-or-err file-open-write out))))
           (if (Err err? fd)
             (do (%cu-say (%cu-says "uniq") out fd) 1)
-            (let ((text (if (string=? in "-") (stdin-thunk)
-                          (%cu-read-said %uniq-says in))))
-              (do (if (Err err? text) () (%uniq-runs o (%cu-lines text) fd))
-                  (if (= fd 1) () (file-close fd))
-                  (if (Err err? text) 1 0)))))))))
+            (let ((runs (%uniq-runs o fd)))
+              (let ((r (%cu-fold-lines-said (list in) stdin-thunk %uniq-says
+                         (first runs) (list () "" 0 0))))
+                (do ((rest runs) (first r))
+                    (if (= fd 1) () (file-close fd))
+                    (rest r))))))))))
 
-; each run of LINES that the flags keep, once, to FD -- under -c after its count,
-; right-aligned in seven columns and wider when it needs to be
+; The runs of the lines that the flags keep, each once, to FD -- under -c after
+; its count, right-aligned in seven columns and wider when it needs to be.
+; Answers (EACH . END): EACH takes a block of whole lines with the state (CUR
+; KEY N I) -- the current run's line, its key and its count, and the lines
+; walked, for the sweeps -- and END writes the run the last block left open.
 (def %uniq-runs
-  (fn (_ o lines fd)
+  (fn (_ o fd)
     (def count? (Opts on? o "-c"))
     (def dups? (Opts on? o "-d"))
     (def singles? (Opts on? o "-u"))
@@ -104,17 +109,18 @@
               (string-concat
                 (list (%cu-pad-left (%cu-int->str n) 7) " " line "\n"))
               (string-append line "\n"))))))
-    ; I counts the lines walked, for the sweeps; N the current run's
     (def go
       (fn (self ls cur key n i)
-        (if (null? ls)
-          (if (null? cur) () (emit n cur))
+        (if (null? ls) (list cur key n i)
           (let ((k (do (%cu-sweep-at i %cu-sweep-lines) (key-of (first ls)))))
             (if (if (null? cur) #f (string=? k key))
               (self (rest ls) cur key (+ n 1) (+ i 1))
               (do (if (null? cur) () (emit n cur))
                   (self (rest ls) (first ls) k 1 (+ i 1))))))))
-    (go lines () "" 0 0)))
+    (pair
+      (fn (_ block s)
+        (go (%cu-lines block) (first s) (%cu-nth 1 s) (%cu-nth 2 s) (%cu-nth 3 s)))
+      (fn (_ s) (if (null? (first s)) () (emit (%cu-nth 2 s) (first s)))))))
 
 ; --- nl -----------------------------------------------------------------------
 
@@ -154,10 +160,11 @@
     (def blank (let ((go (fn (self k acc)
                            (if (<= k 0) acc (self (- k 1) (string-append " " acc))))))
                  (go width "")))
-    ; N is the next number, I the lines walked, for the sweeps
+    ; N is the next number, I the lines walked, for the sweeps; answers the
+    ; number the line after LS takes
     (def go
       (fn (self ls n i)
-        (if (null? ls) 0
+        (if (null? ls) n
           (do (%cu-sweep-at i %cu-sweep-lines)
             (if (numbered? (first ls))
               (do (display
@@ -166,5 +173,9 @@
                   (self (rest ls) (+ n step) (+ i 1)))
               (do (display (string-concat (list blank sep (first ls) "\n")))
                   (self (rest ls) n (+ i 1))))))))
-    (def g (%cu-gather-said ops stdin-thunk (%cu-says "nl") #f))
-    (do (go (%cu-lines (first g)) start 0) (rest g))))
+    ; each block of whole lines numbered and put out as it is read, the
+    ; numbering going on from one block to the next
+    (rest
+      (%cu-fold-lines-said ops stdin-thunk (%cu-says "nl")
+        (fn (_ block n) (go (%cu-lines block) n 0))
+        start))))

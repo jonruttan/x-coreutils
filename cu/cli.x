@@ -389,7 +389,19 @@
                 (string-append "coreutils: no such applet: "
                   (string-append (first argv) "\n")))
               2)
-          (%cu-dispatch h (first argv) (rest argv) (fn (_) input)))))))
+          (%cu-dispatch h (first argv) (rest argv) (%cu-string-stdin input)))))))
+
+; An applet's stdin is a thunk.  Called bare it answers the whole text; called
+; with (lit chunk) it answers the next piece not yet handed out, and "" at the
+; end, for an applet that stops before the end.  An applet takes one or the
+; other.  From a string, the one piece is the string.
+(def %cu-string-stdin
+  (fn (_ input)
+    (def given (list #f))
+    (fn (_ . how)
+      (if (null? how) input
+        (if (first given) ""
+          (do (set-first! given #t) input))))))
 
 ; One applet run, for cu-run and cu-main alike: its arguments checked against
 ; its row, and the applet handed them -- only its operands where it declares no
@@ -423,11 +435,13 @@
     (def argv (cu-argv raw-args))
     (def cache (list ()))
     (def stdin-thunk
-      (fn (_)
-        (if (null? (first cache))
-          (do (set-first! cache (list (cu-stdin!)))
-              (first (first cache)))
-          (first (first cache)))))
+      (fn (_ . how)
+        (match
+          ((not (null? how)) (cu-stdin-chunk!))
+          ((null? (first cache))
+            (do (set-first! cache (list (cu-stdin!)))
+                (first (first cache))))
+          (#t (first (first cache))))))
     (if (null? argv)
       (sys-exit (cu-run argv ""))
       (let ((h (%cu-find-applet (first argv))))

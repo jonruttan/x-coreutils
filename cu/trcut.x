@@ -254,30 +254,32 @@
       (let ((s (%cu-tr-set (first args))))
         (if (Opts on? o "-c") (%cu-tr-complement s) s)))
     (def set2 (if (null? (rest args)) () (%cu-tr-set (first (rest args)))))
-    (def text (stdin-thunk))
-    (def end (byte-len text))
     (def squeeze-set (if sq? (if (null? set2) set1 set2) ()))
     ; the bytes are gathered as bytes and written as a run (cu/prims.x), so a
-    ; set that names a NUL writes one.  A run goes out every 4,096 bytes, so
-    ; the output is never held whole, and the walk sweeps as it goes: a byte
-    ; costs a few thousand objects, a walk of the sets with it.
+    ; set that names a NUL writes one.  A run goes out every 4,096 bytes and at
+    ; the end of each piece of the input, so the output is never held whole,
+    ; and the walk sweeps as it goes: a byte costs a few thousand objects, a
+    ; walk of the sets with it.  PREV, the last byte written, goes on from one
+    ; piece to the next, so a squeeze reaches across them.
     (def go
-      (fn (self i acc n prev)
+      (fn (self text end i acc n prev)
         (match
-          ((>= i end) (file-write-run 1 (%cu-run-bytes (reverse acc) n)))
+          ((>= i end) (do (file-write-run 1 (%cu-run-bytes (reverse acc) n)) prev))
           ((>= n 4096)
             (do (file-write-run 1 (%cu-run-bytes (reverse acc) n))
-                (self i () 0 prev)))
+                (self text end i () 0 prev)))
           (#t
             (let ((b (byte-at text i)))
               (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
                 (if (if del? (%cu-member-b? b set1) #f)
-                  (self (+ i 1) acc n prev)
+                  (self text end (+ i 1) acc n prev)
                   (let ((v (if (null? set2) b (%cu-tr-map set1 set2 b))))
                     (if (if sq? (if (= v prev) (%cu-member-b? v squeeze-set) #f) #f)
-                      (self (+ i 1) acc n prev)
-                      (self (+ i 1) (pair v acc) (+ n 1) v))))))))))
-    (do (go 0 () 0 (- 0 1)) 0)))
+                      (self text end (+ i 1) acc n prev)
+                      (self text end (+ i 1) (pair v acc) (+ n 1) v))))))))))
+    (do (%cu-fold-stdin stdin-thunk
+          (fn (_ p prev) (go p (byte-len p) 0 () 0 prev)) (- 0 1))
+        0)))
 
 ; a cut LIST: N, N-M, N-, -M, comma-separated; answers (lo . hi) pairs
 ; with hi () for open
@@ -330,43 +332,49 @@
       (do
         (def delim (Opts value o "-d"))
         (def suppress? (Opts on? o "-s"))
-        (def g (%cu-gather-said ops stdin-thunk (%cu-says "cut") #f))
-        (def lines (%cu-lines (first g)))
-        (if (not (null? positions))
-          (let ((ranges (%cu-cut-list positions)))
-            (def cut-line
-              (fn (_ line)
-                (def end (byte-len line))
-                (def go
-                  (fn (self i acc)
-                    (if (>= i end) (string-concat (reverse acc))
-                      (self (+ i 1)
-                        (if (%cu-in-ranges? (+ i 1) ranges)
-                          (pair (%cu-b->s (byte-at line i)) acc)
-                          acc)))))
-                (go 0 ())))
-            (do (%cu-print-lines (%cu-map-swept cut-line lines)) (rest g)))
-          (let ((ranges (%cu-cut-list flist)))
-            (def db (if (null? delim) 9 (byte-at delim 0)))
-            (def sep (%cu-b->s db))
-            (def cut-line
-              (fn (_ line)
-                (def fields (%cu-split-byte line db))
-                (if (null? (rest fields))
-                  line                                    ; no delimiter
-                  (let ((go (fn (self fs n acc)
-                              (if (null? fs) (reverse acc)
-                                (self (rest fs) (+ n 1)
-                                  (if (%cu-in-ranges? n ranges)
-                                    (pair (first fs) acc)
-                                    acc))))))
-                    (%cu-join-with (go fields 1 ()) sep)))))
-            (def keep?
-              (fn (_ line)
-                (if suppress? (pair? (rest (%cu-split-byte line db))) #t)))
-            ; a line -s leaves out is made nil, and the nils are dropped after
-            (do (%cu-print-lines
+        ; what puts a block's lines out cut, chosen once
+        (def put-lines
+          (if (not (null? positions))
+            (let ((ranges (%cu-cut-list positions)))
+              (def cut-line
+                (fn (_ line)
+                  (def end (byte-len line))
+                  (def go
+                    (fn (self i acc)
+                      (if (>= i end) (string-concat (reverse acc))
+                        (self (+ i 1)
+                          (if (%cu-in-ranges? (+ i 1) ranges)
+                            (pair (%cu-b->s (byte-at line i)) acc)
+                            acc)))))
+                  (go 0 ())))
+              (fn (_ lines) (%cu-print-lines (%cu-map-swept cut-line lines))))
+            (let ((ranges (%cu-cut-list flist)))
+              (def db (if (null? delim) 9 (byte-at delim 0)))
+              (def sep (%cu-b->s db))
+              (def cut-line
+                (fn (_ line)
+                  (def fields (%cu-split-byte line db))
+                  (if (null? (rest fields))
+                    line                                  ; no delimiter
+                    (let ((go (fn (self fs n acc)
+                                (if (null? fs) (reverse acc)
+                                  (self (rest fs) (+ n 1)
+                                    (if (%cu-in-ranges? n ranges)
+                                      (pair (first fs) acc)
+                                      acc))))))
+                      (%cu-join-with (go fields 1 ()) sep)))))
+              (def keep?
+                (fn (_ line)
+                  (if suppress? (pair? (rest (%cu-split-byte line db))) #t)))
+              ; a line -s leaves out is made nil, and the nils are dropped after
+              (fn (_ lines)
+                (%cu-print-lines
                   (filter (fn (_ x) (not (null? x)))
-                    (%cu-map-swept (fn (_ l) (if (keep? l) (cut-line l) ())) lines)))
-                (rest g))))))))
+                    (%cu-map-swept (fn (_ l) (if (keep? l) (cut-line l) ()))
+                      lines)))))))
+        ; each block of whole lines cut and put out as it is read
+        (rest
+          (%cu-fold-lines-said ops stdin-thunk (%cu-says "cut")
+            (fn (_ block s) (do (put-lines (%cu-lines block)) s))
+            ()))))))
 
