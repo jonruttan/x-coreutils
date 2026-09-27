@@ -41,7 +41,7 @@ short file one digit a line, built a hundred at a time.
 ### sort and shuf hold the lines, and put them out a line at a time
 
 ```cu
-(display (list (under? (list "sort") in400 3600000) (under? (list "shuf") in800 4100000)))
+(display (list (under? (list "sort") in400 3600000) (under? (list "shuf") in800 4000000)))
 ```
 ---
     (#t #t)

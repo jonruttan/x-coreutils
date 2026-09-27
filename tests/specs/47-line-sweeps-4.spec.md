@@ -41,7 +41,7 @@ from 2001, and the last one number on all twenty of its lines.
 ### join over keys that match, that never do, and that are all one
 
 ```cu
-(display (list (under? (list "join" "/tmp/x-cu-ls4-k" "/tmp/x-cu-ls4-k") "" 7800000) (under? (list "join" "/tmp/x-cu-ls4-k" "/tmp/x-cu-ls4-d") "" 3000000) (under? (list "join" "/tmp/x-cu-ls4-r" "/tmp/x-cu-ls4-r") "" 7200000)))
+(display (list (under? (list "join" "/tmp/x-cu-ls4-k" "/tmp/x-cu-ls4-k") "" 7400000) (under? (list "join" "/tmp/x-cu-ls4-k" "/tmp/x-cu-ls4-d") "" 3000000) (under? (list "join" "/tmp/x-cu-ls4-r" "/tmp/x-cu-ls4-r") "" 6400000)))
 ```
 ---
     (#t #t #t)

@@ -40,7 +40,7 @@ repeating; the short lines are one digit each, built a hundred at a time.
 ### each line made as it is put out, on 800 lines
 
 ```cu
-(display (list (under? (list "cut" "-d" " " "-f" "2") in800 3300000) (under? (list "rev") in800 2400000) (under? (list "fold" "-w" "20") in800 3500000) (under? (list "expand") in800 3000000) (under? (list "paste" "-" "-") in800 6300000) (under? (list "paste" "-s" "-") in800 2700000)))
+(display (list (under? (list "cut" "-d" " " "-f" "2") in800 3200000) (under? (list "rev") in800 2400000) (under? (list "fold" "-w" "20") in800 3400000) (under? (list "expand") in800 3000000) (under? (list "paste" "-" "-") in800 6300000) (under? (list "paste" "-s" "-") in800 2600000)))
 ```
 ---
     (#t #t #t #t #t #t)
@@ -48,7 +48,7 @@ repeating; the short lines are one digit each, built a hundred at a time.
 ### and paste -s and rev on 8,000 short lines
 
 ```cu
-(display (list (under? (list "paste" "-s" "-") short8000 6000000) (under? (list "rev") short8000 5400000)))
+(display (list (under? (list "paste" "-s" "-") short8000 5900000) (under? (list "rev") short8000 5300000)))
 ```
 ---
     (#t #t)

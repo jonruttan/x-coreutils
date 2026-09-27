@@ -50,7 +50,7 @@ File's methods looked up on every call.
 ### shred -n 1 over 200,000 bytes, and 128 MB of random bytes and of zeros to /dev/null
 
 ```cu
-(do (fill "g" 200000) (display (list (under? (list "shred" "-n" "1" (w "g")) "" 500000) (under-th? (fn (_) (file-write-random nul 134217728)) 1800000) (under-th? (fn (_) (file-write-nuls nul 134217728)) 1800000))))
+(do (fill "g" 200000) (display (list (under? (list "shred" "-n" "1" (w "g")) "" 500000) (under-th? (fn (_) (file-write-random nul 134217728)) 1500000) (under-th? (fn (_) (file-write-nuls nul 134217728)) 1700000))))
 ```
 ---
     (#t #t #t)
