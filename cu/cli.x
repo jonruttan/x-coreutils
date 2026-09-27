@@ -392,9 +392,10 @@
           (%cu-dispatch h (first argv) (rest argv) (%cu-string-stdin input)))))))
 
 ; An applet's stdin is a thunk.  Called bare it answers the whole text; called
-; with (lit chunk) it answers the next piece not yet handed out, and "" at the
-; end, for an applet that stops before the end.  An applet takes one or the
-; other.  From a string, the one piece is the string.
+; with (lit chunk) it answers the next piece not yet handed out, empty at the
+; end, for an applet that reads as it goes: a run (cu/prims.x), which carries
+; its NULs, or a string, which holds none.  An applet takes one or the other.
+; From a string, the one piece is the string.
 (def %cu-string-stdin
   (fn (_ input)
     (def given (list #f))

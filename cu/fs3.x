@@ -679,7 +679,8 @@
 ; the output will not open, nothing more is read.
 (def %cu-dd-take
   (fn (_ conv open-out)
-    (fn (_ p s)
+    (fn (_ r s)
+      (def p (%cu-run-text r))
       (let ((fd (if (null? (%cu-nth 4 s)) (open-out) (%cu-nth 4 s))))
         (if (Err err? fd)
           (%cu-enough (list (first s) (%cu-nth 1 s) (%cu-nth 2 s) (%cu-nth 3 s) fd))
