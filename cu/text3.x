@@ -487,14 +487,15 @@
     (let ((r (%cu-b64-put-from s wrap () 0 #t)))
       (%cu-b64-put-end wrap (%cu-nth 1 r) (%cu-nth 2 r)))))
 
-; The encoding of S carried on from LINE and COL.  LINE holds the characters
-; made since the last write, newest first, and COL how many: a line goes out as
-; it fills, and an unwrapped encoding every 4,096 characters, so the encoding
-; is never held whole.  A step takes three bytes; under LAST? the one or two
-; at the end are padded out, else they are left for the next piece.  Answers
-; (NEXT LINE COL), NEXT where the steps stopped.  The walk sweeps as it goes.
+; The encoding of S carried on from a line begun before it: FROM-LINE holds the
+; characters made since the last write, newest first, and FROM-COL how many.  A
+; line goes out as it fills, and an unwrapped encoding every 4,096 characters,
+; so the encoding is never held whole.  A step takes three bytes; under LAST?
+; the one or two at the end are padded out, else they are left for the next
+; piece.  Answers (NEXT LINE COL), NEXT where the steps stopped.  The walk
+; sweeps as it goes.
 (def %cu-b64-put-from
-  (fn (_ s wrap line col last?)
+  (fn (_ s wrap from-line from-col last?)
     (def end (byte-len s))
     (def full (if (= wrap 0) 4096 wrap))
     ; the characters CS onto LINE, and a line out when it fills
@@ -523,7 +524,7 @@
                 line col))
             (do (%cu-sweep-at i %cu-sweep-lines)
                 (self (+ i 3) (first r) (rest r)))))))
-    (go 0 line col)))
+    (go 0 from-line from-col)))
 
 ; a line of the encoding out: LINE's characters, newest first, and the newline
 ; that ends a wrapped line

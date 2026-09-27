@@ -573,6 +573,15 @@
     (def a (if (%cu-dd-has? conv "lcase") (Str8 downcase s) s))
     (if (%cu-dd-has? conv "ucase") (Str8 upcase a) a)))
 
+; skip=, seek= and count= in bytes: the operand KEY's number of blocks of SIZE,
+; or of bytes where the list FLAGS holds FLAG -- or NONE where KEY is not given.
+; A count below zero is every byte, as none given is.
+(def %cu-dd-blocks
+  (fn (_ argv key flags flag size none)
+    (let ((v (%cu-dd-operand argv key)))
+      (if (null? v) none
+        (* (%cu-num-prefix v) (if (%cu-dd-has? flags flag) 1 size))))))
+
 ; Blocks of SIZE in N bytes, as "WHOLE+PARTIAL".
 (def %cu-dd-records
   (fn (_ n size)
@@ -612,23 +621,11 @@
                    (%cu-file-pieces in))))
         (if (Err err? src) (%cu-dd-failed in src)
           (do
-            (def count (let ((v (%cu-dd-operand argv "count")))
-                         (if (null? v) (- 0 1) (%cu-num-prefix v))))
-            (def skip (let ((v (%cu-dd-operand argv "skip")))
-                        (if (null? v) 0 (%cu-num-prefix v))))
-            (def seek (let ((v (%cu-dd-operand argv "seek")))
-                        (if (null? v) 0 (%cu-num-prefix v))))
             (def quiet? (let ((v (%cu-dd-operand argv "status")))
                           (if (null? v) #f (string=? v "none"))))
-            ; skip and count are blocks unless a flag says bytes; seek
-            ; likewise.
-            (def from
-              (* skip (if (%cu-dd-has? iflag "skip_bytes") 1 ibs)))
-            (def at
-              (* seek (if (%cu-dd-has? oflag "seek_bytes") 1 obs)))
-            (def want
-              (if (< count 0) (- 0 1)
-                (* count (if (%cu-dd-has? iflag "count_bytes") 1 ibs))))
+            (def from (%cu-dd-blocks argv "skip" iflag "skip_bytes" ibs 0))
+            (def at (%cu-dd-blocks argv "seek" oflag "seek_bytes" obs 0))
+            (def want (%cu-dd-blocks argv "count" iflag "count_bytes" ibs (- 0 1)))
             ; the copy goes out as the input is read, and nothing past what
             ; count= wants is read.  The output is opened once the input has
             ; answered, so an input that will not read writes nothing.
@@ -642,32 +639,38 @@
             (def fd
               (if (null? (%cu-nth 4 s)) (if (null? (rest r)) (open-out) ())
                 (%cu-nth 4 s)))
+            ; a copy whose input would not read, or whose output would not
+            ; open, made no records
             (match
               ((not (null? (rest r)))
                 (do (if (if (number? fd) (> fd 1) #f) (file-close fd) ())
                     (%cu-dd-failed in (rest r))))
               ((Err err? fd) (%cu-dd-failed out fd))
-              ; the output is cut where the copy ended -- unless conv=notrunc
-              ; leaves whatever followed it in place, as appending does too,
-              ; since truncating to AT plus the copy after an append cuts
-              ; off what was just written.  Records in are counted in ibs,
-              ; records out in obs; they differ whenever the two block sizes
-              ; do.  A copy whose output would not open made no records.
-              (#t
-                (let ((n (%cu-nth 2 s)))
-                  (do (%cu-dd-put fd (%cu-dd-case (%cu-nth 3 s) conv))
-                      (if (= fd 1) ()
-                        (do (if (if (%cu-dd-has? conv "notrunc") #t
-                                  (%cu-dd-has? oflag "append")) ()
-                              (file-truncate fd (+ at n)))
-                            (file-close fd)))
-                      (if quiet? ()
-                        (file-write 2
-                          (string-concat
-                            (list (%cu-dd-records n ibs) " records in\n"
-                                  (%cu-dd-records n obs) " records out\n"
-                                  (%cu-int->str n) " bytes copied\n"))))
-                      0))))))))))
+              (#t (%cu-dd-finish fd s at conv oflag ibs obs quiet?)))))))))
+
+; The end of a copy to FD, from the take's last state S: the byte swab held
+; back put out, and the output cut where the copy ended -- unless conv=notrunc
+; leaves whatever followed it in place, as appending does too, since
+; truncating to AT plus the copy after an append cuts off what was just
+; written -- and closed.  Then the records, unless status=none: records in are
+; counted in ibs, records out in obs, and they differ whenever the two block
+; sizes do.
+(def %cu-dd-finish
+  (fn (_ fd s at conv oflag ibs obs quiet?)
+    (def n (%cu-nth 2 s))
+    (do (%cu-dd-put fd (%cu-dd-case (%cu-nth 3 s) conv))
+        (if (= fd 1) ()
+          (do (if (if (%cu-dd-has? conv "notrunc") #t
+                    (%cu-dd-has? oflag "append")) ()
+                (file-truncate fd (+ at n)))
+              (file-close fd)))
+        (if quiet? ()
+          (file-write 2
+            (string-concat
+              (list (%cu-dd-records n ibs) " records in\n"
+                    (%cu-dd-records n obs) " records out\n"
+                    (%cu-int->str n) " bytes copied\n"))))
+        0)))
 
 ; dd's TAKE: the state is (SKIP LEFT N ODD FD) -- the bytes still to skip, the
 ; bytes still wanted (-1 for every one) and the bytes copied; the byte swab

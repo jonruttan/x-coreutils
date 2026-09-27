@@ -167,14 +167,14 @@
 (def %cu-fold-pieces
   (fn (_ src take state)
     (def go
-      (fn (self k state)
-        (if (%cu-enough? state) (pair state ())
+      (fn (self k s)
+        (if (%cu-enough? s) (pair s ())
           (let ((p (src)))
             (match
-              ((Err err? p) (pair state p))
-              ((= (byte-len p) 0) (pair state ()))
+              ((Err err? p) (pair s p))
+              ((= (byte-len p) 0) (pair s ()))
               (#t (do (%cu-sweep-at k %cu-sweep-lines)
-                      (self (+ k 1) (take p state)))))))))
+                      (self (+ k 1) (take p s)))))))))
     (go 1 state)))
 
 ; one operand's pieces folded by TAKE from STATE: (STATE . ERR), ERR nil but

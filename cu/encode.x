@@ -165,14 +165,14 @@
       ; a line costs tens of thousands of objects, so the walk sweeps every
       ; 512 bytes, 32 lines, on the byte index it already keeps
       (def go
-        (fn (self i prev starred)
+        (fn (self i prior starred?)
           (let ((stop (if (> (+ i 16) end) end (+ i 16))))
             (if (if (>= i end) #t (if (< (- stop i) 16) (not last?) #f))
-              (list i prev starred)
+              (list i prior starred?)
               (do (%cu-sweep-at i %cu-sweep-steps)
                 (let ((body (%cu-od-line text i stop kind size)))
-                  (if (%cu-od-repeat? v? body prev (- stop i))
-                    (do (if starred () (display "*\n"))
+                  (if (%cu-od-repeat? v? body prior (- stop i))
+                    (do (if starred? () (display "*\n"))
                         (self stop body #t))
                     (do (display
                           (string-append (%cu-od-address (+ at i) rad)
