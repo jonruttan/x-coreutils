@@ -37,7 +37,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 ### wc, sum and sum -s on 15,997 bytes
 
 ```cu
-(display (list (under? (list "wc") in16k 3200000) (under? (list "sum") in16k 3200000) (under? (list "sum" "-s") in16k 2300000)))
+(display (list (under? (list "wc") in16k 3100000) (under? (list "sum") in16k 3200000) (under? (list "sum" "-s") in16k 2300000)))
 ```
 ---
     (#t #t #t)
@@ -45,7 +45,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 ### cksum and tr on 3,995 bytes
 
 ```cu
-(display (list (under? (list "cksum") in4k 2400000) (under? (list "tr" "a-z" "A-Z") in4k 4400000)))
+(display (list (under? (list "cksum") in4k 2300000) (under? (list "tr" "a-z" "A-Z") in4k 4200000)))
 ```
 ---
     (#t #t)
@@ -63,7 +63,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 ### od -An -tx1 on 3,995 bytes
 
 ```cu
-(display (list (under? (list "od" "-An" "-tx1") in4k 4200000)))
+(display (list (under? (list "od" "-An" "-tx1") in4k 4100000)))
 ```
 ---
     (#t)

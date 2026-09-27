@@ -72,7 +72,7 @@ the release lang.xon declares.
 ### what -A, -v and -vn hold at their fullest
 
 ```cu
-(display (list (under? (list "cat" "-A") all80 5000000) (under? (list "cat" "-v") all80 5000000) (under? (list "cat" "-vn") all80 5000000)))
+(display (list (under? (list "cat" "-A") all80 5000000) (under? (list "cat" "-v") all80 5000000) (under? (list "cat" "-vn") all80 4900000)))
 ```
 ---
     (#t #t #t)
