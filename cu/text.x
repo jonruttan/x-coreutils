@@ -81,17 +81,17 @@
       (display (string-concat (list (if first? "" "\n") "==> " name " <==\n")))
       ())))
 
-; The same inputs, headers and complaints, for a head that reads only as far as
-; it needs: each input's pieces are folded by TAKE from STATE, afresh for each
-; input, and the reading of one ends where TAKE has had enough of it.  No
-; operand at all is `-`.
+; The same inputs, headers and complaints, for head and tail, which read each
+; input a piece at a time: READ is handed an input's pieces and its name, and
+; answers what %cu-fold-pieces answers, (STATE . ERR).  No operand at all is
+; `-`.
 (def %cu-each-input-stream
-  (fn (_ applet ops stdin-thunk head? take state)
+  (fn (_ applet ops stdin-thunk head? read)
     (%cu-each-input-stream-from applet (if (null? ops) (list "-") ops)
-      stdin-thunk head? take state #t 0)))
+      stdin-thunk head? read #t 0)))
 
 (def %cu-each-input-stream-from
-  (fn (self applet ops stdin-thunk head? take state first? st)
+  (fn (self applet ops stdin-thunk head? read first? st)
     (if (null? ops) st
       (let ((name (first ops)) (src (%cu-pieces (first ops) stdin-thunk)))
         (if (Err err? src)
@@ -99,19 +99,18 @@
                 (string-concat
                   (list applet ": cannot open '" name "' for reading: "
                         (file-err-text src) "\n")))
-              (self applet (rest ops) stdin-thunk head? take state first? 1))
+              (self applet (rest ops) stdin-thunk head? read first? 1))
           (do (%cu-input-header head?
                 (if (string=? name "-") "standard input" name) first?)
-              (let ((r (%cu-fold-pieces src take state)))
+              (let ((r (read src name)))
                 (do (src (lit close))
                     (if (null? (rest r))
-                      (self applet (rest ops) stdin-thunk head? take state #f st)
+                      (self applet (rest ops) stdin-thunk head? read #f st)
                       (do (file-write 2
                             (string-concat
                               (list applet ": error reading '" name "': "
                                     (file-err-text (rest r)) "\n")))
-                          (self applet (rest ops) stdin-thunk head? take state
-                            #f 1)))))))))))
+                          (self applet (rest ops) stdin-thunk head? read #f 1)))))))))))
 
 ; --- inputs a piece at a time -------------------------------------------------
 ;
@@ -123,7 +122,8 @@
 ; no more, and then nothing more is read.
 
 ; NAME's pieces: a thunk answering the next piece, "" at the end, or the io Err
-; a read raised -- and closing what it reads when called with (lit close).
+; a read raised -- closing what it reads when called with (lit close), and
+; answering the descriptor it reads, nil for standard input, with (lit fd).
 ; `-` is standard input.  Answers the io Err instead where NAME will not open.
 (def %cu-pieces
   (fn (_ name stdin-thunk)
@@ -145,7 +145,7 @@
   (fn (_ fd name)
     (def buf (%str-make-raw %cu-piece-bytes))
     (fn (_ . how)
-      (if (pair? how) (file-close fd)
+      (if (pair? how) (if (eq? (first how) (lit fd)) fd (file-close fd))
         (let ((r (%cu-file-read File fd buf %cu-piece-bytes)))
           (match
             ((< r 0) (Err from-errno (Err errno-of r) (lit read) name))
@@ -870,7 +870,9 @@
                   (display (%cu-head-part text lines? #t n)))))
             (#t
               (%cu-each-input-stream "head" ops stdin-thunk (%cu-headers? o ops)
-                (%cu-head-take lines?) (if (> n 0) n (%cu-enough n))))))))))
+                (fn (_ src name)
+                  (%cu-fold-pieces src (%cu-head-take lines?)
+                    (if (> n 0) n (%cu-enough n))))))))))))
 
 ; head's TAKE of the first lines or bytes: each piece is put out as far as the
 ; count reaches, and the state is what is left of the count -- marked enough
@@ -992,31 +994,159 @@
                 (self (first r) (rest r) (if (< k 0) k (- k 1))))))))
     (go offs last rounds)))
 
-; What tail prints of TEXT: its last N lines or bytes, or under FROM-START?
-; everything from line or byte N on, where +0 is +1.  The bytes are the
-; input's, so a last line keeps having no newline when it had none.
-(def %cu-tail-part
-  (fn (_ text lines? from-start? n)
-    (let ((end (byte-len text)))
-      (if lines?
-        (let ((starts (%cu-line-starts text)))
-          (substring text
-            (%cu-line-at starts (if from-start? (- n 1) (- (length starts) n)) end)
-            end))
-        (substring text
-          (match
-            (from-start? (if (> n end) end (if (< n 1) 0 (- n 1))))
-            ((> n end) 0)
-            (#t (- end n)))
-          end)))))
+; tail's READ of one input, NAME's pieces from SRC: its last N lines or bytes,
+; or under FROM-START? everything from line or byte N on, where +0 is +1, put
+; out.  The bytes are the input's, so a last line keeps having no newline when
+; it had none.  A regular file's last lines are found from its end; any other
+; input is read to its end, keeping only the pieces that hold them.  An input
+; read is noted in SHOWN, newest first, as (NAME READ FILE?), READ where the
+; read of it ended, which -f follows on from.  Answers (READ . ERR).
+(def %cu-tail-read
+  (fn (_ lines? from-start? n shown)
+    (fn (_ src name)
+      (def file? (not (string=? name "-")))
+      (def st (if file? (file-stat-full name) ()))
+      (def size
+        (if (if (null? st) #f (eq? (%cu-stat-get st (lit kind)) (lit file)))
+          (%cu-stat-get st (lit size)) ()))
+      (def r
+        (match
+          (from-start?
+            (let ((f (%cu-fold-pieces src (%cu-tail-from lines?)
+                       (pair (if (> n 1) (- n 1) 0) 0))))
+              (pair (rest (first f)) (rest f))))
+          ((not (null? size)) (%cu-tail-seek src size lines? n))
+          (#t (%cu-tail-keep src lines? n))))
+      (do (if (null? (rest r))
+            (set-first! shown (pair (list name (first r) file?) (first shown)))
+            ())
+          r))))
+
+; tail's TAKE from line or byte N on: the state is (LEFT . READ), the lines or
+; bytes still to pass over and the bytes read, and what is past them goes out
+(def %cu-tail-from
+  (fn (_ lines?)
+    (fn (_ p s)
+      (let ((left (first s)) (end (byte-len p)))
+        (let ((cut (match
+                     ((<= left 0) (pair 0 0))
+                     (lines? (%cu-newlines-to p left))
+                     (#t (let ((k (if (< left end) left end))) (pair k k))))))
+          (do (if (< (first cut) end)
+                (display (if (= (first cut) 0) p (substring p (first cut) end)))
+                ())
+              (pair (- left (rest cut)) (+ (rest s) end))))))))
+
+; The last N lines or bytes of the regular file SRC reads, SIZE bytes long: the
+; bytes from SIZE less N, or the lines from where %cu-tail-back finds them, and
+; from there the file is read to its end and put out.  Answers (SIZE . ERR).
+(def %cu-tail-seek
+  (fn (_ src size lines? n)
+    (def fd (src (lit fd)))
+    (def start
+      (match
+        ((<= n 0) size)
+        (lines? (%cu-tail-back fd size n))
+        ((> n size) 0)
+        (#t (- size n))))
+    (do (file-seek fd start)
+        (pair size
+          (rest (%cu-fold-pieces src (fn (_ p s) (do (display p) s)) ()))))))
+
+; Where the last N lines of the file on FD, SIZE bytes long, start: it is read
+; back from its end a piece at a time, counting newlines from the last, and a
+; newline that ends the file ends its last line and starts none.  HI is where
+; the next piece back ends and NEED how many newlines are still to be met.
+(def %cu-tail-back
+  (fn (_ fd size n)
+    (def buf (%str-make-raw %cu-piece-bytes))
+    (def go
+      (fn (self hi need last?)
+        (if (<= hi 0) 0
+          (let ((lo (if (> hi %cu-piece-bytes) (- hi %cu-piece-bytes) 0)))
+            (def got (do (file-seek fd lo) (%cu-file-read File fd buf (- hi lo))))
+            (def top
+              (if (if last? (> got 0) #f)
+                (if (= (byte-at buf (- got 1)) 10) (- got 2) (- got 1))
+                (- got 1)))
+            (let ((r (%cu-newlines-back buf top need 0)))
+              (if (< (first r) 0) (self lo (- need (rest r)) #f)
+                (+ (+ lo (first r)) 1)))))))
+    (go size n #t)))
+
+; S scanned back from I: the index of the NEED-th newline met and NEED, or -1
+; and the newlines met where S runs out first
+(def %cu-newlines-back
+  (fn (self s i need found)
+    (match
+      ((< i 0) (pair (- 0 1) found))
+      ((= (byte-at s i) 10)
+        (if (>= (+ found 1) need) (pair i need)
+          (self s (- i 1) need (+ found 1))))
+      (#t (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+              (self s (- i 1) need found))))))
+
+; The last N lines or bytes of an input that is not a regular file -- a pipe, a
+; terminal, standard input -- which is read to its end: only the pieces that
+; hold them are kept, and they are put out from where the lines or bytes
+; start.  A piece is dropped once the pieces after it hold N bytes, or N
+; newlines and one more, the one before the first line of the N.  Answers
+; (READ . ERR).
+(def %cu-tail-keep
+  (fn (_ src lines? n)
+    (def r (%cu-fold-pieces src (%cu-tail-hold lines? (if lines? (+ n 1) n))
+             (list () () 0 0)))
+    (def s (first r))
+    (def text
+      (string-concat
+        (append (map (fn (_ e) (first e)) (first s))
+          (reverse (map (fn (_ e) (first e)) (%cu-nth 1 s))))))
+    (def end (byte-len text))
+    (def start
+      (match
+        ((<= n 0) end)
+        ((not lines?) (if (> n end) 0 (- end n)))
+        (#t (let ((b (%cu-newlines-back text
+                       (if (if (> end 0) (= (byte-at text (- end 1)) 10) #f)
+                         (- end 2) (- end 1))
+                       n 0)))
+              (if (< (first b) 0) 0 (+ (first b) 1))))))
+    (do (if (if (null? (rest r)) (< start end) #f)
+          (display (substring text start end))
+          ())
+        (pair (%cu-nth 3 s) (rest r)))))
+
+; the TAKE that keeps the pieces holding the last lines or bytes: the state is
+; (FRONT BACK HELD READ) -- the pieces kept, oldest first and newest first, each
+; with its newlines or its bytes; how many newlines or bytes they hold between
+; them; and the bytes read.  A piece's newlines are counted only up to NEED: a
+; piece with more drops everything before it just the same, and the count
+; stops a few lines into the piece rather than at its end.
+(def %cu-tail-hold
+  (fn (_ lines? need)
+    (fn (_ p s)
+      (let ((w (if lines? (rest (%cu-newlines-to p need)) (byte-len p))))
+        (%cu-tail-drop (first s) (pair (pair p w) (%cu-nth 1 s))
+          (+ (%cu-nth 2 s) w) (+ (%cu-nth 3 s) (byte-len p)) need)))))
+
+; the oldest piece dropped for as long as the pieces after it hold NEED
+(def %cu-tail-drop
+  (fn (self front back held read need)
+    (match
+      ((null? front)
+        (if (null? back) (list front back held read)
+          (self (reverse back) () held read need)))
+      ((>= (- held (rest (first front))) need)
+        (self (rest front) back (- held (rest (first front))) read need))
+      (#t (list front back held read)))))
 
 ; tail -n and -c: a leading + counts from the start, and a leading - is the
 ; count itself; the later of the two options says what is counted, and the later
 ; of -q and -v decides the headers.  -f follows by NAME the files that were read,
 ; polled every -s
 ; seconds (1 by default), each from where its read ended.  tail reads standard
-; input whole, so it has nothing to follow: -f with only stdin prints the tail
-; and returns, and -f with operands none of which could be read says so.
+; input to its end, so it has nothing to follow: -f with only stdin prints the
+; tail and returns, and -f with operands none of which could be read says so.
 (def %cu-tail
   (fn (_ argv stdin-thunk)
     (let ((args (%cu-tail-old argv)))
@@ -1031,19 +1161,15 @@
 (def %cu-tail-run
   (fn (_ o stdin-thunk)
     (let ((ops (Opts operands o)) (given (%cu-count-given o))
-          ; each input shown, newest first: (NAME SIZE FILE?)
+          ; each input shown, newest first: (NAME READ FILE?)
           (shown (list ())))
       (let ((lines? (first given)) (spec (rest given))
             (head? (%cu-headers? o ops)))
         (let ((n (%cu-count-of (%cu-count-body spec)))
               (from-start? (if (> (byte-len spec) 0) (= (byte-at spec 0) 43) #f)))
           (if (null? n) (%cu-count-refused "tail" lines? spec)
-            (let ((st (%cu-each-input "tail" ops stdin-thunk head?
-                        (fn (_ name text file?)
-                          (do (%set-first! shown
-                                (pair (list name (byte-len text) file?)
-                                  (first shown)))
-                              (display (%cu-tail-part text lines? from-start? n)))))))
+            (let ((st (%cu-each-input-stream "tail" ops stdin-thunk head?
+                        (%cu-tail-read lines? from-start? n shown))))
               (let ((files (filter (fn (_ e) (%cu-nth 2 e)) (reverse (first shown)))))
                 (match
                   ((not (Opts on? o "-f")) st)
