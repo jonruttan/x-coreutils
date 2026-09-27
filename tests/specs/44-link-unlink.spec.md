@@ -11,7 +11,7 @@ after a refusal to point at --help, which no applet here has.
 ### two files, a directory, a link that leads nowhere, and a runner
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-ln && mkdir -p /tmp/x-cu-ln/dir && echo hi > /tmp/x-cu-ln/f && echo ho > /tmp/x-cu-ln/g && ln -s nowhere /tmp/x-cu-ln/dangle")) (def nf (fn (_ n) (string-append "/tmp/x-cu-ln/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (Str8 replace "/tmp/x-cu-ln/" "" (string-concat (list (file-read-all (nf ".out")) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n"))))))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-lnk && mkdir -p /tmp/x-cu-lnk/dir && echo hi > /tmp/x-cu-lnk/f && echo ho > /tmp/x-cu-lnk/g && ln -s nowhere /tmp/x-cu-lnk/dangle")) (def nf (fn (_ n) (string-append "/tmp/x-cu-lnk/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (Str8 replace "/tmp/x-cu-lnk/" "" (string-concat (list (file-read-all (nf ".out")) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n"))))))))) (display "made"))
 ```
 ---
     made
@@ -109,7 +109,7 @@ none
 ### cleanup
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-ln")) (display "clean"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-lnk")) (display "clean"))
 ```
 ---
     clean
