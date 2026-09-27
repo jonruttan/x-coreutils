@@ -187,7 +187,8 @@
 ; is read.
 (def %cu-od-take
   (fn (_ dump)
-    (fn (_ p s)
+    (fn (_ r s)
+      (def p (%cu-run-text r))
       (let ((skip (first s)) (left (%cu-nth 1 s)) (end (byte-len p)))
         (def from (if (> skip end) end skip))
         (def upto

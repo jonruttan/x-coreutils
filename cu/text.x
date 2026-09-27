@@ -120,19 +120,31 @@
 ; %cu-piece-bytes, and each is handed to a TAKE with the state so far; TAKE
 ; answers the state after it, or that state marked by %cu-enough where it wants
 ; no more, and then nothing more is read.
+;
+; A piece is a run, (TEXT . COUNT) -- cu/prims.x's carrier for bytes a NUL may
+; be among: COUNT says how many there are, where the TEXT's own length stops
+; at the first NUL.  The tools that pass bytes through read and write a piece
+; by its count; the ones that work on text take %cu-run-text of it.
 
-; NAME's pieces: a thunk answering the next piece, "" at the end, or the io Err
-; a read raised -- closing what it reads when called with (lit close), and
-; answering the descriptor it reads, nil for standard input, with (lit fd).
-; `-` is standard input.  Answers the io Err instead where NAME will not open.
+; NAME's pieces: a thunk answering the next piece, a COUNT of 0 at the end, or
+; the io Err a read raised -- closing what it reads when called with (lit
+; close), and answering the descriptor it reads, nil for standard input, with
+; (lit fd).  `-` is standard input.  Answers the io Err instead where NAME will
+; not open.
 (def %cu-pieces
   (fn (_ name stdin-thunk)
     (if (string=? name "-") (%cu-stdin-pieces stdin-thunk)
       (%cu-file-pieces name))))
 
+; standard input's pieces: a stdin thunk may hand a piece out as a run, or as
+; a string, which holds no NUL and so is all of its bytes
 (def %cu-stdin-pieces
   (fn (_ stdin-thunk)
-    (fn (_ . how) (if (null? how) (stdin-thunk (lit chunk)) ()))))
+    (fn (_ . how)
+      (if (null? how)
+        (let ((p (stdin-thunk (lit chunk))))
+          (if (pair? p) p (pair p (byte-len p))))
+        ()))))
 
 ; a file's pieces, `-` a name like any other
 (def %cu-file-pieces
@@ -140,17 +152,42 @@
     (let ((fd (file-open-or-err file-open-read name)))
       (if (Err err? fd) fd (%cu-fd-chunks fd name)))))
 
-; what FD holds, a piece at a time, as %cu-pieces answers it
+; what FD holds, a piece at a time, as %cu-pieces answers it: each read into a
+; buffer of its own, which is the piece's TEXT, so every byte stays
 (def %cu-fd-chunks
   (fn (_ fd name)
-    (def buf (%str-make-raw %cu-piece-bytes))
     (fn (_ . how)
       (if (pair? how) (if (eq? (first how) (lit fd)) fd (file-close fd))
-        (let ((r (%cu-file-read File fd buf %cu-piece-bytes)))
-          (match
-            ((< r 0) (Err from-errno (Err errno-of r) (lit read) name))
-            ((= r 0) "")
-            (#t (substring buf 0 r))))))))
+        (let ((buf (%str-make-raw %cu-piece-bytes)))
+          (let ((r (%cu-file-read File fd buf %cu-piece-bytes)))
+            (match
+              ((< r 0) (Err from-errno (Err errno-of r) (lit read) name))
+              ((= r 0) (pair "" 0))
+              (#t (pair buf r)))))))))
+
+; a run's bytes as a string, up to the first NUL among them: what the tools
+; that work on text take of a piece
+(def %cu-run-text
+  (fn (_ r)
+    (if (= (byte-len (first r)) (rest r)) (first r)
+      (substring (first r) 0 (rest r)))))
+
+; the bytes of run R from I on, as a run: R itself from its start
+(def %cu-run-from
+  (fn (_ r i) (if (<= i 0) r (%cu-run-slice r i))))
+
+; the bytes of run R from I on, copied into a run of their own a byte at a
+; time, since a copy that asked a C string its length would stop at a NUL.
+; The walk goes back from the end, so the bytes come out in order.
+(def %cu-run-slice
+  (fn (_ r i)
+    (let ((t (first r)) (n (rest r)))
+      (def go
+        (fn (self k acc)
+          (if (< k i) acc
+            (do (if (= (& k %cu-sweep-bytes) 0) (%cu-sweep! k) ())
+                (self (- k 1) (pair (byte-at t k) acc))))))
+      (pair (bytes->str (go (- n 1) ())) (if (> n i) (- n i) 0)))))
 
 ; STATE marked as the last one a TAKE wants, and the mark tested and taken off
 (def %cu-enough (fn (_ state) (pair (lit enough) state)))
@@ -172,7 +209,7 @@
           (let ((p (src)))
             (match
               ((Err err? p) (pair s p))
-              ((= (byte-len p) 0) (pair s ()))
+              ((= (rest p) 0) (pair s ()))
               (#t (do (%cu-sweep-at k %cu-sweep-lines)
                       (self (+ k 1) (take p s)))))))))
     (go 1 state)))
@@ -228,10 +265,12 @@
 ; last newline: what comes before, joined to what the pieces before it left
 ; over, goes to EACH as a block of whole lines, and what comes after is left
 ; over for the next.  The state is (LEFT . STATE), LEFT the pieces left over,
-; newest first, so a line longer than a piece waits whole for its newline.
+; newest first, so a line longer than a piece waits whole for its newline.  A
+; piece is taken as text.
 (def %cu-by-lines
   (fn (_ each)
-    (fn (_ p s)
+    (fn (_ r s)
+      (def p (%cu-run-text r))
       (let ((cut (%cu-past-newline p)) (end (byte-len p)))
         (match
           ((= cut 0) (pair (pair p (first s)) (rest s)))
@@ -875,27 +914,28 @@
                     (if (> n 0) n (%cu-enough n))))))))))))
 
 ; head's TAKE of the first lines or bytes: each piece is put out as far as the
-; count reaches, and the state is what is left of the count -- marked enough
-; at none, so nothing past it is read, and an input with no end, the output of
-; yes, ends where the count does
+; count reaches, by its count, NULs and all, and the state is what is left of
+; the count -- marked enough at none, so nothing past it is read, and an input
+; with no end, the output of yes, ends where the count does
 (def %cu-head-take
   (fn (_ lines?)
     (fn (_ c left)
       (let ((after
               (if lines?
                 (let ((cut (%cu-newlines-to c left)))
-                  (do (display (substring c 0 (first cut)))
+                  (do (file-write-run 1 (pair (first c) (first cut)))
                       (- left (rest cut))))
-                (let ((k (if (< left (byte-len c)) left (byte-len c))))
-                  (do (display (substring c 0 k))
+                (let ((k (if (< left (rest c)) left (rest c))))
+                  (do (file-write-run 1 (pair (first c) k))
                       (- left k))))))
         (if (> after 0) after (%cu-enough after))))))
 
-; where TEXT's Kth newline ends, and how many newlines were found: K, or fewer
-; with the end at TEXT's end
+; where run R's Kth newline ends, and how many newlines were found: K, or fewer
+; with the end at R's count
 (def %cu-newlines-to
-  (fn (_ text k)
-    (def end (byte-len text))
+  (fn (_ r k)
+    (def text (first r))
+    (def end (rest r))
     (def go
       (fn (self i found)
         (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
@@ -1027,13 +1067,13 @@
 (def %cu-tail-from
   (fn (_ lines?)
     (fn (_ p s)
-      (let ((left (first s)) (end (byte-len p)))
+      (let ((left (first s)) (end (rest p)))
         (let ((cut (match
                      ((<= left 0) (pair 0 0))
                      (lines? (%cu-newlines-to p left))
                      (#t (let ((k (if (< left end) left end))) (pair k k))))))
           (do (if (< (first cut) end)
-                (display (if (= (first cut) 0) p (substring p (first cut) end)))
+                (file-write-run 1 (%cu-run-from p (first cut)))
                 ())
               (pair (- left (rest cut)) (+ (rest s) end))))))))
 
@@ -1051,7 +1091,7 @@
         (#t (- size n))))
     (do (file-seek fd start)
         (pair size
-          (rest (%cu-fold-pieces src (fn (_ p s) (do (display p) s)) ()))))))
+          (rest (%cu-fold-pieces src (fn (_ p s) (do (file-write-run 1 p) s)) ()))))))
 
 ; Where the last N lines of the file on FD, SIZE bytes long, start: it is read
 ; back from its end a piece at a time, counting newlines from the last, and a
@@ -1097,37 +1137,61 @@
     (def r (%cu-fold-pieces src (%cu-tail-hold lines? (if lines? (+ n 1) n))
              (list () () 0 0)))
     (def s (first r))
-    (def text
-      (string-concat
-        (append (map (fn (_ e) (first e)) (first s))
-          (reverse (map (fn (_ e) (first e)) (%cu-nth 1 s))))))
-    (def end (byte-len text))
-    (def start
-      (match
-        ((<= n 0) end)
-        ((not lines?) (if (> n end) 0 (- end n)))
-        (#t (let ((b (%cu-newlines-back text
-                       (if (if (> end 0) (= (byte-at text (- end 1)) 10) #f)
-                         (- end 2) (- end 1))
-                       n 0)))
-              (if (< (first b) 0) 0 (+ (first b) 1))))))
-    (do (if (if (null? (rest r)) (< start end) #f)
-          (display (substring text start end))
+    ; the pieces kept, newest first
+    (def kept
+      (append (map (fn (_ e) (first e)) (%cu-nth 1 s))
+        (reverse (map (fn (_ e) (first e)) (first s)))))
+    (do (if (if (null? (rest r)) (> n 0) #f)
+          (%cu-put-runs (%cu-tail-runs kept lines? n))
           ())
         (pair (%cu-nth 3 s) (rest r)))))
+
+; The runs that put out the last N lines or bytes of the pieces KEPT, newest
+; first: the piece they start in, from where they start in it, and the pieces
+; after it, oldest first.  The newline that ends the last piece ends its last
+; line and starts none.  AT is (START . HELD): where they start in the piece,
+; or -1 and the newlines or bytes the piece holds, which the pieces before it
+; still owe.
+(def %cu-tail-runs
+  (fn (_ kept lines? n)
+    (def go
+      (fn (self ps need last? after)
+        (if (null? ps) after
+          (let ((p (first ps)))
+            (def at
+              (if lines?
+                (let ((b (%cu-newlines-back (first p)
+                           (if (if last? (= (byte-at (first p) (- (rest p) 1)) 10) #f)
+                             (- (rest p) 2) (- (rest p) 1))
+                           need 0)))
+                  (if (< (first b) 0) (pair (- 0 1) (rest b)) (pair (+ (first b) 1) 0)))
+                (if (>= (rest p) need) (pair (- (rest p) need) 0)
+                  (pair (- 0 1) (rest p)))))
+            (if (< (first at) 0)
+              (self (rest ps) (- need (rest at)) #f (pair p after))
+              (pair (%cu-run-from p (first at)) after))))))
+    (go kept n #t ())))
+
+; RS put out in turn, each by its count
+(def %cu-put-runs
+  (fn (self rs)
+    (if (null? rs) () (do (file-write-run 1 (first rs)) (self (rest rs))))))
 
 ; the TAKE that keeps the pieces holding the last lines or bytes: the state is
 ; (FRONT BACK HELD READ) -- the pieces kept, oldest first and newest first, each
 ; with its newlines or its bytes; how many newlines or bytes they hold between
 ; them; and the bytes read.  A piece's newlines are counted only up to NEED: a
 ; piece with more drops everything before it just the same, and the count
-; stops a few lines into the piece rather than at its end.
+; stops a few lines into the piece rather than at its end.  A piece of under
+; 1K is kept as a copy of its bytes, not in the buffer it was read into, so
+; many short reads kept hold what they read and not a buffer apiece.
 (def %cu-tail-hold
   (fn (_ lines? need)
-    (fn (_ p s)
-      (let ((w (if lines? (rest (%cu-newlines-to p need)) (byte-len p))))
-        (%cu-tail-drop (first s) (pair (pair p w) (%cu-nth 1 s))
-          (+ (%cu-nth 2 s) w) (+ (%cu-nth 3 s) (byte-len p)) need)))))
+    (fn (_ p0 s)
+      (let ((p (if (< (rest p0) 1024) (%cu-run-slice p0 0) p0)))
+        (let ((w (if lines? (rest (%cu-newlines-to p need)) (rest p))))
+          (%cu-tail-drop (first s) (pair (pair p w) (%cu-nth 1 s))
+            (+ (%cu-nth 2 s) w) (+ (%cu-nth 3 s) (rest p)) need))))))
 
 ; the oldest piece dropped for as long as the pieces after it hold NEED
 (def %cu-tail-drop
@@ -1185,12 +1249,14 @@
 ; counts for one text: (lines words bytes)
 ; (LINES WORDS BYTES LONGEST). LONGEST is the longest line without its
 ; newline, which is what -L reports.
-; wc's TAKE: the counts carried on over the piece S from ST, (LINES WORDS BYTES
+; wc's TAKE: the counts carried on over the piece R from ST, (LINES WORDS BYTES
 ; IN-WORD? COLUMN LONGEST) -- a word is counted where a blank follows it, so
-; one cut between two pieces is counted once
+; one cut between two pieces is counted once.  The piece is read by its count,
+; so a NUL is a byte like any other.
 (def %cu-wc-take
-  (fn (_ s st)
-    (def end (byte-len s))
+  (fn (_ r st)
+    (def s (first r))
+    (def end (rest r))
     (def go
       (fn (self i nl nw in-word col longest)
         (if (>= i end)

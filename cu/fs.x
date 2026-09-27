@@ -65,7 +65,8 @@
               (if (= low 127) "^?" (%cu-b->s low)))))))))
 
 ; What -v, -e, -t and -A make of a text, from the options read once: a
-; function of the text, or nil where none of them is given.  It maps each byte
+; function of S, FROM and TO, rendering S's bytes from FROM up to TO -- a NUL
+; among them as ^@ -- or nil where none of them is given.  It maps each byte
 ; on its own, so a text rendered a piece at a time comes out the same.
 (def %cat-renderer
   (fn (_ o)
@@ -80,34 +81,33 @@
     ; as short as a line never reaches a step of its own that sweeps
     (if (if v? #f (if e? #f (not t?))) ()
       (let ((left (list (+ %cu-sweep-bytes 1))))
-        (fn (_ s)
-          (let ((end (byte-len s)))
-            (def go
-              (fn (self i acc)
-                (if (>= i end) (string-concat (reverse acc))
-                  (let ((b (byte-at s i)))
-                    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
-                      (self (+ i 1)
-                        (pair
-                          (match
-                            ((= b 10) (if e? "$\n" "\n"))
-                            ((= b 9) (if t? "^I" "\t"))
-                            (v? (%cat-visible b))
-                            (#t (%cu-b->s b)))
-                          acc)))))))
-            (let ((r (go 0 ())))
-              (do (set-first! left (- (first left) end))
-                  (if (> (first left) 0) ()
-                    (do (set-first! left (+ %cu-sweep-bytes 1)) (%cu-sweep! 1)))
-                  r))))))))
+        (fn (_ s from to)
+          (def go
+            (fn (self i acc)
+              (if (>= i to) (string-concat (reverse acc))
+                (let ((b (byte-at s i)))
+                  (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+                    (self (+ i 1)
+                      (pair
+                        (match
+                          ((= b 10) (if e? "$\n" "\n"))
+                          ((= b 9) (if t? "^I" "\t"))
+                          (v? (%cat-visible b))
+                          (#t (%cu-b->s b)))
+                        acc)))))))
+          (let ((r (go from ())))
+            (do (set-first! left (- (first left) (- to from)))
+                (if (> (first left) 0) ()
+                  (do (set-first! left (+ %cu-sweep-bytes 1)) (%cu-sweep! 1)))
+                r)))))))
 
-; TEXT from START on, in pieces of 4,096 bytes
-(def %cat-chunks
-  (fn (self text start acc)
-    (let ((end (byte-len text)))
-      (if (>= start end) (reverse acc)
-        (let ((stop (if (> (+ start 4096) end) end (+ start 4096))))
-          (self text stop (pair (substring text start stop) acc)))))))
+; the ranges of a piece of COUNT bytes from START on, 4,096 bytes to a range,
+; as (FROM . TO)
+(def %cat-ranges
+  (fn (self count start acc)
+    (if (>= start count) (reverse acc)
+      (let ((stop (if (> (+ start 4096) count) count (+ start 4096))))
+        (self count stop (pair (pair start stop) acc))))))
 
 ; -n numbers every line, -b only the non-empty ones: TEXT's lines numbered from
 ; N, a numbered line to a piece, made in a pass that sweeps as it goes.
@@ -145,12 +145,20 @@
     ; alternate between methods, and pay for it in dispatch.
     (def put
       (fn (_ pieces)
-        (%cu-put-each (if (null? render) pieces (%cu-map-swept render pieces)))))
+        (%cu-put-each
+          (if (null? render) pieces
+            (%cu-map-swept (fn (_ l) (render l 0 (byte-len l))) pieces)))))
+    ; a piece goes out by its count, NULs and all, or rendered a range of its
+    ; bytes at a time
     (rest
       (if (if b? #f (not (Opts on? o "-n")))
         (%cu-fold-said ops stdin-thunk says
           (fn (_ p s)
-            (do (if (null? render) (display p) (put (%cat-chunks p 0 ()))) s))
+            (do (if (null? render) (file-write-run 1 p)
+                  (%cu-put-each
+                    (%cu-map-swept (fn (_ c) (render (first p) (first c) (rest c)))
+                      (%cat-ranges (rest p) 0 ()))))
+                s))
           ())
         (%cu-fold-lines-said ops stdin-thunk says
           (fn (_ block n)

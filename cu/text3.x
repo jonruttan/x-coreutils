@@ -230,7 +230,8 @@
         (#t to-dos-by-default?)))
     (def conv (fn (_ s) (%cu-crlf-walk s to-dos?)))
     (if (null? ops)
-      (do (%cu-fold-stdin stdin-thunk (fn (_ p s) (do (display (conv p)) s)) ())
+      (do (%cu-fold-stdin stdin-thunk
+            (fn (_ p s) (do (display (conv (%cu-run-text p))) s)) ())
           0)
       ; a file that cannot be read, or written back, is said, and the rest are
       ; still converted
@@ -541,7 +542,8 @@
 ; pieces before could not finish, fewer than three
 (def %cu-b64-take
   (fn (_ wrap)
-    (fn (_ p s)
+    (fn (_ piece s)
+      (def p (%cu-run-text piece))
       (let ((text (if (= (byte-len (first s)) 0) p (string-append (first s) p))))
         (let ((r (%cu-b64-put-from text wrap (%cu-nth 1 s) (%cu-nth 2 s) #f)))
           (list (substring text (first r) (byte-len text))
@@ -698,7 +700,7 @@
           ; the first piece that holds what is not base64 ends the reading
           (let ((g (%cu-fold-said ops stdin-thunk says
                      (fn (_ p st)
-                       (let ((after (%cu-b64-decode-from p st put #f)))
+                       (let ((after (%cu-b64-decode-from (%cu-run-text p) st put #f)))
                          (if after after (%cu-enough #f))))
                      %cu-b64-fresh)))
             (match

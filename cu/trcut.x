@@ -278,7 +278,7 @@
                       (self text end (+ i 1) acc n prev)
                       (self text end (+ i 1) (pair v acc) (+ n 1) v))))))))))
     (do (%cu-fold-stdin stdin-thunk
-          (fn (_ p prev) (go p (byte-len p) 0 () 0 prev)) (- 0 1))
+          (fn (_ p prev) (go (first p) (rest p) 0 () 0 prev)) (- 0 1))
         0)))
 
 ; a cut LIST: N, N-M, N-, -M, comma-separated; answers (lo . hi) pairs

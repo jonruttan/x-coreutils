@@ -392,12 +392,13 @@
     (def opened (open-all ops () 0))
     (def to-all
       (fn (self fds p)
-        (if (null? fds) () (do (file-write (first fds) p) (self (rest fds) p)))))
+        (if (null? fds) () (do (file-write-run (first fds) p) (self (rest fds) p)))))
     (def close-all
       (fn (self fds)
         (if (null? fds) () (do (file-close (first fds)) (self (rest fds))))))
-    ; each piece goes to standard output and to every file as it is read
+    ; each piece goes to standard output and to every file as it is read, by
+    ; its count, NULs and all
     (do (%cu-fold-stdin stdin-thunk
-          (fn (_ p s) (do (display p) (to-all (first opened) p) s)) ())
+          (fn (_ p s) (do (file-write-run 1 p) (to-all (first opened) p) s)) ())
         (close-all (first opened))
         (rest opened))))

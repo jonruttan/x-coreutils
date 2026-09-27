@@ -395,12 +395,21 @@
 ; short of that.
 (def %cu-piece-bytes 16384)
 
-; The next piece of stdin, or "" at its end, for an applet that reads as it
-; goes: head on the output of yes, which has no end.
+; The next piece of stdin as a run, an empty one at its end, for an applet
+; that reads as it goes: head on the output of yes, which has no end.
 (def cu-stdin-chunk!
   (fn (_)
     (do (cu-stdin-to-command!)
-        (file-read-fd 0 %cu-piece-bytes))))
+        (file-read-run 0 %cu-piece-bytes))))
+
+; Up to N bytes of FD as a run, (BUFFER . COUNT): a buffer of their own, which
+; holds every byte read, a NUL too -- or ("" . 0) at the end or where the read
+; fails
+(def file-read-run
+  (fn (_ fd n)
+    (def buf (%str-make-raw n))
+    (def r (File read fd buf n))
+    (if (if (number? r) (> r 0) #f) (pair buf r) (pair "" 0))))
 
 ; stdin, read once from fd 3 (the platform's arrangement; see x-awk)
 (def cu-stdin!
