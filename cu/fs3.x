@@ -542,36 +542,50 @@
         (self (rest vs) known)
         (first vs)))))
 
-; Swap each pair of bytes; an odd byte at the end stays where it is.
-(def %cu-dd-swab
-  (fn (_ s)
-    (def end (byte-len s))
-    (def go
-      (fn (self i acc)
-        (if (>= (+ i 1) end)
-          (if (< i end) (string-append acc (substring s i end)) acc)
-          (self (+ i 2)
-            (string-append acc
-              (string-append (substring s (+ i 1) (+ i 2))
-                (substring s i (+ i 1))))))))
-    (go 0 "")))
-
-; RAW converted as conv= asks, ODD the byte swab held back from the piece
-; before for its pair: (TEXT . ODD), ODD the byte this piece holds back
+; RAW, a run, converted as conv= asks, ODD the byte swab held back from the
+; piece before for its pair: (RUN . ODD), ODD the byte this piece holds back.
+; Each is a run, since either may be a NUL.
 (def %cu-dd-convert
   (fn (_ raw conv odd)
     (if (%cu-dd-has? conv "swab")
-      (let ((t (if (= (byte-len odd) 0) raw (string-append odd raw))))
-        (let ((even (- (byte-len t) (% (byte-len t) 2))))
-          (pair (%cu-dd-case (%cu-dd-swab (substring t 0 even)) conv)
-                (substring t even (byte-len t)))))
-      (pair (%cu-dd-case raw conv) ""))))
+      (let ((t (if (= (rest odd) 0) raw (%cu-run-join odd raw 0 (rest raw)))))
+        (let ((even (- (rest t) (% (rest t) 2))))
+          (pair (%cu-dd-bytes (pair (first t) even) conv)
+                (%cu-run-slice t even))))
+      (pair (%cu-dd-bytes raw conv) (pair "" 0)))))
 
-; lcase and ucase, which take each byte on its own
-(def %cu-dd-case
-  (fn (_ s conv)
-    (def a (if (%cu-dd-has? conv "lcase") (Str8 downcase s) s))
-    (if (%cu-dd-has? conv "ucase") (Str8 upcase a) a)))
+; Run R's bytes as conv= asks: each pair swapped under swab -- an odd byte at
+; the end stays where it is -- and each byte lowered under lcase, then raised
+; under ucase.  R itself where conv= asks none of them; otherwise a copy made
+; a byte at a time, going back from the end so the bytes come out in order,
+; and sweeping as it goes.
+(def %cu-dd-bytes
+  (fn (_ r conv)
+    (def swab? (%cu-dd-has? conv "swab"))
+    (def lower? (%cu-dd-has? conv "lcase"))
+    (def upper? (%cu-dd-has? conv "ucase"))
+    (def t (first r))
+    (def n (rest r))
+    ; the byte that lands at I: its pair's under swab, where it has one
+    (def from
+      (fn (_ i)
+        (match
+          ((not swab?) i)
+          ((= (% i 2) 1) (- i 1))
+          ((< (+ i 1) n) (+ i 1))
+          (#t i))))
+    (def cased
+      (fn (_ b)
+        (let ((lo (if (if lower? (if (>= b 65) (<= b 90) #f) #f) (+ b 32) b)))
+          (if (if upper? (if (>= lo 97) (<= lo 122) #f) #f) (- lo 32) lo))))
+    (def go
+      (fn (self k acc)
+        (if (< k 0) acc
+          (do (if (= (& k %cu-sweep-bytes) 0) (%cu-sweep! k) ())
+              (self (- k 1) (pair (cased (byte-at t (from k))) acc))))))
+    (if (if swab? #t (if lower? #t upper?))
+      (pair (bytes->str (go (- n 1) ())) n)
+      r)))
 
 ; skip=, seek= and count= in bytes: the operand KEY's number of blocks of SIZE,
 ; or of bytes where the list FLAGS holds FLAG -- or NONE where KEY is not given.
@@ -632,7 +646,7 @@
             (def open-out (fn (_) (if (null? out) 1 (%cu-dd-open out at oflag))))
             (def r
               (%cu-fold-pieces src (%cu-dd-take conv open-out)
-                (let ((s (list from want 0 "" ())))
+                (let ((s (list from want 0 (pair "" 0) ())))
                   (if (= want 0) (%cu-enough s) s))))
             (src (lit close))
             (def s (%cu-unmarked (first r)))
@@ -658,7 +672,7 @@
 (def %cu-dd-finish
   (fn (_ fd s at conv oflag ibs obs quiet?)
     (def n (%cu-nth 2 s))
-    (do (%cu-dd-put fd (%cu-dd-case (%cu-nth 3 s) conv))
+    (do (%cu-dd-put fd (%cu-dd-bytes (%cu-nth 3 s) conv))
         (if (= fd 1) ()
           (do (if (if (%cu-dd-has? conv "notrunc") #t
                     (%cu-dd-has? oflag "append")) ()
@@ -674,24 +688,21 @@
 
 ; dd's TAKE: the state is (SKIP LEFT N ODD FD) -- the bytes still to skip, the
 ; bytes still wanted (-1 for every one) and the bytes copied; the byte swab
-; holds back for its pair; and where the copy goes: nil until the first piece
-; opens it, or the io Err that open failed with.  Once no byte is wanted, or
-; the output will not open, nothing more is read.
+; holds back for its pair, as a run; and where the copy goes: nil until the
+; first piece opens it, or the io Err that open failed with.  Once no byte is
+; wanted, or the output will not open, nothing more is read.
 (def %cu-dd-take
   (fn (_ conv open-out)
     (fn (_ r s)
-      (def p (%cu-run-text r))
       (let ((fd (if (null? (%cu-nth 4 s)) (open-out) (%cu-nth 4 s))))
         (if (Err err? fd)
           (%cu-enough (list (first s) (%cu-nth 1 s) (%cu-nth 2 s) (%cu-nth 3 s) fd))
-          (let ((skip (first s)) (left (%cu-nth 1 s)) (end (byte-len p)))
+          (let ((skip (first s)) (left (%cu-nth 1 s)) (end (rest r)))
             (def from (if (> skip end) end skip))
             (def upto
               (if (if (>= left 0) (< (+ from left) end) #f) (+ from left) end))
             (def c
-              (%cu-dd-convert
-                (if (if (= from 0) (= upto end) #f) p (substring p from upto))
-                conv (%cu-nth 3 s)))
+              (%cu-dd-convert (%cu-run-part r from upto) conv (%cu-nth 3 s)))
             (def left2 (if (< left 0) left (- left (- upto from))))
             (do (%cu-dd-put fd (first c))
                 (let ((s2 (list (- skip from) left2 (+ (%cu-nth 2 s) (- upto from))
@@ -709,9 +720,10 @@
       (if (Err err? fd) fd
         (do (if (> at 0) (file-seek fd at) ()) fd)))))
 
-; TEXT to the copy's output: standard output, or the file it opened
+; run R to the copy's output, standard output or the file it opened, by its
+; count
 (def %cu-dd-put
-  (fn (_ fd text) (if (= fd 1) (display text) (file-write fd text))))
+  (fn (_ fd r) (if (> (rest r) 0) (file-write-run fd r) ())))
 
 (def %cu-dd-failed
   (fn (_ path r)
