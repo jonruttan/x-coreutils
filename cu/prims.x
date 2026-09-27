@@ -70,7 +70,6 @@
 ; so each is checked first: a piece that is not a string is a type error
 ; here, not a read of whatever it points at.
 (def %cu-type-of (prim-ref (lit type) (lit of)))
-(def %cu-string-type (%cu-type-of ""))
 (def %cu-strings
   (fn (self ss all)
     (match
