@@ -469,6 +469,64 @@ one
 (1)
 ```
 
+## tail as it reads
+
+tail reads a piece at a time too.  From line or byte N on, it puts out what
+is past them as the pieces come.  Of an input that is not a regular file it
+keeps, for its last lines or bytes, only the pieces that hold them; of a
+regular file it finds them by reading back from the end, and reads nothing
+before them.  Neither way holds a list of every line, which a collect marks a
+C frame to an element: 65,538 lines come through whole.
+
+### from line or byte N on, and the last lines and bytes of pieces
+
+Each run shows what tail printed, then how many pieces it asked for.  In the
+fourth, the last two lines begin in the piece before the last.
+
+```cu
+(do (def tfrom (fn (_ argv src) (do (%cu-dispatch %cu-tail "tail" argv (first src)) (display (list (first (first (rest src)))))))) (tfrom (list "-n" "+2") (feed (list "a\nb" "c\nd\n"))) (newline) (tfrom (list "-c" "+3") (feed (list "ab" "cdef"))) (newline) (tfrom (list "-n" "2") (feed (list "1\n2" "\n3\n4" "\n5"))) (newline) (tfrom (list "-n" "2") (feed (list "a\nb" "\nc\n"))) (tfrom (list "-c" "3") (feed (list "abc" "def" "gh"))))
+```
+---
+```output
+bc
+d
+(2)
+cdef(2)
+4
+5(3)
+b
+c
+(2)fgh(3)
+```
+
+### 65,538 lines from standard input and from a file, and the end of a sparse file
+
+The lines are `a` 65,536 times, then `b` and `c`.  The sparse file is 64 MB
+of zeros, never written, and then two lines; the zeros hold no newline, so
+its last line alone is the one after them.
+
+```cu
+(do (def many (string-append (let ((go (fn (self s k) (if (= k 0) s (self (string-append s s) (- k 1)))))) (go "a\n" 16)) "b\nc\n")) (file-write-all (htp "many") many) (proc-run (list "/bin/sh" "-c" "cd /tmp/x-cu-ht && dd if=/dev/zero of=sparse bs=1 count=0 seek=64m 2>/dev/null && printf 'x\\ny\\n' >> sparse")) (ht (list "tail" "-n" "2") many) (ht (list "tail" "-n" "2" (htp "many")) "") (ht (list "tail" "-n" "1" (htp "sparse")) "") (ht (list "tail" "-c" "4" (htp "sparse")) ""))
+```
+---
+```output
+b
+c
+|
+status 0
+b
+c
+|
+status 0
+y
+|
+status 0
+x
+y
+|
+status 0
+```
+
 ## cleanup
 
 ### the scratch directory goes
