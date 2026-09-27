@@ -176,18 +176,40 @@
 (def %cu-run-from
   (fn (_ r i) (if (<= i 0) r (%cu-run-slice r i))))
 
-; the bytes of run R from I on, copied into a run of their own a byte at a
-; time, since a copy that asked a C string its length would stop at a NUL.
-; The walk goes back from the end, so the bytes come out in order.
+; the bytes of run R from I on, copied into a run of their own
 (def %cu-run-slice
-  (fn (_ r i)
-    (let ((t (first r)) (n (rest r)))
-      (def go
-        (fn (self k acc)
-          (if (< k i) acc
-            (do (if (= (& k %cu-sweep-bytes) 0) (%cu-sweep! k) ())
-                (self (- k 1) (pair (byte-at t k) acc))))))
-      (pair (bytes->str (go (- n 1) ())) (if (> n i) (- n i) 0)))))
+  (fn (_ r i) (%cu-run-copy r i (rest r))))
+
+; the bytes of run R from I up to J, copied into a run of their own a byte at
+; a time, since a copy that asked a C string its length would stop at a NUL
+(def %cu-run-copy
+  (fn (_ r i j)
+    (pair (bytes->str (%cu-run-bytes-onto r i j ())) (if (> j i) (- j i) 0))))
+
+; the bytes of run R from I up to J, as a run: R itself where they are all of
+; it, and otherwise a copy
+(def %cu-run-part
+  (fn (_ r i j)
+    (if (if (<= i 0) (>= j (rest r)) #f) r (%cu-run-copy r i j))))
+
+; run A's bytes, then run R's from I up to J, copied into one run
+(def %cu-run-join
+  (fn (_ a r i j)
+    (pair (bytes->str
+            (%cu-run-bytes-onto a 0 (rest a) (%cu-run-bytes-onto r i j ())))
+          (+ (rest a) (- j i)))))
+
+; the bytes of run R from I up to J onto the list ACC.  The walk goes back from
+; J, so they come out in order, and it sweeps as it goes.
+(def %cu-run-bytes-onto
+  (fn (_ r i j acc)
+    (def t (first r))
+    (def go
+      (fn (self k acc)
+        (if (< k i) acc
+          (do (if (= (& k %cu-sweep-bytes) 0) (%cu-sweep! k) ())
+              (self (- k 1) (pair (byte-at t k) acc))))))
+    (go (- j 1) acc)))
 
 ; STATE marked as the last one a TAKE wants, and the mark tested and taken off
 (def %cu-enough (fn (_ state) (pair (lit enough) state)))

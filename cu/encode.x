@@ -28,10 +28,10 @@
       ((if (>= b 32) (<= b 126) #f) (%cu-b->s b))
       (#t (%cu-pad-zero (%cu-oct->str b) 3)))))
 
-; a word of `size` bytes, LITTLE-endian, from position i
+; a word of `size` bytes, LITTLE-endian, from position i, the bytes from END
+; on read as 0
 (def %cu-od-word
-  (fn (_ s i size)
-    (def end (byte-len s))
+  (fn (_ s i size end)
     (def go
       (fn (self k acc)
         (if (>= k size) acc
@@ -47,13 +47,13 @@
     (def top (bit-shl 1 (- (* 8 size) 1)))
     (if (< v top) v (- v (* top 2)))))
 
-; one field, padded to the width its type prints
+; one field, padded to the width its type prints, from a line that ends at END
 (def %cu-od-field
-  (fn (_ s i kind size)
+  (fn (_ s i end kind size)
     (def w (fn (_ one two four)
              (match ((= size 1) one) ((= size 2) two) (#t four))))
     (if (eq? kind (lit c)) (%cu-pad-left (%cu-od-char (byte-at s i)) 4)
-      (let ((v (%cu-od-word s i size)))
+      (let ((v (%cu-od-word s i size end)))
         (match
           ((eq? kind (lit o))
             (string-append " " (%cu-pad-zero (%cu-oct->str v) (w 3 6 11))))
@@ -97,7 +97,7 @@
     (def go
       (fn (self i acc)
         (if (>= i stop) (string-concat (reverse acc))
-          (self (+ i size) (pair (%cu-od-field s i kind size) acc)))))
+          (self (+ i size) (pair (%cu-od-field s i stop kind size) acc)))))
     (go from ())))
 
 (def %cu-od-radix
@@ -151,17 +151,18 @@
       ((string=? a "-o") (pair (lit type) (pair (lit o) 2)))
       (#t (pair (lit op) a)))))
 
-; What puts the lines of a text out, sixteen bytes to a line: (TEXT AT PREV
-; STARRED LAST?) puts every whole line of TEXT, and under LAST? the short one
-; at its end too.  AT is the address of TEXT's first byte -- the addresses
+; What puts the lines of a run out, sixteen bytes to a line: (RUN AT PREV
+; STARRED LAST?) puts every whole line of RUN, and under LAST? the short one
+; at its end too.  AT is the address of RUN's first byte -- the addresses
 ; count from what -j skipped, the way od numbers the bytes of the input rather
 ; than of what it printed.  A line repeated from the one before, PREV,
 ; collapses to `*`, unless -v, and STARRED says the `*` is out already.
 ; Answers (NEXT PREV STARRED), NEXT where the lines stopped.
 (def %cu-od-dump
   (fn (_ kind size rad v?)
-    (fn (_ text at prev starred last?)
-      (def end (byte-len text))
+    (fn (_ run at prev starred last?)
+      (def text (first run))
+      (def end (rest run))
       ; a line costs tens of thousands of objects, so the walk sweeps every
       ; 512 bytes, 32 lines, on the byte index it already keeps
       (def go
@@ -182,26 +183,25 @@
 
 ; od's TAKE: the state is (SKIP LEFT PART AT PREV STARRED) -- the bytes -j has
 ; still to skip, the bytes -N still takes (-1 for every one), the start of a
-; line that waits for the rest of its sixteen bytes, its address, and the
-; line before and whether it was starred.  Once -N has its bytes nothing more
-; is read.
+; line that waits for the rest of its sixteen bytes, as a run, its address,
+; and the line before and whether it was starred.  Once -N has its bytes
+; nothing more is read.
 (def %cu-od-take
   (fn (_ dump)
     (fn (_ r s)
-      (def p (%cu-run-text r))
-      (let ((skip (first s)) (left (%cu-nth 1 s)) (end (byte-len p)))
+      (let ((skip (first s)) (left (%cu-nth 1 s)) (end (rest r))
+            (part (%cu-nth 2 s)))
         (def from (if (> skip end) end skip))
         (def upto
           (if (if (>= left 0) (< (+ from left) end) #f) (+ from left) end))
-        (def taken (if (if (= from 0) (= upto end) #f) p (substring p from upto)))
         (def text
-          (if (= (byte-len (%cu-nth 2 s)) 0) taken
-            (string-append (%cu-nth 2 s) taken)))
-        (def r (dump text (%cu-nth 3 s) (%cu-nth 4 s) (%cu-nth 5 s) #f))
+          (if (= (rest part) 0) (%cu-run-part r from upto)
+            (%cu-run-join part r from upto)))
+        (def d (dump text (%cu-nth 3 s) (%cu-nth 4 s) (%cu-nth 5 s) #f))
         (def left2 (if (< left 0) left (- left (- upto from))))
         (let ((s2 (list (- skip from) left2
-                    (substring text (first r) (byte-len text))
-                    (+ (%cu-nth 3 s) (first r)) (%cu-nth 1 r) (%cu-nth 2 r))))
+                    (%cu-run-part text (first d) (rest text))
+                    (+ (%cu-nth 3 s) (first d)) (%cu-nth 1 d) (%cu-nth 2 d))))
           (if (if (= left2 0) (= skip from) #f) (%cu-enough s2) s2))))))
 
 (def %cu-od-repeat?
@@ -250,7 +250,7 @@
     ; said, and what the others hold is still dumped.
     (def skip (%cu-od-opt st (lit skip) 0))
     (def g (%cu-fold-said ops stdin-thunk (%cu-says "od") (%cu-od-take dump)
-             (list skip lim "" skip () #f)))
+             (list skip lim (pair "" 0) skip () #f)))
     (def s (first g))
     ; a skip past the end is refused the way od refuses it: there is nothing
     ; to number from there.  Otherwise the short line at the end goes out,
@@ -262,7 +262,7 @@
             (if (eq? rad (lit n)) ()
               (display
                 (string-append
-                  (%cu-od-address (+ (%cu-nth 3 s) (byte-len part)) rad) "\n")))
+                  (%cu-od-address (+ (%cu-nth 3 s) (rest part)) rad) "\n")))
             (rest g))))))
 ; --- uuencode / uudecode --------------------------------------------------------
 
