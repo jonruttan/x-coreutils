@@ -57,7 +57,10 @@
 (def string=? (fn (_ a b) (str=? a b)))
 
 (def %cvt (prim-ref (lit convert) (lit to)))
-(def list->string (fn (_ l) (if (null? l) "" (%cvt l %string))))
+; The string type's handle, fetched by name through the platform's public
+; door.
+(def %cu-string-type (Type named STRING))
+(def list->string (fn (_ l) (if (null? l) "" (%cvt l %cu-string-type))))
 
 (def string-append (fn (_ . ss) (string-concat ss)))
 

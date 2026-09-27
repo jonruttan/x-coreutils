@@ -21,7 +21,9 @@
 ; v0.14.0: (Err tag e), which file-or-err (cu/prims.x) reads to tell an io
 ; error from any other raise.
 ;
-; v0.15.0 is the release the suite and its sweep bounds are measured on.
+; v0.15.0 is the release the suite and its sweep bounds are measured on, and
+; the first with (Type named ...), which cu/prims.x fetches the string type's
+; handle through.
 (requires-release "v0.15.0")
 
 (entry "run.x")
