@@ -771,14 +771,26 @@
                           (first argv) "': " (file-err-text r) "\n")))
                 1)))))))
 
+; The directory part of path P, as dirname(1) finds it: the slashes at its end
+; are passed over, then its last name, then the slashes before that name.
+; What is left is the directory; nothing left is "/" where P began with a
+; slash, and "." where it held no slash but at its end, or was empty.
 (def %cu-dirname-of
   (fn (_ p)
-    (def go
+    (def end (byte-len p))
+    ; from I back, the index before the slashes, or the other bytes, there
+    (def slashes
+      (fn (self i) (if (if (>= i 0) (= (byte-at p i) 47) #f) (self (- i 1)) i)))
+    (def name
       (fn (self i)
-        (if (< i 0) "."
-          (if (= (byte-at p i) 47) (if (= i 0) "/" (substring p 0 i))
-            (self (- i 1))))))
-    (go (- (byte-len p) 1))))
+        (if (if (>= i 0) (not (= (byte-at p i) 47)) #f) (self (- i 1)) i)))
+    (let ((a (slashes (- end 1))))
+      (match
+        ((< a 0) (if (> end 0) "/" "."))
+        (#t (let ((b (name a)))
+              (if (< b 0) "."
+                (let ((c (slashes b)))
+                  (if (< c 0) "/" (substring p 0 (+ c 1)))))))))))
 
 ; -n leaves the newline off; -v names what went wrong, where the plain
 ; form answers a non-link with a silent 1.

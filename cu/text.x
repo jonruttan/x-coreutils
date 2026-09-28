@@ -1014,21 +1014,10 @@
           (file-write fd "\n")
           (self fd (rest ls))))))
 
-; -s's interval: "2", "0.5", "1.25" -- whole seconds through sleep and
-; the fraction, to the microsecond, through usleep, which on Darwin
-; takes less than a second.
+; -s's interval: "2", "0.5", "1.25", read as sleep reads one
 (def %cu-tail-sleep
   (fn (_ spec)
-    (def parts (%cu-split-byte spec 46))                          ; .
-    (def secs
-      (if (= (byte-len (first parts)) 0) 0 (%cu-num-prefix (first parts))))
-    (def us
-      (if (null? (rest parts)) 0
-        (%cu-num-prefix
-          (substring (string-append (first (rest parts)) "000000") 0 6))))
-    (do (if (> secs 0) (sys-sleep secs) ())
-        (if (> us 0) (sys-usleep us) ())
-        ())))
+    (let ((us (%cu-sleep-us spec))) (if (null? us) () (%cu-sleep-for us)))))
 
 ; the bytes of NAME from FROM up to TO
 (def %cu-read-range
@@ -1676,28 +1665,13 @@
             base))))
     (do (display (string-append final "\n")) 0)))
 
+; dirname NAME...: the directory part of each, a line apiece, as GNU's does
 (def %cu-dirname
   (fn (_ argv stdin-thunk)
     (if (null? argv) (%cu-missing-operand "dirname" argv)
-      (%cu-dirname-run argv))))
-
-(def %cu-dirname-run
-  (fn (_ argv)
-    (def p (first argv))
-    (def stripped
-      (let ((go (fn (self e)
-                  (if (if (> e 1) (= (byte-at p (- e 1)) 47) #f)
-                    (self (- e 1))
-                    e))))
-        (substring p 0 (go (byte-len p)))))
-    (def slash
-      (let ((go (fn (self i last)
-                  (if (>= i (byte-len stripped)) last
-                    (self (+ i 1)
-                      (if (= (byte-at stripped i) 47) i last))))))
-        (go 0 (- 0 1))))
-    (def d
-      (if (< slash 0) "."
-        (if (= slash 0) "/"
-          (substring stripped 0 slash))))
-    (do (display (string-append d "\n")) 0)))
+      (let ((go (fn (self ps)
+                  (if (null? ps) 0
+                    (do (display
+                          (string-append (%cu-dirname-of (first ps)) "\n"))
+                        (self (rest ps)))))))
+        (go argv)))))
