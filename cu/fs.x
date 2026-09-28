@@ -300,7 +300,7 @@
     (def o (%cu-opts "cp" argv))
     (def ops (Opts operands o))
     (if (< (length ops) 2)
-      (do (file-write 2 "cp: usage: cp [-arRPLHpfilsTu] SRC... DST\n") 1)
+      (%cu-missing-file-operand "cp" ops)
       (let ((dst (%cu-last ops)) (srcs (%cu-drop-last ops)))
         (if (if (> (length srcs) 1) (not (file-dir? dst)) #f)
           (do (file-write 2
@@ -349,7 +349,7 @@
     (def o (%cu-opts "mv" argv))
     (def ops (Opts operands o))
     (if (< (length ops) 2)
-      (do (file-write 2 "mv: usage: mv [-finT] SRC... DST\n") 1)
+      (%cu-missing-file-operand "mv" ops)
       (let ((dst (%cu-last ops)) (srcs (%cu-drop-last ops)))
         (let ((go (fn (self ss st)
                     (if (null? ss) st

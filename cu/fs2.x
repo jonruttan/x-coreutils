@@ -183,9 +183,7 @@
                     (if (null? ops) () (%cu-drop-last ops))
                     ops))
         (if (null? srcs)
-          (do (file-write 2
-                "install: usage: install [-cDp] [-m M] [-o U] [-g G] SRC... DST | -t DIR SRC... | -d DIR...\n")
-              1)
+          (%cu-missing-file-operand "install" ops)
           (let ((go (fn (self ss st)
                       (if (null? ss) st
                         (let ((target
