@@ -980,7 +980,11 @@
 ; where run R's Kth newline ends, and how many newlines were found: K, or fewer
 ; with the end at R's count
 (def %cu-newlines-to
-  (fn (_ r k)
+  (fn (_ r k) (%cu-newlines-from r 0 k)))
+
+; the same from I on
+(def %cu-newlines-from
+  (fn (_ r i k)
     (def text (first r))
     (def end (rest r))
     (def go
@@ -991,7 +995,7 @@
               ((>= i end) (pair end found))
               ((= (byte-at text i) 10) (self (+ i 1) (+ found 1)))
               (#t (self (+ i 1) found))))))
-    (go 0 0)))
+    (go i 0)))
 
 (def %cu-member-s?
   (fn (_ s l)
