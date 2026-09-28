@@ -11,12 +11,13 @@
 ; NORMAL format: XdY, XaY, XcY with < --- > bodies.  Status 0 same,
 ; 1 different.
 
-; Two of these flags do nothing, and that is correct:
+; A file whose first piece holds a NUL is binary, as the system's diff reads
+; one: the two files are compared byte for byte and only said to differ.  -a
+; treats every file as text instead.
 ;
-;   -a  "treat all files as text" turns off binary detection; this diff has no
-;       such mode -- it is always line-based, which is what -a asks for.
-;   -d  "try hard to find a smaller set of changes"; the LCS below is already
-;       minimal, so there is nothing to try harder than.
+; -d does nothing, and that is correct: "try hard to find a smaller set of
+; changes"; the LCS below is already minimal, so there is nothing to try
+; harder than.
 ;
 ; What counts as the same line is a lexical question, answered in cu/diff-lex.x
 ; on a reader base of its own: -w makes a run of spaces read as nothing, -b as
@@ -407,21 +408,63 @@
         (string-append " "
           (string-append pa (string-append " " (string-append pb "\n"))))))))
 
-; a nil text is one diff could not read, said already: nothing to compare,
-; and diff's trouble, status 2
+; A file of a directory walk against its fellow, from their piece sources SA
+; and SB, closed here.  A nil source is one diff could not open, said
+; already: nothing to compare, and diff's trouble, status 2.  A text diff
+; goes out under the header naming the pair; a binary one is its own line.
 (def %cu-diff-one-file
-  (fn (_ o flags pa pb atext btext)
-    (if (if (null? atext) #t (null? btext)) (pair "" 2)
-      (let ((r (%cu-diff-texts o (list pa pb) atext btext)))
-        (if (= (byte-len (first r)) 0)
-          (pair "" (rest r))
-          (pair (string-append (%cu-diff-header flags pa pb) (first r))
-            (rest r)))))))
+  (fn (_ o flags pa pb sa sb)
+    (def r
+      (if (if (null? sa) #t (null? sb)) (pair "" 2)
+        (%cu-diff-sources o (list pa pb) sa sb (%cu-says "diff")
+          (%cu-diff-header flags pa pb))))
+    (do (if (null? sa) () (sa (lit close)))
+        (if (null? sb) () (sb (lit close)))
+        r)))
 
-; a file diff reads whole, or nil once it has said why it could not
-(def %cu-diff-read
+; a file's piece source, or nil once diff has said why it would not open
+(def %cu-diff-source
   (fn (_ path)
-    (let ((t (%cu-read-said (%cu-says "diff") path))) (if (Err err? t) () t))))
+    (let ((s (%cu-file-pieces path)))
+      (if (Err err? s) (do (%cu-say (%cu-says "diff") path s) ()) s))))
+
+; the source of a file -N reads as absent: no pieces at all
+(def %cu-diff-none (fn (_ . how) (if (null? how) (pair "" 0) ())))
+
+; What diff makes of the piece sources A and B of the files OPS, as (REPORT .
+; STATUS).  Where either first piece holds a NUL, unless -a, the two are
+; binary: compared byte for byte and only said to differ, as the system's
+; diff says it.  Otherwise each is read whole, as text, compared a line at a
+; time, and a report that is not empty goes out under HEAD.  A read that
+; fails is said by SAYS, and is status 2.
+(def %cu-diff-sources
+  (fn (_ o ops a b says head)
+    (def ra (a))
+    (def rb (b))
+    (match
+      ((Err err? ra) (do (%cu-say says (first ops) ra) (pair "" 2)))
+      ((Err err? rb) (do (%cu-say says (first (rest ops)) rb) (pair "" 2)))
+      ((if (Opts on? o "-a") #f (if (%cu-run-nul? ra) #t (%cu-run-nul? rb)))
+        (let ((st (%cu-cmp-walk a b ops ra rb (- 0 1) #f #t says)))
+          (if (= st 1) (pair (%cu-diff-binary-text ops) 1) (pair "" st))))
+      (#t (%cu-diff-text-sources o ops a b ra rb says head)))))
+
+(def %cu-diff-text-sources
+  (fn (_ o ops a b ra rb says head)
+    (def ta (%cu-text-from a ra))
+    (def tb (%cu-text-from b rb))
+    (match
+      ((Err err? ta) (do (%cu-say says (first ops) ta) (pair "" 2)))
+      ((Err err? tb) (do (%cu-say says (first (rest ops)) tb) (pair "" 2)))
+      (#t (let ((r (%cu-diff-texts o ops ta tb)))
+            (if (= (byte-len (first r)) 0) (pair "" (rest r))
+              (pair (string-append head (first r)) (rest r))))))))
+
+(def %cu-diff-binary-text
+  (fn (_ ops)
+    (string-concat
+      (list "Binary files " (first ops) " and " (first (rest ops))
+            " differ\n"))))
 
 (def %cu-diff-dir
   (fn (self o flags a b start)
@@ -441,13 +484,15 @@
         (match
           ((if ina (not inb) #f)
             (if absent?
-              (emit! (%cu-diff-one-file o flags pa pb (%cu-diff-read pa) ""))
+              (emit! (%cu-diff-one-file o flags pa pb (%cu-diff-source pa)
+                       %cu-diff-none))
               (emit! (pair (string-append "Only in "
                              (string-append a (string-append ": "
                                (string-append n "\n")))) 1))))
           ((if inb (not ina) #f)
             (if absent?
-              (emit! (%cu-diff-one-file o flags pa pb "" (%cu-diff-read pb)))
+              (emit! (%cu-diff-one-file o flags pa pb %cu-diff-none
+                       (%cu-diff-source pb)))
               (emit! (pair (string-append "Only in "
                              (string-append b (string-append ": "
                                (string-append n "\n")))) 1))))
@@ -465,7 +510,7 @@
                            (string-append (if (file-dir? pa) pb pa)
                              " is not a directory\n")) 1)))
           (#t (emit! (%cu-diff-one-file o flags pa pb
-                       (%cu-diff-read pa) (%cu-diff-read pb)))))))
+                       (%cu-diff-source pa) (%cu-diff-source pb)))))))
     (let ((st (%cu-walk-pair a b start one)))
       (pair (string-concat (reverse (first out))) st))))
 
@@ -534,17 +579,18 @@
 (def %cu-diff-files
   (fn (_ o argv stdin-thunk pa pb)
     (def ops (list pa pb))
+    (def says (%cu-says "diff"))
     ; both files are opened before either is read, and the first that fails
-    ; is said and is diff's trouble, status 2
-    (def texts (%cu-read-all-said ops stdin-thunk (%cu-says "diff")))
-    (def failed? (Err err? texts))
-    (def r (if failed? (pair "" 2)
-             (%cu-diff-texts o ops (first texts) (first (rest texts)))))
+    ; is said and is diff's trouble, status 2, as a read that fails is
+    (def r
+      (if (Err err? (%cu-first-unopened ops says)) (pair "" 2)
+        (%cu-with-sources ops stdin-thunk says (pair "" 2)
+          (fn (_ a b) (%cu-diff-sources o ops a b says "")))))
     (def differ? (> (rest r) 0))
     ; -q and -s replace the body with one line about it; -q says nothing when
     ; the files match, which is why they are not one flag.
     (match
-      (failed? 2)
+      ((= (rest r) 2) 2)
       ((Opts on? o "-q")
         (do (if differ? (display (%cu-diff-pair-text ops "differ")) ())
             (rest r)))

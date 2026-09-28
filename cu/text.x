@@ -199,6 +199,31 @@
             (%cu-run-bytes-onto a 0 (rest a) (%cu-run-bytes-onto r i j ())))
           (+ (rest a) (- j i)))))
 
+; whether run R holds a NUL among its bytes: its text's length stops at the
+; first NUL, so it falls short of the count just when there is one
+(def %cu-run-nul?
+  (fn (_ r) (< (byte-len (first r)) (rest r))))
+
+; the text of run R and of every piece SRC answers after it, joined -- or the
+; io Err a read answered
+(def %cu-text-from
+  (fn (_ src r)
+    (let ((g (%cu-fold-pieces src (fn (_ p acc) (pair (%cu-run-text p) acc))
+               (list (%cu-run-text r)))))
+      (if (null? (rest g)) (string-concat (reverse (first g))) (rest g)))))
+
+; F called with the piece sources of the two NAMES, both closed once it
+; answers -- or FAIL where either will not open, said by SAYS
+(def %cu-with-sources
+  (fn (_ names stdin-thunk says fail f)
+    (let ((a (%cu-pieces (first names) stdin-thunk)))
+      (if (Err err? a) (do (%cu-say says (first names) a) fail)
+        (let ((b (%cu-pieces (first (rest names)) stdin-thunk)))
+          (if (Err err? b)
+            (do (%cu-say says (first (rest names)) b) (a (lit close)) fail)
+            (let ((r (f a b)))
+              (do (a (lit close)) (b (lit close)) r))))))))
+
 ; the bytes of run R from I up to J onto the list ACC.  The walk goes back from
 ; J, so they come out in order, and it sweeps as it goes.
 (def %cu-run-bytes-onto
