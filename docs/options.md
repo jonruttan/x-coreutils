@@ -29,12 +29,12 @@ the work.  Applet parity is the other axis: see the README.
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -i -b -w -B -q -s -a -d -T -t -r -N -U -L -S |  | 100% |
 | `dirname` |  |  |  | - |
 | `dos2unix` | -u -d | -u -d |  | 100% |
-| `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k -c -h -m -x -l -H -L -d |  | 100% |
+| `du` | -a -H -L -d -c -l -s -x -h -m -k | -s -a -k -c -h -m -x -l -H -L -P -d |  | 100% |
 | `echo` | -n -e -E | -n -e -E |  | 100% |
 | `env` | -i -u -0 | -i -0 -u |  | 100% |
 | `expand` | -i -t | -i -t |  | 100% |
 | `expr` |  |  |  | - |
-| `factor` |  |  |  | - |
+| `factor` |  | -h |  | - |
 | `false` |  |  |  | - |
 | `find` | _not a busybox applet_ | -name -iname -path -type -size -newer -maxdepth -mindepth -empty -print -print0 -exec -true -false -not -a -and -o -or ! ( ) | | - |
 | `fold` | -b -s -w | -b -s -w |  | 100% |
