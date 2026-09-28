@@ -1308,19 +1308,36 @@
   (fn (_ r st)
     (def s (first r))
     (def end (rest r))
+    ; A byte as GNU's wc reads it in the C locale: a newline counts a line,
+    ; and it, a carriage return and a form feed end a line's width; those
+    ; three, a tab, a vertical tab, a space and a no-break space (160) end a
+    ; word, and every other byte is in one.  A tab moves the width on to the
+    ; next stop of 8, a printable byte moves it by one, and any other byte
+    ; not at all.
     (def go
       (fn (self i nl nw in-word col longest)
         (if (>= i end)
           (list nl nw (+ (%cu-nth 2 st) end) in-word col longest)
           (let ((b (byte-at s i)))
-            (def ws (match ((= b 32) #t) ((= b 9) #t) (#t (= b 10))))
             (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
-              (self (+ i 1)
-                (if (= b 10) (+ nl 1) nl)
-                (if (if in-word ws #f) (+ nw 1) nw)
-                (not ws)
-                (if (= b 10) 0 (+ col 1))
-                (if (= b 10) (if (> col longest) col longest) longest)))))))
+              (match
+                ((if (> b 32) (< b 127) #f)
+                  (self (+ i 1) nl nw #t (+ col 1) longest))
+                ((= b 32)
+                  (self (+ i 1) nl (if in-word (+ nw 1) nw) #f (+ col 1)
+                    longest))
+                ((= b 10)
+                  (self (+ i 1) (+ nl 1) (if in-word (+ nw 1) nw) #f 0
+                    (if (> col longest) col longest)))
+                ((if (= b 13) #t (= b 12))
+                  (self (+ i 1) nl (if in-word (+ nw 1) nw) #f 0
+                    (if (> col longest) col longest)))
+                ((= b 9)
+                  (self (+ i 1) nl (if in-word (+ nw 1) nw) #f
+                    (+ col (- 8 (% col 8))) longest))
+                ((if (= b 11) #t (= b 160))
+                  (self (+ i 1) nl (if in-word (+ nw 1) nw) #f col longest))
+                (#t (self (+ i 1) nl nw #t col longest))))))))
     (go 0 (first st) (%cu-nth 1 st) (%cu-nth 3 st) (%cu-nth 4 st) (%cu-nth 5 st))))
 
 (def %cu-wc-none (list 0 0 0 #f 0 0))
