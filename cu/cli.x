@@ -361,6 +361,18 @@
               (list applet ": missing operand after '" (%cu-last ops) "'\n"))))
         1)))
 
+; Too few file operands for an applet that copies or moves them, in GNU's
+; words: `missing file operand` with none, and `missing destination file
+; operand after 'OP'` with the one.  Answers 1.
+(def %cu-missing-file-operand
+  (fn (_ applet ops)
+    (do (file-write 2
+          (string-concat
+            (if (null? ops) (list applet ": missing file operand\n")
+              (list applet ": missing destination file operand after '"
+                    (first ops) "'\n"))))
+        1)))
+
 ; An operand past the last an applet takes, in GNU's words: `extra operand
 ; 'OP'`, OP the first of them.  Answers 1.
 (def %cu-extra-operand

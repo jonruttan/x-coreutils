@@ -2,9 +2,11 @@
 
 An applet given too few operands says so before it takes one: the first of an
 empty list is a crash, not an error anything can catch.  In GNU's words, none
-at all is `missing operand`, and some is `missing operand after 'LAST'`; tr
-says why it wants a second set, split with no file reads its input, and
-timeout's refusal is its status alone.  The expected text is GNU's, less the
+at all is `missing operand`, and some is `missing operand after 'LAST'`; for
+the applets that copy and move files they are `missing file operand` and
+`missing destination file operand after 'OP'`.  tr says why it wants a second
+set, split with no file reads its input, and timeout's refusal is its status
+alone.  The expected text is GNU's, less the
 line GNU adds after a refusal to point at --help, which no applet here has.
 cmp, diff and uuencode have no GNU build here: BSD's refuse with a usage line,
 cmp and diff with 2 and uuencode with 1, and so do these, naming their own
@@ -76,6 +78,38 @@ chgrp: missing operand
 status 1
 stderr:
 chgrp: missing operand after 'wheel'
+status 1
+```
+
+## missing file operand
+
+### cp, mv and install: none, one where a destination is wanted, and -t with no file
+
+```cu
+(do (run (list "cp")) (run (list "cp" "f")) (run (list "mv")) (run (list "mv" "f")) (run (list "install")) (run (list "install" "f")) (run (list "install" "-t" (nf ""))))
+```
+---
+```output
+stderr:
+cp: missing file operand
+status 1
+stderr:
+cp: missing destination file operand after 'f'
+status 1
+stderr:
+mv: missing file operand
+status 1
+stderr:
+mv: missing destination file operand after 'f'
+status 1
+stderr:
+install: missing file operand
+status 1
+stderr:
+install: missing destination file operand after 'f'
+status 1
+stderr:
+install: missing file operand
 status 1
 ```
 
