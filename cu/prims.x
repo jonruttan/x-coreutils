@@ -127,12 +127,17 @@
 (def file-open-excl
   (fn (_ path)
     (File open path (list (lit wronly) (lit creat) (lit excl)))))
+; The key the platform's stat record holds a file's type under: kind up to
+; v0.16.0, file-type after it.
+(def %cu-file-type-key?
+  (fn (_ k) (if (eq? k (lit file-type)) #t (eq? k (lit kind)))))
+
 (def file-dir?
   (fn (_ path)
     (if (file-exists? path)
       (let ((go (fn (self es)
                   (if (null? es) #f
-                    (if (eq? (first (first es)) (lit kind))
+                    (if (%cu-file-type-key? (first (first es)))
                       (eq? (rest (first es)) (lit dir))
                       (self (rest es)))))))
         (go (File stat path)))
@@ -642,7 +647,13 @@
 
 ; --- the metadata doors (x-lang PR #607) --------------------------------------
 
-(def file-stat (fn (_ path) (File stat path)))
+; The platform's stat record, with the file's type under kind whichever key
+; the platform holds it under, so that a reader asks for one key.
+(def file-stat
+  (fn (_ path)
+    (let ((st (File stat path)))
+      (let ((e (Assoc entry (lit file-type) st)))
+        (if (null? e) st (pair (pair (lit kind) (rest e)) st))))))
 
 ; the wide stat, raising the platform's io Err when the path cannot be read:
 ; file-stat-full answers nil instead, and a caller that reports the reason
@@ -879,7 +890,7 @@
     (guard (e (lit none))
       (let ((go (fn (self es)
                   (if (null? es) (lit unknown)
-                    (if (eq? (first (first es)) (lit kind)) (rest (first es))
+                    (if (%cu-file-type-key? (first (first es))) (rest (first es))
                       (self (rest es)))))))
         (go (File lstat path))))))
 
