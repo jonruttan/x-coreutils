@@ -10,6 +10,7 @@
 ; allocation door for read buffers, no defs at depth in anything hot.
 
 (import x/sys/file)
+(import x/platform/syscall stat-layout)
 (import x/sys/proc)
 (import x/sys/date)
 (import x/type/vector)
@@ -164,33 +165,20 @@
     (let ((fd (opener path)))
       (if (>= fd 0) fd (file-open-err fd path)))))
 
+; The system calls made here by name, each resolved once through the
+; platform's door: on arm64 Linux the path calls have no number of their own
+; and are made through their -at forms.  Darwin's are the 64-bit-inode
+; variants.
+(def %cu-sys-stat   (syscall-door (if os-darwin? (lit stat64) (lit stat))))
+(def %cu-sys-lstat  (syscall-door (if os-darwin? (lit lstat64) (lit lstat))))
+(def %cu-sys-statfs (syscall-door (if os-darwin? (lit statfs64) (lit statfs))))
+(def %cu-sys-utimes (syscall-door (lit utimes)))
+
 ; THE WIDE STAT.  File stat answers four fields (size mode kind mtime);
 ; stat(1), du(1) and id(1) want the rest of the struct, so this decodes
-; the same buffer against the full per-OS layout.  Darwin is stat64
-; (mode u16@4, uid@16, size@96); Linux x86_64 is stat (mode u32@24,
-; uid@28, size@48) -- the two orders differ, so each gets its own spec
-; and the alist is assembled by name.  Answers () when the path is gone.
-(def %cu-stat-spec-darwin
-  (list (list (lit dev) (lit u32)) (list (lit mode) (lit u16))
-        (list (lit nlink) (lit u16)) (list (lit ino) (lit u64))
-        (list (lit uid) (lit u32)) (list (lit gid) (lit u32))
-        (list (lit rdev) (lit u32)) (list (lit pad) 4)
-        (list (lit atime) (lit i64)) (list (lit pad) 8)
-        (list (lit mtime) (lit i64)) (list (lit pad) 8)
-        (list (lit ctime) (lit i64)) (list (lit pad) 8)
-        (list (lit btime) (lit i64)) (list (lit pad) 8)
-        (list (lit size) (lit i64)) (list (lit blocks) (lit i64))
-        (list (lit blksize) (lit u32))))
-
-(def %cu-stat-spec-linux
-  (list (list (lit dev) (lit u64)) (list (lit ino) (lit u64))
-        (list (lit nlink) (lit u64)) (list (lit mode) (lit u32))
-        (list (lit uid) (lit u32)) (list (lit gid) (lit u32))
-        (list (lit pad) 4) (list (lit rdev) (lit u64))
-        (list (lit size) (lit i64)) (list (lit blksize) (lit i64))
-        (list (lit blocks) (lit i64)) (list (lit atime) (lit i64))
-        (list (lit pad) 8) (list (lit mtime) (lit i64)) (list (lit pad) 8)
-        (list (lit ctime) (lit i64))))
+; the same buffer against the whole of it.  The layout is the platform's
+; (stat-layout), whose field order differs from one to the next, so the
+; alist is assembled by name.  Answers () when the path is gone.
 
 (def %cu-mode-kind
   (fn (_ mode)
@@ -208,13 +196,9 @@
 (def file-stat-full
   (fn (_ path)
     (def buf (%str-make-raw 160))
-    (def r (if os-darwin?
-             (syscall (syscall-id (lit stat64)) path buf)
-             (syscall (syscall-id (lit stat)) path buf)))
+    (def r (%cu-sys-stat path buf))
     (if (< r 0) ()
-      (let ((d (Struct unpack
-                 (if os-darwin? %cu-stat-spec-darwin %cu-stat-spec-linux)
-                 buf)))
+      (let ((d (Struct unpack stat-layout buf)))
         (pair (pair (lit kind)
                 (%cu-mode-kind (rest (Assoc entry (lit mode) d))))
           d)))))
@@ -721,8 +705,10 @@
                               (self (+ i 1) (/ (- m b) 256))))
                         ()))))
             (go 0 (if neg? (- (- 0 v) 1) v))))))
+    ; Where the call is utimensat the two are timespecs, which differ from
+    ; timevals in the unit of the second word alone, and that word is zero.
     (do (zero 0) (put 0 atime) (put 16 mtime)
-        (syscall (syscall-id (lit utimes)) path buf))))
+        (%cu-sys-utimes path buf))))
 
 (def file-mkfifo (fn (_ path mode) (File mkfifo path mode)))
 (def file-statfs (fn (_ path) (File statfs path)))
@@ -763,9 +749,7 @@
 (def file-statfs-full
   (fn (_ path)
     (def buf (%str-make-raw 2304))
-    (def r (if os-darwin?
-             (syscall (syscall-id (lit statfs64)) path buf)
-             (syscall (syscall-id (lit statfs)) path buf)))
+    (def r (%cu-sys-statfs path buf))
     (if (< r 0) ()
       (let ((d (Struct unpack
                  (if os-darwin?
@@ -909,13 +893,9 @@
 (def file-lstat-full
   (fn (_ path)
     (def buf (%str-make-raw 160))
-    (def r (if os-darwin?
-             (syscall (syscall-id (lit lstat64)) path buf)
-             (syscall (syscall-id (lit lstat)) path buf)))
+    (def r (%cu-sys-lstat path buf))
     (if (< r 0) ()
-      (let ((d (Struct unpack
-                 (if os-darwin? %cu-stat-spec-darwin %cu-stat-spec-linux)
-                 buf)))
+      (let ((d (Struct unpack stat-layout buf)))
         (pair (pair (lit kind)
                 (%cu-mode-kind (rest (Assoc entry (lit mode) d))))
           d)))))
