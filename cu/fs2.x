@@ -313,65 +313,110 @@
 (def %cu-cmp-run
   (fn (_ o stdin-thunk)
     (def s? (Opts on? o "-s"))
-    (def list? (Opts on? o "-l"))
     (def ops (Opts operands o))
-    ; both files are opened before either is read, and the first that fails
-    ; is said -- except under -s, which says nothing at all -- and is cmp's
-    ; trouble, status 2
-    (def texts (%cu-read-all-said (list (first ops) (first (rest ops)))
-                 stdin-thunk (if s? (fn (_ name err) ()) (%cu-says "cmp"))))
-    (def failed? (Err err? texts))
-    (def a (if failed? "" (first texts)))
-    (def b (if failed? "" (first (rest texts))))
+    (def says (if s? (fn (_ name err) ()) (%cu-says "cmp")))
     (def cap
       (let ((v (Opts value o "-n")))
         (if (null? v) (- 0 1) (%cu-num-prefix v))))
-    (def clamp
-      (fn (_ n)
-        (match ((< cap 0) n) ((> n cap) cap) (#t n))))
-    (def la (clamp (byte-len a)))
-    (def lb (clamp (byte-len b)))
-    (def eof
-      (fn (_ i)
-        (do (if s? ()
-              (file-write 2
-                (string-append "cmp: EOF on "
-                  (string-append
-                    (if (>= i la) (first ops) (first (rest ops))) "\n"))))
+    ; both files are opened before either is read, and the first that fails
+    ; is said -- except under -s, which says nothing at all -- and is cmp's
+    ; trouble, status 2; then they are read a piece at a time, together
+    (if (Err err? (%cu-first-unopened ops says)) 2
+      (%cu-with-sources ops stdin-thunk says 2
+        (fn (_ a b)
+          (%cu-cmp-walk a b ops (pair "" 0) (pair "" 0) cap (Opts on? o "-l")
+            s? says))))))
+
+; The bytes of the piece sources A and B compared in turn, from the runs RA
+; and RB each has read already, as far as CAP where it is not below 0.
+; Answers 0 where they hold the same bytes, 1 where they differ or one ends
+; first, and 2 where a read fails, said by SAYS.  The first difference stops
+; the walk and is named, with its line, on standard output; under LIST? every
+; difference is put out instead -- its offset and both bytes in octal, as
+; the system's cmp puts them -- and the walk goes on.  QUIET? says nothing,
+; not even which input ended first.  The pieces of the two need not line up:
+; each keeps its own run and its place in it.
+(def %cu-cmp-walk
+  (fn (_ a b names ra rb cap list? quiet? says)
+    (def name-a (first names))
+    (def name-b (first (rest names)))
+    (def ended
+      (fn (_ name)
+        (do (if quiet? ()
+              (file-write 2 (string-concat (list "cmp: EOF on " name "\n"))))
             1)))
-    ; -l reports the byte values in octal, which is what cmp prints.
-    (def listing
-      (fn (self i st)
-        (match
-          ((if (>= i la) (>= i lb) #f) st)
-          ((if (>= i la) #t (>= i lb)) (eof i))
-          ((= (byte-at a i) (byte-at b i)) (self (+ i 1) st))
-          (#t
-            (do (if s? ()
-                  (display
-                    (string-concat
-                      ; width 6, which is what the system cmp prints
-                      (list (%cu-pad-left (%cu-int->str (+ i 1)) 6) " "
-                            (%cu-oct->str (byte-at a i)) " "
-                            (%cu-oct->str (byte-at b i)) "\n"))))
-                (self (+ i 1) 1))))))
+    (def failed (fn (_ name err) (do (%cu-say says name err) 2)))
+    (def least (fn (_ x y) (if (< x y) x y)))
+    ; the next run of A where RA is used up: back to WALK, or the end of both,
+    ; or of A alone.  The walk is handed in, as it is to %cu-cmp-over, since
+    ; it is defined after the steps it takes.
+    (def next-a
+      (fn (_ walk ib rb off line st)
+        (let ((p (a)))
+          (match
+            ((Err err? p) (failed name-a p))
+            ((> (rest p) 0) (walk p 0 rb ib off line st))
+            ((< ib (rest rb)) (ended name-a))
+            (#t (let ((q (b)))
+                  (match
+                    ((Err err? q) (failed name-b q))
+                    ((> (rest q) 0) (ended name-a))
+                    (#t st))))))))
+    (def next-b
+      (fn (_ walk ra ia off line st)
+        (let ((q (b)))
+          (match
+            ((Err err? q) (failed name-b q))
+            ((> (rest q) 0) (walk ra ia q 0 off line st))
+            (#t (ended name-b))))))
     (def go
-      (fn (self i line)
+      (fn (self ra ia rb ib off line st)
         (match
-          ((if (>= i la) (>= i lb) #f) 0)
-          ((if (>= i la) #t (>= i lb)) (eof i))
-          ((= (byte-at a i) (byte-at b i))
-            (self (+ i 1) (if (= (byte-at a i) 10) (+ line 1) line)))
-          (#t
-            (do (if s? ()
-                  (display
-                    (string-concat
-                      (list (first ops) " " (first (rest ops))
-                            " differ: char " (%cu-int->str (+ i 1))
-                            ", line " (%cu-int->str line) "\n"))))
-                1)))))
-    (match
-      (failed? 2)
-      (list? (listing 0 0))
-      (#t (go 0 1)))))
+          ((if (>= cap 0) (>= off cap) #f) st)
+          ((>= ia (rest ra)) (next-a self ib rb off line st))
+          ((>= ib (rest rb)) (next-b self ra ia off line st))
+          (#t (%cu-cmp-over self names list? quiet? ra ia rb ib
+                (least (least (- (rest ra) ia) (- (rest rb) ib))
+                  (if (>= cap 0) (- cap off) (rest ra)))
+                off line st)))))
+    (go ra 0 rb 0 0 1 0)))
+
+; The N bytes the runs RA and RB hold from IA and IB compared, from the
+; offset OFF and the line LINE: the walk GO taken up past them, or its
+; status where the first difference ends it, as it does but under LIST?.
+(def %cu-cmp-over
+  (fn (_ go names list? quiet? ra ia rb ib n off line st)
+    (def step
+      (fn (self k line st)
+        (if (>= k n) (go ra (+ ia n) rb (+ ib n) (+ off n) line st)
+          (let ((x (byte-at (first ra) (+ ia k)))
+                (y (byte-at (first rb) (+ ib k)))
+                (at (+ off k)))
+            (do (if (= (& at %cu-sweep-bytes) 0) (%cu-sweep! at) ())
+                (match
+                  ((= x y) (self (+ k 1) (if (= x 10) (+ line 1) line) st))
+                  (list?
+                    (do (if quiet? () (display (%cu-cmp-listed (+ at 1) x y)))
+                        (self (+ k 1) line 1)))
+                  (#t
+                    (do (if quiet? ()
+                          (display (%cu-cmp-differ names (+ at 1) line)))
+                        1))))))))
+    (step 0 line st)))
+
+; the line that names the first difference: the two names, and the offset
+; and the line it is at
+(def %cu-cmp-differ
+  (fn (_ names at line)
+    (string-concat
+      (list (first names) " " (first (rest names)) " differ: char "
+            (%cu-int->str at) ", line " (%cu-int->str line) "\n"))))
+
+; a line of -l: the offset, six wide, and the two bytes in octal, three wide
+(def %cu-cmp-listed
+  (fn (_ off x y)
+    (string-concat
+      (list (%cu-pad-left (%cu-int->str off) 6) " "
+            (%cu-pad-left (%cu-oct->str x) 3) " "
+            (%cu-pad-left (%cu-oct->str y) 3) "\n"))))
 
