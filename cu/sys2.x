@@ -135,18 +135,78 @@
                       (%cu-env-child clear? drop (first split) (rest split))
                       (sys-wait pid))))))))))))
 
+; printenv NAME...: the value of each that is set, a line apiece, and status 1
+; where any is not; with no NAME, the whole environment, as env prints it
 (def %cu-printenv
   (fn (_ argv stdin-thunk)
-    (if (null? argv)
-      (%cu-env argv stdin-thunk)
-      (let ((v (sys-getenv (first argv))))
-        (if (null? v) 1
-          (do (display (string-append v "\n")) 0))))))
+    (def go
+      (fn (self ns st)
+        (if (null? ns) st
+          (let ((v (sys-getenv (first ns))))
+            (if (null? v) (self (rest ns) 1)
+              (do (display (string-append v "\n")) (self (rest ns) st)))))))
+    (if (null? argv) (%cu-env argv stdin-thunk) (go argv 0))))
 
+; sleep INTERVAL...: as long as they come to between them.  An interval that
+; is not one is said, each of them, and nothing is slept: status 1.
 (def %cu-sleep
   (fn (_ argv stdin-thunk)
-    (if (null? argv) (%cu-missing-operand "sleep" argv)
-      (do (sys-sleep (%cu-num-prefix (first argv))) 0))))
+    (def us (map %cu-sleep-us argv))
+    (def bad
+      (fn (self as xs st)
+        (if (null? as) st
+          (do (if (null? (first xs))
+                (file-write 2
+                  (string-concat
+                    (list "sleep: invalid time interval '" (first as) "'\n")))
+                ())
+              (self (rest as) (rest xs) (if (null? (first xs)) 1 st))))))
+    (def total
+      (fn (self xs acc)
+        (if (null? xs) acc (self (rest xs) (+ acc (first xs))))))
+    (match
+      ((null? argv) (%cu-missing-operand "sleep" argv))
+      ((= (bad argv us 0) 1) 1)
+      (#t (do (%cu-sleep-for (total us 0)) 0)))))
+
+; Interval A in microseconds, or nil where it is not one: digits, with a
+; point and digits of a fraction, either part empty but not both, then a
+; unit -- s seconds, the default, m minutes, h hours or d days.  A fraction
+; past the sixth digit is dropped.
+(def %cu-sleep-us
+  (fn (_ a)
+    (def end (byte-len a))
+    (def last (if (> end 0) (byte-at a (- end 1)) 0))
+    (def unit
+      (match ((= last 115) 1) ((= last 109) 60) ((= last 104) 3600)
+             ((= last 100) 86400) (#t 0)))
+    (def parts
+      (%cu-split-byte (substring a 0 (if (= unit 0) end (- end 1))) 46))
+    (def digits?
+      (fn (_ s)
+        (let ((go (fn (self i)
+                    (if (>= i (byte-len s)) #t
+                      (if (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f)
+                        (self (+ i 1)) #f)))))
+          (go 0))))
+    (def whole (first parts))
+    (def frac (if (null? (rest parts)) "" (first (rest parts))))
+    (match
+      ((if (null? (rest parts)) #f (pair? (rest (rest parts)))) ())
+      ((if (= (byte-len whole) 0) (= (byte-len frac) 0) #f) ())
+      ((not (if (digits? whole) (digits? frac) #f)) ())
+      (#t (* (if (= unit 0) 1 unit)
+             (+ (* (if (= (byte-len whole) 0) 0 (%cu-num-prefix whole)) 1000000)
+                (%cu-num-prefix
+                  (substring (string-append frac "000000") 0 6))))))))
+
+; US microseconds slept: the whole seconds through sleep, the rest through
+; usleep, which on Darwin takes less than a second
+(def %cu-sleep-for
+  (fn (_ us)
+    (let ((secs (/ (- us (% us 1000000)) 1000000)))
+      (do (if (> secs 0) (sys-sleep secs) ())
+          (if (> (% us 1000000) 0) (sys-usleep (% us 1000000)) ())))))
 
 ; date: ISO-8601 UTC by default (a recorded divergence from the locale
 ; format), +%s for unix seconds
