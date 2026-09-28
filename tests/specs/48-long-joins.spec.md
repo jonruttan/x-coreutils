@@ -27,7 +27,7 @@ the release lang.xon declares.
 ### a piece that is not a string
 
 ```cu
-(display (guard (e (list (Err tag e) (e msg))) (string-concat (list "a" 5 "b"))))
+(display (guard (e (list (%cu-err-label e) (e msg))) (string-concat (list "a" 5 "b"))))
 ```
 ---
     (type string-concat: not a string)

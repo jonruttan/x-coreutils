@@ -19,7 +19,8 @@
 ; accepted and ignored. The bundle does not load without them.
 ;
 ; v0.14.0: (Err tag e), which file-or-err (cu/prims.x) reads to tell an io
-; error from any other raise.
+; error from any other raise.  The release after v0.16.0 spells it
+; (Err label e), and %cu-err-label takes whichever the platform has.
 ;
 ; v0.15.0: (Type named ...), which cu/prims.x fetches the string type's handle
 ; through.
