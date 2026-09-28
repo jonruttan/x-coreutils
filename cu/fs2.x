@@ -347,14 +347,15 @@
             1)))
     (def failed (fn (_ name err) (do (%cu-say says name err) 2)))
     (def least (fn (_ x y) (if (< x y) x y)))
-    ; the next run of A where RA is used up: on to the overlap, or the end
-    ; of both, or of A alone
+    ; the next run of A where RA is used up: back to WALK, or the end of both,
+    ; or of A alone.  The walk is handed in, as it is to %cu-cmp-over, since
+    ; it is defined after the steps it takes.
     (def next-a
-      (fn (_ ib rb off line st)
+      (fn (_ walk ib rb off line st)
         (let ((p (a)))
           (match
             ((Err err? p) (failed name-a p))
-            ((> (rest p) 0) (go p 0 rb ib off line st))
+            ((> (rest p) 0) (walk p 0 rb ib off line st))
             ((< ib (rest rb)) (ended name-a))
             (#t (let ((q (b)))
                   (match
@@ -362,19 +363,19 @@
                     ((> (rest q) 0) (ended name-a))
                     (#t st))))))))
     (def next-b
-      (fn (_ ra ia off line st)
+      (fn (_ walk ra ia off line st)
         (let ((q (b)))
           (match
             ((Err err? q) (failed name-b q))
-            ((> (rest q) 0) (go ra ia q 0 off line st))
+            ((> (rest q) 0) (walk ra ia q 0 off line st))
             (#t (ended name-b))))))
     (def go
       (fn (self ra ia rb ib off line st)
         (match
           ((if (>= cap 0) (>= off cap) #f) st)
-          ((>= ia (rest ra)) (next-a ib rb off line st))
-          ((>= ib (rest rb)) (next-b ra ia off line st))
-          (#t (%cu-cmp-over go names list? quiet? ra ia rb ib
+          ((>= ia (rest ra)) (next-a self ib rb off line st))
+          ((>= ib (rest rb)) (next-b self ra ia off line st))
+          (#t (%cu-cmp-over self names list? quiet? ra ia rb ib
                 (least (least (- (rest ra) ia) (- (rest rb) ib))
                   (if (>= cap 0) (- cap off) (rest ra)))
                 off line st)))))
