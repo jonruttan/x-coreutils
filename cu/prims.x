@@ -607,10 +607,17 @@
 ; names the errno, (sym . eperm).  A tool prints the text after the path it was
 ; working on, so file-err-text answers it without the operation.
 
+; An error's label, by whichever name the platform has for the accessor:
+; (Err tag e) up to v0.16.0, (Err label e) after it.  Asked once, at load.
+(def %cu-err-label
+  (guard (_ (fn (_ e) (Err tag e)))
+    (do (Err label "probe")
+        (fn (_ e) (Err label e)))))
+
 ; THUNK's value, or the io Err it raised; any other raise goes on up
 (def file-or-err
   (fn (_ thunk)
-    (guard (e (if (eq? (Err tag e) (lit io)) e (error e)))
+    (guard (e (if (eq? (%cu-err-label e) (lit io)) e (error e)))
       (thunk))))
 
 (def file-err-text
