@@ -293,9 +293,56 @@
             (pair (integer->char (+ 97 (% v 26))) acc)))))
     (go width n ())))
 
-(def %cu-split-write
-  (fn (_ prefix n width text)
-    (file-write-all (string-append prefix (%cu-split-suffix n width)) text)))
+; whether file N is past the last suffix WIDTH letters spell, 26 to the
+; WIDTH of them; past 12 letters that is more than a 64-bit count reaches
+(def %cu-split-past?
+  (fn (_ n width)
+    (def room (fn (self w) (if (<= w 0) 1 (* 26 (self (- w 1))))))
+    (if (> width 12) #f (>= n (room width)))))
+
+; file N's descriptor, made new -- or nil once split has said why it was
+; not: past the last suffix, or refused
+(def %cu-split-open
+  (fn (_ prefix n width)
+    (if (%cu-split-past? n width)
+      (do (file-write 2 "split: output file suffixes exhausted\n") ())
+      (let ((path (string-append prefix (%cu-split-suffix n width))))
+        (let ((fd (file-open-or-err file-open-write path)))
+          (if (Err err? fd)
+            (do (file-write 2
+                  (string-concat
+                    (list "split: " path ": " (file-err-text fd) "\n")))
+                ())
+            fd))))))
+
+; split's TAKE: the state is (N FD USED BAD) -- the number of the next file,
+; the file open and what it holds so far, bytes or lines, and 1 once a file
+; would not be made.  A piece goes out in parts, each to the file open while
+; there is room in it and to the next one made when there is not, so a file is
+; made only when there is something to go in it.  A part that starts past its
+; piece's start is copied into a run of its own.
+(def %cu-split-take
+  (fn (_ prefix width size lines?)
+    (fn (_ r s)
+      (def go
+        (fn (self i n fd used)
+          (match
+            ((>= i (rest r)) (list n fd used 0))
+            ((if (null? fd) #t (>= used size))
+              (let ((next (%cu-split-open prefix n width)))
+                (if (null? next) (%cu-enough (list n fd used 1))
+                  (do (if (null? fd) () (file-close fd))
+                      (self i (+ n 1) next 0)))))
+            (#t
+              (let ((cut (if lines? (%cu-newlines-from r i (- size used))
+                           (let ((k (- size used)) (left (- (rest r) i)))
+                             (pair (+ i (if (< k left) k left)) 0)))))
+                (do (file-write-run fd
+                      (if (= i 0) (pair (first r) (first cut))
+                        (%cu-run-part r i (first cut))))
+                    (self (first cut) n fd
+                      (+ used (if lines? (rest cut) (- (first cut) i))))))))))
+      (go 0 (first s) (%cu-nth 1 s) (%cu-nth 2 s)))))
 
 ; split [FILE [PREFIX]]: a third operand is refused
 (def %cu-split
@@ -316,36 +363,20 @@
         (if (null? v) 1000 (%cu-num-prefix v))))
     (def ops (Opts operands o))
     (def prefix (if (if (pair? ops) (pair? (rest ops)) #f) (first (rest ops)) "x"))
-    (def text
-      (if (null? ops) (stdin-thunk)
-        (if (string=? (first ops) "-") (stdin-thunk)
-          (%cu-read-said %cu-split-says (first ops)))))
-    (if (Err err? text) 1
-      (if by-bytes?
-        (let ((end (byte-len text)))
-          (def go
-            (fn (self i n)
-              (if (>= i end) 0
-                (let ((stop (if (> (+ i size) end) end (+ i size))))
-                  (do (%cu-split-write prefix n width (substring text i stop))
-                      (self stop (+ n 1)))))))
-          (go 0 0))
-        (let ((ls (%cu-lines text)))
-          (def go
-            (fn (self rest-ls n)
-              (if (null? rest-ls) 0
-                (let ((take (let ((go2 (fn (self2 l k acc)
-                                         (if (if (= k 0) #t (null? l))
-                                           (pair (reverse acc) l)
-                                           (self2 (rest l) (- k 1)
-                                             (pair (first l) acc))))))
-                              (go2 rest-ls size ()))))
-                  (do (%cu-split-write prefix n width
-                        (string-concat
-                          (map (fn (_ l) (string-append l "\n"))
-                            (first take))))
-                      (self (rest take) (+ n 1)))))))
-          (go ls 0))))))
+    ; the input is read a piece at a time and put out as it is read
+    (if (<= size 0)
+      (do (file-write 2
+            (string-concat
+              (list "split: invalid number of " (if by-bytes? "bytes" "lines")
+                    ": '" (if by-bytes? bv lv) "'\n")))
+          1)
+      (let ((g (%cu-fold-said (if (null? ops) () (list (first ops))) stdin-thunk
+                 %cu-split-says
+                 (%cu-split-take prefix width size (not by-bytes?))
+                 (list 0 () 0 0))))
+        (let ((s (first g)))
+          (do (if (null? (%cu-nth 1 s)) () (file-close (%cu-nth 1 s)))
+              (if (if (> (rest g) 0) #t (= (%cu-nth 3 s) 1)) 1 0)))))))
 
 ; a file split cannot read, said as split says it: "cannot open 'F' for
 ; reading" for one that would not open, "F: REASON" for one that would not read
@@ -655,14 +686,6 @@
 ; OUT's N bytes, newest first, to PUT as a run
 (def %cu-b64-flush
   (fn (_ put out n) (put (%cu-run-bytes (reverse out) n))))
-
-; S decoded to a string, what is not base64 passed over: uudecode's -m body
-(def %cu-b64-decode
-  (fn (_ s)
-    (let ((texts (list ())))
-      (do (%cu-b64-decode-to s
-            (fn (_ r) (set-first! texts (pair (first r) (first texts)))) #t)
-          (string-concat (reverse (first texts)))))))
 
 (def %cu-base64
   (fn (_ argv stdin-thunk)

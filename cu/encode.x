@@ -313,33 +313,80 @@
     ; uuencode NAME, or uuencode FILE NAME
     (def name (if (null? ops) "-" (%cu-last ops)))
     (def src (if (pair? (rest ops)) (list (first ops)) ()))
-    (def g (%cu-gather-said src stdin-thunk (%cu-says "uuencode") #f))
-    (def text (first g))
-    (def end (byte-len text))
-    ; a FILE that could not be read has nothing to encode
+    ; the begin line names the FILE's permissions, as busybox's and the system's
+    ; uuencode do, or what the umask leaves of 0666 for standard input
+    (def mode
+      (let ((st (if (if (null? src) #t (string=? (first src) "-")) ()
+                  (file-stat-full (first src)))))
+        (if (null? st) (bit-and 438 (bit-xor (sys-umask) 511))
+          (bit-and (%cu-stat-get st (lit mode)) 511))))
+    ; the input is encoded as it is read, and the begin line goes out with its
+    ; first piece, so a FILE that could not be read puts out nothing
+    (def begin
+      (string-concat
+        (list (if m? "begin-base64 " "begin ") (%cu-oct->str mode) " " name
+              "\n")))
+    (def g (%cu-fold-said src stdin-thunk (%cu-says "uuencode")
+             (%cu-uu-take begin m?) (list #f (pair "" 0) () 0)))
+    (def s (first g))
     (if (> (rest g) 0) 1
-      (if m?
-        (do (display (string-concat (list "begin-base64 644 " name "\n")))
-            (%cu-b64-put text 76)
-            (display "====\n")
-            0)
-        (let ((go (fn (self i)
-                    (if (>= i end) ()
-                      (let ((stop (if (> (+ i 45) end) end (+ i 45))))
-                        (do (display (string-append (%cu-uu-line text i stop) "\n"))
-                            (self stop)))))))
-          (do (display (string-concat (list "begin 644 " name "\n")))
-              (go 0)
-              (display "`\nend\n")
-              0))))))
+      (do (if (first s) () (display begin))
+          (%cu-uu-end m? (%cu-nth 1 s) (%cu-nth 2 s) (%cu-nth 3 s))
+          0))))
 
+; uuencode's TAKE: the state is (BEGUN LEFT LINE COL) -- whether the begin line
+; is out; the bytes the pieces before left for the next line or step, as a
+; run; and under -m the base64 line so far.  The historical encoding puts out
+; each whole line of 45 bytes, -m each whole step of three.
+(def %cu-uu-take
+  (fn (_ begin m?)
+    (fn (_ r s)
+      (do (if (first s) () (display begin))
+          (let ((text (if (= (rest (%cu-nth 1 s)) 0) r
+                        (%cu-run-join (%cu-nth 1 s) r 0 (rest r)))))
+            (if m?
+              (let ((b (%cu-b64-put-from text 76 (%cu-nth 2 s) (%cu-nth 3 s)
+                         #f)))
+                (list #t (%cu-run-part text (first b) (rest text))
+                      (%cu-nth 1 b) (%cu-nth 2 b)))
+              (list #t (%cu-run-part text (%cu-uu-lines text) (rest text))
+                    () 0)))))))
+
+; the whole lines of 45 bytes run R holds, put out; answers where they stop
+(def %cu-uu-lines
+  (fn (_ r)
+    (def end (rest r))
+    (def go
+      (fn (self i k)
+        (if (> (+ i 45) end) i
+          (do (%cu-sweep-at k %cu-sweep-lines)
+              (display (string-append (%cu-uu-line (first r) i (+ i 45)) "\n"))
+              (self (+ i 45) (+ k 1))))))
+    (go 0 0)))
+
+; the end of the encoding: what the pieces left, as the last short line or
+; step with its padding, and the terminator
+(def %cu-uu-end
+  (fn (_ m? left line col)
+    (if m?
+      (let ((b (%cu-b64-put-from left 76 line col #t)))
+        (do (%cu-b64-put-end 76 (%cu-nth 1 b) (%cu-nth 2 b))
+            (display "====\n")))
+      (do (if (> (rest left) 0)
+            (display
+              (string-append (%cu-uu-line (first left) 0 (rest left)) "\n"))
+            ())
+          (display "`\nend\n")))))
+
+; the bytes a line of the historical encoding spells, a list, as many as its
+; first character says
 (def %cu-uu-decode-line
   (fn (_ line)
     (def n (%cu-uu-value (byte-at line 0)))
     (def end (byte-len line))
     (def go
       (fn (self i out acc)
-        (if (if (>= i end) #t (>= out n)) (string-concat (reverse acc))
+        (if (if (>= i end) #t (>= out n)) (reverse acc)
           (let ((c0 (%cu-uu-value (byte-at line i))))
             (def c1 (if (< (+ i 1) end) (%cu-uu-value (byte-at line (+ i 1))) 0))
             (def c2 (if (< (+ i 2) end) (%cu-uu-value (byte-at line (+ i 2))) 0))
@@ -351,11 +398,12 @@
                     (bit-and (bit-shr w 8) 255)
                     (bit-and w 255)))
             (def keep (let ((left (- n out))) (if (> left 3) 3 left)))
-            (self (+ i 4) (+ out 3)
-              (pair (string-concat
-                      (map (fn (_ b) (%cu-b->s b)) (%cu-take three keep)))
-                acc))))))
-    (if (= n 0) "" (go 1 0 ()))))
+            (self (+ i 4) (+ out 3) (%cu-onto (%cu-take three keep) acc))))))
+    (if (= n 0) () (go 1 0 ()))))
+
+; the list BS, in order, onto the front of ACC, which is newest first
+(def %cu-onto
+  (fn (self bs acc) (if (null? bs) acc (self (rest bs) (pair (first bs) acc)))))
 
 ; uudecode reads either encoding, choosing on the begin line.  -o names
 ; the output, and `-o -` is stdout -- which is also what the plain form
@@ -393,25 +441,43 @@
                           (reverse acc)
                           (self (rest xs) (pair (first xs) acc)))))))
           (stop (skip ls) ()))))
-    (def bytes
-      (if b64?
-        (%cu-b64-decode (%cu-join-with body "\n"))
-        (string-concat
-          (map (fn (_ l) (%cu-uu-decode-line l))
-            (filter (fn (_ l) (> (byte-len l) 0)) body)))))
     ; an input that could not be read has nothing to decode; an -o file that
     ; cannot be written is said as uudecode says it, naming the input first --
-    ; stdin when it was read from there
+    ; stdin when it was read from there.  What decodes is written a run at a
+    ; time, by its count, so a NUL goes out with the rest.
+    (def fd
+      (match
+        ((> (rest g) 0) ())
+        ((string=? out "-") 1)
+        (#t (file-open-or-err file-open-write out))))
+    (def from
+      (let ((ops (Opts operands o))) (if (null? ops) "stdin" (first ops))))
     (match
       ((> (rest g) 0) 1)
-      ((string=? out "-") (do (display bytes) 0))
-      (#t (let ((r (file-or-err (fn (_) (file-write-all out bytes))))
-                (from (let ((ops (Opts operands o)))
-                        (if (null? ops) "stdin" (first ops)))))
-            (if (Err err? r)
-              (do (file-write 2
-                    (string-concat
-                      (list "uudecode: " from ": " out ": " (file-err-text r)
-                            "\n")))
-                  1)
-              0))))))
+      ((Err err? fd)
+        (do (file-write 2
+              (string-concat
+                (list "uudecode: " from ": " out ": " (file-err-text fd) "\n")))
+            1))
+      (#t (do (%cu-uu-put-body b64? body (fn (_ r) (file-write-run fd r)))
+              (if (= fd 1) () (file-close fd))
+              0)))))
+
+; BODY, the lines between the begin line and the terminator, decoded and
+; handed to PUT a run of up to 4,096 bytes at a time: base64 under B64?,
+; passing over what is not base64, else the historical encoding, a line at a
+; time, sweeping every 64 of them
+(def %cu-uu-put-body
+  (fn (_ b64? body put)
+    (def go
+      (fn (self ls out n k)
+        (match
+          ((null? ls) (if (> n 0) (put (%cu-run-bytes (reverse out) n)) ()))
+          ((>= n 4096)
+            (do (put (%cu-run-bytes (reverse out) n)) (self ls () 0 k)))
+          (#t (let ((bs (%cu-uu-decode-line (first ls))))
+                (do (%cu-sweep-at k %cu-sweep-lines)
+                    (self (rest ls) (%cu-onto bs out) (+ n (length bs))
+                      (+ k 1))))))))
+    (if b64? (%cu-b64-decode-to (%cu-join-with body "\n") put #t)
+      (go (filter (fn (_ l) (> (byte-len l) 0)) body) () 0 0))))

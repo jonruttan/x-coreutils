@@ -368,13 +368,19 @@
 (def sys-dup2 (fn (_ a b) (Sys dup2 a b)))
 (def sys-close (fn (_ fd) (Sys close fd)))
 
-; The caller's standard input for a command about to replace this process.
-; The platform keeps it on fd 3 while fd 0 carries x's own program text, so a
-; command that inherited fd 0 would read that text.  When fd 3 is not open --
-; stdin was read already, or there was none -- fd 0 is left as it is.
+; The caller's standard input onto fd 0, for an applet that reads it or a
+; command about to replace this process.  The platform keeps it on fd 3 while
+; fd 0 carries x's own program text, so a command that inherited fd 0 would
+; read that text.  It moves once: fd 3 is free after, and a file an applet
+; opens may take it -- split's first file does -- which a second move would
+; put on fd 0 as stdin.  When fd 3 is not open, there was no stdin to move.
+(def %cu-stdin-moved (list #f))
+
 (def cu-stdin-to-command!
   (fn (_)
-    (if (< (sys-dup2 3 0) 0) () (sys-close 3))))
+    (if (first %cu-stdin-moved) ()
+      (do (set-first! %cu-stdin-moved #t)
+          (if (< (sys-dup2 3 0) 0) () (sys-close 3))))))
 
 ; The size of the pieces an applet reads as it goes.  A list made from a piece
 ; -- its lines, or its bytes -- is at most this long, and a collect marks a list
@@ -402,8 +408,7 @@
 ; stdin, read once from fd 3 (the platform's arrangement; see x-awk)
 (def cu-stdin!
   (fn (_)
-    (sys-dup2 3 0)
-    (sys-close 3)
+    (cu-stdin-to-command!)
     (def slurp
       (fn (self acc)
         (let ((chunk (file-read-fd 0 65536)))
@@ -580,8 +585,7 @@
 ; -z applet reads its standard input here instead.
 (def cu-stdin-fields!
   (fn (_ delim)
-    (sys-dup2 3 0)
-    (sys-close 3)
+    (cu-stdin-to-command!)
     ; A terminal is not a stream of NUL-separated items, and reading one
     ; waits for a writer that is not coming.  Nothing, rather.
     (if (sys-isatty 0) ()
