@@ -351,13 +351,24 @@
               (self (%cu-expr-colon v (first r2)) (rest r2)))))))
     (go (first r) (rest r))))
 
+; expr's syntax error, WHAT, raised for %cu-expr to say, with status 2
+(def %cu-expr-syntax
+  (fn (_ what)
+    (Err raise (lit cu) (string-append "expr: syntax error: " what) ())))
+
+; the same where WHAT is after the last argument, which %cu-expr names
+(def %cu-expr-at-end
+  (fn (_ what)
+    (Err raise (lit cu-at-end) (string-append "expr: syntax error: " what) ())))
+
 ; the named operators, the parenthesised group, and the bare word
 (def %cu-expr-prim
   (fn (_ ts)
-    (if (null? ts) (pair "" ())
+    (if (null? ts) (%cu-expr-at-end "missing argument")
       (let ((t (first ts)))
         (match
           ((string=? t "(") (%cu-expr-group (rest ts)))
+          ((string=? t ")") (%cu-expr-syntax "unexpected ')'"))
           ((string=? t "length")
             (let ((r (%cu-expr-prim (rest ts))))
               (pair (%cu-int->str (byte-len (first r))) (rest r))))
@@ -369,10 +380,12 @@
 (def %cu-expr-group
   (fn (_ ts)
     (def r (%cu-expr-or ts))
-    (if (null? (rest r)) r
-      (if (string=? (first (rest r)) ")")
-        (pair (first r) (rest (rest r)))
-        r))))
+    (match
+      ((null? (rest r)) (%cu-expr-at-end "expecting ')'"))
+      ((string=? (first (rest r)) ")") (pair (first r) (rest (rest r))))
+      (#t (%cu-expr-syntax
+            (string-concat
+              (list "expecting ')' instead of '" (first (rest r)) "'")))))))
 
 (def %cu-expr-match-op
   (fn (_ ts)
@@ -418,10 +431,29 @@
           (if (has? (byte-at str i)) (+ i 1) (self (+ i 1))))))
     (pair (%cu-int->str (go 0)) (rest c))))
 
+; An expression that will not parse, or divides by zero, is said as GNU's
+; expr says it, with status 2: an argument left over past the whole of it is
+; unexpected, and what the parse raised at the end names the last argument.
 (def %cu-expr
   (fn (_ argv stdin-thunk)
+    (def said
+      (fn (_ e end?)
+        (do (file-write 2
+              (string-concat
+                (list (e msg)
+                      (if end? (string-append " after '" (%cu-last argv)) "")
+                      (if end? "'\n" "\n"))))
+            2)))
     (if (null? argv)
       (do (file-write 2 "expr: missing operand\n") 2)
-      (let ((r (%cu-expr-or argv)))
-        (do (display (string-append (first r) "\n"))
-            (if (%cu-expr-true? (first r)) 0 1))))))
+      (guard (e (match
+                  ((eq? (%cu-err-label e) (lit cu)) (said e #f))
+                  ((eq? (%cu-err-label e) (lit cu-at-end)) (said e #t))
+                  (#t (error e))))
+        (let ((r (%cu-expr-or argv)))
+          (if (pair? (rest r))
+            (%cu-expr-syntax
+              (string-concat
+                (list "unexpected argument '" (first (rest r)) "'")))
+            (do (display (string-append (first r) "\n"))
+                (if (%cu-expr-true? (first r)) 0 1))))))))
