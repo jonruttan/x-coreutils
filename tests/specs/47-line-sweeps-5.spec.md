@@ -49,7 +49,7 @@ holds them.
 ### sort -u on 1,000 lines in order, and -c on 2,000
 
 ```cu
-(display (list (under? (list "sort" "-u" "/tmp/x-cu-ls5-k") "" 6200000) (under? (list "sort" "-c" "/tmp/x-cu-ls5-c") "" 8000000)))
+(display (list (under? (list "sort" "-u" "/tmp/x-cu-ls5-k") "" 6000000) (under? (list "sort" "-c" "/tmp/x-cu-ls5-c") "" 7700000)))
 ```
 ---
     (#t #t)
@@ -59,7 +59,7 @@ holds them.
 ### the merge of two lists of 20,000 lines
 
 ```cu
-(display (list (under-th? (fn (_) (%cu-merge ones zeros cheap< ())) 1200000)))
+(display (list (under-th? (fn (_) (%cu-merge ones zeros cheap< ())) 1100000)))
 ```
 ---
     (#t)
@@ -67,7 +67,7 @@ holds them.
 ### the line printer and the field printer, on 4,000 lines
 
 ```cu
-(display (list (under-th? (fn (_) (%cu-print-lines-to (file-open-write "/dev/null") items)) 2100000) (under-th? (fn (_) (%cu-print-fields-to (file-open-write "/dev/null") items 0)) 3500000)))
+(display (list (under-th? (fn (_) (%cu-print-lines-to (file-open-write "/dev/null") items)) 1400000) (under-th? (fn (_) (%cu-print-fields-to (file-open-write "/dev/null") items 0)) 2800000)))
 ```
 ---
     (#t #t)
@@ -83,7 +83,7 @@ holds them.
 ### shuf's range, and its copies into a vector and out, on 4,000 items
 
 ```cu
-(display (list (under-th? (fn (_) (%cu-shuf-range "1-4000")) 2300000) (under-th? (fn (_) (%cu-list->vec items 4000)) 900000) (under-th? (fn (_) (%cu-vec->list v 4000)) 1900000)))
+(display (list (under-th? (fn (_) (%cu-shuf-range "1-4000")) 2300000) (under-th? (fn (_) (%cu-list->vec items 4000)) 500000) (under-th? (fn (_) (%cu-vec->list v 4000)) 1300000)))
 ```
 ---
     (#t #t #t)

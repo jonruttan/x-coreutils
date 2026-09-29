@@ -104,7 +104,7 @@ yes writes into a named pipe from a forked child, which takes a broken pipe
 other end a buffer at a time, checks that each read is `y` lines, and closes
 it after 16 MB, or after 30 seconds if they are slower coming, so a yes that
 writes little at a time fails the case rather than holding up the file.  The
-child arms the allocator's guard 1,100,000 objects above
+child arms the allocator's guard 900,000 objects above
 the heap it starts from: about half again above what yes holds at its
 fullest on the release lang.xon declares, the leavings of 512 writes between
 sweeps, and under what it holds with its sweeps turned off over the same
@@ -123,7 +123,7 @@ sweeps, and under what it holds with its sweeps turned off over the same
 Shown: the bytes read, the reads that were not `y` lines, and yes's status.
 
 ```cu
-(display (yes-read 1100000 16))
+(display (yes-read 900000 16))
 ```
 ---
     (16777216 0 0)
