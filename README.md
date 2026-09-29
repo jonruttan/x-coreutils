@@ -75,11 +75,13 @@ Self-contained: no `(requires-lang ...)`.
   - **A mode that looks like an option** is refused, since the option
     guard sees it first: write `chmod a-w f`, not `chmod -w f`.
   - **`vi` has busybox's core so far**: moving (`h j k l`, the arrows,
-    `0 $`, Home, End, Return, `+ -`, counts), inserting (`i a A I o
-    O`, Backspace, `^V`, `^D`, Insert for replace), deleting (`x X
-    dd`, Delete), `ZZ`, `ZQ`, and the colon commands `:w :q :wq :x
-    :wn`, `:N` and `:file`.  busybox's other commands answer `is not
-    implemented`, and it takes no options yet.  A message wider than
+    `0 $ ^ |`, Home, End, Return, `+ -`, `w b e W B E`, `f F t T ; ,`,
+    `G gg H M L`, `%`, `{ }`, counts), scrolling (`^F ^B ^D ^U ^E ^Y`,
+    the page keys, `z`), inserting (`i a A I o O`, Backspace, `^V`,
+    `^D`, Insert for replace), deleting (`x X dd`, Delete), `ZZ`, `ZQ`,
+    and the colon commands `:w :q :wq :x :wn`, `:N` and `:file`.
+    busybox's other commands answer `is not implemented`, and it takes
+    no options yet.  A message wider than
     the screen waits for one Return, where busybox's waits again after
     every Return and takes no more commands.  `^C` from a terminal goes
     back to the top in command mode, as busybox's SIGINT handler does;
@@ -148,6 +150,7 @@ parsed by x-lang's `Opts`.
     cu/sha256.x       FIPS 180-4, in x
     cu/sha512.x       its 64-bit sibling, addition masked in halves
     cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, : commands
+    cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 
