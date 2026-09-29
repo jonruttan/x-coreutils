@@ -78,10 +78,12 @@ Self-contained: no `(requires-lang ...)`.
     `0 $ ^ |`, Home, End, Return, `+ -`, `w b e W B E`, `f F t T ; ,`,
     `G gg H M L`, `%`, `{ }`, counts), scrolling (`^F ^B ^D ^U ^E ^Y`,
     the page keys, `z`), inserting (`i a A I o O`, Backspace, `^V`,
-    `^D`, Insert for replace), deleting (`x X dd`, Delete), `ZZ`, `ZQ`,
-    and the colon commands `:w :q :wq :x :wn`, `:N` and `:file`.
-    busybox's other commands answer `is not implemented`, and it takes
-    no options yet.  A message wider than
+    `^D`, Insert for replace), the operators `d c y < >` over any of
+    those motions and doubled for lines, `x X s D C Y r R J ~ U`,
+    Delete, `p P`, the registers `"a` to `"z`, the marks `m` and `'` with `''`,
+    `ZZ`, `ZQ`, and the colon commands `:w :q :wq :x :wn`, `:N` and
+    `:file`.  busybox's other commands answer `is not implemented`, and
+    it takes no options yet.  A message wider than
     the screen waits for one Return, where busybox's waits again after
     every Return and takes no more commands.  `^C` from a terminal goes
     back to the top in command mode, as busybox's SIGINT handler does;
@@ -151,6 +153,7 @@ parsed by x-lang's `Opts`.
     cu/sha512.x       its 64-bit sibling, addition masked in halves
     cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, : commands
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
+    cu/vi-edit.x      vi's operators over those motions, registers, marks
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 

@@ -898,6 +898,7 @@
   (fn (_ p)
     (set! %vi-cmd-mode 0)
     (set! %vi-cmdcnt 0)
+    (%vi-end-cmd-q!)
     (set! %vi-last-status ())
     (if (if (%vi< 0 %vi-dot) (if (= (byte-at %vi-text (%vi- p 1)) 10) #f #t) #f)
       (%vi- p 1)
@@ -937,18 +938,22 @@
       0)))
 
 ; the registers: a to z, 26 the one d and y use when none is named, 27 the
-; line U puts back; each the text it holds and whether that is whole lines
+; line U puts back; each the text it holds and its type, busybox's -- 0 part
+; of a line, 1 whole lines, 2 text across lines.  The count of yanks tells a
+; command whether it yanked.
 (def %vi-regs ())
 (def %vi-ydreg 26)
+(def %vi-yank-count 0)
 
 (def %vi-reg (fn (_ i) (Vector ref i %vi-regs)))
 
-; busybox's text_yank: P through Q copied into register DEST
+; busybox's text_yank: P through Q copied into register DEST, as a C string
 (def %vi-text-yank!
-  (fn (_ p q dest whole?)
+  (fn (_ p q dest type)
     (def a (%vi-min p q))
-    (Vector set! dest (pair (%vi-bsub %vi-text a (%vi+ (%vi- (%vi-max p q) a) 1)) whole?)
+    (Vector set! dest (pair (%vi-bsub %vi-text a (%vi+ (%vi- (%vi-max p q) a) 1)) type)
       %vi-regs)
+    (set! %vi-yank-count (%vi+ %vi-yank-count 1))
     a))
 
 (def %vi-what-reg
@@ -976,21 +981,28 @@
       (self s (%vi+ i 1) (if (= (byte-at s i) 10) (%vi+ n 1) n))
       n)))
 
-; busybox's yank_delete: START through STOP into the register, then out of
-; the text; a partial range never starts on a newline
+; busybox's yank_delete: START through STOP into the register as TYPE, then
+; out of the text when DEL?; a partial range never starts on a newline
 (def %vi-yank-delete
-  (fn (_ start stop whole?)
+  (fn (_ start stop type del?)
     (def a (%vi-min start stop))
     (def b (%vi-max start stop))
-    (if (if whole? #f (= (byte-at %vi-text a) 10)) a
-      (do (%vi-text-yank! a b %vi-ydreg whole?)
-          (%vi-hole-delete! a b)))))
+    (if (if (= type 0) (= (byte-at %vi-text a) 10) #f) a
+      (do (%vi-text-yank! a b %vi-ydreg type)
+          (if del? (%vi-hole-delete! a b) a)))))
 
 ; --- the commands -----------------------------------------------------------
 
 ; busybox's do_cmd: one key, in whichever mode the editor is in
+;
+; Where the command started is kept for dc1, which remembers a jump; '' moves
+; it.  An operator's motion runs as a command of its own inside this one, so
+; the outer command's start is put back when the inner is done.
+(def %vi-orig-dot 0)
 (def %vi-do-cmd
   (fn (_ c)
+    (def outer %vi-orig-dot)
+    (set! %vi-orig-dot %vi-dot)
     (set! %vi-keep-index #f)
     (set! %vi-cmd-error #f)
     (%vi-show-status-line!)
@@ -999,7 +1011,8 @@
       ((= %vi-cmd-mode 2) (%vi-replace-key c))
       ((= %vi-cmd-mode 1) (%vi-insert-key c))
       (#t (%vi-key-cmd c)))
-    (%vi-dc1 c)))
+    (%vi-dc1 c)
+    (set! %vi-orig-dot outer)))
 
 ; the keys that move the cursor in every mode: the arrows, Home, End, the
 ; pages and Delete -- codes -2 to -11, less Insert's -8
@@ -1024,17 +1037,19 @@
 (def %vi-replace-char
   (fn (_ c)
     (if (%vi-one-of? c (list 27 8 127)) ()
-      (set! %vi-dot (%vi-yank-delete %vi-dot %vi-dot #f)))
+      (set! %vi-dot (%vi-yank-delete %vi-dot %vi-dot 0 #t)))
     (set! %vi-dot (%vi-char-insert %vi-dot c))))
 
 ; what every command ends with: an empty text gets its line back, the dot is
-; kept in the text and, in command mode, off a newline
+; kept in the text, a jump is remembered, and in command mode the dot is kept
+; off a newline
 (def %vi-dc1
   (fn (_ c)
     (if (= %vi-end 0)
       (do (%vi-byte-insert! 0 10) (set! %vi-dot 0))
       ())
     (if (= %vi-dot %vi-end) () (set! %vi-dot (%vi-bound-dot %vi-dot)))
+    (if (= %vi-dot %vi-orig-dot) () (%vi-check-context c))
     (if (%vi-digit? c) () (set! %vi-cmdcnt 0))
     (if (if (= (byte-at %vi-text %vi-dot) 10)
           (if (%vi< 0 (%vi- %vi-dot (%vi-begin-line %vi-dot))) (= %vi-cmd-mode 0) #f)
@@ -1085,9 +1100,20 @@
       ((= c 73) (do (%vi-dot-begin!) (%vi-dot-skip-over-ws!) (%vi-start-insert!)))
       ((= c 111) (%vi-cmd-open-below))
       ((= c 79) (%vi-cmd-open-above))
-      ((if (= c 120) #t (= c 88)) (%vi-cmd-x c))
+      ((%vi-one-of? c (list 120 88 115)) (%vi-cmd-x c))
       ((= c %vi-key-delete) (%vi-cmd-delete-key))
-      ((= c 100) (%vi-cmd-d))
+      ((%vi-one-of? c (list 99 100 121 89)) (%vi-cmd-cdy c))
+      ((%vi-one-of? c (list 60 62)) (%vi-cmd-shift c))
+      ((%vi-one-of? c (list 112 80)) (%vi-cmd-put c))
+      ((= c 34) (%vi-cmd-name-reg))
+      ((= c 109) (%vi-cmd-mark))
+      ((= c 39) (%vi-cmd-goto-mark))
+      ((= c 114) (%vi-cmd-r))
+      ((= c 82) (%vi-start-replace!))
+      ((= c 74) (%vi-cmd-J))
+      ((= c 126) (%vi-cmd-tilde))
+      ((%vi-one-of? c (list 68 67)) (%vi-cmd-DC c))
+      ((= c 85) (%vi-cmd-U))
       ((= c 58) (%vi-colon (%vi-get-input-line ":")))
       ((if (= c 12) #t (= c 18)) (%vi-redraw! #t))
       ((= c 7) (set! %vi-last-status ()))
@@ -1108,7 +1134,8 @@
       ((%vi-one-of? c (list 123 125)) (%vi-cmd-paragraph c))
       ((%vi-one-of? c (list 2 6 21 4 25 5 -10 -11)) (%vi-cmd-scroll c))
       ((= c 122) (%vi-cmd-z-scroll))
-      (#t (%vi-not-implemented (bytes->str (list (%vi& c 255))))))))
+      (#t (do (%vi-not-implemented (bytes->str (list (%vi& c 255))))
+              (%vi-end-cmd-q!))))))
 
 ; j, Return, + and the arrow: down a line, to the column aimed at, or past
 ; the blanks for Return and +
@@ -1185,7 +1212,8 @@
     (set! %vi-cmd-mode 1)
     (set! %vi-dot (%vi-char-insert %vi-dot 10))))
 
-; x and X: the byte under the cursor, or before it, COUNT times, never a newline
+; x, X and s: the byte under the cursor, or before it, COUNT times, never a
+; newline; s goes on into insert mode
 (def %vi-cmd-x
   (fn (_ c)
     (%vi-repeat
@@ -1193,22 +1221,18 @@
         (def at (if (= c 88) (%vi- %vi-dot 1) %vi-dot))
         (if (if (%vi< at 0) #t (= (byte-at %vi-text at) 10)) ()
           (do (set! %vi-dot at)
-              (set! %vi-dot (%vi-yank-delete %vi-dot %vi-dot #f))))))))
+              (set! %vi-dot (%vi-yank-delete %vi-dot %vi-dot 0 #t))))))
+    (%vi-end-cmd-q!)
+    (if (= c 115) (%vi-start-insert!) ())))
 
 (def %vi-cmd-delete-key
   (fn (_)
     (if (%vi< %vi-dot (%vi- %vi-end 1))
-      (set! %vi-dot (%vi-yank-delete %vi-dot %vi-dot #f))
+      (set! %vi-dot (%vi-yank-delete %vi-dot %vi-dot 0 #t))
       ())))
 
-; d with its motion: dd, whole lines, is the one it takes
-(def %vi-cmd-d
-  (fn (_)
-    (def c (%vi-get-motion-char))
-    (if (= c 100)
-      (%vi-delete-lines)
-      (do (if (= c 27) () (%vi-indicate-error)) ()))))
-
+; busybox's get_motion_char: the key after an operator, a count typed before
+; it multiplying the operator's
 (def %vi-get-motion-char
   (fn (_)
     (def c (%vi-get-one-char))
@@ -1222,23 +1246,11 @@
       (self (%vi-get-one-char) (%vi+ (%vi* cnt 10) (%vi- c 48)))
       (do (set! %vi-cmdcnt (%vi* (if (= %vi-cmdcnt 0) 1 %vi-cmdcnt) cnt)) c))))
 
-; dd: the line and COUNT - 1 more below it; too few below is an error, rung
-; twice as busybox's find_range rings it after the j it runs
-(def %vi-delete-lines
-  (fn (_)
-    (def p (%vi-begin-line %vi-dot))
-    (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1))
-    (def q (if (%vi< 0 %vi-cmdcnt) (%vi-lines-down %vi-dot) %vi-dot))
-    (if (null? q) (do (%vi-indicate-error) (%vi-indicate-error))
-      (do (set! %vi-dot (%vi-yank-delete p (%vi-end-line q) #t))
-          (%vi-dot-begin!)
-          (%vi-dot-skip-over-ws!)
-          (%vi-yank-status! "Delete" (first (%vi-reg %vi-ydreg)) 1)))))
-
 (def %vi-cmd-escape
   (fn (_)
     (if (= %vi-cmd-mode 0) (%vi-indicate-error) ())
     (set! %vi-cmd-mode 0)
+    (%vi-end-cmd-q!)
     (set! %vi-last-status ())))
 
 ; ZZ writes a changed file and ends, unless files are left to edit; ZQ ends
@@ -1504,6 +1516,7 @@
       (%vi-byte-insert! %vi-end 10)
       ())
     (set! %vi-modified 0)
+    (set! %vi-marks (Vector make 28 -1))
     rc))
 
 ; --- the session ------------------------------------------------------------
@@ -1522,6 +1535,8 @@
     (%vi-window-check #t)
     (%vi-new-screen!)
     (%vi-init-text-buffer! name)
+    (%vi-mark! 26 0)
+    (%vi-mark! 27 0)
     (set! %vi-crow 0)
     (set! %vi-ccol 0)
     (%vi-reset!)
@@ -1555,7 +1570,9 @@
 ; already waiting, as when text is pasted: then they come first
 (def %vi-key-step
   (fn (_)
-    (%vi-do-cmd (%vi-get-one-char))
+    (def c (%vi-get-one-char))
+    (%vi-line-kept!)
+    (%vi-do-cmd c)
     (if (if (null? %vi-kbuf) (if (%vi-src-ready? 0) #f #t) #f)
       (do (%vi-refresh! #f) (%vi-show-status-line!) (%cu-heap-collect))
       ())
@@ -1583,6 +1600,8 @@
     (set! %vi-bottom "")
     (set! %vi-last-status ())
     (set! %vi-regs (Vector make 28 ()))
+    (set! %vi-yank-count 0)
+    (set! %vi-cur-line -1)
     (set! %vi-ydreg 26)
     (set! %vi-cindex 0)
     (set! %vi-keep-index #f)
