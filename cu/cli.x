@@ -168,7 +168,7 @@
     (pair "date" (list (list "-u" "-R" "-I" "-Idate" "-Ihours"
                          "-Iminutes" "-Iseconds" "-Ins")
                        (list "-d" "-D" "-r")))
-    ; -a and -d are HONOURED no-ops here; cu/diff.x says why each is one.
+    ; -d is an honoured no-op here; cu/diff.x says why, and what -a turns off.
     (pair "diff" (list (list "-i" "-b" "-w" "-B" "-q" "-s" "-a" "-d"
                          "-T" "-t" "-r" "-N")
                        (list "-U" "-L" "-S")))
@@ -203,6 +203,7 @@
     (pair "touch" (list (list "-c") (list "-r" "-d" "-t")))
     (pair "install" (list (list "-d" "-c" "-D" "-p") (list "-m" "-o" "-g" "-t")))
     (pair "cmp" (list (list "-s" "-l") (list "-n")))
+    (pair "factor" (list (list "-h") ()))
     (pair "sum" (list (list "-s" "-r") ()))
     (pair "expand" (list (list "-i") (list "-t")))
     (pair "unexpand" (list (list "-a" "-f") (list "-t")))

@@ -55,27 +55,72 @@
           (#t (self t (if (= d 2) 3 (+ d 2)) acc)))))
     (if (< n 2) () (go n 2 ()))))
 
-(def %cu-factor-line
+; S as factor reads a number: blanks and a + may lead the digits, and there
+; must be one digit and nothing else -- or nil
+(def %cu-factor-number
   (fn (_ s)
-    (def n (%cu-num-prefix s))
-    (display
-      (string-append (%cu-int->str n)
-        (string-append ":"
-          (string-append
-            (string-concat
-              (map (fn (_ p) (string-append " " (%cu-int->str p)))
-                (%cu-factor-of n)))
-            "\n"))))))
+    (def end (byte-len s))
+    (def lead
+      (fn (self i)
+        (if (if (< i end) (if (= (byte-at s i) 32) #t (= (byte-at s i) 9)) #f)
+          (self (+ i 1)) i)))
+    (def i0 (lead 0))
+    (def i1 (if (if (< i0 end) (= (byte-at s i0) 43) #f) (+ i0 1) i0))
+    (def digits?
+      (fn (self i)
+        (if (>= i end) #t
+          (if (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f)
+            (self (+ i 1)) #f))))
+    (if (if (< i1 end) (digits? i1) #f)
+      (%cu-num-prefix (substring s i1 end))
+      ())))
 
+; the factors PS as factor puts them: each on its own, or under -h a factor
+; repeated once, with its exponent, 2^2 for 2 2
+(def %cu-factor-spelt
+  (fn (self ps h?)
+    (if (null? ps) ""
+      (let ((k (if h? (%cu-factor-run ps (first ps) 0) 1)))
+        (string-append " "
+          (string-append (%cu-int->str (first ps))
+            (string-append (if (> k 1) (string-append "^" (%cu-int->str k)) "")
+              (self (%cu-nthrest k ps) h?))))))))
+
+; how many of PS, from the start, are P
+(def %cu-factor-run
+  (fn (self ps p k)
+    (if (if (null? ps) #t (not (= (first ps) p))) k
+      (self (rest ps) p (+ k 1)))))
+
+; S factored, a line out -- or #f once factor has said S is not a number
+(def %cu-factor-line
+  (fn (_ s h?)
+    (def n (%cu-factor-number s))
+    (if (null? n)
+      (do (file-write 2
+            (string-concat
+              (list "factor: '" s "' is not a valid positive integer\n")))
+          #f)
+      (do (display
+            (string-append (%cu-int->str n)
+              (string-append ":"
+                (string-append (%cu-factor-spelt (%cu-factor-of n) h?) "\n"))))
+          #t))))
+
+; factor [-h] [NUMBER...]: the operands, or else the words of standard input,
+; each with its prime factors; one that is not a number is said, the rest are
+; still factored, and the status is 1
 (def %cu-factor
   (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "factor" argv))
+    (def h? (Opts on? o "-h"))
     (def each
-      (fn (self ws)
-        (if (null? ws) 0
-          (do (%cu-factor-line (first ws)) (self (rest ws))))))
-    (if (null? argv)
-      (each (%cu-words-line (%cu-join-with (%cu-lines (stdin-thunk)) " ")))
-      (each argv))))
+      (fn (self ws st)
+        (if (null? ws) st
+          (self (rest ws) (if (%cu-factor-line (first ws) h?) st 1)))))
+    (if (null? (Opts operands o))
+      (each (%cu-words-line (%cu-join-with (%cu-lines (stdin-thunk)) " ")) 0)
+      (each (Opts operands o) 0))))
 
 ; --- expand / unexpand --------------------------------------------------------
 
