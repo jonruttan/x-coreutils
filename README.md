@@ -7,8 +7,8 @@ one bundle -- the busybox shape:
 
     x -l coreutils -- APPLET [args]...
 
-**Ninety-three applets: parity with busybox's `coreutils` set, plus
-`join` and `find`.**
+**Ninety-four applets: parity with busybox's `coreutils` set, plus
+`join`, `find` and busybox's editor, `vi`.**
 
     arch base64 basename cat chgrp chmod chown chroot cksum cmp comm
     cp cut date dd df diff dirname dos2unix du echo env expand expr
@@ -17,7 +17,7 @@ one bundle -- the busybox shape:
     printf pwd readlink realpath rev rm rmdir seq sha1sum sha256sum
     sha512sum shred shuf sleep sort split stat sum sync tac tail tee
     test timeout touch tr true truncate tty unexpand uniq unix2dos
-    unlink uname uudecode uuencode usleep wc which whoami xargs yes
+    unlink uname uudecode uuencode usleep vi wc which whoami xargs yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -36,6 +36,11 @@ through to `/private/tmp`; `od` follows the GNU/busybox layout (not
 the BSD one macOS ships) and collapses a repeated line to `*`; `diff`
 is a line LCS by DP, in the normal or the unified format; `timeout`
 forks the command AND a watchdog, because there is no alarm door.
+`vi` is busybox's: its screen, keys and messages, each case checked
+against busybox's own vi typed the same keys; it keeps busybox's one
+buffer of bytes, searches it with libc's `memchr` and `strcspn`, and
+sweeps the heap once a key, so its memory stays flat however long it
+runs.
 Self-contained: no `(requires-lang ...)`.
 
 ## Known limits
@@ -69,6 +74,16 @@ Self-contained: no `(requires-lang ...)`.
     back-references.
   - **A mode that looks like an option** is refused, since the option
     guard sees it first: write `chmod a-w f`, not `chmod -w f`.
+  - **`vi` has busybox's core so far**: moving (`h j k l`, the arrows,
+    `0 $`, Home, End, Return, `+ -`, counts), inserting (`i a A I o
+    O`, Backspace, `^V`, `^D`, Insert for replace), deleting (`x X
+    dd`, Delete), `ZZ`, `ZQ`, and the colon commands `:w :q :wq :x
+    :wn`, `:N` and `:file`.  busybox's other commands answer `is not
+    implemented`, and it takes no options yet.  A message wider than
+    the screen waits for one Return, where busybox's waits again after
+    every Return and takes no more commands.  `^C` from a terminal goes
+    back to the top in command mode, as busybox's SIGINT handler does;
+    `^Z` does not suspend.
   - **Not present**: `who` (utmpx), `stty` (ioctl), `hostid`
     (gethostid) and `mknod` (device numbers), for want of a door this
     bundle will not invent; and `sha3sum`, which needs no door and is
@@ -132,6 +147,7 @@ parsed by x-lang's `Opts`.
     cu/hash.x         md5sum sha1sum cksum sum
     cu/sha256.x       FIPS 180-4, in x
     cu/sha512.x       its 64-bit sibling, addition masked in halves
+    cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, : commands
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 

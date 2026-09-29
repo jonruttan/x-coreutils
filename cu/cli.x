@@ -106,6 +106,7 @@
     (pair "date" %cu-date)
     (pair "which" %cu-which)
     (pair "xargs" %cu-xargs)
+    (pair "vi" %cu-vi)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 
