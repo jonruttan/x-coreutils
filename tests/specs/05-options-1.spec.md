@@ -504,7 +504,7 @@ b
 (do (display (cu-run (list "sort" "-Q") "a\n")) (display (cu-run (list "ls" "-Q") "")) (display (cu-run (list "cat" "-Q") "")))
 ```
 ---
-    222
+    221
 
 ### an attached value, and a number that is nobody's flag
 

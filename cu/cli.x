@@ -341,13 +341,51 @@
     (%cu-last-given-in (map (fn (_ v) (first v)) (Assoc get (lit values) o))
       flags ())))
 
+; An option TOK that APPLET does not take, refused in GNU's words, with GNU's
+; status for that applet
 (def %cu-refuse-option
   (fn (_ applet tok)
     (do (file-write 2
           (string-append applet
-            (string-append ": unknown option "
-              (string-append tok "\n"))))
-        2)))
+            (string-append ": " (string-append (%cu-refusal applet tok) "\n"))))
+        (%cu-refusal-status applet))))
+
+; What is wrong with TOK.  A value option with nothing after it `requires an
+; argument`; another long option is `unrecognized`; in a short cluster, read
+; left to right as getopt reads one, the first letter APPLET does not declare
+; is the `invalid option`
+(def %cu-refusal
+  (fn (_ applet tok)
+    (def spec (%cu-spec-of applet))
+    (def flags (if (null? spec) () (first spec)))
+    (def values (if (null? spec) () (first (rest spec))))
+    (def end (byte-len tok))
+    (def quoted (fn (_ s) (string-append "'" (string-append s "'"))))
+    (def letter (fn (_ i) (quoted (substring tok i (+ i 1)))))
+    (def go
+      (fn (self i)
+        (let ((opt (string-append "-" (substring tok i (+ i 1)))))
+          (match
+            ((>= i end) (string-append "unrecognized option " (quoted tok)))
+            ((%cu-member-s? opt values)
+              (string-append "option requires an argument -- " (letter i)))
+            ((%cu-member-s? opt flags) (self (+ i 1)))
+            (#t (string-append "invalid option -- " (letter i)))))))
+    (match
+      ((not (if (> end 2) (= (byte-at tok 1) 45) #f)) (go 1))
+      ((%cu-member-s? tok values)
+        (string-append "option "
+          (string-append (quoted tok) " requires an argument")))
+      (#t (string-append "unrecognized option " (quoted tok))))))
+
+; GNU's status for a refused option: 125 where the applet runs a command, 2
+; where GNU's refuses with its trouble status, and 1 elsewhere
+(def %cu-refusal-status
+  (fn (_ applet)
+    (match
+      ((%cu-member-s? applet (list "env" "nohup" "nice" "chroot" "timeout")) 125)
+      ((%cu-member-s? applet (list "sort" "ls" "tty" "printenv" "diff" "cmp")) 2)
+      (#t 1))))
 
 ; Too few operands, in GNU's words: none at all is `missing operand`, and some
 ; is `missing operand after 'LAST'`, LAST the last of them.  GNU follows either

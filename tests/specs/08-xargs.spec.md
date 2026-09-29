@@ -157,4 +157,4 @@ a b
 (display (cu-run (list "xargs" "-Z" "echo") "a\n"))
 ```
 ---
-    2
+    1
