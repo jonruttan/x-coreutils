@@ -56,11 +56,11 @@ types the bursts, and shows what came of them.
     (apply vi-case-in (List append (list 10 40 text bursts target) mode))))
 (def vi-case-in
   (fn (_ rows cols text bursts target . mode)
-    (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vi && mkdir -p /tmp/x-cu-vi"))
-    (if (null? text) () (file-write-all "/tmp/x-cu-vi/f" text))
-    (if (null? mode) () (proc-run (list "/bin/chmod" (first mode) "/tmp/x-cu-vi/f")))
+    (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vm && mkdir -p /tmp/x-cu-vm"))
+    (if (null? text) () (file-write-all "/tmp/x-cu-vm/f" text))
+    (if (null? mode) () (proc-run (list "/bin/chmod" (first mode) "/tmp/x-cu-vm/f")))
     (def st (%vi-typed (list target) bursts rows cols #f))
-    (def f (if (file-exists? "/tmp/x-cu-vi/f") (vi-shown (file-read-all "/tmp/x-cu-vi/f")) "no file\n"))
+    (def f (if (file-exists? "/tmp/x-cu-vm/f") (vi-shown (file-read-all "/tmp/x-cu-vm/f")) "no file\n"))
     (display
       (string-concat
         (list "exit " (%cu-int->str st) "\n"
@@ -81,7 +81,7 @@ types the bursts, and shows what came of them.
 ### w moves to the start of the next word
 
 ```cu
-(vi-case "one two three\n" (list (vi-b "w") (vi-b "w")) "/tmp/x-cu-vi/f")
+(vi-case "one two three\n" (list (vi-b "w") (vi-b "w")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -97,14 +97,14 @@ one two three
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 8 bells 0
 ```
 
 ### w stops where a word meets punctuation
 
 ```cu
-(vi-case "foo.bar(baz) x\n" (list (vi-b "w") (vi-b "w") (vi-b "w") (vi-b "w")) "/tmp/x-cu-vi/f")
+(vi-case "foo.bar(baz) x\n" (list (vi-b "w") (vi-b "w") (vi-b "w") (vi-b "w")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -120,14 +120,14 @@ foo.bar(baz) x
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 8 bells 0
 ```
 
 ### 3w
 
 ```cu
-(vi-case "a b c d e f\n" (list (vi-b "3w")) "/tmp/x-cu-vi/f")
+(vi-case "a b c d e f\n" (list (vi-b "3w")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -143,14 +143,14 @@ a b c d e f
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 6 bells 0
 ```
 
 ### w crosses to the next line, and stops on an empty one
 
 ```cu
-(vi-case "one\n\n\ntwo three\n" (list (vi-b "w") (vi-b "w") (vi-b "w")) "/tmp/x-cu-vi/f")
+(vi-case "one\n\n\ntwo three\n" (list (vi-b "w") (vi-b "w") (vi-b "w")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -169,14 +169,14 @@ two three
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 4/4 100%
+status - /tmp/x-cu-vm/f 4/4 100%
 cursor 3 4 bells 0
 ```
 
 ### w at the last word stays on the text
 
 ```cu
-(vi-case "one two\n" (list (vi-b "w") (vi-b "w") (vi-b "w")) "/tmp/x-cu-vi/f")
+(vi-case "one two\n" (list (vi-b "w") (vi-b "w") (vi-b "w")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -192,14 +192,14 @@ one two
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 6 bells 0
 ```
 
 ### b moves back to the start of a word
 
 ```cu
-(vi-case "one two three\n" (list (vi-b "$") (vi-b "b") (vi-b "b")) "/tmp/x-cu-vi/f")
+(vi-case "one two three\n" (list (vi-b "$") (vi-b "b") (vi-b "b")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -215,14 +215,14 @@ one two three
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 4 bells 0
 ```
 
 ### 3b across a line
 
 ```cu
-(vi-case "one two\nthree four\n" (list (vi-b "j$") (vi-b "3b")) "/tmp/x-cu-vi/f")
+(vi-case "one two\nthree four\n" (list (vi-b "j$") (vi-b "3b")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -239,14 +239,14 @@ three four
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/2 50%
+status - /tmp/x-cu-vm/f 1/2 50%
 cursor 0 6 bells 0
 ```
 
 ### b at the start of the text stays
 
 ```cu
-(vi-case "one\n" (list (vi-b "b")) "/tmp/x-cu-vi/f")
+(vi-case "one\n" (list (vi-b "b")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -262,14 +262,14 @@ one
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 0
 ```
 
 ### e moves to the end of a word
 
 ```cu
-(vi-case "one two three\n" (list (vi-b "e") (vi-b "e") (vi-b "e")) "/tmp/x-cu-vi/f")
+(vi-case "one two three\n" (list (vi-b "e") (vi-b "e") (vi-b "e")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -285,14 +285,14 @@ one two three
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 12 bells 0
 ```
 
 ### e crosses lines
 
 ```cu
-(vi-case "one\ntwo\n" (list (vi-b "e") (vi-b "e")) "/tmp/x-cu-vi/f")
+(vi-case "one\ntwo\n" (list (vi-b "e") (vi-b "e")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -309,14 +309,14 @@ two
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 2/2 100%
+status - /tmp/x-cu-vm/f 2/2 100%
 cursor 1 2 bells 0
 ```
 
 ### e stops at the end of punctuation too
 
 ```cu
-(vi-case "a..b c\n" (list (vi-b "e") (vi-b "e") (vi-b "e")) "/tmp/x-cu-vi/f")
+(vi-case "a..b c\n" (list (vi-b "e") (vi-b "e") (vi-b "e")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -332,14 +332,14 @@ a..b c
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 5 bells 0
 ```
 
 ### W moves by blank-delimited words
 
 ```cu
-(vi-case "a.b c.d e\n" (list (vi-b "W") (vi-b "W")) "/tmp/x-cu-vi/f")
+(vi-case "a.b c.d e\n" (list (vi-b "W") (vi-b "W")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -355,14 +355,14 @@ a.b c.d e
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 8 bells 0
 ```
 
 ### B back by blank-delimited words
 
 ```cu
-(vi-case "a.b c.d e\n" (list (vi-b "$") (vi-b "B") (vi-b "B")) "/tmp/x-cu-vi/f")
+(vi-case "a.b c.d e\n" (list (vi-b "$") (vi-b "B") (vi-b "B")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -378,14 +378,14 @@ a.b c.d e
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 0
 ```
 
 ### E to the end of blank-delimited words
 
 ```cu
-(vi-case "a.b c.d e\n" (list (vi-b "E") (vi-b "E")) "/tmp/x-cu-vi/f")
+(vi-case "a.b c.d e\n" (list (vi-b "E") (vi-b "E")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -401,7 +401,7 @@ a.b c.d e
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 6 bells 0
 ```
 
@@ -410,7 +410,7 @@ cursor 0 6 bells 0
 ### f, then ; again and , back
 
 ```cu
-(vi-case "abcabc\n" (list (vi-b "fc") (vi-b ";") (vi-b ",")) "/tmp/x-cu-vi/f")
+(vi-case "abcabc\n" (list (vi-b "fc") (vi-b ";") (vi-b ",")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -426,14 +426,14 @@ abcabc
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 2 bells 0
 ```
 
 ### F searches back, and ; goes on back
 
 ```cu
-(vi-case "abcabc\n" (list (vi-b "$") (vi-b "Fa") (vi-b ";")) "/tmp/x-cu-vi/f")
+(vi-case "abcabc\n" (list (vi-b "$") (vi-b "Fa") (vi-b ";")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -449,14 +449,14 @@ abcabc
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 0
 ```
 
 ### t stops before the byte, and ; finds the same one
 
 ```cu
-(vi-case "a,b,c\n" (list (vi-b "t,") (vi-b ";")) "/tmp/x-cu-vi/f")
+(vi-case "a,b,c\n" (list (vi-b "t,") (vi-b ";")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -472,14 +472,14 @@ a,b,c
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 0
 ```
 
 ### T stops after it
 
 ```cu
-(vi-case "a,b,c\n" (list (vi-b "$") (vi-b "T,")) "/tmp/x-cu-vi/f")
+(vi-case "a,b,c\n" (list (vi-b "$") (vi-b "T,")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -495,14 +495,14 @@ a,b,c
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 4 bells 0
 ```
 
 ### 2f. finds the second
 
 ```cu
-(vi-case "a.b.c.d\n" (list (vi-b "2f.")) "/tmp/x-cu-vi/f")
+(vi-case "a.b.c.d\n" (list (vi-b "2f.")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -518,14 +518,14 @@ a.b.c.d
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 3 bells 0
 ```
 
 ### f with no such byte on the line rings
 
 ```cu
-(vi-case "abc\nz\n" (list (vi-b "fz")) "/tmp/x-cu-vi/f")
+(vi-case "abc\nz\n" (list (vi-b "fz")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -542,14 +542,14 @@ z
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/2 50%
+status - /tmp/x-cu-vm/f 1/2 50%
 cursor 0 0 bells 1
 ```
 
 ### ; before any search does nothing
 
 ```cu
-(vi-case "abc\n" (list (vi-b ";")) "/tmp/x-cu-vi/f")
+(vi-case "abc\n" (list (vi-b ";")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -565,7 +565,7 @@ abc
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 0
 ```
 
@@ -574,7 +574,7 @@ cursor 0 0 bells 0
 ### G goes to the last line
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "G")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "G")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -619,14 +619,14 @@ line 30
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 30/30 100%
+status - /tmp/x-cu-vm/f 30/30 100%
 cursor 4 0 bells 0
 ```
 
 ### 5G goes to line 5
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "G") (vi-b "5G")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "G") (vi-b "5G")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -671,14 +671,14 @@ line 30
 |line 7
 |line 8
 |line 9
-status - /tmp/x-cu-vi/f 5/30 16%
+status - /tmp/x-cu-vm/f 5/30 16%
 cursor 4 0 bells 0
 ```
 
 ### gg goes to the first line
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "G") (vi-b "gg")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "G") (vi-b "gg")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -723,14 +723,14 @@ line 30
 |line 7
 |line 8
 |line 9
-status - /tmp/x-cu-vi/f 1/30 3%
+status - /tmp/x-cu-vm/f 1/30 3%
 cursor 0 0 bells 0
 ```
 
 ### 3gg goes to line 3
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "G") (vi-b "3gg")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "G") (vi-b "3gg")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -775,14 +775,14 @@ line 30
 |line 7
 |line 8
 |line 9
-status - /tmp/x-cu-vi/f 3/30 10%
+status - /tmp/x-cu-vm/f 3/30 10%
 cursor 2 0 bells 0
 ```
 
 ### g with anything but g is no command
 
 ```cu
-(vi-case "one\n" (list (vi-b "gq")) "/tmp/x-cu-vi/f")
+(vi-case "one\n" (list (vi-b "gq")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -805,7 +805,7 @@ cursor 0 0 bells 0
 ### G lands past the blanks
 
 ```cu
-(vi-case "one\n   two\n" (list (vi-b "G")) "/tmp/x-cu-vi/f")
+(vi-case "one\n   two\n" (list (vi-b "G")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -822,14 +822,14 @@ one
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 2/2 100%
+status - /tmp/x-cu-vm/f 2/2 100%
 cursor 1 3 bells 0
 ```
 
 ### H goes to the top of the screen
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "H")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "H")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -874,14 +874,14 @@ line 30
 |line 17
 |line 18
 |line 19
-status - /tmp/x-cu-vi/f 15/30 50%
+status - /tmp/x-cu-vm/f 15/30 50%
 cursor 0 0 bells 0
 ```
 
 ### 3H, the third line from the top
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "3H")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "3H")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -926,14 +926,14 @@ line 30
 |line 17
 |line 18
 |line 19
-status - /tmp/x-cu-vi/f 15/30 50%
+status - /tmp/x-cu-vm/f 15/30 50%
 cursor 2 0 bells 0
 ```
 
 ### L goes to the bottom of the screen
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "L")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "L")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -978,14 +978,14 @@ line 30
 |line 7
 |line 8
 |line 9
-status - /tmp/x-cu-vi/f 9/30 30%
+status - /tmp/x-cu-vm/f 9/30 30%
 cursor 8 0 bells 0
 ```
 
 ### 2L, the second line from the bottom
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "2L")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "2L")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1030,14 +1030,14 @@ line 30
 |line 7
 |line 8
 |line 9
-status - /tmp/x-cu-vi/f 8/30 26%
+status - /tmp/x-cu-vm/f 8/30 26%
 cursor 7 0 bells 0
 ```
 
 ### M goes to the middle of the screen
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "M")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "M")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1082,14 +1082,14 @@ line 30
 |line 7
 |line 8
 |line 9
-status - /tmp/x-cu-vi/f 5/30 16%
+status - /tmp/x-cu-vm/f 5/30 16%
 cursor 4 0 bells 0
 ```
 
 ### 20H stops at the bottom of the screen
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "20H")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "20H")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1134,14 +1134,14 @@ line 30
 |line 7
 |line 8
 |line 9
-status - /tmp/x-cu-vi/f 9/30 30%
+status - /tmp/x-cu-vm/f 9/30 30%
 cursor 8 0 bells 0
 ```
 
 ### 20L stops at the top
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "20L")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b "20L")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1186,14 +1186,14 @@ line 30
 |line 7
 |line 8
 |line 9
-status - /tmp/x-cu-vi/f 1/30 3%
+status - /tmp/x-cu-vm/f 1/30 3%
 cursor 0 0 bells 0
 ```
 
 ### ^ goes to the first non-blank
 
 ```cu
-(vi-case "   indented\n" (list (vi-b "$") (vi-b "^")) "/tmp/x-cu-vi/f")
+(vi-case "   indented\n" (list (vi-b "$") (vi-b "^")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1209,14 +1209,14 @@ exit 1
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 3 bells 0
 ```
 
 ### 5| goes to column 5
 
 ```cu
-(vi-case "abcdefgh\n" (list (vi-b "5|")) "/tmp/x-cu-vi/f")
+(vi-case "abcdefgh\n" (list (vi-b "5|")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1232,14 +1232,14 @@ abcdefgh
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 4 bells 0
 ```
 
 ### | alone goes to the first column
 
 ```cu
-(vi-case "abcdefgh\n" (list (vi-b "$") (vi-b "|")) "/tmp/x-cu-vi/f")
+(vi-case "abcdefgh\n" (list (vi-b "$") (vi-b "|")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1255,7 +1255,7 @@ abcdefgh
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 0
 ```
 
@@ -1264,7 +1264,7 @@ cursor 0 0 bells 0
 ### % from an opening bracket to its match
 
 ```cu
-(vi-case "(a [b] {c})\n" (list (vi-b "%")) "/tmp/x-cu-vi/f")
+(vi-case "(a [b] {c})\n" (list (vi-b "%")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1280,14 +1280,14 @@ exit 1
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 10 bells 0
 ```
 
 ### % on an inner pair
 
 ```cu
-(vi-case "(a [b] {c})\n" (list (vi-b "f[") (vi-b "%")) "/tmp/x-cu-vi/f")
+(vi-case "(a [b] {c})\n" (list (vi-b "f[") (vi-b "%")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1303,14 +1303,14 @@ exit 1
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 5 bells 0
 ```
 
 ### % from a closing bracket back
 
 ```cu
-(vi-case "(a [b] {c})\n" (list (vi-b "$") (vi-b "%")) "/tmp/x-cu-vi/f")
+(vi-case "(a [b] {c})\n" (list (vi-b "$") (vi-b "%")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1326,14 +1326,14 @@ exit 1
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 0
 ```
 
 ### % finds the first bracket after the cursor on the line
 
 ```cu
-(vi-case "x = f(y)\n" (list (vi-b "%")) "/tmp/x-cu-vi/f")
+(vi-case "x = f(y)\n" (list (vi-b "%")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1349,14 +1349,14 @@ x = f(y)
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 7 bells 0
 ```
 
 ### % with no bracket on the line rings
 
 ```cu
-(vi-case "abc\n" (list (vi-b "%")) "/tmp/x-cu-vi/f")
+(vi-case "abc\n" (list (vi-b "%")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1372,14 +1372,14 @@ abc
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 1
 ```
 
 ### % with no match rings
 
 ```cu
-(vi-case "(abc\n" (list (vi-b "%")) "/tmp/x-cu-vi/f")
+(vi-case "(abc\n" (list (vi-b "%")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1395,14 +1395,14 @@ exit 1
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 0 bells 1
 ```
 
 ### % counts nested pairs of the same kind
 
 ```cu
-(vi-case "((a) b) c\n" (list (vi-b "%")) "/tmp/x-cu-vi/f")
+(vi-case "((a) b) c\n" (list (vi-b "%")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1418,14 +1418,14 @@ exit 1
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 1/1 100%
+status - /tmp/x-cu-vm/f 1/1 100%
 cursor 0 6 bells 0
 ```
 
 ### } goes to the next empty line
 
 ```cu
-(vi-case "a\nb\n\nc\nd\n\n\ne\n" (list (vi-b "}")) "/tmp/x-cu-vi/f")
+(vi-case "a\nb\n\nc\nd\n\n\ne\n" (list (vi-b "}")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1448,14 +1448,14 @@ e
 |
 |e
 |~
-status - /tmp/x-cu-vi/f 3/8 37%
+status - /tmp/x-cu-vm/f 3/8 37%
 cursor 2 0 bells 0
 ```
 
 ### } twice
 
 ```cu
-(vi-case "a\nb\n\nc\nd\n\n\ne\n" (list (vi-b "}") (vi-b "}")) "/tmp/x-cu-vi/f")
+(vi-case "a\nb\n\nc\nd\n\n\ne\n" (list (vi-b "}") (vi-b "}")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1478,14 +1478,14 @@ e
 |
 |e
 |~
-status - /tmp/x-cu-vi/f 6/8 75%
+status - /tmp/x-cu-vm/f 6/8 75%
 cursor 5 0 bells 0
 ```
 
 ### 2}
 
 ```cu
-(vi-case "a\nb\n\nc\nd\n\n\ne\n" (list (vi-b "2}")) "/tmp/x-cu-vi/f")
+(vi-case "a\nb\n\nc\nd\n\n\ne\n" (list (vi-b "2}")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1508,14 +1508,14 @@ e
 |
 |e
 |~
-status - /tmp/x-cu-vi/f 6/8 75%
+status - /tmp/x-cu-vm/f 6/8 75%
 cursor 5 0 bells 0
 ```
 
 ### { goes back to an empty line
 
 ```cu
-(vi-case "a\nb\n\nc\nd\n\n\ne\n" (list (vi-b "G") (vi-b "{")) "/tmp/x-cu-vi/f")
+(vi-case "a\nb\n\nc\nd\n\n\ne\n" (list (vi-b "G") (vi-b "{")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1538,14 +1538,14 @@ e
 |
 |e
 |~
-status - /tmp/x-cu-vi/f 7/8 87%
+status - /tmp/x-cu-vm/f 7/8 87%
 cursor 6 0 bells 0
 ```
 
 ### } with no empty line after stays at the end
 
 ```cu
-(vi-case "a\nb\n" (list (vi-b "}")) "/tmp/x-cu-vi/f")
+(vi-case "a\nb\n" (list (vi-b "}")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1562,14 +1562,14 @@ b
 |~
 |~
 |~
-status - /tmp/x-cu-vi/f 2/2 100%
+status - /tmp/x-cu-vm/f 2/2 100%
 cursor 1 0 bells 0
 ```
 
 ### } from a run of empty lines passes it first
 
 ```cu
-(vi-case "a\n\n\n\nb\n\nc\n" (list (vi-b "j") (vi-b "}")) "/tmp/x-cu-vi/f")
+(vi-case "a\n\n\n\nb\n\nc\n" (list (vi-b "j") (vi-b "}")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1591,7 +1591,7 @@ c
 |c
 |~
 |~
-status - /tmp/x-cu-vi/f 6/7 85%
+status - /tmp/x-cu-vm/f 6/7 85%
 cursor 5 0 bells 0
 ```
 
@@ -1600,7 +1600,7 @@ cursor 5 0 bells 0
 ### ^F scrolls down a screen
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 6)))) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 6)))) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1645,14 +1645,14 @@ line 30
 |line 15
 |line 16
 |line 17
-status - /tmp/x-cu-vi/f 9/30 30%
+status - /tmp/x-cu-vm/f 9/30 30%
 cursor 0 0 bells 0
 ```
 
 ### ^B scrolls back up
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 6))) (vi-b (bytes->str (list 6))) (vi-b (bytes->str (list 2)))) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 6))) (vi-b (bytes->str (list 6))) (vi-b (bytes->str (list 2)))) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1697,14 +1697,14 @@ line 30
 |line 15
 |line 16
 |line 17
-status - /tmp/x-cu-vi/f 17/30 56%
+status - /tmp/x-cu-vm/f 17/30 56%
 cursor 8 0 bells 0
 ```
 
 ### ^D scrolls down half a screen
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 4)))) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 4)))) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1749,14 +1749,14 @@ line 30
 |line 11
 |line 12
 |line 13
-status - /tmp/x-cu-vi/f 5/30 16%
+status - /tmp/x-cu-vm/f 5/30 16%
 cursor 0 0 bells 0
 ```
 
 ### ^U scrolls back half
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 4))) (vi-b (bytes->str (list 4))) (vi-b (bytes->str (list 21)))) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 4))) (vi-b (bytes->str (list 4))) (vi-b (bytes->str (list 21)))) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1801,14 +1801,14 @@ line 30
 |line 11
 |line 12
 |line 13
-status - /tmp/x-cu-vi/f 5/30 16%
+status - /tmp/x-cu-vm/f 5/30 16%
 cursor 4 0 bells 0
 ```
 
 ### ^E scrolls a line, the cursor kept on the screen
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 5))) (vi-b (bytes->str (list 5)))) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (bytes->str (list 5))) (vi-b (bytes->str (list 5)))) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1853,14 +1853,14 @@ line 30
 |line 9
 |line 10
 |line 11
-status - /tmp/x-cu-vi/f 3/30 10%
+status - /tmp/x-cu-vm/f 3/30 10%
 cursor 0 0 bells 0
 ```
 
 ### ^Y scrolls back a line
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":20" (lit cr)) (vi-b (bytes->str (list 25)))) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":20" (lit cr)) (vi-b (bytes->str (list 25)))) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1905,14 +1905,14 @@ line 30
 |line 21
 |line 22
 |line 23
-status - /tmp/x-cu-vi/f 20/30 66%
+status - /tmp/x-cu-vm/f 20/30 66%
 cursor 5 0 bells 0
 ```
 
 ### Page Down and Page Up
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (lit esc) "[6~") (vi-b (lit esc) "[6~") (vi-b (lit esc) "[5~")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b (lit esc) "[6~") (vi-b (lit esc) "[6~") (vi-b (lit esc) "[5~")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -1957,14 +1957,14 @@ line 30
 |line 15
 |line 16
 |line 17
-status - /tmp/x-cu-vi/f 17/30 56%
+status - /tmp/x-cu-vm/f 17/30 56%
 cursor 8 0 bells 0
 ```
 
 ### z and Return puts the line at the top
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "z" (lit cr))) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "z" (lit cr))) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -2009,14 +2009,14 @@ line 30
 |line 21
 |line 22
 |line 23
-status - /tmp/x-cu-vi/f 15/30 50%
+status - /tmp/x-cu-vm/f 15/30 50%
 cursor 0 0 bells 0
 ```
 
 ### z. puts it in the middle
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "z.")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "z.")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -2061,14 +2061,14 @@ line 30
 |line 17
 |line 18
 |line 19
-status - /tmp/x-cu-vi/f 15/30 50%
+status - /tmp/x-cu-vm/f 15/30 50%
 cursor 4 0 bells 0
 ```
 
 ### z- puts it at the bottom
 
 ```cu
-(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "z-")) "/tmp/x-cu-vi/f")
+(vi-case "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8\nline 9\nline 10\nline 11\nline 12\nline 13\nline 14\nline 15\nline 16\nline 17\nline 18\nline 19\nline 20\nline 21\nline 22\nline 23\nline 24\nline 25\nline 26\nline 27\nline 28\nline 29\nline 30\n" (list (vi-b ":15" (lit cr)) (vi-b "z-")) "/tmp/x-cu-vm/f")
 ```
 ---
 ```output
@@ -2113,7 +2113,7 @@ line 30
 |line 13
 |line 14
 |line 15
-status - /tmp/x-cu-vi/f 15/30 50%
+status - /tmp/x-cu-vm/f 15/30 50%
 cursor 8 0 bells 0
 ```
 
