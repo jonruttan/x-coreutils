@@ -116,7 +116,7 @@
 (def %vi-tabstop 8)
 (def %vi-status "")         ; a message waiting for the bottom line
 (def %vi-have-status 0)     ; 1 when one is waiting, 2 in reverse video
-(def %vi-last-status ())    ; the status line last drawn, nil to draw it again
+(def %vi-last-status ())    ; the status line's bufsum, nil to draw it again
 (def %vi-screen ())         ; the text rows as last drawn, top first
 (def %vi-blanks "")         ; spaces enough for a row, sliced for padding
 (def %vi-out ())            ; output not yet written, last first
@@ -344,7 +344,7 @@
 ; busybox's move_to_col: the byte of P's line that covers column L, or the
 ; line's newline
 (def %vi-move-to-col
-  (fn (_ p l) (%vi-col-walk (%vi-begin-line p) 0 l)))
+  (fn (_ p l) (%vi-col-walk (%vi-begin-line p) 0 (%vi-max l 0))))
 
 (def %vi-col-walk
   (fn (self a co l)
@@ -605,23 +605,32 @@
     (def most (%vi-min %vi-columns 199))
     (if (%vi< most (byte-len s)) (%vi-bsub s 0 most) s)))
 
-; busybox's show_status_line: a waiting message, or the edit status when it
-; changed; a message too wide for the line waits for a Return
+; busybox's show_status_line: a waiting message, or the edit status when its
+; checksum changed -- busybox's bufsum, the sum of its bytes, so two statuses
+; that sum the same, like "15/30 50%" and "11/30 36%", leave the old one up; a
+; message too wide for the line waits for a Return
 (def %vi-show-status-line!
   (fn (_)
     (def msg? (%vi< 0 %vi-have-status))
     (def s (if msg? %vi-status (%vi-edit-status)))
-    (if (match (msg? #t) ((null? %vi-last-status) #t) (#t (if (string=? s %vi-last-status) #f #t)))
+    (if (match (msg? #t) ((null? %vi-last-status) #t) (#t (if (= (%vi-bufsum s) %vi-last-status) #f #t)))
       (%vi-status-drawn! s msg?)
       ())
     (%vi-flush!)))
+
+(def %vi-bufsum
+  (fn (_ s)
+    (%vi-sum-from s 0 0)))
+(def %vi-sum-from
+  (fn (self s i n)
+    (if (%vi< i (byte-len s)) (self s (%vi+ i 1) (%vi+ n (%vi& (byte-at s i) 255))) n)))
 
 ; the bottom line's text as last drawn, without its video codes
 (def %vi-bottom "")
 
 (def %vi-status-drawn!
   (fn (_ s msg?)
-    (set! %vi-last-status (if msg? () s))
+    (set! %vi-last-status (if msg? () (%vi-bufsum s)))
     (set! %vi-bottom s)
     (%vi-bottom-clear)
     (%vi-put (if (= %vi-have-status 2) (string-append %vi-bold s %vi-norm) s))
@@ -1084,6 +1093,21 @@
       ((= c 7) (set! %vi-last-status ()))
       ((= c 27) (%vi-cmd-escape))
       ((= c 90) (%vi-cmd-z))
+      ((= c 119) (%vi-cmd-w))
+      ((%vi-one-of? c (list 98 101)) (%vi-cmd-be c))
+      ((%vi-one-of? c (list 87 66 69)) (%vi-cmd-wbe-blank c))
+      ((%vi-one-of? c (list 102 70 116 84)) (%vi-cmd-find c))
+      ((%vi-one-of? c (list 59 44)) (%vi-cmd-refind c))
+      ((= c 71) (%vi-cmd-G))
+      ((= c 103) (%vi-cmd-g))
+      ((%vi-one-of? c (list 72 76)) (%vi-cmd-HL c))
+      ((= c 77) (%vi-cmd-M))
+      ((= c 94) (%vi-cmd-caret))
+      ((= c 124) (%vi-cmd-bar))
+      ((= c 37) (%vi-cmd-percent))
+      ((%vi-one-of? c (list 123 125)) (%vi-cmd-paragraph c))
+      ((%vi-one-of? c (list 2 6 21 4 25 5 -10 -11)) (%vi-cmd-scroll c))
+      ((= c 122) (%vi-cmd-z-scroll))
       (#t (%vi-not-implemented (bytes->str (list (%vi& c 255))))))))
 
 ; j, Return, + and the arrow: down a line, to the column aimed at, or past
@@ -1567,6 +1591,8 @@
     (set! %vi-old-offset 0)
     (set! %vi-rstart 0)
     (set! %vi-tabstop 8)
+    (set! %vi-last-search-char 0)
+    (set! %vi-last-search-cmd 0)
     (set! %vi-screen ())))
 
 ; busybox's vi_main: each file in turn on the alternate screen
