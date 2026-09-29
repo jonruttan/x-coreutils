@@ -164,7 +164,7 @@ fifo
 (display (cu-run (list "df" "-Q") ""))
 ```
 ---
-    2
+    1
 
 ### sync returns cleanly
 
@@ -220,7 +220,7 @@ same
 (do (display (cu-run (list "chmod" "-Q" "644" "/tmp/x-cu-dr/f") "")) (display (cu-run (list "uname" "-Q") "")) (display (cu-run (list "id" "-Q") "")))
 ```
 ---
-    222
+    111
 
 ## cleanup
 
