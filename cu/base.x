@@ -43,4 +43,5 @@
 (include-once "./diff-lex.x")
 (include-once "./diff.x")
 (include-once "./find.x")
+(include-once "./vi.x")
 (include-once "./cli.x")
