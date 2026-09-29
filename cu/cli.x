@@ -385,7 +385,7 @@
   (fn (_ applet)
     (match
       ((%cu-member-s? applet (list "env" "nohup" "nice" "chroot" "timeout")) 125)
-      ((%cu-member-s? applet (list "sort" "ls" "tty" "printenv" "diff" "cmp")) 2)
+      ((%cu-member-s? applet (list "sort" "ls" "tty" "printenv" "diff")) 2)
       (#t 1))))
 
 ; Too few operands, in GNU's words: none at all is `missing operand`, and some

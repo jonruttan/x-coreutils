@@ -8,9 +8,10 @@ the applets that copy and move files they are `missing file operand` and
 set, split with no file reads its input, and timeout's refusal is its status
 alone.  The expected text is GNU's, less the
 line GNU adds after a refusal to point at --help, which no applet here has.
-cmp, diff and uuencode have no GNU build here: BSD's refuse with a usage line,
-cmp and diff with 2 and uuencode with 1, and so do these, naming their own
-options.
+diff and uuencode have no GNU build here: BSD's refuse with a usage line, diff
+with 2 and uuencode with 1, and so do these, naming their own options.  cmp
+refuses no operand as busybox's does, with its usage line and 1; one operand
+is compared with standard input.
 
 ## the fixtures
 
@@ -181,16 +182,13 @@ status 125
 ### cmp, diff and uuencode refuse with a usage line
 
 ```cu
-(do (run (list "cmp")) (run (list "cmp" "a")) (run (list "diff" "a")) (run (list "uuencode")))
+(do (run (list "cmp")) (run (list "diff" "a")) (run (list "uuencode")))
 ```
 ---
 ```output
 stderr:
-cmp: usage: cmp [-ls] [-n N] FILE1 FILE2
-status 2
-stderr:
-cmp: usage: cmp [-ls] [-n N] FILE1 FILE2
-status 2
+Usage: cmp [-l|s] [-n NUM] FILE1 [FILE2 [SKIP1 [SKIP2]]]
+status 1
 stderr:
 diff: usage: diff [-ibwBqsadTtrN] [-U N] [-L LABEL] [-S FILE] FILE1 FILE2
 status 2

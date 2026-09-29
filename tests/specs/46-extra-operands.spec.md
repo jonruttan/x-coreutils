@@ -6,11 +6,10 @@ why a delete takes one set, tty refuses with 2, mktemp says `too many
 templates`, and pwd only says it ignores them.  basename takes a second
 operand as a suffix, or with -s as many names as are given.  The expected text
 is GNU's, less the line GNU adds after a refusal to point at --help, which no
-applet here has.  cmp, diff and uuencode have no GNU build here: BSD's refuse
-a count they do not take with a usage line, cmp and diff with 2 and uuencode
-with 1, and so do these.  BSD's cmp reads a third and fourth operand as byte
-offsets to skip; this one reads none, so it refuses them rather than compare
-from the start.
+applet here has.  diff and uuencode have no GNU build here: BSD's refuse a
+count they do not take with a usage line, diff with 2 and uuencode with 1, and
+so do these.  cmp takes up to four, as busybox's does: the third and fourth are
+bytes to skip in each file; a fifth is the usage line and 1.
 
 ## the fixtures
 
@@ -172,8 +171,8 @@ status 1
 ---
 ```output
 stderr:
-cmp: usage: cmp [-ls] [-n N] FILE1 FILE2
-status 2
+Usage: cmp [-l|s] [-n NUM] FILE1 [FILE2 [SKIP1 [SKIP2]]]
+status 1
 stderr:
 diff: usage: diff [-ibwBqsadTtrN] [-U N] [-L LABEL] [-S FILE] FILE1 FILE2
 status 2
@@ -182,19 +181,21 @@ uuencode: usage: uuencode [-m] [FILE] NAME
 status 1
 ```
 
-### cmp refuses the offsets it does not read
+### cmp reads the third and fourth operands as bytes to skip
+
+a holds `a` and a newline, b `b` and a newline: past one byte of a, its
+newline meets b's `b`; past one byte of each, the newlines match.
 
 ```cu
 (do (run (list "cmp" (nf "a") (nf "b") "1")) (run (list "cmp" (nf "a") (nf "b") "1" "1")))
 ```
 ---
 ```output
+a b differ: byte 1, line 1
 stderr:
-cmp: usage: cmp [-ls] [-n N] FILE1 FILE2
-status 2
+status 1
 stderr:
-cmp: usage: cmp [-ls] [-n N] FILE1 FILE2
-status 2
+status 0
 ```
 
 ### cleanup

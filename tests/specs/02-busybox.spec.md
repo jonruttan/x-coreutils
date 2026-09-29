@@ -187,7 +187,7 @@ moved
 ---
     0
 
-### cmp: silence on same, char and line on different
+### cmp: silence on same, byte and line on different
 
 ```cu
 (do (display (cu-run (list "cmp" "-s" "/tmp/x-cu-bb/p1" "/tmp/x-cu-bb/p1") "")) (newline) (display (cu-run (list "cmp" "/tmp/x-cu-bb/d1" "/tmp/x-cu-bb/d2") "")))
@@ -195,7 +195,7 @@ moved
 ---
 ```output
 0
-/tmp/x-cu-bb/d1 /tmp/x-cu-bb/d2 differ: char 3, line 2
+/tmp/x-cu-bb/d1 /tmp/x-cu-bb/d2 differ: byte 3, line 2
 1
 ```
 
