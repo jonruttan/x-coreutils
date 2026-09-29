@@ -261,4 +261,4 @@ five spellings are declared outright.
 (display (cu-run (list "date" "-s" "2024-01-01") ""))
 ```
 ---
-    2
+    1
