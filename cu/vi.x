@@ -55,6 +55,7 @@
 (def %vi-c-read ())
 (def %vi-c-write ())
 (def %vi-c-access ())
+(def %vi-c-memmem ())
 
 (def %vi-resolve!
   (fn (_)
@@ -66,7 +67,8 @@
     (set! %vi-c-poll (%cu-dlsym lib "poll"))
     (set! %vi-c-read (%cu-dlsym lib "read"))
     (set! %vi-c-write (%cu-dlsym lib "write"))
-    (set! %vi-c-access (%cu-dlsym lib "access"))))
+    (set! %vi-c-access (%cu-dlsym lib "access"))
+    (set! %vi-c-memmem (%cu-dlsym lib "memmem"))))
 
 ; --- the terminal's words ---------------------------------------------------
 
@@ -1134,6 +1136,9 @@
       ((%vi-one-of? c (list 123 125)) (%vi-cmd-paragraph c))
       ((%vi-one-of? c (list 2 6 21 4 25 5 -10 -11)) (%vi-cmd-scroll c))
       ((= c 122) (%vi-cmd-z-scroll))
+      ((%vi-one-of? c (list 47 63)) (%vi-cmd-search c))
+      ((= c 110) (%vi-search-again 1))
+      ((= c 78) (%vi-search-again -1))
       (#t (do (%vi-not-implemented (bytes->str (list (%vi& c 255))))
               (%vi-end-cmd-q!))))))
 
@@ -1280,149 +1285,6 @@
           (%vi-status-line-bold! (string-append (%cu-int->str more) " more file(s) to edit")))
       (set! %vi-editing 0))))
 
-; --- the colon commands -----------------------------------------------------
-
-; busybox's colon: an optional line number, then the command and its
-; argument.  The commands are :N, :file, :quit, :write, :wq, :wn and :x;
-; any other is not implemented.
-(def %vi-colon
-  (fn (_ buf)
-    (def s (%vi-skip-blanks (%vi-skip-colons 0 buf) buf))
-    (if (if (%vi< s (byte-len buf)) (if (= (byte-at buf s) 34) #f #t) #f)
-      (%vi-colon-at buf s)
-      ())
-    (set! %vi-dot (%vi-bound-dot %vi-dot))))
-
-(def %vi-skip-colons
-  (fn (self i buf)
-    (if (if (%vi< i (byte-len buf)) (= (byte-at buf i) 58) #f) (self (%vi+ i 1) buf) i)))
-(def %vi-skip-blanks
-  (fn (self i buf)
-    (if (if (%vi< i (byte-len buf)) (%vi-space? (byte-at buf i)) #f) (self (%vi+ i 1) buf) i)))
-(def %vi-skip-word
-  (fn (self i buf)
-    (if (if (%vi< i (byte-len buf)) (if (%vi-space? (byte-at buf i)) #f #t) #f)
-      (self (%vi+ i 1) buf)
-      i)))
-(def %vi-digits-end
-  (fn (self i buf)
-    (if (if (%vi< i (byte-len buf)) (%vi-digit? (byte-at buf i)) #f) (self (%vi+ i 1) buf) i)))
-
-(def %vi-colon-at
-  (fn (_ buf s)
-    (def a (%vi-digits-end s buf))
-    (def e (if (%vi< s a) (%vi-str->num (%vi-bsub buf s (%vi- a s))) -1))
-    (def w (%vi-skip-word a buf))
-    (def word (%vi-bsub buf a (%vi- w a)))
-    (def args (%vi-bsub buf (%vi-skip-blanks w buf) (%vi- (byte-len buf) (%vi-skip-blanks w buf))))
-    (def force? (if (%vi< 1 (byte-len word)) (= (byte-at word (%vi- (byte-len word) 1)) 33) #f))
-    (def cmd (if force? (%vi-bsub word 0 (%vi- (byte-len word) 1)) word))
-    (%vi-colon-cmd cmd args force? e)))
-
-(def %vi-str->num
-  (fn (self s) (%vi-num-from s 0 0)))
-(def %vi-num-from
-  (fn (self s i n)
-    (if (%vi< i (byte-len s))
-      (self s (%vi+ i 1) (%vi+ (%vi* n 10) (%vi- (byte-at s i) 48)))
-      n)))
-
-; CMD a prefix of NAME, as busybox's strncmp over CMD's length
-(def %vi-prefix?
-  (fn (_ cmd name)
-    (if (%vi< (byte-len name) (byte-len cmd)) #f
-      (string=? cmd (%vi-bsub name 0 (byte-len cmd))))))
-
-(def %vi-colon-cmd
-  (fn (_ cmd args force? e)
-    (match
-      ((= (byte-len cmd) 0)
-        (if (%vi< e 0) () (do (set! %vi-dot (%vi-find-line e)) (%vi-dot-skip-over-ws!))))
-      ((%vi-prefix? cmd "file") (set! %vi-last-status ()))
-      ((%vi-prefix? cmd "quit") (%vi-colon-quit cmd force?))
-      ((%vi-write-cmd? cmd) (%vi-colon-write cmd args force?))
-      (#t (%vi-not-implemented cmd)))))
-
-; :w and what abbreviates it, :wq, :wn and :x
-(def %vi-write-cmd?
-  (fn (_ cmd)
-    (match
-      ((%vi-prefix? cmd "write") #t)
-      ((string=? cmd "wq") #t)
-      ((string=? cmd "wn") #t)
-      (#t (string=? cmd "x")))))
-
-(def %vi-colon-quit
-  (fn (_ cmd force?)
-    (def more (%vi- (%vi- (length %vi-files) %vi-optind) 1))
-    (match
-      (force? (do (set! %vi-optind (length %vi-files)) (set! %vi-editing 0)))
-      ((%vi< 0 %vi-modified)
-        (%vi-status-line-bold!
-          (string-append "No write since last change (:" cmd "! overrides)")))
-      ((%vi< 0 more)
-        (%vi-status-line-bold! (string-append (%cu-int->str more) " more file(s) to edit")))
-      (#t (set! %vi-editing 0)))))
-
-; :w, :wq, :wn and :x.  A name given must not be another file already there
-; unless forced; a read-only file is written only when forced.
-(def %vi-colon-write
-  (fn (_ cmd args force?)
-    (def named? (%vi< 0 (byte-len args)))
-    (match
-      ((if named? (if force? #f (%vi-other-file? args)) #f)
-        (%vi-status-line-bold! "File exists (:w! overrides)"))
-      ((match (named? #f) ((= %vi-readonly 0) #f) (force? #f) (#t (if (null? %vi-filename) #f #t)))
-        (%vi-status-line-bold! (string-append "'" %vi-filename "' is read only")))
-      (named? (do (%vi-init-filename! args) (%vi-write-to cmd args force?)))
-      (#t (%vi-write-to cmd %vi-filename force?)))))
-
-(def %vi-other-file?
-  (fn (_ name)
-    (if (if (null? %vi-filename) #f (string=? %vi-filename name)) #f
-      (file-exists? name))))
-
-; busybox's init_filename: a name given to :w names the file when it had none
-(def %vi-init-filename!
-  (fn (_ name) (if (null? %vi-filename) (set! %vi-filename name) ())))
-
-; :x writes only a changed file; what was written is counted on the status
-; line, and a whole text written is no longer changed
-(def %vi-write-to
-  (fn (_ cmd name force?)
-    (def write? (if (= %vi-modified 0) (if (string=? cmd "x") #f #t) #t))
-    (def l (if write? (%vi-file-write name 0 %vi-end) 0))
-    (match
-      ((Err err? l)
-        (%vi-status-line-bold! (string-append "'" name "' " (file-err-text l))))
-      ((= l -2) (%vi-status-line-bold! "No current filename"))
-      (#t (%vi-written cmd name l (if write? %vi-end 0) force?)))))
-
-(def %vi-written
-  (fn (_ cmd name l size force?)
-    (%vi-status-line!
-      (string-concat
-        (list "'" name "' " (%cu-int->str (%vi-count-lines 0 (%vi-max 0 (%vi- l 1)))) "L, "
-              (%cu-int->str l) "C")))
-    (if (= l size)
-      (do (if (= l %vi-end) (set! %vi-modified 0) ())
-          (%vi-written-ends cmd force?))
-      ())))
-
-; :wn goes on to the next file; :wq and :x end, unless files are left to edit
-(def %vi-written-ends
-  (fn (_ cmd force?)
-    (def more (%vi- (%vi- (length %vi-files) %vi-optind) 1))
-    (match
-      ((if (%vi< 1 (byte-len cmd)) (= (byte-at cmd 1) 110) #f) (set! %vi-editing 0))
-      ((if (= (byte-at cmd 0) 120) #t (if (%vi< 1 (byte-len cmd)) (= (byte-at cmd 1) 113) #f))
-        (match
-          ((if (%vi< 0 more) (if force? #f #t) #f)
-            (%vi-status-line-bold! (string-append (%cu-int->str more) " more file(s) to edit")))
-          (#t (do (if (%vi< 0 more) (set! %vi-optind (length %vi-files)) ())
-                  (set! %vi-editing 0)))))
-      (#t ()))))
-
 ; --- files ------------------------------------------------------------------
 
 ; busybox's file_write: the text [FROM, TO) into NAME, opened without O_TRUNC
@@ -1509,7 +1371,7 @@
 (def %vi-init-text-buffer!
   (fn (_ name)
     (%vi-text-init!)
-    (set! %vi-filename name)
+    (%vi-update-filename! name)
     (set! %vi-readonly 0)
     (def rc (if (null? name) -1 (%vi-file-insert name 0 #t)))
     (if (if (%vi< rc 1) #t (if (= (byte-at %vi-text (%vi- %vi-end 1)) 10) #f #t))
@@ -1612,6 +1474,9 @@
     (set! %vi-tabstop 8)
     (set! %vi-last-search-char 0)
     (set! %vi-last-search-cmd 0)
+    (set! %vi-last-search-pattern "")
+    (set! %vi-filename ())
+    (set! %vi-alt-filename ())
     (set! %vi-screen ())))
 
 ; busybox's vi_main: each file in turn on the alternate screen
