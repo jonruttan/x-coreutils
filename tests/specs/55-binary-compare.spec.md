@@ -4,8 +4,8 @@ Files that a NUL is among, through the tools that compare them: cmp reads
 its two inputs a piece at a time, together, and compares them a byte at a
 time by count; diff finds a file binary where its first piece holds a NUL,
 as the system's diff does, and then only says whether the two differ.  The
-expected output is what the system's cmp and diff put out for the same
-files.
+expected output is what busybox's cmp and the system's diff put out for the
+same files.
 
 The files are the 256 byte values in order, 128 times over, so that every
 piece starts with a NUL: `b1`; `b2`, the same but for a `Z` at offset 20,000,
@@ -32,9 +32,9 @@ hands out the runs it was given, and refuses to answer the whole text.
 ```
 ---
 ```output
-/tmp/x-cu-bincmp/b1 /tmp/x-cu-bincmp/b2 differ: char 20001, line 80
+/tmp/x-cu-bincmp/b1 /tmp/x-cu-bincmp/b2 differ: byte 20001, line 80
 status 1
- 20001  40 132
+20001  40 132
 status 1
 status 1
 status 0
@@ -66,12 +66,12 @@ as the second.
 ```
 ---
 ```output
- 20001  40 132
+20001  40 132
 status 1
 status 0
-     5   4   5
+5   4   5
 status 1
-     5   5   4
+5   5   4
 status 1
 ```
 

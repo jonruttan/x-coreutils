@@ -297,33 +297,76 @@
 ; -l lists every differing byte and keeps going; without it cmp stops at the
 ; first difference and names where it was. -n bounds how far either is read.
 ;
-; Two files, no fewer and no more.  There is no GNU build here to measure;
-; BSD's refuses a wrong count with a usage line and 2, cmp's trouble, and so
-; does this one, naming its own options.  BSD reads two byte offsets after the
-; files; they are not read here, so they are refused rather than ignored.
+; As busybox's: FILE1 [FILE2 [SKIP1 [SKIP2]]], FILE2 standard input when it is
+; not given, and the skips bytes to pass in each before comparing, from where
+; the offsets and lines then count.  No operand, or more than four, is the
+; usage line and 1; so is a count -n or a skip that is not a number.
 (def %cu-cmp
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "cmp" argv))
-    (if (= (length (Opts operands o)) 2)
-      (%cu-cmp-run o stdin-thunk)
-      (do (file-write 2 "cmp: usage: cmp [-ls] [-n N] FILE1 FILE2\n") 2))))
+    (def ops (Opts operands o))
+    (def n (length ops))
+    (def numbers
+      (map (fn (_ s) (pair s (%cu-kmg-number s)))
+        (append (if (> n 2) (rest (rest ops)) ())
+          (let ((v (Opts value o "-n"))) (if (null? v) () (list v))))))
+    (def bad (filter (fn (_ e) (null? (rest e))) numbers))
+    (match
+      ((if (= n 0) #t (> n 4))
+        (do (file-write 2
+              "Usage: cmp [-l|s] [-n NUM] FILE1 [FILE2 [SKIP1 [SKIP2]]]\n")
+            1))
+      ((not (null? bad))
+        (do (file-write 2
+              (string-concat (list "cmp: invalid number '" (first (first bad)) "'\n")))
+            1))
+      (#t (%cu-cmp-run o stdin-thunk)))))
+
+; A count as busybox reads one: decimal digits, then nothing or one of the
+; suffixes k K kiB KiB (1024), m M miB MiB, g G giB GiB -- or nil
+(def %cu-kmg-number
+  (fn (_ s)
+    (def end (byte-len s))
+    (def digits
+      (fn (self i acc)
+        (if (if (< i end) (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f) #f)
+          (self (+ i 1) (+ (* acc 10) (- (byte-at s i) 48)))
+          (pair i acc))))
+    (def d (digits 0 0))
+    (def tail (substring s (first d) end))
+    (def scale
+      (match
+        ((string=? tail "") 1)
+        ((%cu-member-s? tail (list "k" "K" "kiB" "KiB")) 1024)
+        ((%cu-member-s? tail (list "m" "M" "miB" "MiB")) 1048576)
+        ((%cu-member-s? tail (list "g" "G" "giB" "GiB")) 1073741824)
+        (#t ())))
+    (if (if (> (first d) 0) (not (null? scale)) #f) (* (rest d) scale) ())))
 
 (def %cu-cmp-run
   (fn (_ o stdin-thunk)
     (def s? (Opts on? o "-s"))
-    (def ops (Opts operands o))
+    (def given (Opts operands o))
+    (def ops (list (first given) (if (null? (rest given)) "-" (first (rest given)))))
+    (def skip
+      (fn (_ k)
+        (if (> (length given) k) (%cu-kmg-number (%cu-nth k given)) 0)))
     (def says (if s? (fn (_ name err) ()) (%cu-says "cmp")))
     (def cap
       (let ((v (Opts value o "-n")))
-        (if (null? v) (- 0 1) (%cu-num-prefix v))))
+        (if (null? v) (- 0 1) (%cu-kmg-number v))))
     ; both files are opened before either is read, and the first that fails
     ; is said -- except under -s, which says nothing at all -- and is cmp's
-    ; trouble, status 2; then they are read a piece at a time, together
-    (if (Err err? (%cu-first-unopened ops says)) 2
-      (%cu-with-sources ops stdin-thunk says 2
-        (fn (_ a b)
-          (%cu-cmp-walk a b ops (pair "" 0) (pair "" 0) cap (Opts on? o "-l")
-            s? says))))))
+    ; trouble, status 2; then they are read a piece at a time, together.
+    ; Standard input named twice is the same bytes, and nothing is read.
+    (match
+      ((if (string=? (first ops) "-") (string=? (first (rest ops)) "-") #f) 0)
+      ((Err err? (%cu-first-unopened ops says)) 2)
+      (#t
+        (%cu-with-sources ops stdin-thunk says 2
+          (fn (_ a b)
+            (%cu-cmp-walk (%cu-pieces-past a (skip 2)) (%cu-pieces-past b (skip 3))
+              ops (pair "" 0) (pair "" 0) cap (Opts on? o "-l") s? says)))))))
 
 ; The bytes of the piece sources A and B compared in turn, from the runs RA
 ; and RB each has read already, as far as CAP where it is not below 0.
@@ -407,14 +450,14 @@
 (def %cu-cmp-differ
   (fn (_ names at line)
     (string-concat
-      (list (first names) " " (first (rest names)) " differ: char "
+      (list (first names) " " (first (rest names)) " differ: byte "
             (%cu-int->str at) ", line " (%cu-int->str line) "\n"))))
 
-; a line of -l: the offset, six wide, and the two bytes in octal, three wide
+; a line of -l: the offset, and the two bytes in octal, three wide
 (def %cu-cmp-listed
   (fn (_ off x y)
     (string-concat
-      (list (%cu-pad-left (%cu-int->str off) 6) " "
+      (list (%cu-int->str off) " "
             (%cu-pad-left (%cu-oct->str x) 3) " "
             (%cu-pad-left (%cu-oct->str y) 3) "\n"))))
 

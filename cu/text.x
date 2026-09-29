@@ -224,6 +224,26 @@
             (let ((r (f a b)))
               (do (a (lit close)) (b (lit close)) r))))))))
 
+; The piece source SRC with its first N bytes passed over: the pieces they
+; fill are read and dropped, and the one they end in answers from there on.
+; A close goes through to SRC.
+(def %cu-pieces-past
+  (fn (_ src n)
+    (def left (list n))
+    (def next
+      (fn (self)
+        (let ((p (src)))
+          (match
+            ((Err err? p) p)
+            ((= (first left) 0) p)
+            ((= (rest p) 0) p)
+            ((<= (rest p) (first left))
+              (do (set-first! left (- (first left) (rest p))) (self)))
+            (#t (let ((k (first left)))
+                  (do (set-first! left 0) (%cu-run-part p k (rest p)))))))))
+    (if (= n 0) src
+      (fn (_ . how) (if (null? how) (next) (src (first how)))))))
+
 ; the bytes of run R from I up to J onto the list ACC.  The walk goes back from
 ; J, so they come out in order, and it sweeps as it goes.
 (def %cu-run-bytes-onto
