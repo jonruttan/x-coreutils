@@ -41,7 +41,7 @@ short file one digit a line, built a hundred at a time.
 ### sort and shuf hold the lines, and put them out a line at a time
 
 ```cu
-(display (list (under? (list "sort") in400 3600000) (under? (list "shuf") in800 4000000)))
+(display (list (under? (list "sort") in400 3200000) (under? (list "shuf") in800 2200000)))
 ```
 ---
     (#t #t)
@@ -51,7 +51,7 @@ short file one digit a line, built a hundred at a time.
 ### comm, on 400 keyed lines and on 4,000 short ones
 
 ```cu
-(display (list (under? (list "comm" "/tmp/x-cu-ls3-k" "/tmp/x-cu-ls3-k") "" 3000000) (under? (list "comm" "/tmp/x-cu-ls3-s" "/tmp/x-cu-ls3-s") "" 10200000)))
+(display (list (under? (list "comm" "/tmp/x-cu-ls3-k" "/tmp/x-cu-ls3-k") "" 2700000) (under? (list "comm" "/tmp/x-cu-ls3-s" "/tmp/x-cu-ls3-s") "" 9200000)))
 ```
 ---
     (#t #t)

@@ -40,7 +40,7 @@ repeating; the short lines are one digit each, built a hundred at a time.
 ### each line put out as the walk reaches it, on 800 lines
 
 ```cu
-(display (list (under? (list "cat" "-n") in800 2500000) (under? (list "nl") in800 2400000) (under? (list "uniq" "-c") in800 2500000) (under? (list "tac") in800 2300000) (under? (list "head" "-n" "700") in800 3100000) (under? (list "tail" "-n" "700") in800 3200000)))
+(display (list (under? (list "cat" "-n") in800 2200000) (under? (list "nl") in800 2200000) (under? (list "uniq" "-c") in800 2200000) (under? (list "tac") in800 2100000) (under? (list "head" "-n" "700") in800 2900000) (under? (list "tail" "-n" "700") in800 2900000)))
 ```
 ---
     (#t #t #t #t #t #t)
@@ -48,7 +48,7 @@ repeating; the short lines are one digit each, built a hundred at a time.
 ### and tac on 8,000 short lines
 
 ```cu
-(display (list (under? (list "tac") short8000 5400000)))
+(display (list (under? (list "tac") short8000 4800000)))
 ```
 ---
     (#t)
