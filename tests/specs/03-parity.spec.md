@@ -489,7 +489,7 @@ the status.
 (do (display (cu-run (list "base64" "-Z") "")) (display (cu-run (list "du" "-Q") "")))
 ```
 ---
-    22
+    11
 
 ### cleanup
 
