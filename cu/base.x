@@ -45,4 +45,5 @@
 (include-once "./find.x")
 (include-once "./vi.x")
 (include-once "./vi-move.x")
+(include-once "./vi-edit.x")
 (include-once "./cli.x")
