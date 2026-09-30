@@ -6,8 +6,8 @@ whoami, logname, groups, uname, arch, nproc, nice and chroot.
 
 These need x-lang NEWER than the release lang.xon pins.  Where the
 answer is a fact of this machine -- a uid, a processor count, a
-filesystem's size -- the spec asserts SHAPE; where it is a fact of the
-POSIX contract, it asserts the value.
+filesystem's size -- the spec asserts STRUCTURE; where it is a fact of
+the POSIX contract, it asserts the value.
 
 ## fixtures
 

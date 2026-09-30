@@ -2,8 +2,8 @@
 
 Option parity with busybox, tranche by tranche.  docs/options.md is the
 generated scoreboard; each section here is one applet's busybox option
-set, spec'd on what is deterministic -- names, order, shapes -- and
-never on a clock or an inode.
+set, spec'd on what is deterministic -- names, order, structure --
+and never on a clock or an inode.
 
 ## the process and file tools
 
@@ -93,7 +93,7 @@ that took the first signal would give.
 ---
     clean
 
-## the text shapers
+## fold, expand, unexpand
 
 `tee -i` is declared and not run here: it sets the interrupt disposition
 of the process it runs in, and cu-run runs the applet in the harness's own.

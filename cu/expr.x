@@ -21,9 +21,9 @@
 
 ; --- the matcher ---------------------------------------------------------------
 
-; an atom is (KIND DATA STAR?): ch/any/cls take a byte, gopen/gclose
+; an atom is (LABEL DATA STAR?): ch/any/cls take a byte, gopen/gclose
 ; mark the capture, eol anchors the end.
-(def %cu-re-kind (fn (_ a) (%cu-nth 0 a)))
+(def %cu-re-label (fn (_ a) (%cu-nth 0 a)))
 (def %cu-re-data (fn (_ a) (%cu-nth 1 a)))
 (def %cu-re-star? (fn (_ a) (%cu-nth 2 a)))
 
@@ -125,7 +125,7 @@
 (def %cu-re-one?
   (fn (_ a s i)
     (if (>= i (byte-len s)) #f
-      (let ((k (%cu-re-kind a)))
+      (let ((k (%cu-re-label a)))
         (def b (byte-at s i))
         (match
           ((eq? k (lit ch))  (= b (%cu-re-data a)))
@@ -170,7 +170,7 @@
   (fn (self atoms s i gs ge)
     (if (null? atoms) (list i gs ge)
       (let ((a (first atoms)))
-        (def k (%cu-re-kind a))
+        (def k (%cu-re-label a))
         (match
           ((eq? k (lit rep))    (%cu-re-rep atoms s i gs ge))
           ((eq? k (lit gopen))  (self (rest atoms) s i i ge))
@@ -186,8 +186,8 @@
   (fn (self atoms)
     (match
       ((null? atoms) #f)
-      ((eq? (%cu-re-kind (first atoms)) (lit gopen)) #t)
-      ((eq? (%cu-re-kind (first atoms)) (lit rep)) #t)
+      ((eq? (%cu-re-label (first atoms)) (lit gopen)) #t)
+      ((eq? (%cu-re-label (first atoms)) (lit rep)) #t)
       (#t (self (rest atoms))))))
 
 ; expr's `:`: a capture answers the captured text, a plain pattern

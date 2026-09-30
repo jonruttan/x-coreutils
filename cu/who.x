@@ -176,13 +176,13 @@
             0)))))
 
 (def %cu-id-one
-  (fn (_ id n? look kind)
+  (fn (_ id n? look label)
     (let ((name (if n? (look id) ())))
       (do (display (string-append (if (null? name) (%cu-int->str id) name) "\n"))
           (if (if n? (null? name) #f)
             (do (file-write 2
                   (string-concat
-                    (list "id: cannot find name for " kind " ID " (%cu-int->str id) "\n")))
+                    (list "id: cannot find name for " label " ID " (%cu-int->str id) "\n")))
                 1)
             0)))))
 

@@ -38,7 +38,7 @@
 (def %ls-path (fn (_ e) (first (rest e))))
 (def %ls-st (fn (_ e) (first (rest (rest e)))))
 (def %ls-get (fn (_ e key) (%cu-stat-get (%ls-st e) key)))
-(def %ls-dir? (fn (_ e) (eq? (%ls-get e (lit kind)) (lit dir))))
+(def %ls-dir? (fn (_ e) (eq? (%ls-get e (lit file-type)) (lit dir))))
 
 (def %ls-listed?
   (fn (self x xs)
@@ -187,7 +187,7 @@
 
 (def %ls-suffix
   (fn (_ e o)
-    (def k (%ls-get e (lit kind)))
+    (def k (%ls-get e (lit file-type)))
     (match
       ((eq? k (lit dir))
         (if (if (%ls-flag? o "-F") #t (%ls-flag? o "-p")) "/" ""))
@@ -275,14 +275,14 @@
           (string-append (%cu-pad-left (%cu-int->str (%cu-du-blocks st)) (%cu-nth 5 ws)) " ") "")
         (if (not long?) name
           (string-concat
-            (list (%cu-perm-string (%ls-get e (lit kind)) (%ls-get e (lit mode))) " "
+            (list (%cu-perm-string (%ls-get e (lit file-type)) (%ls-get e (lit mode))) " "
                   (%cu-pad-left (%cu-int->str (%ls-get e (lit nlink))) (%cu-nth 0 ws)) " "
                   (%ls-id-column (%ls-owner e (%cu-nth 6 ws)) (%cu-nth 1 ws)) " "
                   (%ls-id-column (%ls-group e (%cu-nth 6 ws)) (%cu-nth 2 ws)) " "
                   (%cu-pad-left (%ls-size-str e o) (%cu-nth 3 ws)) " "
                   (%ls-date (%ls-get e (%ls-time-key o)) now) " "
                   name
-                  (if (eq? (%ls-get e (lit kind)) (lit link))
+                  (if (eq? (%ls-get e (lit file-type)) (lit link))
                     (string-append " -> " (file-readlink (%ls-path e)))
                     ""))))))))
 

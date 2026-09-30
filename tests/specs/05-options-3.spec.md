@@ -2,8 +2,8 @@
 
 Option parity with busybox, tranche by tranche.  docs/options.md is the
 generated scoreboard; each section here is one applet's busybox option
-set, spec'd on what is deterministic -- names, order, shapes -- and
-never on a clock or an inode.
+set, spec'd on what is deterministic -- names, order, structure --
+and never on a clock or an inode.
 
 ## ls in columns
 
@@ -116,8 +116,8 @@ z.c
 
 ## stat -f -t, df -T
 
-The numbers are a machine's; the specs judge order, shape and the
-relations stat itself guarantees.
+The numbers are a machine's; the specs judge order, structure and
+the relations stat itself guarantees.
 
 ### fixtures
 

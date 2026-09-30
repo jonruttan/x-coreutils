@@ -2,8 +2,8 @@
 
 Option parity with busybox, tranche by tranche.  docs/options.md is the
 generated scoreboard; each section here is one applet's busybox option
-set, spec'd on what is deterministic -- names, order, shapes -- and
-never on a clock or an inode.
+set, spec'd on what is deterministic -- names, order, structure --
+and never on a clock or an inode.
 
 ## ls
 
@@ -102,7 +102,7 @@ b.txt
 0
 ```
 
-### -F and -p mark the kind; -d lists the operand itself; -R descends with headers
+### -F and -p mark the file type; -d lists the operand itself; -R descends with headers
 
 ```cu
 (do (display (cu-run (list "ls" "-F" "/tmp/x-cu-ls") "")) (display (cu-run (list "ls" "-d" "/tmp/x-cu-ls") "")) (display (cu-run (list "ls" "-R" "/tmp/x-cu-ls/sub") "")))
@@ -485,7 +485,7 @@ a 10
 ### comm's flags are DIGITS, and the declaration says so
 
 `-12` is two of comm's flags, not the number twelve.  v0.13.0's Opts
-decides by shape first, so comm reads its three digits itself until
+decides by structure first, so comm reads its three digits itself until
 x-lang#650 ships; the guard and the operands still come off the parse.
 
 ```cu
@@ -752,7 +752,7 @@ The first three bytes match, so a comparison stopped there finds nothing.
 
 ### seq -s separates between, and ends with a newline
 
-That is GNU's and busybox's shape. The BSD seq appends the separator
+That is what GNU and busybox both do. The BSD seq appends the separator
 after the last value and ends without a newline; busybox is the parity
 target, so this differs from the system seq on purpose.
 

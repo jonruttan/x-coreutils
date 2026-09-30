@@ -29,26 +29,26 @@
 (def %cu-mode-octal4
   (fn (_ mode) (%cu-pad-zero (%cu-mode-octal mode) 4)))
 
-(def %cu-kind-letter
-  (fn (_ kind)
+(def %cu-file-type-letter
+  (fn (_ file-type)
     (match
-      ((eq? kind (lit dir))    "d")
-      ((eq? kind (lit link))   "l")
-      ((eq? kind (lit char))   "c")
-      ((eq? kind (lit block))  "b")
-      ((eq? kind (lit fifo))   "p")
-      ((eq? kind (lit socket)) "s")
+      ((eq? file-type (lit dir))    "d")
+      ((eq? file-type (lit link))   "l")
+      ((eq? file-type (lit char))   "c")
+      ((eq? file-type (lit block))  "b")
+      ((eq? file-type (lit fifo))   "p")
+      ((eq? file-type (lit socket)) "s")
       (#t "-"))))
 
-(def %cu-kind-word
-  (fn (_ kind)
+(def %cu-file-type-word
+  (fn (_ file-type)
     (match
-      ((eq? kind (lit dir))    "directory")
-      ((eq? kind (lit link))   "symbolic link")
-      ((eq? kind (lit char))   "character special file")
-      ((eq? kind (lit block))  "block special file")
-      ((eq? kind (lit fifo))   "fifo")
-      ((eq? kind (lit socket)) "socket")
+      ((eq? file-type (lit dir))    "directory")
+      ((eq? file-type (lit link))   "symbolic link")
+      ((eq? file-type (lit char))   "character special file")
+      ((eq? file-type (lit block))  "block special file")
+      ((eq? file-type (lit fifo))   "fifo")
+      ((eq? file-type (lit socket)) "socket")
       (#t "regular file"))))
 
 ; rwx for one octal digit, the execute place spelled X when the bit is set and
@@ -77,8 +77,8 @@
         (%cu-perm-triple mode 0 512 "t" "T")))))               ; 01000
 
 (def %cu-perm-string
-  (fn (_ kind mode)
-    (string-append (%cu-kind-letter kind) (%cu-perm-places mode))))
+  (fn (_ file-type mode)
+    (string-append (%cu-file-type-letter file-type) (%cu-perm-places mode))))
 
 ; --- stat ---------------------------------------------------------------------
 
@@ -107,7 +107,7 @@
 ; so a format is never silently eaten.
 (def %cu-stat-spec
   (fn (_ c name st)
-    (def kind (%cu-stat-get st (lit kind)))
+    (def file-type (%cu-stat-get st (lit file-type)))
     (def mode (%cu-stat-get st (lit mode)))
     (def num (fn (_ key) (%cu-int->str (%cu-stat-get st key))))
     (def hex (fn (_ key) (%cu-hexs (%cu-stat-get st key))))
@@ -118,7 +118,7 @@
       ((= c 66)  "512")                         ; B
       ((= c 102) (%cu-hexs mode))               ; f
       ((= c 97)  (%cu-mode-octal mode))         ; a
-      ((= c 65)  (%cu-perm-string kind mode))   ; A
+      ((= c 65)  (%cu-perm-string file-type mode))   ; A
       ((= c 117) (num (lit uid)))               ; u
       ((= c 85)  (%cu-stat-user (%cu-stat-get st (lit uid))))    ; U
       ((= c 103) (num (lit gid)))               ; g
@@ -131,7 +131,7 @@
       ((= c 82)  (hex (lit rdev)))              ; R
       ((= c 116) (%cu-hexs (%cu-dev-major (%cu-stat-get st (lit rdev)))))   ; t
       ((= c 84)  (%cu-hexs (%cu-dev-minor (%cu-stat-get st (lit rdev)))))   ; T
-      ((= c 70)  (%cu-kind-word kind))          ; F
+      ((= c 70)  (%cu-file-type-word file-type))          ; F
       ((= c 88)  (num (lit atime)))             ; X
       ((= c 89)  (num (lit mtime)))             ; Y
       ((= c 90)  (num (lit ctime)))             ; Z
@@ -186,20 +186,20 @@
 ; the owner and group as their ids in five columns and names in eight.
 (def %cu-stat-default
   (fn (_ name st)
-    (def kind (%cu-stat-get st (lit kind)))
+    (def file-type (%cu-stat-get st (lit file-type)))
     (def mode (%cu-stat-get st (lit mode)))
     (def dev (%cu-stat-get st (lit dev)))
     (def rdev (%cu-stat-get st (lit rdev)))
     (def uid (%cu-stat-get st (lit uid)))
     (def gid (%cu-stat-get st (lit gid)))
     (def nlink (%cu-int->str (%cu-stat-get st (lit nlink))))
-    (def device? (if (eq? kind (lit char)) #t (eq? kind (lit block))))
+    (def device? (if (eq? file-type (lit char)) #t (eq? file-type (lit block))))
     (string-concat
       (list "  File: " name "\n"
             "  Size: " (%cu-int->str (%cu-stat-get st (lit size)))
             "\tBlocks: " (%cu-int->str (%cu-stat-get st (lit blocks)))
             "\tIO Block: " (%cu-int->str (%cu-stat-get st (lit blksize)))
-            "\t" (%cu-kind-word kind) "\n"
+            "\t" (%cu-file-type-word file-type) "\n"
             "Device: " (%cu-int->str (%cu-dev-major dev)) ","
             (%cu-int->str (%cu-dev-minor dev))
             "\tInode: "
@@ -213,7 +213,7 @@
               nlink)
             "\n"
             "Access: (" (%cu-mode-octal4 mode) "/"
-            (%cu-perm-string kind mode) ")  Uid: ("
+            (%cu-perm-string file-type mode) ")  Uid: ("
             (%cu-pad-left (%cu-int->str uid) 5) "/"
             (%cu-pad-left (%cu-stat-user uid) 8) ")   Gid: ("
             (%cu-pad-left (%cu-int->str gid) 5) "/"
@@ -375,7 +375,7 @@
         (if (not (Err err? st)) st
           (do (%cu-du-bad! way
                 (string-concat
-                  (if (eq? (file-lstat-kind path) (lit link))
+                  (if (eq? (file-lstat-file-type path) (lit link))
                     (list "du: cannot access '" path "'\n")
                     (list "du: cannot access '" path "': " (file-err-text st)
                           "\n"))))
@@ -399,7 +399,7 @@
 (def %cu-du-once?
   (fn (_ way st)
     (if (%cu-du-at way (lit hash-all)) #t
-      (if (eq? (%cu-stat-get st (lit kind)) (lit dir)) #f
+      (if (eq? (%cu-stat-get st (lit file-type)) (lit dir)) #f
         (> (%cu-stat-get st (lit nlink)) 1)))))
 
 ; whether ST's inode was counted already; it is counted from now on either way
@@ -430,7 +430,7 @@
         (let ((here (if top? (%cu-stat-get st (lit dev)) root)))
           (match
             ((%cu-du-skip? way st top? here) 0)
-            ((eq? (%cu-stat-get st (lit kind)) (lit dir))
+            ((eq? (%cu-stat-get st (lit file-type)) (lit dir))
               (%cu-du-dir way path level st here))
             (#t
               (let ((n (%cu-du-blocks st)))

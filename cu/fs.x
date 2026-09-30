@@ -216,7 +216,7 @@
 ; where a copy would truncate it, so the old name goes first -- as cp drops it
 (def %cp-clear!
   (fn (_ dst)
-    (if (eq? (file-lstat-kind dst) (lit none)) () (file-unlink dst))))
+    (if (eq? (file-lstat-file-type dst) (lit none)) () (file-unlink dst))))
 
 ; a link cp writes itself, for -s and -l: the refusal is cp's to report, in
 ; cp's words, rather than an error nothing catches
@@ -242,9 +242,9 @@
               (string-concat
                 (list "cp: cannot stat '" src "': " (file-err-text st) "\n")))
             1)
-        (let ((kind (%cu-stat-get st (lit kind))))
+        (let ((file-type (%cu-stat-get st (lit file-type))))
           (match
-            ((eq? kind (lit dir))
+            ((eq? file-type (lit dir))
               (if (not (%cp-recursive? o))
                 (do (file-write 2
                       (string-concat
@@ -266,16 +266,16 @@
             (#t
               (do (if (if (file-exists? dst) (Opts on? o "-f") #f)
                     (file-unlink dst) ())
-                  (%cp-write src dst o kind)))))))))
+                  (%cp-write src dst o file-type)))))))))
 
 ; The write itself: a link copied as a link, a link cp is asked to make with
 ; -s or -l, or the bytes.  Answers the status.
 (def %cp-write
-  (fn (_ src dst o kind)
+  (fn (_ src dst o file-type)
     (match
       ; the link is written and left at that: -p has nothing it can keep of a
       ; link, and would reach through this one
-      ((eq? kind (lit link))
+      ((eq? file-type (lit link))
         (let ((target (file-readlink src)))
           (do (%cp-clear! dst)
               (%cp-made (file-or-err (fn (_) (file-symlink target dst)))
@@ -377,7 +377,7 @@
           (if (if (%rm-told? o "-f") (eq? (file-err-sym st) (lit enoent)) #f)
             0
             (%rm-cannot path (file-err-text st))))
-        ((eq? (%cu-stat-get st (lit kind)) (lit dir))
+        ((eq? (%cu-stat-get st (lit file-type)) (lit dir))
           (if (%rm-recursive? o) (%rm-dir self path o st)
             (%rm-cannot path "Is a directory")))
         ((not (%rm-may? o path st)) 0)
@@ -413,7 +413,7 @@
     (if (not (%rm-told? o "-i")) #t
       (%fs-ask
         (string-concat
-          (list "rm: remove " (%rm-kind-words st) " '" path "'? "))))))
+          (list "rm: remove " (%rm-file-type-words st) " '" path "'? "))))))
 
 ; and whether to go into a directory that holds anything
 (def %rm-may-enter?
@@ -424,16 +424,16 @@
       #t)))
 
 ; what rm calls a path, in the file-type words the coreutils share
-(def %rm-kind-words
+(def %rm-file-type-words
   (fn (_ st)
-    (let ((kind (%cu-stat-get st (lit kind))))
+    (let ((file-type (%cu-stat-get st (lit file-type))))
       (match
-        ((eq? kind (lit dir)) "directory")
-        ((eq? kind (lit link)) "symbolic link")
-        ((eq? kind (lit fifo)) "fifo")
-        ((eq? kind (lit socket)) "socket")
-        ((eq? kind (lit char)) "character special file")
-        ((eq? kind (lit block)) "block special file")
+        ((eq? file-type (lit dir)) "directory")
+        ((eq? file-type (lit link)) "symbolic link")
+        ((eq? file-type (lit fifo)) "fifo")
+        ((eq? file-type (lit socket)) "socket")
+        ((eq? file-type (lit char)) "character special file")
+        ((eq? file-type (lit block)) "block special file")
         ((= (%cu-stat-get st (lit size)) 0) "regular empty file")
         (#t "regular file")))))
 
@@ -554,7 +554,7 @@
 ; directory".
 (def %ln-not-dir
   (fn (_ into o t?)
-    (if (if (Opts on? o "-n") (eq? (file-lstat-kind into) (lit link)) #f)
+    (if (if (Opts on? o "-n") (eq? (file-lstat-file-type into) (lit link)) #f)
       (%ln-target into ": Not a directory")
       (let ((st (file-or-err (fn (_) (file-stat-wide into)))))
         (match
@@ -572,7 +572,7 @@
 ; it points at; a directory itself is one either way.
 (def %ln-dir?
   (fn (_ path o)
-    (if (Opts on? o "-n") (eq? (file-lstat-kind path) (lit dir))
+    (if (Opts on? o "-n") (eq? (file-lstat-file-type path) (lit dir))
       (file-dir? path))))
 
 (def %ln-name
@@ -609,7 +609,7 @@
 ; left for the link itself to be refused by
 (def %ln-displace!
   (fn (_ name o)
-    (if (eq? (file-lstat-kind name) (lit none)) ()
+    (if (eq? (file-lstat-file-type name) (lit none)) ()
       (file-or-err
         (fn (_)
           (match

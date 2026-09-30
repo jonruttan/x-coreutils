@@ -38,13 +38,13 @@
     (def dot
       (let ((go (fn (self i) (match ((>= i end) end) ((= (byte-at s i) 46) i) (#t (self (+ i 1)))))))
         (go 0)))
-    (def shaped?
+    (def structural?
       (match
         ((not (digits? 0 dot)) #f)
         ((not (match ((= dot 8) #t) ((= dot 10) #t) (#t (= dot 12)))) #f)
         ((= dot end) #t)
         (#t (if (= (- end dot) 3) (digits? (+ dot 1) end) #f))))
-    (if (not shaped?) ()
+    (if (not structural?) ()
       (let ((lead (- dot 8)))
         (def year
           (match

@@ -281,7 +281,7 @@
               (self (rest rs))))))
     (if (Err err? fd) fd (go runs))))
 
-; both rewrite a named file IN PLACE (busybox's shape) and filter
+; both rewrite a named file IN PLACE (as busybox does) and filter
 ; stdin to stdout when given no operand
 ; -u converts to unix endings and -d to dos, whichever applet was named:
 ; the two are one tool with a default, and the flags say which direction

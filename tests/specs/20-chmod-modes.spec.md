@@ -42,7 +42,7 @@ starting mode.
 644 status 0
 ```
 
-### a perm of u, g or o copies that class as it stands
+### a perm of u, g or o copies that who as it stands
 
 ```cu
 (do (mf "640" "g=u") (mf "644" "o=u") (mf "750" "g=o"))
@@ -83,7 +83,7 @@ starting mode.
 755 status 0
 ```
 
-### an empty perm list clears the class
+### an empty perm list clears the who
 
 ```cu
 (do (mf "644" "o=") (mf "644" "u=rwx,g=rx,o="))

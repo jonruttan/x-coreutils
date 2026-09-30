@@ -113,10 +113,10 @@
           (#t (self i (+ j 1) (pair (list (lit add) i j) acc))))))
     (go 0 0 ())))
 
-(def %cu-diff-tag (fn (_ op) (first op)))
+(def %cu-diff-label (fn (_ op) (first op)))
 (def %cu-diff-ai  (fn (_ op) (first (rest op))))
 (def %cu-diff-bi  (fn (_ op) (first (rest (rest op)))))
-(def %cu-diff-eq? (fn (_ op) (eq? (%cu-diff-tag op) (lit eq))))
+(def %cu-diff-eq? (fn (_ op) (eq? (%cu-diff-label op) (lit eq))))
 
 ; -t expands tabs to spaces on an eight-column stop; -T prefixes a tab so
 ; the marker does not shift the text.  Both shape the PRINTED line only.
@@ -153,7 +153,7 @@
   (fn (self ops want-a?)
     (if (null? ops) 0
       (+ (if (%cu-diff-eq? (first ops)) 1
-           (if (eq? (%cu-diff-tag (first ops))
+           (if (eq? (%cu-diff-label (first ops))
                     (if want-a? (lit del) (lit add))) 1 0))
         (self (rest ops) want-a?)))))
 
@@ -187,7 +187,7 @@
                       (string-append
                         (%cu-diff-body (vec-ref av (%cu-diff-ai op)) untab? tab?)
                         "\n")))
-                  ((eq? (%cu-diff-tag op) (lit del))
+                  ((eq? (%cu-diff-label op) (lit del))
                     (string-append "-"
                       (string-append
                         (%cu-diff-body (vec-ref av (%cu-diff-ai op)) untab? tab?)
@@ -293,7 +293,7 @@
     (def blank-op?
       (fn (_ op)
         (= (byte-len
-             (if (eq? (%cu-diff-tag op) (lit del))
+             (if (eq? (%cu-diff-label op) (lit del))
                (vec-ref av (%cu-diff-ai op))
                (vec-ref bv (%cu-diff-bi op))))
            0)))
@@ -351,7 +351,7 @@
                   (+ (%cu-diff-bi op) 2)
                   (flush dels adds hi hj acc)))
               ((not (change? op)) (self (rest l) dels adds hi hj acc))
-              ((eq? (%cu-diff-tag op) (lit del))
+              ((eq? (%cu-diff-label op) (lit del))
                 (self (rest l) (pair (vec-ref av (%cu-diff-ai op)) dels)
                   adds hi hj acc))
               (#t

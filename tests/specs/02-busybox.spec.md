@@ -2,7 +2,7 @@
 
 The busybox expansion: twenty-seven more applets through the pure
 core.  Deterministic expectations from real tool runs; the clock- and
-cwd-shaped ones assert shape, not value.
+cwd-dependent ones assert structure, not value.
 
 ## echo and printf
 
@@ -37,7 +37,7 @@ bare0
 0
 ```
 
-## sequences and shapes
+## seq's argument counts
 
 ### seq one two and three arguments
 

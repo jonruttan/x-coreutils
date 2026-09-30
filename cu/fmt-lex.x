@@ -2,8 +2,8 @@
 ;
 ; ## cu/fmt-lex.x -- one reader for every format string
 ;
-; @description printf's %s, date's %Y, stat's %n and the escapes all have the
-;   same shape; this reads them once so each applet keeps only its table.
+; @description printf's %s, date's %Y, stat's %n and the escapes all parse
+;   the same way; this reads them once so each applet keeps only its table.
 ; @author [Jon Ruttan](jonruttan@gmail.com)
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)

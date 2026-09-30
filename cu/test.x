@@ -29,15 +29,15 @@
 ; -f -d -b -c -p -S FOLLOW a symlink, as POSIX says: only -L and -h
 ; ask about the link itself.  Reading them all off lstat made
 ; `test -d /tmp` false on a machine where /tmp is a link.
-(def %t-kind?
+(def %t-file-type?
   (fn (_ p k)
     (let ((st (%t-stat p)))
-      (if (null? st) #f (eq? (%cu-stat-get st (lit kind)) k)))))
+      (if (null? st) #f (eq? (%cu-stat-get st (lit file-type)) k)))))
 
 (def %t-link?
   (fn (_ p)
     (let ((st (%t-lstat p)))
-      (if (null? st) #f (eq? (%cu-stat-get st (lit kind)) (lit link))))))
+      (if (null? st) #f (eq? (%cu-stat-get st (lit file-type)) (lit link))))))
 
 (def %t-mode-bit?
   (fn (_ p bit)
@@ -98,12 +98,12 @@
   (fn (_ op v)
     (match
       ((string=? op "-e") (file-exists? v))
-      ((string=? op "-f") (%t-kind? v (lit file)))
-      ((string=? op "-d") (%t-kind? v (lit dir)))
-      ((string=? op "-b") (%t-kind? v (lit block)))
-      ((string=? op "-c") (%t-kind? v (lit char)))
-      ((string=? op "-p") (%t-kind? v (lit fifo)))
-      ((string=? op "-S") (%t-kind? v (lit socket)))
+      ((string=? op "-f") (%t-file-type? v (lit file)))
+      ((string=? op "-d") (%t-file-type? v (lit dir)))
+      ((string=? op "-b") (%t-file-type? v (lit block)))
+      ((string=? op "-c") (%t-file-type? v (lit char)))
+      ((string=? op "-p") (%t-file-type? v (lit fifo)))
+      ((string=? op "-S") (%t-file-type? v (lit socket)))
       ((string=? op "-L") (%t-link? v))
       ((string=? op "-h") (%t-link? v))
       ((string=? op "-s")
