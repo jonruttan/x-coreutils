@@ -241,7 +241,7 @@
 
 ; --- the digest applets -------------------------------------------------------
 
-; md5sum/sha1sum/sha256sum share one shape: DIGEST then two spaces then the
+; md5sum/sha1sum/sha256sum share one format: DIGEST then two spaces then the
 ; name, with `-` for stdin. A digest is compared case-insensitively -- a
 ; checksum file may spell its hex either way -- and only at the comparison,
 ; not by lowering the whole string first.
@@ -262,7 +262,7 @@
         (go 0)))))
 
 ; One line of a checksum file -> (DIGEST . NAME), or nil when the line is
-; not one.  This family WRITES "DIGEST  NAME" -- digest, two spaces, name
+; not one.  The four checksum tools WRITE "DIGEST  NAME" -- digest, two spaces, name
 ; -- and GNU's binary form spells the separator " *" instead; busybox
 ; reads both, so both are read here.  Anything else is an improperly
 ; formatted line: the list's warnings count it, and -w names it.

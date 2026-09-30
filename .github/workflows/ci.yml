@@ -90,8 +90,7 @@ jobs:
   # text, including the branches no spec reaches, so the OS is not under test.
   #
   # x-lang main, not the declared release, as x-r5rs's if-ladders job does: the
-  # question is this repository's source shape, the platform is a parser it
-  # borrows, and the linter is tooling that `make install` does not ship.
+  # question is this repository's own source, the platform is a parser it borrows, and the linter is tooling that `make install` does not ship.
   # v0.14.0's cannot open its own includes from a checkout, so pinning it would
   # let a release bump break the lint.
   lint:

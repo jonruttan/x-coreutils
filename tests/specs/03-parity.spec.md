@@ -3,7 +3,7 @@
 Parity with busybox's coreutils set: the digests, the encodings, the
 line tools and the file-and-process half.  Every digest expectation
 below is the system tool's own output for the same bytes; the clock-
-and machine-shaped ones assert shape, not value.
+and machine-dependent ones assert structure, not value.
 
 ## the digests
 

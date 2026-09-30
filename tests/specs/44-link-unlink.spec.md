@@ -94,7 +94,7 @@ status 1
 ### a link is made, and a link that leads nowhere is removed
 
 ```cu
-(do (run (list "link" (nf "f") (nf "f2"))) (display (file-read-all (nf "f2"))) (run (list "unlink" (nf "dangle"))) (display (file-lstat-kind (nf "dangle"))) (newline))
+(do (run (list "link" (nf "f") (nf "f2"))) (display (file-read-all (nf "f2"))) (run (list "unlink" (nf "dangle"))) (display (file-lstat-file-type (nf "dangle"))) (newline))
 ```
 ---
 ```output

@@ -1,13 +1,13 @@
 # @weight 2
 
-The checksum family's `-c`, and the two flags that shape what it says.
+Each checksum tool's `-c`, and the two flags that shape what it says.
 Its own file: these blocks write fixtures and read them back, and the
 suite runs a file's snippets in one process without collecting between
 them, so they belong beside their own fixtures rather than on the end of
 the option specs.
 
 `md5sum`, `sha1sum`, `sha256sum` and `sha512sum` share one driver, so
-they share one option set and one set of answers; the family block at
+they share one option set and one set of answers; the shared block at
 the end is what pins that rather than four copies of everything.
 
 ## reading checksums back
@@ -133,7 +133,7 @@ reach stdout -- the point of the flag is that the notice exists at all.
 ---
     1
 
-## the whole family takes it
+## all four take it
 
 ### sha1sum, sha256sum and sha512sum check the same way
 

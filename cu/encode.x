@@ -49,17 +49,17 @@
 
 ; one field, padded to the width its type prints, from a line that ends at END
 (def %cu-od-field
-  (fn (_ s i end kind size)
+  (fn (_ s i end od-type size)
     (def w (fn (_ one two four)
              (match ((= size 1) one) ((= size 2) two) (#t four))))
-    (if (eq? kind (lit c)) (%cu-pad-left (%cu-od-char (byte-at s i)) 4)
+    (if (eq? od-type (lit c)) (%cu-pad-left (%cu-od-char (byte-at s i)) 4)
       (let ((v (%cu-od-word s i size end)))
         (match
-          ((eq? kind (lit o))
+          ((eq? od-type (lit o))
             (string-append " " (%cu-pad-zero (%cu-oct->str v) (w 3 6 11))))
-          ((eq? kind (lit x))
+          ((eq? od-type (lit x))
             (string-append " " (%cu-pad-zero (%cu-hexs v) (w 2 4 8))))
-          ((eq? kind (lit u))
+          ((eq? od-type (lit u))
             (%cu-pad-left (%cu-int->str v) (w 4 6 11)))
           (#t (%cu-pad-left (%cu-int->str (%cu-od-signed v size))
                 (w 5 7 12))))))))
@@ -93,11 +93,11 @@
       size)))
 
 (def %cu-od-line
-  (fn (_ s from stop kind size)
+  (fn (_ s from stop od-type size)
     (def go
       (fn (self i acc)
         (if (>= i stop) (string-concat (reverse acc))
-          (self (+ i size) (pair (%cu-od-field s i stop kind size) acc)))))
+          (self (+ i size) (pair (%cu-od-field s i stop od-type size) acc)))))
     (go from ())))
 
 (def %cu-od-radix
@@ -159,7 +159,7 @@
 ; collapses to `*`, unless -v, and STARRED says the `*` is out already.
 ; Answers (NEXT PREV STARRED), NEXT where the lines stopped.
 (def %cu-od-dump
-  (fn (_ kind size rad v?)
+  (fn (_ od-type size rad v?)
     (fn (_ run at prev starred last?)
       (def text (first run))
       (def end (rest run))
@@ -171,7 +171,7 @@
             (if (if (>= i end) #t (if (< (- stop i) 16) (not last?) #f))
               (list i prior starred?)
               (do (%cu-sweep-at i %cu-sweep-steps)
-                (let ((body (%cu-od-line text i stop kind size)))
+                (let ((body (%cu-od-line text i stop od-type size)))
                   (if (%cu-od-repeat? v? body prior (- stop i))
                     (do (if starred? () (display "*\n"))
                         (self stop body #t))
@@ -241,10 +241,10 @@
       (reverse
         (map (fn (_ e) (rest e))
           (filter (fn (_ e) (eq? (first e) (lit op))) st))))
-    (def ty (%cu-od-opt st (lit type) (pair (lit o) 2)))
+    (def od-type (%cu-od-opt st (lit type) (pair (lit o) 2)))
     (def lim (%cu-od-opt st (lit limit) (- 0 1)))
     (def rad (%cu-od-opt st (lit radix) (lit o)))
-    (def dump (%cu-od-dump (first ty) (rest ty) rad (%cu-od-opt st (lit verbose) #f)))
+    (def dump (%cu-od-dump (first od-type) (rest od-type) rad (%cu-od-opt st (lit verbose) #f)))
     ; -j skips its bytes first and -N counts from what is left, as od does,
     ; and the lines go out as the input is read.  A file od cannot read is
     ; said, and what the others hold is still dumped.

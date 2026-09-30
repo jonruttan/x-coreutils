@@ -48,7 +48,7 @@
 ; with a dash, so the option declaration cannot name them and the guard
 ; never sees them.  They are still accepted, so the matrix counts them
 ; -- from here, because there is nowhere else honest to read them from.
-; the (NAME OPTIONS) shape %mx-lookup reads -- a pair here handed it a
+; the (NAME OPTIONS) layout %mx-lookup reads -- a pair here handed it a
 ; STRING where it wanted a list, and the append that followed
 ; SEGFAULTED rather than raising.
 ; WHAT AN APPLET TAKES THAT IS NOT AN OPTION.  dd's operands are

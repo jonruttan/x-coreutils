@@ -173,7 +173,7 @@
     (pair "diff" (list (list "-i" "-b" "-w" "-B" "-q" "-s" "-a" "-d"
                          "-T" "-t" "-r" "-N")
                        (list "-U" "-L" "-S")))
-    ; the checksum family shares one driver, so it shares one option set
+    ; md5sum, sha1sum, sha256sum and sha512sum share one driver, so it shares one option set
     (pair "md5sum" (list (list "-c" "-s" "-w") ()))
     (pair "sha1sum" (list (list "-c" "-s" "-w") ()))
     (pair "sha256sum" (list (list "-c" "-s" "-w") ()))
@@ -251,7 +251,7 @@
     (pair "test" (list %cu-test-operators () (lit leading)))
     (pair "[" (list %cu-test-operators () (lit leading)))
     (pair "[[" (list %cu-test-operators () (lit leading)))
-    ; find is the same shape: the paths come first and the grammar after
+    ; find works the same way: the paths come first and the grammar after
     ; them, so the parse stops at the first operand and the applet reads
     ; what is left.
     (pair "find" (list %cu-find-primaries () (lit leading)))))
@@ -271,20 +271,20 @@
     (def spec (%cu-spec-of applet))
     (def flags (if (null? spec) () (first spec)))
     (def values (if (null? spec) () (first (rest spec))))
-    (def mode (if (null? spec) ()
+    (def label (if (null? spec) ()
                 (if (null? (rest (rest spec))) () (first (rest (rest spec))))))
     (match
-      ((eq? mode (lit leading)) (Opts parse-leading flags values argv))
+      ((eq? label (lit leading)) (Opts parse-leading flags values argv))
       ; options up to the first word that is not a cluster of the flags; each
       ; letter reaches the parse as a word of its own, so the flags are listed
       ; in the order given (the parse reverses a cluster's), and the rest come
       ; behind a -- of its own
-      ((eq? mode (lit known))
+      ((eq? label (lit known))
         (let ((split (%cu-known-flags flags argv ())))
           (Opts parse flags values (append (first split) (pair "--" (rest split))))))
       ; no options at all: a first -- goes, as getopt's would, and the rest
       ; reach the parse behind a -- of its own, so each is an operand
-      ((eq? mode (lit none))
+      ((eq? label (lit none))
         (Opts parse () ()
           (pair "--" (if (if (pair? argv) (string=? (first argv) "--") #f)
                        (rest argv) argv))))

@@ -8,7 +8,7 @@
 ;
 ; chmod chown chgrp ln link readlink realpath mkfifo df sync.  Every
 ; applet here rides a door x-lang opened for this bundle (PR #607);
-; none of them existed while the tool tier could only read and write.
+; none of them existed while this bundle could only read and write.
 
 ; --- the mode, read two ways --------------------------------------------------
 
@@ -43,9 +43,9 @@
 ; it): `chmod +w` under a umask of 022 grants w to the user alone.
 ;
 ; s is the setuid bit with u and the setgid bit with g, t the sticky bit with o;
-; = clears the special bit of each class it names.  X is x, but only where an
+; = clears the special bit of each who it names.  X is x, but only where an
 ; execute bit is already set or the path is a directory.  A perm of u, g or o
-; is that class's permissions as they stand, copied to the who's triples.
+; is that who's permissions as they stand, copied to the who's triples.
 (def %cu-mode-triples
   (fn (_ c)
     (match
@@ -74,7 +74,7 @@
 
 ; A perm run from I: the bits it names, spread over all three triples, and
 ; where it ends.  CURRENT and DIR? decide X, and a lone u, g or o copies that
-; class as it stands.  Answers (BITS SPECIALS NEXT), or nil when a letter is
+; who as it stands.  Answers (BITS SPECIALS NEXT), or nil when a letter is
 ; none of the perms.
 (def %cu-mode-perms
   (fn (_ s i current dir?)
@@ -244,7 +244,7 @@
 (def %cu-chmod-stat-failure
   (fn (_ path e)
     (if (if (eq? (file-err-sym e) (lit enoent))
-          (eq? (file-lstat-kind path) (lit link))
+          (eq? (file-lstat-file-type path) (lit link))
           #f)
       (string-concat (list "cannot operate on dangling symlink '" path "'"))
       (string-concat (list "cannot access '" path "': " (file-err-text e))))))
@@ -291,7 +291,7 @@
       (if (Err err? st)
         (%cu-chmod-unreached how path (%cu-chmod-stat-failure path st))
         (let ((old (bit-and (%cu-stat-get st (lit mode)) 4095))
-              (dir? (eq? (%cu-stat-get st (lit kind)) (lit dir))))
+              (dir? (eq? (%cu-stat-get st (lit file-type)) (lit dir))))
           (let ((new (%cu-mode-keep-setid spec
                        (%cu-mode-of spec old dir? umask) old dir?)))
             (let ((r (file-or-err (fn (_) (file-chmod path new)))))
@@ -302,7 +302,7 @@
                     ())
                   (%cu-chmod-report how path old new (Err err? r))
                   (%cu-max-status (if (Err err? r) 1 0)
-                    (if (if recurse? (eq? (%cu-stat-get st (lit kind)) (lit dir)) #f)
+                    (if (if recurse? (eq? (%cu-stat-get st (lit file-type)) (lit dir)) #f)
                       (%cu-chmod-kids how spec path umask)
                       0))))))))))
 
@@ -579,7 +579,7 @@
     (if (not (first way)) #f
       (if link?
         (if (%cu-chown-follows? way top?) (file-dir? path) #f)
-        (eq? (%cu-stat-get st (lit kind)) (lit dir))))))
+        (eq? (%cu-stat-get st (lit file-type)) (lit dir))))))
 
 ; One path: under -R the entries of a directory FIRST, then the path itself --
 ; chown reads a directory before it changes it, where chmod sets the mode first.
@@ -600,7 +600,7 @@
 ; its own.  Every other path is read as it stands.
 (def %cu-chown-read
   (fn (_ how applet ids path way top? seen lst)
-    (let ((link? (eq? (%cu-stat-get lst (lit kind)) (lit link))))
+    (let ((link? (eq? (%cu-stat-get lst (lit file-type)) (lit link))))
       (if (if link? (not (%cu-chown-itself? way)) #f)
         (let ((st (file-or-err (fn (_) (file-stat-wide path)))))
           (if (Err err? st)
@@ -659,7 +659,7 @@
 ; the link itself is what was asked for, so lchown is the door.
 (def %cu-chown-set
   (fn (_ how applet ids path st)
-    (let ((r (if (eq? (%cu-stat-get st (lit kind)) (lit link))
+    (let ((r (if (eq? (%cu-stat-get st (lit file-type)) (lit link))
                (%cu-chown-link path (first ids) (%cu-nth 1 ids))
                (file-or-err
                  (fn (_) (file-chown path (first ids) (%cu-nth 1 ids)))))))
@@ -811,7 +811,7 @@
       (let ((p (first ops)))
         (match
           (f? (do (display (string-append (%cu-realpath-of p) nl)) 0))
-          ((eq? (file-lstat-kind p) (lit link))
+          ((eq? (file-lstat-file-type p) (lit link))
             (do (display (string-append (file-readlink p) nl)) 0))
           ((file-exists? p) (complain p "Invalid argument"))
           (#t (complain p "No such file or directory")))))))
@@ -835,7 +835,7 @@
               (self (rest parts) (if (null? acc) acc (rest acc)) fuel)
               (let ((here (string-append "/"
                             (%cu-join-with (reverse (pair seg acc)) "/"))))
-                (if (eq? (file-lstat-kind here) (lit link))
+                (if (eq? (file-lstat-file-type here) (lit link))
                   (self
                     (append (%cu-path-parts (%cu-readlink-from here))
                       (rest parts))

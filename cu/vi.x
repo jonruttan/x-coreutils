@@ -1349,7 +1349,7 @@
   (fn (_ name fd p initial?)
     (def st (file-stat-full name))
     (def cnt
-      (if (if (null? st) #f (eq? (Assoc get (lit kind) st) (lit file)))
+      (if (if (null? st) #f (eq? (Assoc get (lit file-type) st) (lit file)))
         (%vi-read-in fd p (Assoc get (lit size) st) name)
         (do (%vi-status-line-bold! (string-append "'" name "' is not a regular file")) -1)))
     (file-close fd)

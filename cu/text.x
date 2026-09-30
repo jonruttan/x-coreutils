@@ -599,7 +599,7 @@
       (fn (_ name err)
         (string-concat (list applet ": read error: " (file-err-text err)))))))
 
-; The -z and -0 reading shape: operands (or standard input) as fields
+; The -z and -0 reading format: operands (or standard input) as fields
 ; split on a byte, which is %cu-lines over %cu-gather when the delimiter
 ; is a newline and the bytes are a string.  A NUL is neither, so the
 ; operands are read as bytes and the leftover of one file opens the
@@ -840,8 +840,8 @@
           ((= c 118) (self tok (+ i 1) digits lines? mult (list "-v") more)) ; v
           (#t (pair (lit bad) (substring tok i (+ i 1)))))))))
 
-; tail's arguments with an old count rewritten, when they have its shape: the
-; count and at most one operand that does not look like an option, or -- and one
+; tail's arguments with an old count rewritten, when they match it: the count
+; and at most one operand that does not look like an option, or -- and one
 (def %cu-tail-old
   (fn (_ argv)
     (let ((n (length argv)))
@@ -1107,7 +1107,7 @@
       (def file? (not (string=? name "-")))
       (def st (if file? (file-stat-full name) ()))
       (def size
-        (if (if (null? st) #f (eq? (%cu-stat-get st (lit kind)) (lit file)))
+        (if (if (null? st) #f (eq? (%cu-stat-get st (lit file-type)) (lit file)))
           (%cu-stat-get st (lit size)) ()))
       (def r
         (match
@@ -1428,7 +1428,7 @@
         ((null? (rest r))
           (let ((st (file-stat-full (if (string=? op "-") "/dev/fd/0" op))))
             (list name (%cu-wc-counted (first r))
-              (eq? (%cu-stat-get st (lit kind)) (lit file))
+              (eq? (%cu-stat-get st (lit file-type)) (lit file))
               (%cu-stat-get st (lit size)) () #t)))
         ((eq? (file-err-op (rest r)) (lit read))
           (list name (%cu-wc-counted (first r)) #f 0

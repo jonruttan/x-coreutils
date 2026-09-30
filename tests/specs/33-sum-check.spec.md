@@ -109,7 +109,7 @@ md5sum: WARNING: 1 line is improperly formatted
 status 0
 ```
 
-### each of the family names its own algorithm
+### each tool names its own algorithm
 
 ```cu
 (do (ck (list "sha1sum" "-c" "-w" (kh "junk")) "") (ck (list "sha256sum" "-c" "-w" (kh "junk")) "") (ck (list "sha512sum" "-c" "-w" (kh "junk")) ""))

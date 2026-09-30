@@ -213,7 +213,7 @@ behaving exactly as before.
 
 Asserted through the string door for the same reason as the bodies
 above: a `+` line is safe to quote but a context line is not, and the
-whole point is the shape of the hunk.
+whole point is the format of the hunk.
 
 ```cu
 (display (first (%cu-diff-str

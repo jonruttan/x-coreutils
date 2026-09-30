@@ -112,7 +112,7 @@
                 acc))))))
     (go 0 ())))
 
-(def %find-type-kind
+(def %find-file-type
   (fn (_ c)
     (match
       ((string=? c "f") (lit file))
@@ -167,10 +167,10 @@
 
 (def %find-empty?
   (fn (_ path st)
-    (let ((kind (%cu-stat-get st (lit kind))))
+    (let ((file-type (%cu-stat-get st (lit file-type))))
       (match
-        ((eq? kind (lit dir)) (null? (%cu-walk-names path)))
-        ((eq? kind (lit file)) (= (%cu-stat-get st (lit size)) 0))
+        ((eq? file-type (lit dir)) (null? (%cu-walk-names path)))
+        ((eq? file-type (lit file)) (= (%cu-stat-get st (lit size)) 0))
         (#t #f)))))
 
 (def %find-mtime-of
@@ -182,7 +182,7 @@
 ;
 ; The command runs once per entry and ends at a bare ; -- every {} in it is
 ; replaced by the path.  +-batching is not implemented (recorded divergence);
-; xargs is the tool for that shape and this bundle has one.
+; xargs is the tool for that job and this bundle has one.
 
 (def %find-exec-argv
   (fn (_ cmd path)
@@ -202,7 +202,7 @@
 ; --- the grammar ---------------------------------------------------------------
 ;
 ; Each of these answers (PREDICATE . REMAINING-ARGS), with nil for the
-; predicate when the expression is malformed -- the same shape test's parser
+; predicate when the expression is malformed -- the same layout test's parser
 ; uses, so the two read alike.
 
 (def %find-bad (fn (_ xs) (pair () xs)))
@@ -362,9 +362,9 @@
                 (fn (_ path name depth st) (%cu-glob? pat path)))
           (rest more)))
       ((string=? a "-type")
-        (pair (let ((k (%find-type-kind arg)))
+        (pair (let ((file-type (%find-file-type arg)))
                 (fn (_ path name depth st)
-                  (eq? (%cu-stat-get st (lit kind)) k)))
+                  (eq? (%cu-stat-get st (lit file-type)) file-type)))
           (rest more)))
       ((string=? a "-size")
         (pair (let ((spec arg))
@@ -411,7 +411,7 @@
   (fn (self path name depth pred limit st)
     (do
       (pred path name depth st)
-      (if (eq? (%cu-stat-get st (lit kind)) (lit dir))
+      (if (eq? (%cu-stat-get st (lit file-type)) (lit dir))
         (if (if (< limit 0) #t (< depth limit))
           (%find-descend path depth pred limit)
           ())

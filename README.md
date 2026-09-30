@@ -2,8 +2,8 @@
 
 <p align="center"><img src="docs/bitwise-banner.svg" alt="x-coreutils, with Bitwise the owl" width="100%"></p>
 
-The small tools of the self-hosting arc's second tier, as APPLETS of
-one bundle -- the busybox shape:
+The small tools built second in the self-hosting arc, as APPLETS of
+one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
@@ -27,7 +27,7 @@ CRC-32 with its length fold; `sort` is a merge sort with busybox's whole
 option set, keys (`-k`, `-t`) included; `expr` is a recursive-descent
 parser over the argument list with its own anchored BRE matcher,
 `\(...\)` capture and all; `chmod` reads an octal mode and the whole
-symbolic grammar -- `X`, `s`, `t`, a copied class and the umask
+symbolic grammar -- `X`, `s`, `t`, a copied who and the umask
 included, and `chown -R`, `cp` and `du` all take `-H`, `-L` and `-P`
 for what they do with a link they meet -- `du` counting a file with
 several names once, as it does; `realpath` restarts its walk

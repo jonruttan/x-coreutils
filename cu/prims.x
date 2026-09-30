@@ -30,7 +30,7 @@
   file-stat file-stat-wide file-lstat-wide file-chmod file-chown file-lchown
   file-link file-symlink file-readlink
   file-or-err file-err-text file-err-sym file-err-op
-  file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-kind file-copy
+  file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-file-type file-copy
   file-write-nuls file-write-random file-write-field cu-stdin-fields!
   file-seek file-truncate file-open-read file-open-wronly file-open-err
   file-open-or-err
@@ -128,10 +128,9 @@
 (def file-open-excl
   (fn (_ path)
     (File open path (list (lit wronly) (lit creat) (lit excl)))))
-; The key the platform's stat record holds a file's type under: kind up to
-; v0.16.0, file-type after it.
+; The key the platform's stat record holds a file's type under.
 (def %cu-file-type-key?
-  (fn (_ k) (if (eq? k (lit file-type)) #t (eq? k (lit kind)))))
+  (fn (_ k) (eq? k (lit file-type))))
 
 (def file-dir?
   (fn (_ path)
@@ -174,13 +173,13 @@
 (def %cu-sys-statfs (syscall-door (if os-darwin? (lit statfs64) (lit statfs))))
 (def %cu-sys-utimes (syscall-door (lit utimes)))
 
-; THE WIDE STAT.  File stat answers four fields (size mode kind mtime);
+; THE WIDE STAT.  File stat answers four fields (size mode file-type mtime);
 ; stat(1), du(1) and id(1) want the rest of the struct, so this decodes
 ; the same buffer against the whole of it.  The layout is the platform's
 ; (stat-layout), whose field order differs from one to the next, so the
 ; alist is assembled by name.  Answers () when the path is gone.
 
-(def %cu-mode-kind
+(def %cu-mode-file-type
   (fn (_ mode)
     (let ((fmt (& mode 61440)))
       (match
@@ -199,8 +198,8 @@
     (def r (%cu-sys-stat path buf))
     (if (< r 0) ()
       (let ((d (Struct unpack stat-layout buf)))
-        (pair (pair (lit kind)
-                (%cu-mode-kind (rest (Assoc entry (lit mode) d))))
+        (pair (pair (lit file-type)
+                (%cu-mode-file-type (rest (Assoc entry (lit mode) d))))
           d)))))
 
 (def vec-make (fn (_ n fill) (Vector make n fill)))
@@ -527,7 +526,7 @@
                 (self (+ i 1) (- left k)))))))
     (go 0 n)))
 
-; S then one DELIM byte, which is the -z and -0 output shape.  Both go
+; S then one DELIM byte, which is the -z and -0 output format.  Both go
 ; through File write: display would reach fd 1 by another road, and the
 ; two orders are not guaranteed to agree.  The count is byte-len's, as
 ; file-write's is.
@@ -635,14 +634,8 @@
 
 ; --- the metadata doors (x-lang PR #607) --------------------------------------
 
-; The platform's stat record, with the file's type under kind whichever key
-; the platform holds it under, so that a reader asks for one key.
-(def file-stat
-  (fn (_ path)
-    (let ((st (File stat path)))
-      (let ((e (Assoc entry (lit file-type) st)))
-        (if (null? e) st (pair (pair (lit kind) (rest e)) st))))))
-
+; The platform's stat record.
+(def file-stat (fn (_ path) (File stat path)))
 ; the wide stat, raising the platform's io Err when the path cannot be read:
 ; file-stat-full answers nil instead, and a caller that reports the reason
 ; wants the Err.  The narrow stat is what raises; the wide one then decodes.
@@ -868,12 +861,12 @@
           (filter (fn (_ ws) (>= (length ws) 3))
             (map (fn (_ l) (%cu-words-line l)) (%cu-lines text))))))))
 
-; the kind a path has WITHOUT following it: the one question ln,
+; the file type a path has WITHOUT following it: the one question ln,
 ; readlink and realpath ask, and the one File stat cannot answer.  A
-; DANGLING link still has a kind, so the absence is caught from lstat
+; DANGLING link still has a file type, so the absence is caught from lstat
 ; rather than pre-tested with exists? -- which follows the link, and
 ; would call a dangling one missing.
-(def file-lstat-kind
+(def file-lstat-file-type
   (fn (_ path)
     (guard (e (lit none))
       (let ((go (fn (self es)
@@ -900,8 +893,8 @@
     (def r (%cu-sys-lstat path buf))
     (if (< r 0) ()
       (let ((d (Struct unpack stat-layout buf)))
-        (pair (pair (lit kind)
-                (%cu-mode-kind (rest (Assoc entry (lit mode) d))))
+        (pair (pair (lit file-type)
+                (%cu-mode-file-type (rest (Assoc entry (lit mode) d))))
           d)))))
 
 ; Binary-safe copy: a 64K fd-level loop driven by raw byte counts, because a
