@@ -85,9 +85,11 @@ Self-contained: no `(requires-lang ...)`.
     default build does, not a regular expression), and the colon
     commands over busybox's addresses (`. $ + - 'a /text/ ?text? %`,
     `,` and `;`): a line number, `:d :y :l := :s`, `:w :wq :x :wn`,
-    `:r :e :f` with `%` and `#`, and `:q :n :prev :rew`.  `:!`,
-    `:set` and busybox's other commands answer `is not implemented`,
-    and it takes no options yet.  A message wider than
+    `:r :e :f` with `%` and `#`, and `:q :n :prev :rew`; `:set` and
+    busybox's options, `ai et fl ic sm ts` (autoindent, expandtab,
+    flash, ignorecase, showmatch, tabstop).  `:!` and busybox's other
+    commands answer `is not implemented`, and it takes no command-line
+    options yet.  A message wider than
     the screen waits for one Return, where busybox's waits again after
     every Return and takes no more commands.  `^C` from a terminal goes
     back to the top in command mode, as busybox's SIGINT handler does;
@@ -159,6 +161,7 @@ parsed by x-lang's `Opts`.
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/vi-edit.x      vi's operators over those motions, registers, marks
     cu/vi-ex.x        vi's search and : commands, over busybox's addresses
+    cu/vi-set.x       vi's options: :set, and what ai et fl ic sm ts do
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 

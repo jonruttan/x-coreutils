@@ -131,6 +131,9 @@
     (def whole? (= type 1))
     (def from (if whole? (%vi-begin-line p) p))
     (def to (if whole? (%vi-end-line q) q))
+    (if (if whole? (= c 99) #f)
+      (set! %vi-newindent (%vi-get-column (%vi+ from (%vi-indent-len from))))
+      ())
     (set! %vi-dot (%vi-yank-delete from to type (if (%vi-one-of? c (list 121 89)) #f #t)))
     (if whole? (%vi-cdy-whole c p) ())
     (match
@@ -146,7 +149,7 @@
       ((= c 99)
         (do (set! %vi-cmd-mode 1)
             (set! %vi-dot (%vi-char-insert %vi-dot 10))
-            (if (= %vi-dot (%vi- %vi-end 1)) () (%vi-dot-prev!))))
+            (if (if (= %vi-dot (%vi- %vi-end 1)) #t (%vi-opt? %vi-ai)) () (%vi-dot-prev!))))
       ((= c 100) (do (%vi-dot-begin!) (%vi-dot-skip-over-ws!)))
       (#t (set! %vi-dot save)))))
 
