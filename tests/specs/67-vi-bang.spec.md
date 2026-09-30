@@ -37,7 +37,7 @@ types the bursts, and draws what came of them.
       (List map (fn (_ p) (if (symbol? p) (Assoc get p vi-keys) p)) parts))))
 (def vi-byte
   (fn (_ b)
-    (if (if (= b 10) #t (if (< 31 b) (< b 127) #f))
+    (if (if (= b #\newline) #t (if (< b #\space) #f (< b #\delete)))
       (bytes->str (list b))
       (bytes->str (list 92 (%vi+ 48 (%vi/ b 64)) (%vi+ 48 (%vi% (%vi/ b 8) 8)) (%vi+ 48 (%vi% b 8)))))))
 (def vi-shown
@@ -46,7 +46,7 @@ types the bursts, and draws what came of them.
       (List map (fn (_ i) (vi-byte (& (byte-at s i) 255))) (List range 0 (byte-len s))))))
 (def vi-trim
   (fn (self s)
-    (if (if (< 0 (byte-len s)) (= (byte-at s (- (byte-len s) 1)) 32) #f)
+    (if (if (< 0 (byte-len s)) (= (byte-at s (- (byte-len s) 1)) #\space) #f)
       (self (substring s 0 (- (byte-len s) 1)))
       s)))
 
@@ -119,20 +119,20 @@ types the bursts, and draws what came of them.
     (def x (if (%vi< i n) (%vi& (byte-at s i) 255) -1))
     (match
       ((%vi< x 0) ())
-      ((if (= x 27) (if (%vi< (%vi+ i 1) n) (= (byte-at s (%vi+ i 1)) 91) #f) #f)
+      ((if (= x #\escape) (if (%vi< (%vi+ i 1) n) (= (byte-at s (%vi+ i 1)) #\[) #f) #f)
         (self s (vt-csi-at s (%vi+ i 2) n)))
-      ((= x 27) (self s (%vi+ i 1)))
+      ((= x #\escape) (self s (%vi+ i 1)))
       (#t (do (vt-byte! x) (self s (%vi+ i 1)))))))
 
 (def vt-byte!
   (fn (_ x)
     (match
-      ((= x 7) (set! vt-bells (%vi+ vt-bells 1)))
-      ((= x 13) (do (set! vt-c 0) (set! vt-wrap #f)))
-      ((= x 10) (vt-newline!))
-      ((= x 8) (do (if (%vi< 0 vt-c) (set! vt-c (%vi- vt-c 1)) ()) (set! vt-wrap #f)))
-      ((if (%vi< 31 x) (%vi< x 127) #f) (vt-put! x))
-      ((%vi< 126 x) (vt-put! 63))
+      ((= x #\alarm) (set! vt-bells (%vi+ vt-bells 1)))
+      ((= x #\return) (do (set! vt-c 0) (set! vt-wrap #f)))
+      ((= x #\newline) (vt-newline!))
+      ((= x #\backspace) (do (if (%vi< 0 vt-c) (set! vt-c (%vi- vt-c 1)) ()) (set! vt-wrap #f)))
+      ((if (%vi< x #\space) #f (%vi< x #\delete)) (vt-put! x))
+      ((%vi< #\~ x) (vt-put! 63))
       (#t ()))))
 
 ; ESC [, its parameters -- digits, ; and ? -- and the byte that ends it
@@ -144,23 +144,23 @@ types the bursts, and draws what came of them.
 (def vt-params-end
   (fn (self s j n)
     (def b (if (%vi< j n) (%vi& (byte-at s j) 255) -1))
-    (if (match ((= b 59) #t) ((= b 63) #t) (#t (if (%vi< 47 b) (%vi< b 58) #f)))
+    (if (match ((= b #\;) #t) ((= b #\?) #t) (#t (%vi-in? b #\0 #\9)))
       (self s (%vi+ j 1) n)
       j)))
 
 (def vt-csi!
   (fn (_ ps fin)
     (match
-      ((= fin 72) (vt-goto! (vt-param ps 0) (vt-param ps 1)))
-      ((= fin 75) (vt-clear-eol!))
-      ((if (= fin 104) (string=? ps "?5") #f) (set! vt-flashes (%vi+ vt-flashes 1)))
-      ((= fin 74) (vt-clear-eos!))
+      ((= fin #\H) (vt-goto! (vt-param ps 0) (vt-param ps 1)))
+      ((= fin #\K) (vt-clear-eol!))
+      ((if (= fin #\h) (string=? ps "?5") #f) (set! vt-flashes (%vi+ vt-flashes 1)))
+      ((= fin #\J) (vt-clear-eos!))
       (#t ()))))
 
 ; the Kth of PS's numbers, 1 when it is missing or empty
 (def vt-param
   (fn (self ps k)
-    (def semi (vt-index ps 59 0))
+    (def semi (vt-index ps #\; 0))
     (match
       ((= k 0) (vt-num (if (%vi< semi 0) ps (%vi-bsub ps 0 semi))))
       ((%vi< semi 0) 1)
@@ -226,7 +226,7 @@ types the bursts, and draws what came of them.
     (display
       (string-concat
         (list "exit " (%cu-int->str st) "\n"
-              (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) 10) #t) f
+              (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) #\newline) #t) f
                 (string-append f " (no newline)\n"))
               "--\n"
               (vt-draw %vi-drawn rows cols))))))

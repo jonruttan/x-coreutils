@@ -96,7 +96,7 @@
 (def %vi-eq-at
   (fn (self s i)
     (match
-      ((%vi< i (byte-len s)) (if (= (byte-at s i) 61) i (self s (%vi+ i 1))))
+      ((%vi< i (byte-len s)) (if (= (byte-at s i) #\=) i (self s (%vi+ i 1))))
       (#t -1))))
 
 (def %vi-bad-option
@@ -128,14 +128,14 @@
 
 (def %vi-zeros-end
   (fn (self i j s)
-    (if (if (%vi< i j) (= (byte-at s i) 48) #f) (self (%vi+ i 1) j s) i)))
+    (if (if (%vi< i j) (= (byte-at s i) #\0) #f) (self (%vi+ i 1) j s) i)))
 
 (def %vi-alnum?
   (fn (_ c)
     (match
       ((%vi-digit? c) #t)
-      ((if (%vi< 64 c) (%vi< c 91) #f) #t)
-      (#t (if (%vi< 96 c) (%vi< c 123) #f)))))
+      ((%vi-in? c #\A #\Z) #t)
+      (#t (%vi-in? c #\a #\z)))))
 
 ; --- flash ------------------------------------------------------------------
 
@@ -143,9 +143,9 @@
 ; a key comes
 (def %vi-flash
   (fn (_ h)
-    (%vi-put (string-append (bytes->str (list 27)) "[?5h"))
+    (%vi-put (string-append %vi-esc "[?5h"))
     (%vi-src-ready? (%vi* h 10))
-    (%vi-put (string-append (bytes->str (list 27)) "[?5l"))))
+    (%vi-put (string-append %vi-esc "[?5l"))))
 
 ; --- ignorecase -------------------------------------------------------------
 
@@ -184,10 +184,10 @@
 ; autoindent for a newline
 (def %vi-after-insert
   (fn (_ p c)
-    (if (if (%vi-opt? %vi-sm) (%vi-one-of? c (list 41 93 125)) #f)
+    (if (if (%vi-opt? %vi-sm) (%vi-one-of? c (list #\) #\] #\})) #f)
       (%vi-showmatching (%vi- p 1))
       ())
-    (if (if (%vi-opt? %vi-ai) (= c 10) #f)
+    (if (if (%vi-opt? %vi-ai) (= c #\newline) #f)
       (%vi-autoindent p)
       (%vi-indent-reset p))))
 
@@ -220,7 +220,7 @@
     (def nspc (if (%vi-opt? %vi-et) col (%vi% col %vi-tabstop)))
     (if (= col 0) (%vi-indent-reset p)
       (do (set! %vi-indentcol (if (= %vi-cmd-mode 0) 0 col))
-          (%vi-string-insert! p (string-append (%vi-run 9 ntab) (%vi-run 32 nspc)))
+          (%vi-string-insert! p (string-append (%vi-run #\tab ntab) (%vi-run #\space nspc)))
           (%vi+ p (%vi+ ntab nspc))))))
 
 ; N of the byte B
@@ -229,7 +229,7 @@
     (match
       ((%vi< n 1) "")
       ((%vi< 32 n) (string-append (self b 32) (self b (%vi- n 32))))
-      (#t (%vi-bsub (if (= b 9) %vi-tab-run %vi-space-run) 0 n)))))
+      (#t (%vi-bsub (if (= b #\tab) %vi-tab-run %vi-space-run) 0 n)))))
 (def %vi-tab-run (string-concat (List map (fn (_ i) (bytes->str (list 9))) (List range 0 32))))
 (def %vi-space-run (string-concat (List map (fn (_ i) " ") (List range 0 32))))
 
@@ -238,7 +238,7 @@
   (fn (_ p)
     (def col (%vi-get-column p))
     (def n (%vi+ (%vi- (%vi-next-tabstop col) col) 1))
-    (%vi-string-insert! p (%vi-run 32 n))
+    (%vi-string-insert! p (%vi-run #\space n))
     (%vi+ p n)))
 
 ; Esc on a line that holds only the autoindent just made takes it out
@@ -248,7 +248,7 @@
     (match
       ((if (%vi-opt? %vi-ai) (%vi< 0 len) #f)
         (if (if (= (%vi-get-column (%vi+ bol len)) %vi-indentcol)
-              (= (byte-at %vi-text (%vi+ bol len)) 10)
+              (= (byte-at %vi-text (%vi+ bol len)) #\newline)
               #f)
           (do (%vi-hole-delete! bol (%vi- (%vi+ bol len) 1)) bol)
           p))
