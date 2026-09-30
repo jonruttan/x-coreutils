@@ -877,7 +877,11 @@
 
 (def %vi-blank? (fn (_ c) (if (= c #\space) #t (= c #\tab))))
 (def %vi-space?
-  (fn (_ c) (if (= c #\space) #t (if (%vi< c #\tab) #f (if (%vi< #\return c) #f #t)))))
+  (fn (_ c)
+    (match
+      ((= c #\space) #t)
+      ((%vi< c #\tab) #f)
+      (#t (if (%vi< #\return c) #f #t)))))
 
 (def %vi-dot-skip-over-ws!
   (fn (self)
