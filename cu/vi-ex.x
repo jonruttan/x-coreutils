@@ -266,7 +266,7 @@
     (match
       ((= (byte-len cmd) 0)
         (if (%vi< e 0) () (do (set! %vi-dot (%vi-find-line e)) (%vi-dot-skip-over-ws!))))
-      ((= c0 33) (%vi-not-implemented cmd))
+      ((= c0 33) (%vi-colon-shell buf (%vi-part parts 6) got?))
       ((if (= c0 61) (= (byte-len cmd) 1) #f)
         (%vi-status-line! (%cu-int->str (if got? e (%vi-count-lines 0 %vi-dot)))))
       ((%vi-prefix? cmd "delete") (%vi-colon-delete got? q r))
@@ -379,7 +379,8 @@
       (#t (set! %vi-last-status ())))))
 
 ; busybox's expand_args: % the file's name, # the one before, \ the next byte
-; as itself; then THEN with the name, or nothing when % or # has none
+; as itself -- and the byte after that as itself too, since busybox's loop
+; steps past it; then THEN with the name, or nothing when % or # has none
 (def %vi-expanded
   (fn (_ args then)
     (def x (%vi-expand-from args 0 ()))
@@ -393,7 +394,8 @@
       ((= c 37) (%vi-expand-name self s i acc %vi-filename))
       ((= c 35) (%vi-expand-name self s i acc %vi-alt-filename))
       ((if (= c 92) (%vi< (%vi+ i 1) (byte-len s)) #f)
-        (self s (%vi+ i 2) (pair (%vi-bsub s (%vi+ i 1) 1) acc)))
+        (self s (%vi+ i 3)
+          (pair (%vi-bsub s (%vi+ i 1) (%vi-min 2 (%vi- (byte-len s) (%vi+ i 1)))) acc)))
       (#t (self s (%vi+ i 1) (pair (%vi-bsub s i 1) acc))))))
 
 (def %vi-expand-name
@@ -589,6 +591,73 @@
     (if (if g? (%vi< after (%vi-end-line ls)) #f)
       (%vi-sub-in-line walk ls after i e find repl g? (%vi+ subs 1) lines2 i)
       (walk (%vi-next-line ls) (%vi+ i 1) e find repl g? (%vi+ subs 1) lines2 i))))
+
+; --- :! ---------------------------------------------------------------------
+
+; :!CMD -- the rest of the line after the ! run by the shell, % and # in it
+; named and its backslashes taken off, as busybox's expand_args does; the
+; terminal cooked while it runs, a status other than 0 told, and a Return
+; waited for after
+(def %vi-colon-shell
+  (fn (_ buf i got?)
+    (if got? (%vi-status-line-bold! "Range not allowed")
+      (%vi-expanded (%vi-bsub buf (%vi+ i 1) (%vi- (byte-len buf) (%vi+ i 1))) %vi-shell-run))))
+
+(def %vi-shell-run
+  (fn (_ cmd)
+    (%vi-bottom-clear)
+    (%vi-flush!)
+    (%vi-cooked!)
+    (%vi-shell-ran (%vi-shell cmd))))
+
+(def %vi-shell-ran
+  (fn (_ st)
+    (if (= st 0) ()
+      (%vi-put (string-concat (list "\nshell returned " (%cu-int->str st) "\n\n"))))
+    (%vi-raw!)
+    (%vi-hit-return "")))
+
+; the command run as busybox runs it, by libc's system: /bin/sh -c CMD, with
+; this process waiting and SIGINT and SIGQUIT ignored the while; the status
+; as system answers it, an exit status times 256
+(def %vi-tty-shell
+  (fn (_ cmd) (Sys %sign-fold (%cu-ptr-call %vi-c-system cmd))))
+
+; in a spec, the command's output is drawn where vi draws, so the case sees
+; it: fds 1 and 2 go to a file while it runs, stdin comes from /dev/null, and
+; the file's bytes go to the sink after
+(def %vi-typed-shell
+  (fn (_ cmd)
+    (def out (string-append "/tmp/x-cu-vi-shell." (%cu-int->str (Sys getpid))))
+    (%vi-fds-aside! out)
+    (def st (%vi-tty-shell cmd))
+    (%vi-fds-back!)
+    (%vi-sink (file-read-all out))
+    (file-unlink out)
+    st))
+
+; fds 0, 1 and 2 kept on 60 to 62, and the command's put in their place
+(def %vi-fds-aside!
+  (fn (_ out)
+    (Sys dup2 0 60)
+    (Sys dup2 1 61)
+    (Sys dup2 2 62)
+    (def fd (File open out (list (lit wronly) (lit creat) (lit trunc)) 384))
+    (Sys dup2 fd 1)
+    (Sys dup2 fd 2)
+    (Sys close fd)
+    (def nul (File open "/dev/null" (lit rdonly)))
+    (Sys dup2 nul 0)
+    (Sys close nul)))
+
+(def %vi-fds-back!
+  (fn (_)
+    (Sys dup2 60 0)
+    (Sys dup2 61 1)
+    (Sys dup2 62 2)
+    (Sys close 60)
+    (Sys close 61)
+    (Sys close 62)))
 
 ; --- small readers ----------------------------------------------------------
 

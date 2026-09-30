@@ -87,9 +87,10 @@ Self-contained: no `(requires-lang ...)`.
     `,` and `;`): a line number, `:d :y :l := :s`, `:w :wq :x :wn`,
     `:r :e :f` with `%` and `#`, and `:q :n :prev :rew`; `:set` and
     busybox's options, `ai et fl ic sm ts` (autoindent, expandtab,
-    flash, ignorecase, showmatch, tabstop).  `:!` and busybox's other
-    commands answer `is not implemented`, and it takes no command-line
-    options yet.  A message wider than
+    flash, ignorecase, showmatch, tabstop); and `:!`, a command run by
+    libc's `system` as busybox runs it.  busybox's other commands answer
+    `is not implemented`, and it takes no command-line options yet.  A
+    message wider than
     the screen waits for one Return, where busybox's waits again after
     every Return and takes no more commands.  `^C` from a terminal goes
     back to the top in command mode, as busybox's SIGINT handler does;
