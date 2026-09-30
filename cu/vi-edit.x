@@ -19,7 +19,7 @@
 (def %vi-at-eof?
   (fn (_ s)
     (if (= s (%vi- %vi-end 1)) #t
-      (if (= s (%vi- %vi-end 2)) (= (%vi-byte (%vi+ s 1)) 10) #f))))
+      (if (= s (%vi- %vi-end 2)) (= (%vi-byte (%vi+ s 1)) #\newline) #f))))
 
 ; busybox's find_range: the motion typed after the operator CMD run from the
 ; cursor, answering (TYPE P . Q) -- the range P through Q and its register
@@ -27,10 +27,10 @@
 (def %vi-find-range
   (fn (_ cmd)
     (def p %vi-dot)
-    (def c (if (= cmd 89) 121 (%vi-get-motion-char)))
+    (def c (if (= cmd #\Y) 121 (%vi-get-motion-char)))
     (def type (%vi-range-motion cmd c p))
     (if (= type -1)
-      (do (if (= c 27) () (%vi-indicate-error)) ())
+      (do (if (= c #\escape) () (%vi-indicate-error)) ())
       (%vi-range-ends type c (%vi-min p %vi-dot) (%vi-max p %vi-dot)))))
 
 ; the motion C run for the operator CMD from P, answering the range's type,
@@ -38,15 +38,16 @@
 (def %vi-range-motion
   (fn (_ cmd c p)
     (match
-      ((if (if (= cmd 89) #t (= cmd c)) (%vi-one-of? c (list 99 100 121 62 60)) #f)
+      ((if (if (= cmd #\Y) #t (= cmd c)) (%vi-one-of? c (list #\c #\d #\y #\> #\<)) #f)
         (%vi-range-lines))
-      ((%vi-one-of? c (list 94 37 36 48 98 66 101 69 102 70 116 84 104 110 78 47 63 124 123 125 8 127))
+      ((%vi-one-of? c (list #\^ #\% #\$ #\0 #\b #\B #\e #\E #\f #\F #\t #\T #\h #\n #\N #\/ #\?
+                            #\| #\{ #\} #\backspace #\delete))
         (do (%vi-do-cmd c)
-            (if (= p %vi-dot) -1 (if (%vi-one-of? c (list 110 78 47 63)) 2 0))))
-      ((%vi-one-of? c (list 119 87)) (%vi-range-words cmd c p))
-      ((%vi-one-of? c (list 71 72 76 43 45 103 106 107 39 13 10))
+            (if (= p %vi-dot) -1 (if (%vi-one-of? c (list #\n #\N #\/ #\?)) 2 0))))
+      ((%vi-one-of? c (list #\w #\W)) (%vi-range-words cmd c p))
+      ((%vi-one-of? c (list #\G #\H #\L #\+ #\- #\g #\j #\k #\' #\return #\newline))
         (do (%vi-do-cmd c) (if %vi-cmd-error -1 1)))
-      ((%vi-one-of? c (list 32 108)) (%vi-range-right c p))
+      ((%vi-one-of? c (list #\space #\l)) (%vi-range-right c p))
       (#t -1))))
 
 ; dd cc yy << >>: whole lines, COUNT of them
@@ -63,12 +64,12 @@
   (fn (_ cmd c p)
     (%vi-do-cmd c)
     (if (if (%vi< p %vi-dot)
-          (if (%vi-at-eof? %vi-dot) (if (= c 119) (%vi-punct? (%vi-byte %vi-dot)) #f) #t)
+          (if (%vi-at-eof? %vi-dot) (if (= c #\w) (%vi-punct? (%vi-byte %vi-dot)) #f) #t)
           #f)
       (set! %vi-dot (%vi- %vi-dot 1))
       ())
     (def t (%vi-words-back p %vi-dot))
-    (if (match ((= cmd 99) #f) ((= %vi-dot t) #f) (#t (if (= (%vi-byte %vi-dot) 10) #f #t)))
+    (if (match ((= cmd #\c) #f) ((= %vi-dot t) #f) (#t (if (= (%vi-byte %vi-dot) #\newline) #f #t)))
       (set! %vi-dot t)
       ())
     2))
@@ -80,7 +81,7 @@
     (def c (%vi-byte %vi-dot))
     (if (if (%vi< p %vi-dot) (%vi-space? c) #f)
       (do (set! %vi-dot (%vi- %vi-dot 1))
-          (self p (if (= c 10) %vi-dot t)))
+          (self p (if (= c #\newline) %vi-dot t)))
       t)))
 
 ; l and space as a range: COUNT bytes, the last left out when the line ended
@@ -98,15 +99,17 @@
 (def %vi-range-ends
   (fn (_ type c p q)
     (match
-      ((if (%vi< p q) (%vi-one-of? c (list 94 48 98 66 70 84 104 110 78 47 63 124 8 127)) #f)
+      ((if (%vi< p q)
+         (%vi-one-of? c (list #\^ #\0 #\b #\B #\F #\T #\h #\n #\N #\/ #\? #\| #\backspace #\delete))
+         #f)
         (pair type (pair p (%vi- q 1))))
-      ((if (%vi< p q) (%vi-one-of? c (list 123 125)) #f) (%vi-range-braces p q))
+      ((if (%vi< p q) (%vi-one-of? c (list #\{ #\})) #f) (%vi-range-braces p q))
       (#t (pair type (pair p q))))))
 
 (def %vi-range-braces
   (fn (_ p q)
     (def type
-      (if (if (= p (%vi-begin-line p)) (if (= (%vi-byte q) 10) #t (%vi-at-eof? q)) #f) 1 2))
+      (if (if (= p (%vi-begin-line p)) (if (= (%vi-byte q) #\newline) #t (%vi-at-eof? q)) #f) 1 2))
     (def q1 (if (%vi-at-eof? q) q (%vi- q 1)))
     (pair type
       (pair p (if (if (%vi-at-eof? q) #f (if (%vi< p q1) (if (= p (%vi-begin-line p)) #f #t) #f))
@@ -131,26 +134,26 @@
     (def whole? (= type 1))
     (def from (if whole? (%vi-begin-line p) p))
     (def to (if whole? (%vi-end-line q) q))
-    (if (if whole? (= c 99) #f)
+    (if (if whole? (= c #\c) #f)
       (set! %vi-newindent (%vi-get-column (%vi+ from (%vi-indent-len from))))
       ())
-    (set! %vi-dot (%vi-yank-delete from to type (if (%vi-one-of? c (list 121 89)) #f #t)))
+    (set! %vi-dot (%vi-yank-delete from to type (if (%vi-one-of? c (list #\y #\Y)) #f #t)))
     (if whole? (%vi-cdy-whole c p) ())
     (match
-      ((= c 99) (%vi-start-insert!))
+      ((= c #\c) (%vi-start-insert!))
       (#t (do (if (= yanks %vi-yank-count) ()
-                (%vi-yank-status! (if (= c 100) "Delete" "Yank")
+                (%vi-yank-status! (if (= c #\d) "Delete" "Yank")
                   (first (%vi-reg %vi-ydreg)) 1))
               (%vi-end-cmd-q!))))))
 
 (def %vi-cdy-whole
   (fn (_ c save)
     (match
-      ((= c 99)
+      ((= c #\c)
         (do (set! %vi-cmd-mode 1)
             (set! %vi-dot (%vi-char-insert %vi-dot 10))
             (if (if (= %vi-dot (%vi- %vi-end 1)) #t (%vi-opt? %vi-ai)) () (%vi-dot-prev!))))
-      ((= c 100) (do (%vi-dot-begin!) (%vi-dot-skip-over-ws!)))
+      ((= c #\d) (do (%vi-dot-begin!) (%vi-dot-skip-over-ws!)))
       (#t (set! %vi-dot save)))))
 
 ; --- < and > ----------------------------------------------------------------
@@ -171,20 +174,20 @@
 (def %vi-shift-lines
   (fn (self c p n)
     (if (%vi< 0 n)
-      (do (if (= c 60) (%vi-shift-left p) (%vi-shift-right p))
+      (do (if (= c #\<) (%vi-shift-left p) (%vi-shift-right p))
           (self c (%vi-next-line p) (%vi- n 1)))
       ())))
 
 (def %vi-shift-left
   (fn (_ p)
     (match
-      ((= (%vi-byte p) 9) (%vi-hole-delete! p p))
-      ((= (%vi-byte p) 32) (%vi-unindent p 0))
+      ((= (%vi-byte p) #\tab) (%vi-hole-delete! p p))
+      ((= (%vi-byte p) #\space) (%vi-unindent p 0))
       (#t ()))))
 
 (def %vi-unindent
   (fn (self p j)
-    (if (if (= (%vi-byte p) 32) (%vi< j %vi-tabstop) #f)
+    (if (if (= (%vi-byte p) #\space) (%vi< j %vi-tabstop) #f)
       (do (%vi-hole-delete! p p) (self p (%vi+ j 1)))
       ())))
 
@@ -207,7 +210,7 @@
 (def %vi-put-reg
   (fn (_ c s type)
     (def times (if (= %vi-cmdcnt 0) 1 %vi-cmdcnt))
-    (if (= type 1) (%vi-put-whole-at c) (if (= c 112) (%vi-dot-right!) ()))
+    (if (= type 1) (%vi-put-whole-at c) (if (= c #\p) (%vi-dot-right!) ()))
     (def cnt
       (if (if (= type 1) #t (%vi-has-newline? s)) 0 (%vi- (%vi* times (byte-len s)) 1)))
     (%vi-repeat (fn (_) (%vi-string-insert! %vi-dot s)))
@@ -219,7 +222,7 @@
 (def %vi-put-whole-at
   (fn (_ c)
     (match
-      ((= c 80) (%vi-dot-begin!))
+      ((= c #\P) (%vi-dot-begin!))
       ((= (%vi-end-line %vi-dot) (%vi- %vi-end 1)) (set! %vi-dot %vi-end))
       (#t (%vi-dot-next!)))))
 
@@ -238,7 +241,7 @@
 ; "x: the register the next command yanks into or puts from
 (def %vi-cmd-name-reg
   (fn (_)
-    (def c (%vi- (%vi| (%vi-get-one-char) 32) 97))
+    (def c (%vi- (%vi| (%vi-get-one-char) 32) #\a))
     (if (if (%vi< c 0) #f (%vi< c 26)) (set! %vi-ydreg c) (%vi-indicate-error))))
 (def %vi| (prim-ref (lit int) (lit |)))
 
@@ -253,7 +256,7 @@
 ; m: the cursor's place kept under a letter
 (def %vi-cmd-mark
   (fn (_)
-    (def c (%vi- (%vi| (%vi-get-one-char) 32) 97))
+    (def c (%vi- (%vi| (%vi-get-one-char) 32) #\a))
     (if (if (%vi< c 0) #f (%vi< c 26)) (%vi-mark! c %vi-dot) (%vi-indicate-error))))
 
 ; ': to the line of a mark, or with '' back to where the last jump began
@@ -261,8 +264,8 @@
   (fn (_)
     (def c (%vi| (%vi-get-one-char) 32))
     (match
-      ((if (%vi< c 97) #f (%vi< c 123)) (%vi-goto-mark (%vi-mark (%vi- c 97))))
-      ((= c 39)
+      ((%vi-in? c #\a #\z) (%vi-goto-mark (%vi-mark (%vi- c #\a))))
+      ((= c #\')
         (do (set! %vi-dot (%vi-swap-context %vi-dot))
             (%vi-dot-begin!)
             (%vi-dot-skip-over-ws!)
@@ -279,7 +282,7 @@
 ; and the one before that 27
 (def %vi-check-context
   (fn (_ c)
-    (if (%vi-one-of? c (list 58 37 123 125 39 71 72 76 77 122 47 63 78 110))
+    (if (%vi-one-of? c (list #\: #\% #\{ #\} #\' #\G #\H #\L #\M #\z #\/ #\? #\N #\n))
       (do (%vi-mark! 27 (%vi-mark 26)) (%vi-mark! 26 %vi-dot))
       ())))
 
@@ -296,7 +299,7 @@
 (def %vi-cmd-r
   (fn (_)
     (def c (%vi-get-one-char))
-    (if (= c 27) ()
+    (if (= c #\escape) ()
       (if (%vi< (%vi- (%vi-end-line %vi-dot) %vi-dot) (if (= %vi-cmdcnt 0) 1 %vi-cmdcnt))
         (%vi-indicate-error)
         (%vi-r-replace c)))
@@ -337,8 +340,8 @@
       (fn (_)
         (def c (%vi-byte %vi-dot))
         (match
-          ((if (%vi< 96 c) (%vi< c 123) #f) (%vi-flip-case (%vi- c 32)))
-          ((if (%vi< 64 c) (%vi< c 91) #f) (%vi-flip-case (%vi+ c 32)))
+          ((%vi-in? c #\a #\z) (%vi-flip-case (%vi- c 32)))
+          ((%vi-in? c #\A #\Z) (%vi-flip-case (%vi+ c 32)))
           (#t ()))
         (%vi-dot-right!)))
     (%vi-end-cmd-q!)))
@@ -353,13 +356,13 @@
   (fn (_ c)
     (def from %vi-dot)
     (set! %vi-dot (%vi-yank-delete from (%vi-dollar-line %vi-dot) 0 #t))
-    (if (= c 67) (%vi-start-insert!) (%vi-end-cmd-q!))))
+    (if (= c #\C) (%vi-start-insert!) (%vi-end-cmd-q!))))
 
 ; the byte before a line's newline, or the newline of an empty line
 (def %vi-dollar-line
   (fn (_ p)
     (def e (%vi-end-line p))
-    (if (if (= (%vi-byte e) 10) (%vi< 0 (%vi- e (%vi-begin-line e))) #f)
+    (if (if (= (%vi-byte e) #\newline) (%vi< 0 (%vi- e (%vi-begin-line e))) #f)
       (%vi- e 1)
       e)))
 

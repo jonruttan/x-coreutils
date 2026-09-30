@@ -72,7 +72,7 @@
 ; round from the far end of the text when it runs off one end
 (def %vi-search-again
   (fn (_ same)
-    (def fwd (= (%vi-byte-of %vi-last-search-pattern 0) 47))
+    (def fwd (= (%vi-byte-of %vi-last-search-pattern 0) #\/))
     (def dir (if (= same 1) (if fwd 1 -1) (if fwd -1 1)))
     (if (%vi< (byte-len %vi-last-search-pattern) 2)
       (%vi-status-line-bold! "No previous search")
@@ -123,13 +123,13 @@
     (match
       ((%vi-blank? c)
         (self buf (%vi+ i 1) got (if got (%vi+ addr sign) addr) (if got 0 sign)))
-      ((if got #f (= c 46)) (self buf (%vi+ i 1) #t addr sign))
-      ((if got #f (= c 36)) (self buf (%vi+ i 1) #t (%vi-count-lines 0 (%vi- %vi-end 1)) sign))
-      ((if got #f (= c 39)) (%vi-address-mark self buf i sign))
-      ((if got #f (if (= c 47) #t (= c 63))) (%vi-address-search self buf i c sign))
+      ((if got #f (= c #\.)) (self buf (%vi+ i 1) #t addr sign))
+      ((if got #f (= c #\$)) (self buf (%vi+ i 1) #t (%vi-count-lines 0 (%vi- %vi-end 1)) sign))
+      ((if got #f (= c #\')) (%vi-address-mark self buf i sign))
+      ((if got #f (if (= c #\/) #t (= c #\?))) (%vi-address-search self buf i c sign))
       ((%vi-digit? c) (%vi-address-number self buf i got addr sign))
-      ((if (= c 45) #t (= c 43))
-        (self buf (%vi+ i 1) #t (if got (%vi+ addr sign) addr) (if (= c 45) -1 1)))
+      ((if (= c #\-) #t (= c #\+))
+        (self buf (%vi+ i 1) #t (if got (%vi+ addr sign) addr) (if (= c #\-) -1 1)))
       (#t (pair i (pair (%vi+ addr sign) got))))))
 
 (def %vi-address-number
@@ -141,7 +141,7 @@
 (def %vi-address-mark
   (fn (_ walk buf i sign)
     (def c (%vi| (%vi-byte-of buf (%vi+ i 1)) 32))
-    (def q (if (if (%vi< c 97) #f (%vi< c 123)) (%vi-mark (%vi- c 97)) -1))
+    (def q (if (%vi-in? c #\a #\z) (%vi-mark (%vi- c #\a)) -1))
     (if (%vi< q 0)
       (do (%vi-status-line-bold! "Mark not set") ())
       (walk buf (%vi+ i 2) #t (%vi-count-lines 0 q) sign))))
@@ -154,9 +154,9 @@
     (if (= q (%vi+ i 1)) ()
       (set! %vi-last-search-pattern (%vi-bsub buf i (%vi- q i))))
     (def next (if (= (%vi-byte-of buf q) c) (%vi+ q 1) q))
-    (def dir (if (= c 47) 1 -1))
+    (def dir (if (= c #\/) 1 -1))
     (def pat (%vi-pattern-text))
-    (def from (if (= c 47) (%vi-next-line %vi-dot) (%vi-begin-line %vi-dot)))
+    (def from (if (= c #\/) (%vi-next-line %vi-dot) (%vi-begin-line %vi-dot)))
     (def found (%vi-address-find from pat dir))
     (if (%vi< found 0)
       (do (%vi-status-line-bold! "Pattern not found") ())
@@ -190,11 +190,11 @@
     (def c (%vi-byte-of buf i))
     (match
       ((%vi-blank? c) (self buf (%vi+ i 1) want-addr? b e got))
-      ((if want-addr? (= c 37) #f)
+      ((if want-addr? (= c #\%) #f)
         (self buf (%vi+ i 1) #f 1 (%vi-count-lines 0 (%vi- %vi-end 1)) 3))
       (want-addr? (%vi-address-next self buf i b e got))
-      ((if (= c 44) #t (= c 59))
-        (do (if (= c 59) (set! %vi-dot (%vi-find-line e)) ())
+      ((if (= c #\,) #t (= c #\;))
+        (do (if (= c #\;) (set! %vi-dot (%vi-find-line e)) ())
             (self buf (%vi+ i 1) #t b e got)))
       (#t (list i b e got)))))
 
@@ -207,7 +207,7 @@
 (def %vi-address-took
   (fn (_ walk buf j addr valid? b e got)
     (def c (%vi-byte-of buf j))
-    (if (match (valid? #t) ((= c 44) #t) ((= c 59) #t) (#t (= (%vi& got 1) 1)))
+    (if (match (valid? #t) ((= c #\,) #t) ((= c #\;) #t) (#t (= (%vi& got 1) 1)))
       (walk buf j #f e addr (%vi| (%vi* got 2) 1))
       (list j b e got))))
 
@@ -218,7 +218,7 @@
 (def %vi-colon
   (fn (_ buf)
     (def s (%vi-skip-blanks (%vi-skip-colons 0 buf) buf))
-    (if (if (%vi< s (byte-len buf)) (if (= (byte-at buf s) 34) #f #t) #f)
+    (if (if (%vi< s (byte-len buf)) (if (= (byte-at buf s) #\") #f #t) #f)
       (%vi-colon-addressed buf (%vi-get-address buf s))
       ())
     (set! %vi-dot (%vi-bound-dot %vi-dot))))
@@ -234,7 +234,7 @@
     (def w (%vi-skip-word i buf))
     (def word (%vi-bsub buf i (%vi-min 9 (%vi- w i))))
     (def n (byte-len word))
-    (def force? (if (%vi< 0 n) (= (byte-at word (%vi- n 1)) 33) #f))
+    (def force? (if (%vi< 0 n) (= (byte-at word (%vi- n 1)) #\!) #f))
     (def cmd (if (if force? (%vi< 1 n) #f) (%vi-bsub word 0 (%vi- n 1)) word))
     (def a (%vi-skip-blanks w buf))
     (def args (%vi-bsub buf a (%vi- (byte-len buf) a)))
@@ -266,8 +266,8 @@
     (match
       ((= (byte-len cmd) 0)
         (if (%vi< e 0) () (do (set! %vi-dot (%vi-find-line e)) (%vi-dot-skip-over-ws!))))
-      ((= c0 33) (%vi-colon-shell buf (%vi-part parts 6) got?))
-      ((if (= c0 61) (= (byte-len cmd) 1) #f)
+      ((= c0 #\!) (%vi-colon-shell buf (%vi-part parts 6) got?))
+      ((if (= c0 #\=) (= (byte-len cmd) 1) #f)
         (%vi-status-line! (%cu-int->str (if got? e (%vi-count-lines 0 %vi-dot)))))
       ((%vi-prefix? cmd "delete") (%vi-colon-delete got? q r))
       ((%vi-prefix? cmd "edit") (%vi-colon-edit cmd args force?))
@@ -278,7 +278,7 @@
       ((%vi-prefix? cmd "read") (%vi-colon-read args e got?))
       ((%vi-prefix? cmd "rewind") (%vi-colon-rewind cmd force?))
       ((if (%vi-prefix? cmd "set") (%vi< 1 (byte-len cmd)) #f) (%vi-colon-set args))
-      ((= c0 115) (%vi-colon-substitute buf (%vi-part parts 6) got? (%vi-part parts 5) b e q))
+      ((= c0 #\s) (%vi-colon-substitute buf (%vi-part parts 6) got? (%vi-part parts 5) b e q))
       ((%vi-prefix? cmd "version") (%vi-not-implemented cmd))
       ((%vi-write-cmd? cmd) (%vi-colon-write cmd args force? q r))
       ((%vi-prefix? cmd "yank") (%vi-colon-yank got? q r))
@@ -340,8 +340,8 @@
     (def c (%vi-byte q))
     (match
       ((if (%vi< r q) #t (%vi< 188 (%vi-list-len acc 0))) acc)
-      ((= c 10) (pair "$" acc))
-      ((%vi< 127 c) (self (%vi+ q 1) r (pair (string-append %vi-bold "." %vi-norm) acc)))
+      ((= c #\newline) (pair "$" acc))
+      ((%vi< #\delete c) (self (%vi+ q 1) r (pair (string-append %vi-bold "." %vi-norm) acc)))
       (#t (self (%vi+ q 1) r (pair (%vi-literal-byte c) acc))))))
 
 (def %vi-list-len
@@ -354,14 +354,14 @@
     (def c (%vi-byte-of cmd 0))
     (def more (%vi- (%vi- (length %vi-files) %vi-optind) 1))
     (match
-      (force? (do (if (= c 113) (set! %vi-optind (length %vi-files)) ()) (set! %vi-editing 0)))
+      (force? (do (if (= c #\q) (set! %vi-optind (length %vi-files)) ()) (set! %vi-editing 0)))
       ((%vi< 0 %vi-modified)
         (%vi-status-line-bold! (string-append "No write since last change (:" cmd "! overrides)")))
-      ((if (= c 113) (%vi< 0 more) #f)
+      ((if (= c #\q) (%vi< 0 more) #f)
         (%vi-status-line-bold! (string-append (%cu-int->str more) " more file(s) to edit")))
-      ((if (= c 110) (%vi< more 1) #f) (%vi-status-line-bold! "No more files to edit"))
-      ((if (= c 112) (%vi< %vi-optind 1) #f) (%vi-status-line-bold! "No previous files to edit"))
-      (#t (do (if (= c 112) (set! %vi-optind (%vi- %vi-optind 2)) ()) (set! %vi-editing 0))))))
+      ((if (= c #\n) (%vi< more 1) #f) (%vi-status-line-bold! "No more files to edit"))
+      ((if (= c #\p) (%vi< %vi-optind 1) #f) (%vi-status-line-bold! "No previous files to edit"))
+      (#t (do (if (= c #\p) (set! %vi-optind (%vi- %vi-optind 2)) ()) (set! %vi-editing 0))))))
 
 ; :rew -- back to the first file
 (def %vi-colon-rewind
@@ -391,9 +391,9 @@
     (def c (%vi-byte-of s i))
     (match
       ((if (%vi< i (byte-len s)) #f #t) (string-concat (reverse acc)))
-      ((= c 37) (%vi-expand-name self s i acc %vi-filename))
-      ((= c 35) (%vi-expand-name self s i acc %vi-alt-filename))
-      ((if (= c 92) (%vi< (%vi+ i 1) (byte-len s)) #f)
+      ((= c #\%) (%vi-expand-name self s i acc %vi-filename))
+      ((= c #\#) (%vi-expand-name self s i acc %vi-alt-filename))
+      ((if (= c #\\) (%vi< (%vi+ i 1) (byte-len s)) #f)
         (self s (%vi+ i 3)
           (pair (%vi-bsub s (%vi+ i 1) (%vi-min 2 (%vi- (byte-len s) (%vi+ i 1)))) acc)))
       (#t (self s (%vi+ i 1) (pair (%vi-bsub s i 1) acc))))))
@@ -490,7 +490,7 @@
 
 (def %vi-write-to
   (fn (_ cmd name force? q r)
-    (def write? (if (= %vi-modified 0) (if (= (%vi-byte-of cmd 0) 120) #f #t) #t))
+    (def write? (if (= %vi-modified 0) (if (= (%vi-byte-of cmd 0) #\x) #f #t) #t))
     (def size (if write? (%vi+ (%vi- r q) 1) 0))
     (def l (if write? (if (null? name) -2 (%vi-file-write name q (%vi+ r 1))) 0))
     (match
@@ -516,8 +516,8 @@
     (def c1 (%vi-byte-of cmd 1))
     (def more (%vi- (%vi- (length %vi-files) %vi-optind) 1))
     (match
-      ((= c1 110) (set! %vi-editing 0))
-      ((if (= (%vi-byte-of cmd 0) 120) #t (= c1 113))
+      ((= c1 #\n) (set! %vi-editing 0))
+      ((if (= (%vi-byte-of cmd 0) #\x) #t (= c1 #\q))
         (match
           ((if (%vi< 0 more) (if force? #f #t) #f)
             (%vi-status-line-bold! (string-append (%cu-int->str more) " more file(s) to edit")))
@@ -541,7 +541,7 @@
     (def fl (%vi-char-at buf (%vi+ mid 1) delim))
     (def find (%vi-bsub buf f (%vi- mid f)))
     (def repl (%vi-bsub buf (%vi+ mid 1) (%vi- fl (%vi+ mid 1))))
-    (def g? (if (%vi< fl (byte-len buf)) (= (%vi-byte-of buf (%vi+ fl 1)) 103) #f))
+    (def g? (if (%vi< fl (byte-len buf)) (= (%vi-byte-of buf (%vi+ fl 1)) #\g) #f))
     (match
       ((%vi< 0 (byte-len find))
         (do (set! %vi-last-search-pattern (string-append "/" find))
@@ -663,7 +663,7 @@
 
 (def %vi-skip-colons
   (fn (self i buf)
-    (if (if (%vi< i (byte-len buf)) (= (byte-at buf i) 58) #f) (self (%vi+ i 1) buf) i)))
+    (if (if (%vi< i (byte-len buf)) (= (byte-at buf i) #\:) #f) (self (%vi+ i 1) buf) i)))
 (def %vi-skip-blanks
   (fn (self i buf)
     (if (if (%vi< i (byte-len buf)) (%vi-space? (byte-at buf i)) #f) (self (%vi+ i 1) buf) i)))
@@ -678,5 +678,5 @@
 (def %vi-num-from
   (fn (self s i j n)
     (if (%vi< i j)
-      (self s (%vi+ i 1) j (%vi+ (%vi* n 10) (%vi- (byte-at s i) 48)))
+      (self s (%vi+ i 1) j (%vi+ (%vi* n 10) (%vi- (byte-at s i) #\0)))
       n)))

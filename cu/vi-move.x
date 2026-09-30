@@ -25,25 +25,26 @@
 (def %vi-word?
   (fn (_ c)
     (match
-      ((= c 95) #t)
-      ((%vi< c 48) #f)
-      ((%vi< c 58) #t)
-      ((%vi< c 65) #f)
-      ((%vi< c 91) #t)
-      ((%vi< c 97) #f)
-      (#t (%vi< c 123)))))
+      ((= c #\_) #t)
+      ((%vi< c #\0) #f)
+      ((if (%vi< #\9 c) #f #t) #t)
+      ((%vi< c #\A) #f)
+      ((if (%vi< #\Z c) #f #t) #t)
+      ((%vi< c #\a) #f)
+      (#t (if (%vi< #\z c) #f #t)))))
 
+; ispunct: printable, and neither a space nor a letter or digit
 (def %vi-punct?
   (fn (_ c)
     (match
-      ((%vi< c 33) #f)
-      ((%vi< c 48) #t)
-      ((%vi< c 58) #f)
-      ((%vi< c 65) #t)
-      ((%vi< c 91) #f)
-      ((%vi< c 97) #t)
-      ((%vi< c 123) #f)
-      (#t (%vi< c 127)))))
+      ((%vi< c #\!) #f)
+      ((%vi< c #\0) #t)
+      ((if (%vi< #\9 c) #f #t) #f)
+      ((%vi< c #\A) #t)
+      ((if (%vi< #\Z c) #f #t) #f)
+      ((%vi< c #\a) #t)
+      ((if (%vi< #\z c) #f #t) #f)
+      (#t (if (%vi< #\~ c) #f #t)))))
 
 ; --- skip_thing -------------------------------------------------------------
 
@@ -56,8 +57,8 @@
     (def c0 (%vi-byte p))
     (def ci (%vi-byte (%vi+ p dir)))
     (match
-      ((= type 1) (pair (if (%vi-space? ci) (= ci 10) #t) ci))
-      ((= type 2) (pair (if (%vi-space? c0) (= c0 10) #t) c0))
+      ((= type 1) (pair (if (%vi-space? ci) (= ci #\newline) #t) ci))
+      ((= type 2) (pair (if (%vi-space? c0) (= c0 #\newline) #t) c0))
       ((= type 3) (pair (%vi-space? c0) c0))
       ((= type 4) (pair (%vi-punct? ci) ci))
       (#t (pair (%vi-word? ci) ci)))))
@@ -69,10 +70,10 @@
     (def t (%vi-st-test p type dir))
     (match
       ((if (first t) #f #t) p)
-      ((if (= (rest t) 10) (%vi< (%vi- linecnt 1) 1) #f) p)
+      ((if (= (rest t) #\newline) (%vi< (%vi- linecnt 1) 1) #f) p)
       ((if (%vi< dir 0) #f (%vi< (%vi- %vi-end 2) p)) p)
       ((if (%vi< dir 0) (%vi< p 1) #f) p)
-      (#t (self (%vi+ p dir) (if (= (rest t) 10) (%vi- linecnt 1) linecnt) dir type)))))
+      (#t (self (%vi+ p dir) (if (= (rest t) #\newline) (%vi- linecnt 1) linecnt) dir type)))))
 
 ; --- words ------------------------------------------------------------------
 
@@ -95,12 +96,12 @@
 ; word or punctuation found there
 (def %vi-cmd-be
   (fn (_ c)
-    (def dir (if (= c 98) -1 1))
+    (def dir (if (= c #\b) -1 1))
     (%vi-repeat
       (fn (_)
         (def to (%vi+ %vi-dot dir))
         (if (if (%vi< to 0) #t (%vi< (%vi- %vi-end 1) to)) (set! %vi-cmdcnt 0)
-          (%vi-be-step to dir (if (= c 101) 2 1)))))))
+          (%vi-be-step to dir (if (= c #\e) 2 1)))))))
 
 (def %vi-be-step
   (fn (_ to dir lines)
@@ -117,14 +118,14 @@
 ; W, B and E: the same by blank-delimited words
 (def %vi-cmd-wbe-blank
   (fn (_ c)
-    (def dir (if (= c 66) -1 1))
+    (def dir (if (= c #\B) -1 1))
     (%vi-repeat
       (fn (_)
-        (if (if (= c 87) #t (%vi-space? (%vi-byte (%vi+ %vi-dot dir))))
+        (if (if (= c #\W) #t (%vi-space? (%vi-byte (%vi+ %vi-dot dir))))
           (do (set! %vi-dot (%vi-skip-thing %vi-dot 1 dir 2))
               (set! %vi-dot (%vi-skip-thing %vi-dot 2 dir 3)))
           ())
-        (if (= c 87) () (set! %vi-dot (%vi-skip-thing %vi-dot 1 dir 1)))))))
+        (if (= c #\W) () (set! %vi-dot (%vi-skip-thing %vi-dot 1 dir 1)))))))
 
 ; --- characters on the line -------------------------------------------------
 
@@ -142,7 +143,7 @@
 (def %vi-cmd-refind
   (fn (_ c)
     (%vi-dot-to-char
-      (if (= c 44) (%vi^ %vi-last-search-cmd 32) %vi-last-search-cmd))))
+      (if (= c #\,) (%vi^ %vi-last-search-cmd 32) %vi-last-search-cmd))))
 (def %vi^ (prim-ref (lit int) (lit ^)))
 
 ; busybox's dot_to_char: COUNT times to the searched-for byte, never past the
@@ -150,7 +151,7 @@
 (def %vi-dot-to-char
   (fn (_ cmd)
     (if (= %vi-last-search-char 0) ()
-      (%vi-to-char-from %vi-dot (if (%vi< cmd 97) -1 1) cmd))))
+      (%vi-to-char-from %vi-dot (if (%vi< cmd #\a) -1 1) cmd))))
 
 (def %vi-to-char-from
   (fn (_ q dir cmd)
@@ -164,8 +165,8 @@
 (def %vi-to-char-land
   (fn (_ cmd)
     (match
-      ((= cmd 116) (%vi-dot-left!))
-      ((= cmd 84) (%vi-dot-right!))
+      ((= cmd #\t) (%vi-dot-left!))
+      ((= cmd #\T) (%vi-dot-right!))
       (#t ()))))
 
 ; the next Q going DIR that holds the searched-for byte, or nil at the edge of
@@ -174,7 +175,7 @@
   (fn (self q dir)
     (match
       ((if (%vi< dir 0) (%vi< q 0) (%vi< (%vi- %vi-end 1) q)) ())
-      ((= (%vi-byte q) 10) ())
+      ((= (%vi-byte q) #\newline) ())
       ((= (%vi-byte q) (%vi& %vi-last-search-char 255)) q)
       (#t (self (%vi+ q dir) dir)))))
 
@@ -190,7 +191,7 @@
 (def %vi-cmd-g
   (fn (_)
     (def c (%vi-get-one-char))
-    (if (= c 103)
+    (if (= c #\g)
       (do (if (= %vi-cmdcnt 0) (set! %vi-cmdcnt 1) ()) (%vi-cmd-G))
       (do (%vi-not-implemented (bytes->str (list 103 (if (%vi< c 0) 42 (%vi& c 255)))))
           (set! %vi-cmd-error #t)))))
@@ -198,9 +199,9 @@
 ; H and L: COUNT lines from the top or the bottom of the screen
 (def %vi-cmd-HL
   (fn (_ c)
-    (set! %vi-dot (if (= c 72) %vi-screenbegin (%vi-end-screen)))
+    (set! %vi-dot (if (= c #\H) %vi-screenbegin (%vi-end-screen)))
     (if (%vi< (%vi- %vi-rows 1) %vi-cmdcnt) (set! %vi-cmdcnt (%vi- %vi-rows 1)) ())
-    (%vi-HL-steps (if (= c 72) %vi-dot-next! %vi-dot-prev!))
+    (%vi-HL-steps (if (= c #\H) %vi-dot-next! %vi-dot-prev!))
     (%vi-dot-begin!)
     (%vi-dot-skip-over-ws!)))
 
@@ -233,7 +234,7 @@
   (fn (self q)
     (def c (%vi-byte q))
     (match
-      ((if (%vi< q %vi-end) (= c 10) #t) (%vi-indicate-error))
+      ((if (%vi< q %vi-end) (= c #\newline) #t) (%vi-indicate-error))
       ((%vi-bracket? c) (%vi-percent-at q c))
       (#t (self (%vi+ q 1))))))
 
@@ -242,22 +243,22 @@
     (def p (%vi-find-pair q c))
     (if (null? p) (%vi-indicate-error) (set! %vi-dot p))))
 
-(def %vi-bracket? (fn (_ c) (%vi-one-of? c (list 40 41 91 93 123 125))))
+(def %vi-bracket? (fn (_ c) (%vi-one-of? c (list #\( #\) #\[ #\] #\{ #\}))))
 
 ; busybox's find_pair: the bracket that closes or opens C at P, counting
 ; levels, or nil
 (def %vi-find-pair
   (fn (_ p c)
-    (def open? (%vi-one-of? c (list 40 91 123)))
+    (def open? (%vi-one-of? c (list #\( #\[ #\{)))
     (%vi-pair-walk (%vi+ p (if open? 1 -1)) (if open? 1 -1) c (%vi-mate c) 1)))
 
 (def %vi-mate
   (fn (_ c)
     (match
-      ((= c 40) 41) ((= c 41) 40)
-      ((= c 91) 93) ((= c 93) 91)
-      ((= c 123) 125)
-      (#t 123))))
+      ((= c #\() #\)) ((= c #\)) #\()
+      ((= c #\[) #\]) ((= c #\]) #\[)
+      ((= c #\{) #\})
+      (#t #\{))))
 
 (def %vi-pair-walk
   (fn (self p dir c mate level)
@@ -274,7 +275,7 @@
 ; the start or the end of the text, stay there
 (def %vi-cmd-paragraph
   (fn (_ c)
-    (def dir (if (= c 125) 1 -1))
+    (def dir (if (= c #\}) 1 -1))
     (%vi-paragraph-count dir)))
 
 (def %vi-paragraph-count
@@ -293,7 +294,7 @@
 
 (def %vi-paragraph-at
   (fn (_ step dir skip)
-    (def blank? (if (= (%vi-byte %vi-dot) 10) (= (%vi-byte (%vi+ %vi-dot dir)) 10) #f))
+    (def blank? (if (= (%vi-byte %vi-dot) #\newline) (= (%vi-byte (%vi+ %vi-dot dir)) #\newline) #f))
     (match
       ((if blank? (if skip #f #t) #f)
         (do (if (%vi< 0 dir) (set! %vi-dot (%vi+ %vi-dot 1)) ()) #t))
@@ -316,11 +317,11 @@
   (fn (_ c)
     (def page (%vi- %vi-rows 2))
     (match
-      ((%vi-one-of? c (list 2 -10)) (%vi-dot-scroll page -1))
-      ((%vi-one-of? c (list 6 -11)) (%vi-dot-scroll page 1))
-      ((= c 21) (%vi-dot-scroll (%vi/ page 2) -1))
-      ((= c 4) (%vi-dot-scroll (%vi/ page 2) 1))
-      ((= c 25) (%vi-dot-scroll 1 -1))
+      ((%vi-one-of? c (list (%vi-ctrl #\B) %vi-key-page-up)) (%vi-dot-scroll page -1))
+      ((%vi-one-of? c (list (%vi-ctrl #\F) %vi-key-page-down)) (%vi-dot-scroll page 1))
+      ((= c (%vi-ctrl #\U)) (%vi-dot-scroll (%vi/ page 2) -1))
+      ((= c (%vi-ctrl #\D)) (%vi-dot-scroll (%vi/ page 2) 1))
+      ((= c (%vi-ctrl #\Y)) (%vi-dot-scroll 1 -1))
       (#t (%vi-dot-scroll 1 1)))))
 
 ; z. z- z<anything>: the cursor's line to the middle, the bottom or the top
@@ -329,5 +330,5 @@
     (def c (%vi-get-one-char))
     (set! %vi-screenbegin (%vi-begin-line %vi-dot))
     (%vi-dot-scroll
-      (match ((= c 46) (%vi/ (%vi- %vi-rows 2) 2)) ((= c 45) (%vi- %vi-rows 2)) (#t 0))
+      (match ((= c #\.) (%vi/ (%vi- %vi-rows 2) 2)) ((= c #\-) (%vi- %vi-rows 2)) (#t 0))
       -1)))
