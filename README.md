@@ -38,9 +38,9 @@ is a line LCS by DP, in the normal or the unified format; `timeout`
 forks the command AND a watchdog, because there is no alarm door.
 `vi` is busybox's: its screen, keys and messages, each case checked
 against busybox's own vi typed the same keys; it keeps busybox's one
-buffer of bytes, searches it with libc's `memchr` and `strcspn`, and
-sweeps the heap once a key, so its memory stays flat however long it
-runs.
+buffer of bytes, searches it with libc's `memchr`, `strcspn` and
+`memmem`, and sweeps the heap once a key, so its memory stays flat
+however long it runs.
 Self-contained: no `(requires-lang ...)`.
 
 ## Known limits
@@ -81,9 +81,13 @@ Self-contained: no `(requires-lang ...)`.
     `^D`, Insert for replace), the operators `d c y < >` over any of
     those motions and doubled for lines, `x X s D C Y r R J ~ U`,
     Delete, `p P`, the registers `"a` to `"z`, the marks `m` and `'` with `''`,
-    `ZZ`, `ZQ`, and the colon commands `:w :q :wq :x :wn`, `:N` and
-    `:file`.  busybox's other commands answer `is not implemented`, and
-    it takes no options yet.  A message wider than
+    `ZZ`, `ZQ`, searching with `/ ? n N` (for the text, as busybox's
+    default build does, not a regular expression), and the colon
+    commands over busybox's addresses (`. $ + - 'a /text/ ?text? %`,
+    `,` and `;`): a line number, `:d :y :l := :s`, `:w :wq :x :wn`,
+    `:r :e :f` with `%` and `#`, and `:q :n :prev :rew`.  `:!`,
+    `:set` and busybox's other commands answer `is not implemented`,
+    and it takes no options yet.  A message wider than
     the screen waits for one Return, where busybox's waits again after
     every Return and takes no more commands.  `^C` from a terminal goes
     back to the top in command mode, as busybox's SIGINT handler does;
@@ -151,9 +155,10 @@ parsed by x-lang's `Opts`.
     cu/hash.x         md5sum sha1sum cksum sum
     cu/sha256.x       FIPS 180-4, in x
     cu/sha512.x       its 64-bit sibling, addition masked in halves
-    cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, : commands
+    cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, files
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/vi-edit.x      vi's operators over those motions, registers, marks
+    cu/vi-ex.x        vi's search and : commands, over busybox's addresses
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 
