@@ -56,6 +56,7 @@
 (def %vi-c-write ())
 (def %vi-c-access ())
 (def %vi-c-memmem ())
+(def %vi-c-strcasestr ())
 
 (def %vi-resolve!
   (fn (_)
@@ -68,7 +69,8 @@
     (set! %vi-c-read (%cu-dlsym lib "read"))
     (set! %vi-c-write (%cu-dlsym lib "write"))
     (set! %vi-c-access (%cu-dlsym lib "access"))
-    (set! %vi-c-memmem (%cu-dlsym lib "memmem"))))
+    (set! %vi-c-memmem (%cu-dlsym lib "memmem"))
+    (set! %vi-c-strcasestr (%cu-dlsym lib "strcasestr"))))
 
 ; --- the terminal's words ---------------------------------------------------
 
@@ -392,7 +394,7 @@
 (def %vi-indicate-error
   (fn (_)
     (set! %vi-cmd-error #t)
-    (%vi-put %vi-bell)))
+    (if (%vi-opt? %vi-fl) (%vi-flash 10) (%vi-put %vi-bell))))
 
 (def %vi-spaces
   (fn (_ n) (if (%vi< 0 n) (%vi-bsub %vi-blanks 0 n) "")))
@@ -882,12 +884,20 @@
 ; answering where the cursor goes
 (def %vi-char-insert
   (fn (_ p c)
+    (def bol (%vi-begin-line p))
     (match
-      ((= c 22) (%vi-insert-literal p))
-      ((= c 27) (%vi-insert-escape p))
-      ((= c 4) (%vi-insert-dedent p))
-      ((if (= c 8) #t (= c 127)) (%vi-insert-backspace p))
-      (#t (do (%vi-byte-insert! p (if (= c 13) 10 c)) (%vi+ p 1))))))
+      ((= c 22) (%vi-indent-reset (%vi-insert-literal p)))
+      ((= c 27) (%vi-indent-reset (%vi-strip-autoindent bol (%vi-insert-escape p))))
+      ((= c 4) (%vi-dedent-kept (%vi-insert-dedent p) bol))
+      ((if (= c 9) (%vi-opt? %vi-et) #f) (%vi-indent-reset (%vi-insert-expanded-tab p)))
+      ((if (= c 8) #t (= c 127)) (%vi-indent-reset (%vi-insert-backspace p)))
+      (#t (%vi-insert-byte p (if (= c 13) 10 c))))))
+
+; a byte in at P; then showmatch and autoindent may act on it
+(def %vi-insert-byte
+  (fn (_ p c)
+    (%vi-byte-insert! p c)
+    (%vi-after-insert (%vi+ p 1) c)))
 
 (def %vi-insert-literal
   (fn (_ p)
@@ -1077,7 +1087,7 @@
     (if (%vi< 0 %vi-cmdcnt) (self thunk) ())))
 
 (def %vi-start-insert!
-  (fn (_) (set! %vi-cmd-mode 1)))
+  (fn (_) (set! %vi-newindent -1) (set! %vi-cmd-mode 1)))
 
 (def %vi-start-replace!
   (fn (_) (set! %vi-cmd-mode 2) (set! %vi-rstart %vi-dot)))
@@ -1204,13 +1214,18 @@
 (def %vi-cmd-open-below
   (fn (_)
     (%vi-dot-end!)
-    (%vi-cmd-open)))
+    (%vi-cmd-open)
+    (%vi-start-insert!)))
 
+; O opens with the indent of the line it opens above, when autoindent puts
+; one in; char_insert leaves the cursor on the new line then
 (def %vi-cmd-open-above
   (fn (_)
     (%vi-dot-begin!)
+    (set! %vi-newindent (%vi-get-column (%vi+ %vi-dot (%vi-indent-len %vi-dot))))
     (%vi-cmd-open)
-    (%vi-dot-prev!)))
+    (if (%vi-opt? %vi-ai) () (%vi-dot-prev!))
+    (%vi-start-insert!)))
 
 (def %vi-cmd-open
   (fn (_)
@@ -1477,6 +1492,7 @@
     (set! %vi-last-search-pattern "")
     (set! %vi-filename ())
     (set! %vi-alt-filename ())
+    (%vi-options-init!)
     (set! %vi-screen ())))
 
 ; busybox's vi_main: each file in turn on the alternate screen

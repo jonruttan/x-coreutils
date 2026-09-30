@@ -30,9 +30,17 @@
     (def len (byte-len pat))
     (def room (%vi-min (%vi- (%vi+ stop len) (%vi+ p 1)) (%vi- %vi-end p)))
     (if (if (%vi< p stop) (%vi< (%vi- len 1) room) #f)
-      (%vi-found (%cu-ptr-call %vi-c-memmem (%vi+ %vi-taddr p) room pat len))
+      (%vi-find-text p room pat len)
       -1)))
 (def %vi-found (fn (_ r) (if (= r 0) -1 (%vi- r %vi-taddr))))
+
+; the first PAT wholly in the ROOM bytes from FROM, or -1; with ignorecase,
+; as busybox's strncasecmp, else byte for byte
+(def %vi-find-text
+  (fn (_ from room pat len)
+    (if (%vi-opt? %vi-ic)
+      (%vi-find-text-ic from room pat len)
+      (%vi-found (%cu-ptr-call %vi-c-memmem (%vi+ %vi-taddr from) room pat len)))))
 
 ; the last PAT starting at or after STOP and ending before P
 (def %vi-search-back
@@ -41,10 +49,7 @@
 
 (def %vi-last-match
   (fn (self from room pat len best)
-    (def at
-      (if (%vi< (%vi- len 1) room)
-        (%vi-found (%cu-ptr-call %vi-c-memmem (%vi+ %vi-taddr from) room pat len))
-        -1))
+    (def at (if (%vi< (%vi- len 1) room) (%vi-find-text from room pat len) -1))
     (if (= at -1) best
       (self (%vi+ at 1) (%vi- room (%vi+ (%vi- at from) 1)) pat len at))))
 
@@ -272,7 +277,7 @@
       ((%vi-one-of-prefix? cmd (list "quit" "next" "prev")) (%vi-colon-quit cmd force?))
       ((%vi-prefix? cmd "read") (%vi-colon-read args e got?))
       ((%vi-prefix? cmd "rewind") (%vi-colon-rewind cmd force?))
-      ((if (%vi-prefix? cmd "set") (%vi< 1 (byte-len cmd)) #f) (%vi-not-implemented cmd))
+      ((if (%vi-prefix? cmd "set") (%vi< 1 (byte-len cmd)) #f) (%vi-colon-set args))
       ((= c0 115) (%vi-colon-substitute buf (%vi-part parts 6) got? (%vi-part parts 5) b e q))
       ((%vi-prefix? cmd "version") (%vi-not-implemented cmd))
       ((%vi-write-cmd? cmd) (%vi-colon-write cmd args force? q r))
