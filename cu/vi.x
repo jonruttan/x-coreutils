@@ -57,6 +57,7 @@
 (def %vi-c-access ())
 (def %vi-c-memmem ())
 (def %vi-c-strcasestr ())
+(def %vi-c-system ())
 
 (def %vi-resolve!
   (fn (_)
@@ -70,7 +71,8 @@
     (set! %vi-c-write (%cu-dlsym lib "write"))
     (set! %vi-c-access (%cu-dlsym lib "access"))
     (set! %vi-c-memmem (%cu-dlsym lib "memmem"))
-    (set! %vi-c-strcasestr (%cu-dlsym lib "strcasestr"))))
+    (set! %vi-c-strcasestr (%cu-dlsym lib "strcasestr"))
+    (set! %vi-c-system (%cu-dlsym lib "system"))))
 
 ; --- the terminal's words ---------------------------------------------------
 
@@ -371,6 +373,8 @@
 
 ; where finished output goes: the terminal, or a spec's list
 (def %vi-sink ())
+; how :! runs a command: its output to the terminal, or into a spec's list
+(def %vi-shell ())
 (def %vi-put (fn (_ s) (set! %vi-out (pair s %vi-out))))
 (def %vi-flush!
   (fn (_)
@@ -1526,6 +1530,7 @@
     (set! %vi-src-read %vi-tty-read)
     (set! %vi-src-ready? %vi-tty-ready?)
     (set! %vi-sink %vi-tty-write)
+    (set! %vi-shell %vi-tty-shell)
     (set! %vi-window (fn (_) (Term window 0)))
     (def saved (list ()))
     (set! %vi-raw! (fn (_) (set-first! saved (Term raw! 0)) (set! %vi-tty? (if (null? (first saved)) #f #t))))
@@ -1597,6 +1602,7 @@
     (set! %vi-src-read %vi-typed-read)
     (set! %vi-src-ready? (fn (_ . ms) (%vi< %vi-burst-i (byte-len %vi-burst))))
     (set! %vi-sink (fn (_ s) (set! %vi-drawn (pair s %vi-drawn))))
+    (set! %vi-shell %vi-typed-shell)
     (set! %vi-window (fn (_) (pair cols rows)))
     (set! %vi-raw! (fn (_) (set! %vi-tty? tty?)))
     (set! %vi-cooked! (fn (_) ()))
