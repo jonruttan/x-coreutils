@@ -92,8 +92,11 @@ Self-contained: no `(requires-lang ...)`.
     stack with its queue of typing and its repeat of the last change.
     It takes busybox's `-c CMD` (again and again), `-R`, `-H` and `-h`,
     and runs `$EXINIT`, or a `~/.exrc` of the user's own, before the first
-    file.  busybox's other commands answer `is not implemented`.  `-H` and
-    `-h` give busybox's usage without the banner naming its binary.  A
+    file.  A command busybox's vi does not have answers `is not
+    implemented`, as busybox's does.  `-H` and `-h` give busybox's usage
+    without the banner naming its binary, and `:version` gives the version
+    x-coreutils was installed as (the `version` file `make install`
+    writes; `dev` in a checkout), where busybox's gives its own.  A
     message wider than the screen waits for one Return, where busybox's
     waits again after every Return and takes no more commands.  `^C` from
     a terminal goes back to the top in command mode, and `^Z` suspends,
