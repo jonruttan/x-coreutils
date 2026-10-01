@@ -19,6 +19,7 @@ the work.  Applet parity is the other axis: see the README.
 | `chown` | -R -h -L -H -P -c -v -f | -R -h -L -H -P -c -v -f |  | 100% |
 | `chroot` |  |  |  | - |
 | `cksum` |  |  |  | - |
+| `clear` |  |  |  | - |
 | `cmp` | -l -s -n | -s -l -n |  | 100% |
 | `comm` | -1 -2 -3 | -1 -2 -3 |  | 100% |
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -r -R -P -L -H -p -f -i -l -s -T -u |  | 100% |
@@ -51,6 +52,7 @@ the work.  Applet parity is the other axis: see the README.
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
 | `mktemp` | -d -t -p -q -u | -d -t -q -u -p |  | 100% |
+| `more` | -d -e -f -l -s -u | -d -e -f -l -s -u |  | 100% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -n -s -w -v -i |  | 100% |
@@ -63,6 +65,7 @@ the work.  Applet parity is the other axis: see the README.
 | `pwd` | -L -P | -L -P |  | 100% |
 | `readlink` | -f -n -v | -f -e -n -v |  | 100% |
 | `realpath` |  |  |  | - |
+| `reset` |  |  |  | - |
 | `rev` |  |  |  | - |
 | `rm` | -i -r -R -f -v | -i -r -R -f -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
@@ -102,4 +105,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -0 -n -a -E -I -s | -p | 90% |
 | `yes` |  |  |  | - |
 
-**Total: 423 of 426 busybox options accepted (99%).**
+**Total: 429 of 432 busybox options accepted (99%).**
