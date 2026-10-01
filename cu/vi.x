@@ -635,22 +635,12 @@
 ; atoi: blanks, a sign, then digits as far as they go
 (def %vi-atoi
   (fn (_ s)
-    (def i (%vi-skip-blanks s 0))
+    (def i (%vi-skip-blanks 0 s))
     (def sign (if (%vi< i (byte-len s)) (byte-at s i) 0))
     (def neg? (= sign #\-))
     (def j (if (if neg? #t (= sign #\+)) (%vi+ i 1) i))
-    (def n (first (%vi-digits s j 0)))
+    (def n (%vi-num-from s j (%vi-digits-end j s) 0))
     (if neg? (%vi- 0 n) n)))
-(def %vi-skip-blanks
-  (fn (self s i)
-    (if (if (%vi< i (byte-len s)) (%vi-space? (byte-at s i)) #f) (self s (%vi+ i 1)) i)))
-
-; the number in S's digits from I, and where they stop: (N . END)
-(def %vi-digits
-  (fn (self s i n)
-    (if (if (%vi< i (byte-len s)) (%vi-digit? (byte-at s i)) #f)
-      (self s (%vi+ i 1) (%vi+ (%vi* n 10) (%vi- (byte-at s i) #\0)))
-      (pair n i))))
 
 ; set when the size was asked of the terminal: busybox's refresh then
 ; measures no more, though SIGWINCH still does
@@ -922,14 +912,19 @@
       ((not (= (byte-at s 0) #\[)) ())
       ((not (= (byte-at s (%vi- n 1)) #\R)) ())
       ((not (%vi-digit? (byte-at s 1))) ())
-      (#t (%vi-cursor-report-col s (%vi-digits s 1 0))))))
+      (#t (%vi-cursor-report-col s (%vi-number-at s 1))))))
 (def %vi-cursor-report-col
   (fn (_ s row)
     (def at (rest row))
     (def ok? (if (%vi< (%vi+ at 1) (byte-len s))
                (if (= (byte-at s at) #\;) (%vi-digit? (byte-at s (%vi+ at 1))) #f)
                #f))
-    (if ok? (%vi-cursor-report-end s (first row) (%vi-digits s (%vi+ at 1) 0)) ())))
+    (if ok? (%vi-cursor-report-end s (first row) (%vi-number-at s (%vi+ at 1))) ())))
+; the number in S's digits from I, and where they stop: (N . END)
+(def %vi-number-at
+  (fn (_ s i)
+    (def end (%vi-digits-end i s))
+    (pair (%vi-num-from s i end 0) end)))
 (def %vi-cursor-report-end
   (fn (_ s row col)
     (match
@@ -1930,14 +1925,16 @@
         (do (set! %vi-burst-i (%vi+ %vi-burst-i 1))
             (%vi& (byte-at %vi-burst (%vi- %vi-burst-i 1)) 255)))
       ((null? %vi-bursts) ())
-      (#t (do (%vi-typed-next! (first %vi-bursts))
-              (set! %vi-bursts (rest %vi-bursts))
-              (self))))))
+      (#t (do (%vi-typed-next! %vi-bursts) (self))))))
 
-; the next burst typed, or its signal sent and handled as a wait for a key
-; handles it; ^C as the terminal sends it, through the engine's SIGINT flag
+; the first of BURSTS typed, or its signal sent and handled as a wait for a
+; key handles it; ^C as the terminal sends it, through the engine's SIGINT
+; flag.  The burst is taken off first: ^C's raise comes at the next step and
+; must not find it there again.
 (def %vi-typed-next!
-  (fn (_ b)
+  (fn (_ bursts)
+    (def b (first bursts))
+    (set! %vi-bursts (rest bursts))
     (match
       ((str? b) (do (set! %vi-burst b) (set! %vi-burst-i 0)))
       ((eq? b (lit int)) (%set-cell-int! %sigint-flag 1))
