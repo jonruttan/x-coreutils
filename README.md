@@ -90,12 +90,14 @@ Self-contained: no `(requires-lang ...)`.
     flash, ignorecase, showmatch, tabstop); `:!`, a command run by
     libc's `system` as busybox runs it; and `u` and `.`, busybox's undo
     stack with its queue of typing and its repeat of the last change.
-    busybox's other commands answer `is not implemented`, and it takes no
-    command-line options yet.  A message wider than
-    the screen waits for one Return, where busybox's waits again after
-    every Return and takes no more commands.  `^C` from a terminal goes
-    back to the top in command mode, as busybox's SIGINT handler does;
-    `^Z` does not suspend.
+    It takes busybox's `-c CMD` (again and again), `-R`, `-H` and `-h`,
+    and runs `$EXINIT`, or a `~/.exrc` of the user's own, before the first
+    file.  busybox's other commands answer `is not implemented`.  `-H` and
+    `-h` give busybox's usage without the banner naming its binary.  A
+    message wider than the screen waits for one Return, where busybox's
+    waits again after every Return and takes no more commands.  `^C` from
+    a terminal goes back to the top in command mode, and `^Z` suspends,
+    as busybox's signal handlers do.
   - **Not present**: `who` (utmpx), `stty` (ioctl), `hostid`
     (gethostid) and `mknod` (device numbers), for want of a door this
     bundle will not invent; and `sha3sum`, which needs no door and is

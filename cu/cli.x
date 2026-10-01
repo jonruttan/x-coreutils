@@ -242,6 +242,8 @@
     (pair "which" (list (list "-a") ()))
     (pair "nproc" (list (list "--all") (list "--ignore")))
     (pair "uudecode" (list () (list "-o")))
+    ; busybox's getopt32 string for vi, "c:*HhR": -c may be given again
+    (pair "vi" (list (list "-H" "-h" "-R") (list "-c")))
     ; -p is NOT here on purpose; cu/sys2.x says why
     (pair "xargs" (list (list "-r" "-t" "-x" "-0")
                         (list "-n" "-a" "-E" "-I" "-s") (lit leading)))

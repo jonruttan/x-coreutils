@@ -124,7 +124,7 @@
 (def %vi-cmd-error #f)
 (def %vi-editing 0)
 (def %vi-modified 0)
-(def %vi-readonly 0)
+(def %vi-readonly 0)         ; busybox's readonly_mode: 1 a file read-only, 2 -R; never cleared
 (def %vi-filename ())
 (def %vi-files ())
 (def %vi-optind 0)
@@ -390,6 +390,16 @@
 (def %vi-sink ())
 ; how :! runs a command: its output to the terminal, or into a spec's list
 (def %vi-shell ())
+; the environment $EXINIT and HOME come from: the process's, or a spec's
+; ((NAME . VALUE) ...), so a spec never reads the real one
+(def %vi-getenv ())
+(def %vi-typed-env ())
+(def %vi-env-ref
+  (fn (self n env)
+    (match
+      ((null? env) ())
+      ((string=? n (first (first env))) (rest (first env)))
+      (#t (self n (rest env))))))
 (def %vi-put (fn (_ s) (set! %vi-out (pair s %vi-out))))
 (def %vi-flush!
   (fn (_)
@@ -846,13 +856,27 @@
     (if (null? q) (%vi-read-one-char) q)))
 
 (def %vi-read-one-char
-  (fn (_)
+  (fn (self)
     (def c (%vi-read-key))
     (match
       ((null? c) (Err raise (lit vi-eof) "vi: can't read user input" ()))
       ((if %vi-tty? (= c (%vi-ctrl #\C)) #f) (Err raise (lit vi-interrupt) "vi: interrupt" ()))
+      ((if %vi-tty? (= c (%vi-ctrl #\Z)) #f) (do (%vi-suspend!) (self)))
       (%vi-adding2q (do (%vi-lmc-keep! c) c))
       (#t c))))
+
+; a terminal's ^Z, as busybox's SIGTSTP handler: the terminal given back and
+; the process stopped; once continued, the terminal raw again and all of the
+; screen drawn
+(def %vi-suspend!
+  (fn (_)
+    (%vi-bottom-clear)
+    (%vi-flush!)
+    (%vi-cooked!)
+    (sys-kill (Sys getpid) (if os-darwin? 17 19))
+    (%vi-raw!)
+    (set! %vi-last-status ())
+    (%vi-redraw! #t)))
 
 ; busybox's get_input_line: PROMPT on the bottom line and a line typed after
 ; it, ended by Return or Escape; backing up past the prompt ends it empty
@@ -1431,7 +1455,7 @@
         (%vi-read-in fd p (Assoc get (lit size) st) name)
         (do (%vi-status-line-bold! (string-append "'" name "' is not a regular file")) -1)))
     (file-close fd)
-    (if (if initial? (%vi-unwritable? name st) #f) (set! %vi-readonly 1) ())
+    (if (if initial? (%vi-unwritable? name st) #f) (set! %vi-readonly (%vi| %vi-readonly 1)) ())
     cnt))
 
 (def %vi-unwritable?
@@ -1465,7 +1489,6 @@
   (fn (_ name)
     (%vi-text-init!)
     (%vi-update-filename! name)
-    (set! %vi-readonly 0)
     (def rc (if (null? name) -1 (%vi-file-insert name 0 #t)))
     (if (if (%vi< rc 1) #t (if (= (byte-at %vi-text (%vi- %vi-end 1)) #\newline) #f #t))
       (%vi-char-insert %vi-end 10 %vi-no-undo)
@@ -1496,6 +1519,9 @@
     (set! %vi-crow 0)
     (set! %vi-ccol 0)
     (%vi-reset!)
+    (set! %vi-ioq ())
+    (set! %vi-adding2q #f)
+    (%vi-initial-cmds-run!)
     (%vi-redraw! #f)
     (def end (%vi-keys ()))
     (%vi-bottom-clear)
@@ -1574,15 +1600,58 @@
     (set! %vi-alt-filename ())
     (%vi-options-init!)
     (%vi-undo-init!)
+    (set! %vi-readonly 0)
     (%vi-dot-init!)
     (set! %vi-screen ())))
 
 ; busybox's vi_main: each file in turn on the alternate screen
+; busybox's vi_main from its getopt32: -H lists the features and -h the
+; usage, both ending at once; -R reads every file read-only; each -c is run
+; when the first file is in
+(def %vi-start
+  (fn (_ argv)
+    (def o (%cu-opts "vi" argv))
+    (match
+      ((Opts on? o "-H") (do (%vi-show-help) (%vi-usage)))
+      ((Opts on? o "-h") (%vi-usage))
+      (#t (%vi-main (Opts operands o) (Opts values o "-c") (Opts on? o "-R"))))))
+
+(def %vi-show-help
+  (fn (_)
+    (%vi-sink
+      (string-concat
+        (list "These features are available:"
+              "\n\tPattern searches with / and ?"
+              "\n\tLast command repeat with ."
+              "\n\tLine marking with 'x"
+              "\n\tNamed buffers with \"x"
+              "\n\tSome colon mode commands with :"
+              "\n\tSettable options with \":set\""
+              "\n\tSignal catching- ^C"
+              "\n\tJob suspend and resume with ^Z"
+              "\n\tAdapt to window re-sizes\n")))))
+
+; busybox's usage text, less the banner naming its binary; status 1
+(def %vi-usage
+  (fn (_)
+    (file-write 2
+      (string-concat
+        (list "Usage: vi [-c CMD] [-R] [-H] [FILE]...\n\nEdit FILE\n\n"
+              "\t-c CMD\tInitial command to run ($EXINIT and ~/.exrc also available)\n"
+              "\t-R\tRead-only\n"
+              "\t-H\tList available features\n")))
+    1))
+
+; each file in turn on the alternate screen, after $EXINIT's commands or,
+; when it is not set, ~/.exrc's
 (def %vi-main
-  (fn (_ files)
+  (fn (_ files cmds ro?)
     (%vi-resolve!)
     (%vi-init-g!)
+    (if ro? (set! %vi-readonly (%vi| %vi-readonly 2)) ())
     (set! %vi-files files)
+    (set! %vi-initial-cmds cmds)
+    (%vi-startup-cmds!)
     (%vi-put %vi-alt-on)
     (guard (e (do (%vi-cooked!) (error e)))
       (%vi-each-file))))
@@ -1609,11 +1678,12 @@
     (set! %vi-src-ready? %vi-tty-ready?)
     (set! %vi-sink %vi-tty-write)
     (set! %vi-shell %vi-tty-shell)
+    (set! %vi-getenv sys-getenv)
     (set! %vi-window (fn (_) (Term window 0)))
     (def saved (list ()))
     (set! %vi-raw! (fn (_) (set-first! saved (Term raw! 0)) (set! %vi-tty? (if (null? (first saved)) #f #t))))
     (set! %vi-cooked! (fn (_) (Term restore! 0 (first saved))))
-    (%vi-main argv)))
+    (%vi-start argv)))
 
 ; busybox's readit: wait until a byte can be read, then read it.  stdin may
 ; come non-blocking, so a read that would block, or was interrupted, is tried
@@ -1672,7 +1742,7 @@
 (def %vi-bursts ())
 
 (def %vi-typed
-  (fn (_ files bursts rows cols tty?)
+  (fn (_ argv bursts rows cols tty?)
     (set! %vi-burst "")
     (set! %vi-burst-i 0)
     (set! %vi-bursts bursts)
@@ -1681,10 +1751,11 @@
     (set! %vi-src-ready? (fn (_ . ms) (%vi< %vi-burst-i (byte-len %vi-burst))))
     (set! %vi-sink (fn (_ s) (set! %vi-drawn (pair s %vi-drawn))))
     (set! %vi-shell %vi-typed-shell)
+    (set! %vi-getenv (fn (_ n) (%vi-env-ref n %vi-typed-env)))
     (set! %vi-window (fn (_) (pair cols rows)))
     (set! %vi-raw! (fn (_) (set! %vi-tty? tty?)))
     (set! %vi-cooked! (fn (_) ()))
-    (%vi-main files)))
+    (%vi-start argv)))
 
 (def %vi-typed-read
   (fn (self)

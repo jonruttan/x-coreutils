@@ -593,6 +593,70 @@
       (%vi-sub-in-line walk ls after i e find repl g? (%vi+ subs 1) lines2 i)
       (walk (%vi-next-line ls) (%vi+ i 1) e find repl g? (%vi+ subs 1) lines2 i))))
 
+; --- the commands run at the start -------------------------------------------
+
+(def %vi-initial-cmds ())   ; -c's commands, until the first file is in
+
+; busybox's vi_main: $EXINIT's commands, or when it is not set ~/.exrc's --
+; a .exrc of the user's own that no one else may write -- run on an empty
+; text before the first file is read
+(def %vi-startup-cmds!
+  (fn (_)
+    (def exinit (%vi-getenv "EXINIT"))
+    (def cmds (if (null? exinit) (%vi-exrc-cmds) exinit))
+    (if (null? cmds) () (do (%vi-init-text-buffer! ()) (%vi-run-cmds cmds)))))
+
+(def %vi-exrc-cmds
+  (fn (_)
+    (def home (%vi-getenv "HOME"))
+    (if (if (null? home) #t (= (byte-len home) 0)) ()
+      (%vi-exrc-read (%vi-path-join home ".exrc")))))
+
+(def %vi-exrc-read
+  (fn (_ path)
+    (def st (file-stat-full path))
+    (match
+      ((null? st) ())
+      ((if (= (%vi& (Assoc get (lit mode) st) 18) 0) (= (%cu-stat-get st (lit uid)) (sys-getuid)) #f)
+        (file-read-all path))
+      (#t (do (%vi-status-line-bold! ".exrc: permission denied") ())))))
+
+; busybox's concat_path_file: one / between, none added after a trailing one
+(def %vi-path-join
+  (fn (_ dir name)
+    (if (= (byte-at dir (%vi- (byte-len dir) 1)) #\/) (string-append dir name)
+      (string-concat (list dir "/" name)))))
+
+; busybox's run_cmds: each line of S a colon command, a run of newlines one
+; break
+(def %vi-run-cmds
+  (fn (self s)
+    (def nl (%vi-byte-index s #\newline 0))
+    (if (%vi< nl 0) (%vi-colon s)
+      (do (%vi-colon (%vi-bsub s 0 nl))
+          (self (%vi-bsub s (%vi-past-newlines s nl) (%vi- (byte-len s) (%vi-past-newlines s nl))))))))
+
+(def %vi-past-newlines
+  (fn (self s i)
+    (if (if (%vi< i (byte-len s)) (= (byte-at s i) #\newline) #f) (self s (%vi+ i 1)) i)))
+
+(def %vi-byte-index
+  (fn (self s b i)
+    (match
+      ((if (%vi< i (byte-len s)) #f #t) -1)
+      ((= (byte-at s i) b) i)
+      (#t (self s b (%vi+ i 1))))))
+
+; busybox's edit_file: -c's commands, as the first file is in
+(def %vi-initial-cmds-run!
+  (fn (self)
+    (if (null? %vi-initial-cmds) () (%vi-initial-cmd-pop! self (first %vi-initial-cmds)))))
+(def %vi-initial-cmd-pop!
+  (fn (_ again c)
+    (set! %vi-initial-cmds (rest %vi-initial-cmds))
+    (%vi-run-cmds c)
+    (again)))
+
 ; --- :! ---------------------------------------------------------------------
 
 ; :!CMD -- the rest of the line after the ! run by the shell, % and # in it
