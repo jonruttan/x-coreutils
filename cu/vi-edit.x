@@ -137,7 +137,8 @@
     (if (if whole? (= c #\c) #f)
       (set! %vi-newindent (%vi-get-column (%vi+ from (%vi-indent-len from))))
       ())
-    (set! %vi-dot (%vi-yank-delete from to type (if (%vi-one-of? c (list #\y #\Y)) #f #t)))
+    (set! %vi-dot
+      (%vi-yank-delete from to type (if (%vi-one-of? c (list #\y #\Y)) #f #t) %vi-allow-undo))
     (if whole? (%vi-cdy-whole c p) ())
     (match
       ((= c #\c) (%vi-start-insert!))
@@ -151,7 +152,7 @@
     (match
       ((= c #\c)
         (do (set! %vi-cmd-mode 1)
-            (set! %vi-dot (%vi-char-insert %vi-dot 10))
+            (set! %vi-dot (%vi-char-insert %vi-dot 10 %vi-allow-undo-chain))
             (if (if (= %vi-dot (%vi- %vi-end 1)) #t (%vi-opt? %vi-ai)) () (%vi-dot-prev!))))
       ((= c #\d) (do (%vi-dot-begin!) (%vi-dot-skip-over-ws!)))
       (#t (set! %vi-dot save)))))
@@ -166,34 +167,39 @@
     (def range (%vi-find-range c))
     (if (null? range) ()
       (%vi-shift-lines c (%vi-begin-line (first (rest range)))
-        (%vi-count-lines (first (rest range)) (rest (rest range)))))
+        (%vi-count-lines (first (rest range)) (rest (rest range))) (list %vi-allow-undo)))
     (if (null? range) ()
       (do (set! %vi-dot (%vi-find-line line)) (%vi-dot-skip-over-ws!)))
     (%vi-end-cmd-q!)))
 
+; each line's change chained to the one before; UNDO is a cell, as busybox's
+; allow_undo is one variable for the whole command
 (def %vi-shift-lines
-  (fn (self c p n)
+  (fn (self c p n undo)
     (if (%vi< 0 n)
-      (do (if (= c #\<) (%vi-shift-left p) (%vi-shift-right p))
-          (self c (%vi-next-line p) (%vi- n 1)))
+      (do (if (= c #\<) (%vi-shift-left p undo) (%vi-shift-right p undo))
+          (set-first! undo %vi-allow-undo-chain)
+          (self c (%vi-next-line p) (%vi- n 1) undo))
       ())))
 
 (def %vi-shift-left
-  (fn (_ p)
+  (fn (_ p undo)
     (match
-      ((= (%vi-byte p) #\tab) (%vi-hole-delete! p p))
-      ((= (%vi-byte p) #\space) (%vi-unindent p 0))
+      ((= (%vi-byte p) #\tab) (%vi-hole-delete! p p (first undo)))
+      ((= (%vi-byte p) #\space) (%vi-unindent p 0 undo))
       (#t ()))))
 
 (def %vi-unindent
-  (fn (self p j)
+  (fn (self p j undo)
     (if (if (= (%vi-byte p) #\space) (%vi< j %vi-tabstop) #f)
-      (do (%vi-hole-delete! p p) (self p (%vi+ j 1)))
+      (do (%vi-hole-delete! p p (first undo))
+          (set-first! undo %vi-allow-undo-chain)
+          (self p (%vi+ j 1) undo))
       ())))
 
 (def %vi-shift-right
-  (fn (_ p)
-    (if (= p (%vi-end-line p)) () (%vi-char-insert p 9))))
+  (fn (_ p undo)
+    (if (= p (%vi-end-line p)) () (%vi-char-insert p 9 (first undo)))))
 
 ; --- p and P ----------------------------------------------------------------
 
@@ -213,7 +219,11 @@
     (if (= type 1) (%vi-put-whole-at c) (if (= c #\p) (%vi-dot-right!) ()))
     (def cnt
       (if (if (= type 1) #t (%vi-has-newline? s)) 0 (%vi- (%vi* times (byte-len s)) 1)))
-    (%vi-repeat (fn (_) (%vi-string-insert! %vi-dot s)))
+    (def undo (list %vi-allow-undo))
+    (%vi-repeat
+      (fn (_)
+        (%vi-string-insert! %vi-dot s (first undo))
+        (set-first! undo %vi-allow-undo-chain)))
     (set! %vi-dot (%vi+ %vi-dot cnt))
     (%vi-dot-skip-over-ws!)
     (%vi-yank-status! "Put" s times)
@@ -229,14 +239,14 @@
 (def %vi-has-newline?
   (fn (_ s) (%vi< 0 (%vi-newlines-of s))))
 
-; busybox's string_insert: S put in at P
+; busybox's string_insert: S put in at P, recorded as UNDO says
 (def %vi-string-insert!
-  (fn (_ p s)
+  (fn (_ p s undo)
     (def n (byte-len s))
+    (%vi-undo-push-insert! p n undo)
     (%vi-hole-make! p n)
     (%cu-ptr-call %vi-c-memcpy (%vi+ %vi-taddr p) s n)
-    (set! %vi-nl-total (%vi+ %vi-nl-total (%vi-newlines-of s)))
-    (set! %vi-modified (%vi+ %vi-modified 1))))
+    (set! %vi-nl-total (%vi+ %vi-nl-total (%vi-newlines-of s)))))
 
 ; "x: the register the next command yanks into or puts from
 (def %vi-cmd-name-reg
@@ -305,24 +315,29 @@
         (%vi-r-replace c)))
     (%vi-end-cmd-q!)))
 
+; the first byte out undoable on its own, all after it chained
 (def %vi-r-replace
   (fn (_ c)
+    (def undo (list %vi-allow-undo))
     (%vi-repeat
       (fn (_)
-        (set! %vi-dot (%vi-hole-delete! %vi-dot %vi-dot))
-        (set! %vi-dot (%vi-char-insert %vi-dot c))))
+        (set! %vi-dot (%vi-hole-delete! %vi-dot %vi-dot (first undo)))
+        (set-first! undo %vi-allow-undo-chain)
+        (set! %vi-dot (%vi-char-insert %vi-dot c (first undo)))))
     (%vi-dot-left!)))
 
-; J: the next line joined on with a space, its leading blanks dropped
+; J: the next line joined on with a space, its leading blanks dropped; the
+; newline's record first, all after it chained
 (def %vi-cmd-J
   (fn (_)
     (%vi-repeat
       (fn (_)
         (%vi-dot-end!)
         (if (%vi< %vi-dot (%vi- %vi-end 1))
-          (do (%vi-byte-set! %vi-dot 32)
-              (set! %vi-modified (%vi+ %vi-modified 1))
+          (do (%vi-undo-push! %vi-dot 1 %vi-u-del)
+              (%vi-byte-set! %vi-dot 32)
               (set! %vi-dot (%vi+ %vi-dot 1))
+              (%vi-undo-push! (%vi- %vi-dot 1) 1 %vi-u-ins-chain)
               (%vi-drop-blanks))
           ())))
     (%vi-end-cmd-q!)))
@@ -330,32 +345,36 @@
 (def %vi-drop-blanks
   (fn (self)
     (if (%vi-blank? (%vi-byte %vi-dot))
-      (do (%vi-hole-delete! %vi-dot %vi-dot) (self))
+      (do (%vi-hole-delete! %vi-dot %vi-dot %vi-allow-undo-chain) (self))
       ())))
 
-; ~: the case of the letter under the cursor flipped, COUNT times rightward
+; ~: the case of the letter under the cursor flipped, COUNT times rightward;
+; each flip the old letter out and the new in, chained to the flip before
 (def %vi-cmd-tilde
   (fn (_)
+    (def del (list %vi-u-del))
     (%vi-repeat
       (fn (_)
         (def c (%vi-byte %vi-dot))
         (match
-          ((%vi-in? c #\a #\z) (%vi-flip-case (%vi- c 32)))
-          ((%vi-in? c #\A #\Z) (%vi-flip-case (%vi+ c 32)))
+          ((%vi-in? c #\a #\z) (%vi-flip-case (%vi- c 32) del))
+          ((%vi-in? c #\A #\Z) (%vi-flip-case (%vi+ c 32) del))
           (#t ()))
         (%vi-dot-right!)))
     (%vi-end-cmd-q!)))
 
 (def %vi-flip-case
-  (fn (_ c)
+  (fn (_ c del)
+    (%vi-undo-push! %vi-dot 1 (first del))
     (%vi-byte-set! %vi-dot c)
-    (set! %vi-modified (%vi+ %vi-modified 1))))
+    (%vi-undo-push! %vi-dot 1 %vi-u-ins-chain)
+    (set-first! del %vi-u-del-chain)))
 
 ; D and C: to the end of the line out; C goes on into insert mode
 (def %vi-cmd-DC
   (fn (_ c)
     (def from %vi-dot)
-    (set! %vi-dot (%vi-yank-delete from (%vi-dollar-line %vi-dot) 0 #t))
+    (set! %vi-dot (%vi-yank-delete from (%vi-dollar-line %vi-dot) 0 #t %vi-allow-undo))
     (if (= c #\C) (%vi-start-insert!) (%vi-end-cmd-q!))))
 
 ; the byte before a line's newline, or the newline of an empty line
@@ -375,8 +394,8 @@
 
 (def %vi-undo-line
   (fn (_ s)
-    (def p (%vi-hole-delete! (%vi-begin-line %vi-dot) (%vi-end-line %vi-dot)))
-    (%vi-string-insert! p s)
+    (def p (%vi-hole-delete! (%vi-begin-line %vi-dot) (%vi-end-line %vi-dot) %vi-allow-undo))
+    (%vi-string-insert! p s %vi-allow-undo-chain)
     (set! %vi-dot p)
     (%vi-dot-skip-over-ws!)
     (%vi-yank-status! "Undo" s 1)))
@@ -394,4 +413,4 @@
 ; busybox's end_cmd_q: the register named for a command reverts to the
 ; default when the command is done
 (def %vi-end-cmd-q!
-  (fn (_) (set! %vi-ydreg 26)))
+  (fn (_) (set! %vi-ydreg 26) (set! %vi-adding2q #f)))

@@ -48,4 +48,5 @@
 (include-once "./vi-edit.x")
 (include-once "./vi-ex.x")
 (include-once "./vi-set.x")
+(include-once "./vi-undo.x")
 (include-once "./cli.x")

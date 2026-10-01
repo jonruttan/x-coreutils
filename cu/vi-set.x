@@ -151,10 +151,13 @@
 
 ; the first PAT wholly in the ROOM bytes from FROM, any case, or -1.
 ; strcasestr stops at a NUL, so a miss goes on past the next NUL in the room;
-; the text itself ends in one.
+; the text is given one after it for the call.
 (def %vi-find-text-ic
   (fn (self from room pat len)
-    (def at (%vi-found (%cu-ptr-call %vi-c-strcasestr (%vi+ %vi-taddr from) pat)))
+    (def at
+      (%vi-found
+        (%vi-with-nul-at-end
+          (fn (_) (%cu-ptr-call %vi-c-strcasestr (%vi+ %vi-taddr from) pat)))))
     (def nul (if (%vi< at 0) (%vi-found (%cu-ptr-call %vi-c-memchr (%vi+ %vi-taddr from) 0 room)) -1))
     (match
       ((%vi< -1 at) (if (%vi< (%vi+ from room) (%vi+ at len)) -1 at))
@@ -183,44 +186,45 @@
 ; after the byte C went in before P: showmatch for a closing bracket, and
 ; autoindent for a newline
 (def %vi-after-insert
-  (fn (_ p c)
+  (fn (_ p c undo)
     (if (if (%vi-opt? %vi-sm) (%vi-one-of? c (list #\) #\] #\})) #f)
       (%vi-showmatching (%vi- p 1))
       ())
     (if (if (%vi-opt? %vi-ai) (= c #\newline) #f)
-      (%vi-autoindent p)
+      (%vi-autoindent p undo)
       (%vi-indent-reset p))))
 
 ; a new line's indent: the line before's, or for O and cc the indent they
 ; took, put before the newline unless that ends the text
 (def %vi-autoindent
-  (fn (_ p)
+  (fn (_ p undo)
     (if (%vi< %vi-newindent 0)
-      (%vi-indent-as-before p)
-      (%vi-indent-by (if (= p (%vi- %vi-end 1)) p (%vi- p 1)) %vi-newindent))))
+      (%vi-indent-as-before p undo)
+      (%vi-indent-by (if (= p (%vi- %vi-end 1)) p (%vi- p 1)) %vi-newindent undo))))
 
 ; a line empty but for the autoindent just made gives its indent to the new
-; line after it
+; line after it -- a move busybox makes without a record
 (def %vi-indent-as-before
-  (fn (_ p)
+  (fn (_ p undo)
     (def bol (%vi-prev-line p))
     (def len (%vi-indent-len bol))
     (def col (%vi-get-column (%vi+ bol len)))
     (if (if (%vi< 0 len) (= col %vi-indentcol) #f)
-      (do (%vi-hole-delete! (%vi+ bol len) (%vi+ bol len))
+      (do (%vi-hole-delete! (%vi+ bol len) (%vi+ bol len) %vi-no-undo)
           (%vi-byte-insert! bol 10)
           p)
-      (%vi-indent-by p col))))
+      (%vi-indent-by p col undo))))
 
 ; COL columns of indent in at P, in tabs and spaces or, with expandtab, all
 ; spaces; recorded as the autoindent while inserting
 (def %vi-indent-by
-  (fn (_ p col)
+  (fn (_ p col undo)
     (def ntab (if (%vi-opt? %vi-et) 0 (%vi/ col %vi-tabstop)))
     (def nspc (if (%vi-opt? %vi-et) col (%vi% col %vi-tabstop)))
     (if (= col 0) (%vi-indent-reset p)
       (do (set! %vi-indentcol (if (= %vi-cmd-mode 0) 0 col))
-          (%vi-string-insert! p (string-append (%vi-run #\tab ntab) (%vi-run #\space nspc)))
+          (%vi-string-insert! p (string-append (%vi-run #\tab ntab) (%vi-run #\space nspc))
+            undo)
           (%vi+ p (%vi+ ntab nspc))))))
 
 ; N of the byte B
@@ -233,24 +237,32 @@
 (def %vi-tab-run (string-concat (List map (fn (_ i) (bytes->str (list 9))) (List range 0 32))))
 (def %vi-space-run (string-concat (List map (fn (_ i) " ") (List range 0 32))))
 
-; Tab with expandtab: spaces to the next tab stop
+; Tab with expandtab: spaces to the next tab stop, each recorded on its own
+; as busybox puts them in one at a time
 (def %vi-insert-expanded-tab
-  (fn (_ p)
+  (fn (_ p undo)
     (def col (%vi-get-column p))
     (def n (%vi+ (%vi- (%vi-next-tabstop col) col) 1))
-    (%vi-string-insert! p (%vi-run #\space n))
+    (%vi-push-each-insert! p n undo)
+    (%vi-string-insert! p (%vi-run #\space n) %vi-no-undo)
     (%vi+ p n)))
+
+(def %vi-push-each-insert!
+  (fn (self p n undo)
+    (if (%vi< 0 n)
+      (do (%vi-undo-push-insert! p 1 undo) (self (%vi+ p 1) (%vi- n 1) undo))
+      ())))
 
 ; Esc on a line that holds only the autoindent just made takes it out
 (def %vi-strip-autoindent
-  (fn (_ bol p)
+  (fn (_ bol p undo)
     (def len (%vi-indent-len bol))
     (match
       ((if (%vi-opt? %vi-ai) (%vi< 0 len) #f)
         (if (if (= (%vi-get-column (%vi+ bol len)) %vi-indentcol)
               (= (byte-at %vi-text (%vi+ bol len)) #\newline)
               #f)
-          (do (%vi-hole-delete! bol (%vi- (%vi+ bol len) 1)) bol)
+          (do (%vi-hole-delete! bol (%vi- (%vi+ bol len) 1) undo) bol)
           p))
       (#t p))))
 
@@ -264,3 +276,13 @@
           (#t (= (%vi+ bol (%vi-indent-len bol)) (%vi-end-line p))))
       (do (set! %vi-indentcol (%vi-get-column p)) p)
       (%vi-indent-reset p))))
+
+; THUNK's answer, with a NUL after the text while it runs: the byte there is
+; left as busybox would leave it, and put back after
+(def %vi-with-nul-at-end
+  (fn (_ thunk)
+    (def was (%vi& (byte-at %vi-text %vi-end) 255))
+    (%vi-ptr-set! %vi-tptr %vi-end 0 1)
+    (def r (thunk))
+    (%vi-ptr-set! %vi-tptr %vi-end was 1)
+    r))

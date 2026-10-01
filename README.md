@@ -87,10 +87,11 @@ Self-contained: no `(requires-lang ...)`.
     `,` and `;`): a line number, `:d :y :l := :s`, `:w :wq :x :wn`,
     `:r :e :f` with `%` and `#`, and `:q :n :prev :rew`; `:set` and
     busybox's options, `ai et fl ic sm ts` (autoindent, expandtab,
-    flash, ignorecase, showmatch, tabstop); and `:!`, a command run by
-    libc's `system` as busybox runs it.  busybox's other commands answer
-    `is not implemented`, and it takes no command-line options yet.  A
-    message wider than
+    flash, ignorecase, showmatch, tabstop); `:!`, a command run by
+    libc's `system` as busybox runs it; and `u` and `.`, busybox's undo
+    stack with its queue of typing and its repeat of the last change.
+    busybox's other commands answer `is not implemented`, and it takes no
+    command-line options yet.  A message wider than
     the screen waits for one Return, where busybox's waits again after
     every Return and takes no more commands.  `^C` from a terminal goes
     back to the top in command mode, as busybox's SIGINT handler does;
@@ -163,6 +164,7 @@ parsed by x-lang's `Opts`.
     cu/vi-edit.x      vi's operators over those motions, registers, marks
     cu/vi-ex.x        vi's search and : commands, over busybox's addresses
     cu/vi-set.x       vi's options: :set, and what ai et fl ic sm ts do
+    cu/vi-undo.x      vi's u and .: the undo stack and the keys . replays
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 

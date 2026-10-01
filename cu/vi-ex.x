@@ -315,7 +315,7 @@
 (def %vi-colon-delete
   (fn (_ got? q r)
     (def qr (%vi-or-this-line got? q r))
-    (set! %vi-dot (%vi-yank-delete (first qr) (rest qr) 1 #t))
+    (set! %vi-dot (%vi-yank-delete (first qr) (rest qr) 1 #t %vi-allow-undo))
     (%vi-dot-skip-over-ws!)))
 
 ; :ya -- the lines into the register, counted on the status line
@@ -583,8 +583,9 @@
 
 (def %vi-sub-at
   (fn (_ walk ls found i e find repl g? subs lines last)
-    (%vi-hole-delete! found (%vi- (%vi+ found (byte-len find)) 1))
-    (if (%vi< 0 (byte-len repl)) (%vi-string-insert! found repl) ())
+    (%vi-hole-delete! found (%vi- (%vi+ found (byte-len find)) 1)
+      (if (= subs 0) %vi-allow-undo %vi-allow-undo-chain))
+    (if (%vi< 0 (byte-len repl)) (%vi-string-insert! found repl %vi-allow-undo-chain) ())
     (set! %vi-dot ls)
     (def lines2 (if (= last i) lines (%vi+ lines 1)))
     (def after (%vi+ found (byte-len repl)))
