@@ -270,6 +270,36 @@ status status
 cursor 1 4 bells 1 flashes 1
 ```
 
+## the version
+
+These two are not busybox's: busybox's :version gives busybox's version,
+and vi's gives the one x-coreutils was installed as, from the `version`
+file `make install` writes into the bundle.
+
+### the version file make install writes
+
+```cu
+(def vi-saved-root (guard (e ()) %lang-root))
+(proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vo && mkdir -p /tmp/x-cu-vo && printf '1.2.3-4-gabcdef\n' > /tmp/x-cu-vo/version"))
+(def %lang-root "/tmp/x-cu-vo")
+(display (list (%vi-bundle-version) (byte-len (%vi-bundle-version))))
+(set! %lang-root vi-saved-root)
+```
+---
+    (1.2.3-4-gabcdef 15)
+
+### a checkout, with no version file, is dev
+
+```cu
+(def vi-saved-root (guard (e ()) %lang-root))
+(proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vo && mkdir -p /tmp/x-cu-vo"))
+(def %lang-root "/tmp/x-cu-vo")
+(display (list (%vi-bundle-version) (byte-len (%vi-bundle-version))))
+(set! %lang-root vi-saved-root)
+```
+---
+    (dev 3)
+
 ## options
 
 ### -R reads the file read-only
@@ -571,6 +601,31 @@ one
 |                                                     Adapt t
 |o window re-sizes
 status                  [Hit return to continue]
+cursor 0 0 bells 0
+```
+
+### :version says the version x-coreutils was installed as
+
+busybox gives its own version; a checkout of x-coreutils has none, and is dev
+
+```cu
+(vi-run-case 10 60 "one\n" (list (vi-b ":version" (lit cr))) (list "/tmp/x-cu-vo/f") (list) () ())
+```
+---
+```output
+exit 1
+one
+--
+|one
+|~
+|~
+|~
+|~
+|~
+|~
+|~
+|~
+status dev
 cursor 0 0 bells 0
 ```
 

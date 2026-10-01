@@ -279,7 +279,7 @@
       ((%vi-prefix? cmd "rewind") (%vi-colon-rewind cmd force?))
       ((if (%vi-prefix? cmd "set") (%vi< 1 (byte-len cmd)) #f) (%vi-colon-set args))
       ((= c0 #\s) (%vi-colon-substitute buf (%vi-part parts 6) got? (%vi-part parts 5) b e q))
-      ((%vi-prefix? cmd "version") (%vi-not-implemented cmd))
+      ((%vi-prefix? cmd "version") (%vi-status-line! (%vi-bundle-version)))
       ((%vi-write-cmd? cmd) (%vi-colon-write cmd args force? q r))
       ((%vi-prefix? cmd "yank") (%vi-colon-yank got? q r))
       (#t (%vi-not-implemented cmd)))))
@@ -603,6 +603,25 @@
     (%vi-show-help)
     (%vi-raw!)
     (%vi-hit-return "")))
+
+; :version's answer, where busybox gives its own: the version x-coreutils was
+; installed as, from the file make install writes into the bundle; a
+; checkout has none, and is dev, as make's own fallback says.  x.sh defines
+; %lang-root, the bundle's directory, before the entry runs; where it is
+; not defined, there is no version file to find.
+; lint-known: %lang-root
+(def %vi-bundle-version
+  (fn (_)
+    (def root (guard (_ ()) %lang-root))
+    (def path (if (null? root) () (%vi-path-join root "version")))
+    (if (if (null? path) #f (file-exists? path))
+      (%vi-first-line (file-read-all path))
+      "dev")))
+
+(def %vi-first-line
+  (fn (_ s)
+    (def nl (%vi-byte-index s #\newline 0))
+    (if (%vi< nl 0) s (%vi-bsub s 0 nl))))
 
 ; --- the commands run at the start -------------------------------------------
 
