@@ -17,6 +17,7 @@
 (import x/num/random)
 (import x/type/struct)
 (import x/sys/opts)
+(import x/net/http)
 
 (provide cu/prims
   char->integer integer->char byte-at byte-len
@@ -45,7 +46,9 @@
   sys-user-name sys-group-name sys-user-id sys-user-group sys-group-id
   sys-user-groups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
-  cu-stdin! cu-stdin-chunk! cu-stdin-to-command!)
+  cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
+  net-resolve http-open http-read http-close http-status http-headers http-head
+  net-base64)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -901,3 +904,21 @@
 ; string's observable bytes end at its first NUL, so a read-all + write-all copy
 ; would truncate anything but text.
 (def file-copy (fn (_ from to) (File copy from to)))
+
+; --- the network ----------------------------------------------------------------
+;
+; wget's doors onto the platform's Http: open reads a response's head and
+; answers a stream, read hands its body out a piece at a time as a run
+; (nil at the end), close ends the exchange.  A name resolves to a dotted quad,
+; raising an io Err when it cannot; open raises one for a refused connection, a
+; failed handshake or a certificate that does not verify.
+(def net-resolve (fn (_ name) (Socket resolve name)))
+(def http-open
+  (fn (_ method url headers body opts) (Http open method url headers body opts)))
+(def http-read (fn (_ s n) (Http read s n)))
+(def http-close (fn (_ s) (Http close s)))
+(def http-status (fn (_ s) (s status)))
+(def http-headers (fn (_ s) (s headers)))
+(def http-head (fn (_ s) (s head)))
+; the text of an Authorization: Basic credential
+(def net-base64 (fn (_ s) (Base64 encode s)))

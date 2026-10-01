@@ -50,4 +50,5 @@
 (include-once "./vi-set.x")
 (include-once "./vi-undo.x")
 (include-once "./more.x")
+(include-once "./net.x")
 (include-once "./cli.x")

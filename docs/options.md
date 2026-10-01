@@ -99,10 +99,12 @@ the work.  Applet parity is the other axis: see the README.
 | `usleep` |  |  |  | - |
 | `uudecode` | -o | -o |  | 100% |
 | `uuencode` | -m | -m |  | 100% |
+| `vi` | -c -R -H | -H -h -R -c |  | 100% |
 | `wc` | -c -m -l -w -L | -l -w -c -m -L |  | 100% |
+| `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | -c -q -S --continue --quiet --server-response --spider --no-check-certificate -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent -O -o -P -Y -U -T -t --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries --header --post-data --post-file |  | 100% |
 | `which` | -a | -a |  | 100% |
 | `whoami` |  |  |  | - |
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -0 -n -a -E -I -s | -p | 90% |
 | `yes` |  |  |  | - |
 
-**Total: 429 of 432 busybox options accepted (99%).**
+**Total: 447 of 450 busybox options accepted (99%).**

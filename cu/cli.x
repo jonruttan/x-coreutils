@@ -105,6 +105,7 @@
     (pair "sleep" %cu-sleep)
     (pair "date" %cu-date)
     (pair "which" %cu-which)
+    (pair "wget" %cu-wget)
     (pair "xargs" %cu-xargs)
     (pair "vi" %cu-vi)
     (pair "more" %cu-more)
@@ -246,6 +247,15 @@
     (pair "tty" (list (list "-s") ()))
     (pair "pwd" (list (list "-L" "-P") ()))
     (pair "which" (list (list "-a") ()))
+    ; busybox spells each long option as a short one too; wget reads either.
+    ; -n takes busybox's four ignored -nX forms whole.
+    (pair "wget" (list (list "-c" "-q" "-S" "--continue" "--quiet" "--server-response"
+                             "--spider" "--no-check-certificate" "-nv" "-nc" "-nH" "-np"
+                             "--passive-ftp" "--no-cache" "--no-verbose" "--no-clobber"
+                             "--no-host-directories" "--no-parent")
+                       (list "-O" "-o" "-P" "-Y" "-U" "-T" "-t" "--output-document"
+                             "--output-file" "--directory-prefix" "--proxy" "--user-agent"
+                             "--timeout" "--tries" "--header" "--post-data" "--post-file")))
     (pair "nproc" (list (list "--all") (list "--ignore")))
     (pair "uudecode" (list () (list "-o")))
     ; busybox's getopt32 string for vi, "c:*HhR": -c may be given again
