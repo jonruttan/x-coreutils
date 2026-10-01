@@ -13,6 +13,7 @@ the work.  Applet parity is the other axis: see the README.
 | `arch` |  |  |  | - |
 | `base64` | -d -w | -d -w |  | 100% |
 | `basename` | -s | -s |  | 100% |
+| `cal` | -j -m -y | -j -m -y |  | 100% |
 | `cat` | -n -b -v -t -e -A | -n -b -v -t -e -A |  | 100% |
 | `chgrp` | -R -h -L -H -P -c -v -f | -R -h -L -H -P -c -v -f |  | 100% |
 | `chmod` | -R -c -v -f | -R -c -v -f |  | 100% |
@@ -79,6 +80,7 @@ the work.  Applet parity is the other axis: see the README.
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -n -r -u -g -M -c -s -b -d -f -i -z -o -k -t |  | 100% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
 | `stat` | -L -f -t -c | -L -f -t -c |  | 100% |
+| `strings` | -a -f -o -n -t | -a -f -o -n -t |  | 100% |
 | `sum` | -r -s | -s -r |  | 100% |
 | `sync` | -d -f | -d -f |  | 100% |
 | `tac` |  |  |  | - |
@@ -90,6 +92,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tr` | -c -d -s | -d -s -c |  | 100% |
 | `true` |  |  |  | - |
 | `truncate` | -c -s | -c -s |  | 100% |
+| `tsort` |  |  |  | - |
 | `tty` | -s | -s |  | 100% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -s -n -r -v -m -p -i -o |  | 100% |
 | `unexpand` | -f -a -t | -a -f -t |  | 100% |
@@ -105,4 +108,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -0 -n -a -E -I -s | -p | 90% |
 | `yes` |  |  |  | - |
 
-**Total: 429 of 432 busybox options accepted (99%).**
+**Total: 437 of 440 busybox options accepted (99%).**
