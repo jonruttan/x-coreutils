@@ -7,17 +7,19 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**Ninety-four applets: parity with busybox's `coreutils` set, plus
-`join`, `find` and busybox's editor, `vi`.**
+**Ninety-seven applets: parity with busybox's `coreutils` set, plus
+`join`, `find`, busybox's editor, `vi`, and its pager and terminal
+tools, `more`, `clear` and `reset`.**
 
-    arch base64 basename cat chgrp chmod chown chroot cksum cmp comm
-    cp cut date dd df diff dirname dos2unix du echo env expand expr
+    arch base64 basename cat chgrp chmod chown chroot cksum clear cmp
+    comm cp cut date dd df diff dirname dos2unix du echo env expand expr
     factor false find fold groups head id install join link ln logname ls
-    md5sum mkdir mkfifo mktemp mv nice nl nohup nproc od paste printenv
-    printf pwd readlink realpath rev rm rmdir seq sha1sum sha256sum
-    sha512sum shred shuf sleep sort split stat sum sync tac tail tee
-    test timeout touch tr true truncate tty unexpand uniq unix2dos
-    unlink uname uudecode uuencode usleep vi wc which whoami xargs yes
+    md5sum mkdir mkfifo mktemp more mv nice nl nohup nproc od paste
+    printenv printf pwd readlink realpath reset rev rm rmdir seq sha1sum
+    sha256sum sha512sum shred shuf sleep sort split stat sum sync tac
+    tail tee test timeout touch tr true truncate tty unexpand uniq
+    unix2dos unlink uname uudecode uuencode usleep vi wc which whoami
+    xargs yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -170,6 +172,7 @@ parsed by x-lang's `Opts`.
     cu/vi-ex.x        vi's search and : commands, over busybox's addresses
     cu/vi-set.x       vi's options: :set, and what ai et fl ic sm ts do
     cu/vi-undo.x      vi's u and .: the undo stack and the keys . replays
+    cu/more.x         more, the pager, and clear and reset, the terminal tools
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 
