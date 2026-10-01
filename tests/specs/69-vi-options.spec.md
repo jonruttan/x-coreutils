@@ -231,7 +231,7 @@ types the bursts, and draws what came of them.
       (do (file-write-all "/tmp/x-cu-vo/.exrc" (first (rest exrc)))
           (proc-run (list "/bin/chmod" (first exrc) "/tmp/x-cu-vo/.exrc"))))
     (set! %vi-typed-env env)
-    (def st (%vi-typed argv bursts rows cols #f))
+    (def st (%vi-typed argv bursts rows cols))
     (set! %vi-typed-env ())
     (def f (if (file-exists? "/tmp/x-cu-vo/f") (vi-shown (file-read-all "/tmp/x-cu-vo/f")) "no file\n"))
     (display

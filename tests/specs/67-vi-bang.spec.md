@@ -221,7 +221,7 @@ types the bursts, and draws what came of them.
     (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vb && mkdir -p /tmp/x-cu-vb"))
     (if (null? text) () (file-write-all "/tmp/x-cu-vb/f" text))
     (if (null? mode) () (proc-run (list "/bin/chmod" (first mode) "/tmp/x-cu-vb/f")))
-    (def st (%vi-typed (list target) bursts rows cols #f))
+    (def st (%vi-typed (list target) bursts rows cols))
     (def f (if (file-exists? "/tmp/x-cu-vb/f") (vi-shown (file-read-all "/tmp/x-cu-vb/f")) "no file\n"))
     (display
       (string-concat
