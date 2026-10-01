@@ -106,6 +106,7 @@
     (list "usleep" ())
     (list "uudecode" (%letters "o"))
     (list "uuencode" (%letters "m"))
+    (list "vi" (%letters "cRH"))
     (list "wc" (%letters "cmlwL"))
     (list "which" (%letters "a"))
     (list "whoami" ())
