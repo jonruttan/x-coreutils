@@ -305,6 +305,7 @@
 ; busybox's dot_scroll: the screen CNT lines up or down, the cursor kept on it
 (def %vi-dot-scroll
   (fn (_ cnt dir)
+    (%vi-undo-queue-commit!)
     (set! %vi-screenbegin
       (if (%vi< dir 0) (%vi-prev-lines %vi-screenbegin cnt) (%vi-next-lines %vi-screenbegin cnt)))
     (if (%vi< %vi-dot %vi-screenbegin) (set! %vi-dot %vi-screenbegin) ())
