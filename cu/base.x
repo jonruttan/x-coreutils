@@ -50,4 +50,7 @@
 (include-once "./vi-set.x")
 (include-once "./vi-undo.x")
 (include-once "./more.x")
+(include-once "./tsort.x")
+(include-once "./strings.x")
+(include-once "./cal.x")
 (include-once "./cli.x")
