@@ -1888,7 +1888,8 @@
 ; they are 0.  A burst is a string of keys, or a signal arriving in the pause:
 ; 'winch, 'tstp, 'int, or (resize ROWS COLS), the window's new size and the
 ; SIGWINCH that tells of it.  %vi-typed-waiting is a burst already there when
-; vi starts.  Answers the exit status; what was drawn is in %vi-drawn.
+; vi starts.  Answers the exit status; what was drawn is in %vi-drawn, and
+; how many times vi stopped itself in %vi-typed-stops.
 (def %vi-drawn ())
 (def %vi-burst "")
 (def %vi-burst-i 0)
@@ -1896,6 +1897,7 @@
 (def %vi-typed-waiting "")
 (def %vi-typed-dims ())
 (def %vi-typed-pending ())
+(def %vi-typed-stops 0)
 
 (def %vi-typed
   (fn (_ argv bursts rows cols)
@@ -1913,7 +1915,8 @@
     (set! %vi-getenv (fn (_ n) (%vi-env-ref n %vi-typed-env)))
     (set! %vi-measure (fn (_) %vi-typed-dims))
     (set! %vi-arrived? %vi-typed-arrived?)
-    (set! %vi-stop! (fn (_) ()))
+    (set! %vi-typed-stops 0)
+    (set! %vi-stop! (fn (_) (set! %vi-typed-stops (%vi+ %vi-typed-stops 1))))
     (set! %vi-raw! (fn (_) ()))
     (set! %vi-cooked! (fn (_) ()))
     (%vi-start argv)))

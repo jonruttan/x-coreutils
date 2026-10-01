@@ -285,6 +285,23 @@ status status
 cursor 1 4 bells 1 flashes 1
 ```
 
+
+### vi stops itself once for each SIGTSTP, and for nothing else
+
+Stopped and continued, vi draws the screen it drew before, so the screens
+below cannot tell a SIGTSTP answered from one ignored: the count of stops
+can.
+
+```cu
+(proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vg && mkdir -p /tmp/x-cu-vg"))
+(file-write-all "/tmp/x-cu-vg/f" "one\ntwo\n")
+(%vi-typed (list "/tmp/x-cu-vg/f") (list (vi-b "j") (lit tstp) (vi-b "x") (lit tstp)) 10 40)
+(def vi-stops-tstp %vi-typed-stops)
+(%vi-typed (list "/tmp/x-cu-vg/f") (list (vi-b "j") (lit winch) (lit int) (vi-b "x")) 10 40)
+(display (list vi-stops-tstp %vi-typed-stops))
+```
+---
+    (2 0)
 ## SIGWINCH draws the screen again
 
 ### in command mode, all of it drawn again at once
