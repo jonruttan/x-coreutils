@@ -505,6 +505,75 @@ status
 cursor 0 0 bells 0
 ```
 
+### :features lists them and waits
+
+```cu
+(vi-run-case 10 60 "one\n" (list (vi-b ":features" (lit cr))) (list "/tmp/x-cu-vo/f") (list) () ())
+```
+---
+```output
+exit 1
+one
+--
+|                                            Named buffers wi
+|th "x
+|     Some colon mode commands with :
+|                                    Settable options with ":
+|set"
+|    Signal catching- ^C
+|                       Job suspend and resume with ^Z
+|                                                     Adapt t
+|o window re-sizes
+status                  [Hit return to continue]
+cursor 0 0 bells 0
+```
+
+### :features, then Return
+
+```cu
+(vi-run-case 10 60 "one\n" (list (vi-b ":features" (lit cr)) (vi-b (lit cr))) (list "/tmp/x-cu-vo/f") (list) () ())
+```
+---
+```output
+exit 1
+one
+--
+|one
+|~
+|~
+|~
+|~
+|~
+|~
+|~
+|~
+status - /tmp/x-cu-vo/f 1/1 100%
+cursor 0 0 bells 0
+```
+
+### :fea is :features
+
+```cu
+(vi-run-case 10 60 "one\n" (list (vi-b ":fea" (lit cr))) (list "/tmp/x-cu-vo/f") (list) () ())
+```
+---
+```output
+exit 1
+one
+--
+|                                            Named buffers wi
+|th "x
+|     Some colon mode commands with :
+|                                    Settable options with ":
+|set"
+|    Signal catching- ^C
+|                       Job suspend and resume with ^Z
+|                                                     Adapt t
+|o window re-sizes
+status                  [Hit return to continue]
+cursor 0 0 bells 0
+```
+
 ### a read-only file makes the next one read-only too
 
 ```cu

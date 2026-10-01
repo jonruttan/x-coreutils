@@ -272,7 +272,7 @@
       ((%vi-prefix? cmd "delete") (%vi-colon-delete got? q r))
       ((%vi-prefix? cmd "edit") (%vi-colon-edit cmd args force?))
       ((%vi-prefix? cmd "file") (%vi-colon-file args e))
-      ((%vi-prefix? cmd "features") (%vi-not-implemented cmd))
+      ((%vi-prefix? cmd "features") (%vi-colon-features))
       ((%vi-prefix? cmd "list") (%vi-colon-list got? q r))
       ((%vi-one-of-prefix? cmd (list "quit" "next" "prev")) (%vi-colon-quit cmd force?))
       ((%vi-prefix? cmd "read") (%vi-colon-read args e got?))
@@ -592,6 +592,17 @@
     (if (if g? (%vi< after (%vi-end-line ls)) #f)
       (%vi-sub-in-line walk ls after i e find repl g? (%vi+ subs 1) lines2 i)
       (walk (%vi-next-line ls) (%vi+ i 1) e find repl g? (%vi+ subs 1) lines2 i))))
+
+; :features -- the list -H gives, with the terminal cooked, and a Return
+; waited for after
+(def %vi-colon-features
+  (fn (_)
+    (%vi-bottom-clear)
+    (%vi-flush!)
+    (%vi-cooked!)
+    (%vi-show-help)
+    (%vi-raw!)
+    (%vi-hit-return "")))
 
 ; --- the commands run at the start -------------------------------------------
 
