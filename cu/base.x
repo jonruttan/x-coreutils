@@ -55,4 +55,6 @@
 (include-once "./cal.x")
 (include-once "./net.x")
 (include-once "./nc.x")
+(include-once "./dump.x")
+(include-once "./hexdump.x")
 (include-once "./cli.x")

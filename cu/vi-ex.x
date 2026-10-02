@@ -35,12 +35,15 @@
 (def %vi-found (fn (_ r) (if (= r 0) -1 (%vi- r %vi-taddr))))
 
 ; the first PAT wholly in the ROOM bytes from FROM, or -1; with ignorecase,
-; as busybox's strncasecmp, else byte for byte
+; as busybox's strncasecmp, else byte for byte.  An empty PAT is found at
+; FROM, as busybox's compare of no bytes finds it -- not left to memmem, whose
+; answer for an empty needle differs between C libraries.
 (def %vi-find-text
   (fn (_ from room pat len)
-    (if (%vi-opt? %vi-ic)
-      (%vi-find-text-ic from room pat len)
-      (%vi-found (%cu-ptr-call %vi-c-memmem (%vi+ %vi-taddr from) room pat len)))))
+    (match
+      ((= len 0) from)
+      ((%vi-opt? %vi-ic) (%vi-find-text-ic from room pat len))
+      (#t (%vi-found (%cu-ptr-call %vi-c-memmem (%vi+ %vi-taddr from) room pat len))))))
 
 ; the last PAT starting at or after STOP and ending before P
 (def %vi-search-back
