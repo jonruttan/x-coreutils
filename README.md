@@ -7,9 +7,10 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred applets: parity with busybox's `coreutils` set, plus
+**A hundred and one applets: parity with busybox's `coreutils` set, plus
 `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
-`more`, `clear` and `reset`, and `strings`, `tsort` and `cal`.**
+`more`, `clear` and `reset`, `strings`, `tsort` and `cal`, and its
+downloader, `wget`.**
 
     arch base64 basename cal cat chgrp chmod chown chroot cksum clear
     cmp comm cp cut date dd df diff dirname dos2unix du echo env expand
@@ -19,7 +20,7 @@ one bundle -- organized like busybox:
     sha1sum sha256sum sha512sum shred shuf sleep sort split stat strings
     sum sync tac tail tee test timeout touch tr true truncate tsort tty
     unexpand uniq unix2dos unlink uname uudecode uuencode usleep vi wc
-    which whoami xargs yes
+    wget which whoami xargs yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -108,7 +109,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.17.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.19.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -176,6 +177,7 @@ parsed by x-lang's `Opts`.
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/strings.x      strings: printable runs, found by libc's strspn
     cu/cal.x          cal: a month or a year, Julian to 1752
+    cu/net.x          wget, over the platform's Http: busybox's url, redirects, retries
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 
