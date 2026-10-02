@@ -19,6 +19,8 @@
 (def busybox-options
   (list
     (list "arch" ())
+    (list "ascii" ())
+    (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))
     (list "basename" (%letters "s"))
     (list "cal" (%letters "jmy"))
@@ -32,6 +34,7 @@
     (list "cmp" (%letters "lsn"))
     (list "comm" (%letters "123"))
     (list "cp" (%letters "arRPLHpfilsTu"))
+    (list "crc32" ())
     (list "cut" (%letters "bcfdsn"))
     (list "date" (append (%letters "udDsrRI") (list "+FMT")))
     (list "dd" (list "if=" "of=" "bs=" "ibs=" "obs=" "count=" "skip=" "seek="
@@ -118,6 +121,7 @@
     (list "usleep" ())
     (list "uudecode" (%letters "o"))
     (list "uuencode" (%letters "m"))
+    (list "uuidgen" (%letters "r"))
     (list "vi" (%letters "cRH"))
     (list "wc" (%letters "cmlwL"))
     (list "wget" (append (%letters "cqSOoPYUTt")

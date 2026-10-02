@@ -3,7 +3,7 @@
 (lang "coreutils")
 
 ; HELIUM, plus exactly the libraries these applets import -- File,
-; Sys, Proc, Date, Vector, Random -- and nothing ambient.  Radon is
+; Sys, Proc, Date, Vector, Random, Hex -- and nothing ambient.  Radon is
 ; only a particular set of libraries to load, and the set it loads
 ; (the numeric tower, JIT-compiled tokenizer analysers) is the
 ; difference between a 12-second `ls` and a 3-second one; a tool that

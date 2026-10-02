@@ -11,6 +11,8 @@ the work.  Applet parity is the other axis: see the README.
 | `[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `[[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `arch` |  |  |  | - |
+| `ascii` |  |  |  | - |
+| `base32` | -d -i -w | -d -i -w |  | 100% |
 | `base64` | -d -w | -d -w |  | 100% |
 | `basename` | -s | -s |  | 100% |
 | `cal` | -j -m -y | -j -m -y |  | 100% |
@@ -24,6 +26,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cmp` | -l -s -n | -s -l -n |  | 100% |
 | `comm` | -1 -2 -3 | -1 -2 -3 |  | 100% |
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -r -R -P -L -H -p -f -i -l -s -T -u |  | 100% |
+| `crc32` |  |  |  | - |
 | `cut` | -b -c -f -d -s -n | -s -n -d -f -c -b |  | 100% |
 | `date` | -u -d -D -s -r -R -I +FMT | -u -R -I -Idate -Ihours -Iminutes -Iseconds -Ins -d -D -r +FMT | -s | 87% |
 | `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= ibs= obs= count= skip= seek= status= conv= iflag= oflag= |  | 100% |
@@ -108,6 +111,7 @@ the work.  Applet parity is the other axis: see the README.
 | `usleep` |  |  |  | - |
 | `uudecode` | -o | -o |  | 100% |
 | `uuencode` | -m | -m |  | 100% |
+| `uuidgen` | -r | -r |  | 100% |
 | `vi` | -c -R -H | -H -h -R -c |  | 100% |
 | `wc` | -c -m -l -w -L | -l -w -c -m -L |  | 100% |
 | `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | -c -q -S --continue --quiet --server-response --spider --no-check-certificate -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent -O -o -P -Y -U -T -t --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries --header --post-data --post-file |  | 100% |
@@ -118,4 +122,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -a -i -r -p -ps -l -s -g -c -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 489 of 492 busybox options accepted (99%).**
+**Total: 493 of 496 busybox options accepted (99%).**
