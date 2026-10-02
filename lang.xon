@@ -25,7 +25,7 @@
 ; v0.15.0: (Type named ...), which cu/prims.x fetches the string type's handle
 ; through.
 ;
-; v0.17.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.17.0")
+; v0.19.0 is the release the suite and its sweep bounds are measured on.
+(requires-release "v0.19.0")
 
 (entry "run.x")
