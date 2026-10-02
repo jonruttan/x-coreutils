@@ -40,6 +40,7 @@ the work.  Applet parity is the other axis: see the README.
 | `false` |  |  |  | - |
 | `find` | _not a busybox applet_ | -name -iname -path -type -size -newer -maxdepth -mindepth -empty -print -print0 -exec -true -false -not -a -and -o -or ! ( ) | | - |
 | `fold` | -b -s -w | -b -s -w |  | 100% |
+| `free` | -b -k -m -g -h | -b -k -m -g -h |  | 100% |
 | `groups` |  |  |  | - |
 | `hd` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
@@ -103,6 +104,7 @@ the work.  Applet parity is the other axis: see the README.
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
+| `uptime` | -s | -s |  | 100% |
 | `usleep` |  |  |  | - |
 | `uudecode` | -o | -o |  | 100% |
 | `uuencode` | -m | -m |  | 100% |
@@ -116,4 +118,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -a -i -r -p -ps -l -s -g -c -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 483 of 486 busybox options accepted (99%).**
+**Total: 489 of 492 busybox options accepted (99%).**

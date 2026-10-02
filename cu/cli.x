@@ -120,6 +120,8 @@
     (pair "xxd" %cu-xxd)
     (pair "tree" %cu-tree)
     (pair "time" %cu-time)
+    (pair "uptime" %cu-uptime)
+    (pair "free" %cu-free)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 
@@ -258,6 +260,8 @@
     (pair "xxd" (list (list "-a" "-i" "-r" "-p" "-ps") (list "-l" "-s" "-g" "-c" "-o")))
     (pair "tree" (list () () (lit none)))
     (pair "time" (list (list "-v" "-p" "-a") (list "-o" "-f") (lit leading)))
+    (pair "uptime" (list (list "-s") ()))
+    (pair "free" (list (list "-b" "-k" "-m" "-g" "-h") ()))
     (pair "false" (list () () (lit none)))
     (pair "shred" (list (list "-u" "-f" "-z") (list "-n")))
     (pair "timeout" (list () (list "-s" "-k") (lit leading)))

@@ -58,4 +58,5 @@
 (include-once "./hexdump.x")
 (include-once "./tree.x")
 (include-once "./time.x")
+(include-once "./procps.x")
 (include-once "./cli.x")
