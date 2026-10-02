@@ -122,6 +122,8 @@
     (pair "crc32" %cu-crc32)
     (pair "ascii" %cu-ascii)
     (pair "uuidgen" %cu-uuidgen)
+    (pair "uptime" %cu-uptime)
+    (pair "free" %cu-free)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 
@@ -262,6 +264,8 @@
     (pair "crc32" (list () ()))
     (pair "ascii" (list () () (lit none)))
     (pair "uuidgen" (list (list "-r") ()))
+    (pair "uptime" (list (list "-s") ()))
+    (pair "free" (list (list "-b" "-k" "-m" "-g" "-h") ()))
     (pair "false" (list () () (lit none)))
     (pair "shred" (list (list "-u" "-f" "-z") (list "-n")))
     (pair "timeout" (list () (list "-s" "-k") (lit leading)))
