@@ -4,8 +4,8 @@ busybox's hexdump, hd and xxd (util-linux/hexdump.c, hexdump_xxd.c), over
 its dump engine (libbb/dump.c).  Every expectation is busybox's own output,
 from a busybox built from its source, less the banner line its usage text
 starts with.  A `|` marks the end of each line written to standard output, so
-trailing blanks can be seen; where the output is bytes (xxd -r), it is shown
-in hex, 32 bytes a line.
+trailing blanks can be seen; where the output holds bytes that are not text
+(xxd -r, a %s of raw bytes), it is shown in hex, 32 bytes a line.
 
 ## the fixtures
 
@@ -334,7 +334,7 @@ status 0
 ### %_c spells the controls as escapes and the rest in octal; %_p prints a dot for them; %s reads its byte count
 
 ```cu
-(do (run "-" (list "hexdump" "-e" "16/1 \"%3_c\" \"\\n\"" (nf "t")) "") (run "-" (list "hexdump" "-e" "16/1 \"%_p\" \"\\n\"" (nf "t")) "") (run "-" (list "hexdump" "-e" "1/5 \"%s\" \"\\n\"" (nf "t")) ""))
+(do (run "-" (list "hexdump" "-e" "16/1 \"%3_c\" \"\\n\"" (nf "t")) "") (run "-" (list "hexdump" "-e" "16/1 \"%_p\" \"\\n\"" (nf "t")) "") (run "x" (list "hexdump" "-e" "1/5 \"%s\" \"\\n\"" (nf "t")) ""))
 ```
 ---
 ```output
@@ -348,16 +348,8 @@ bc..... more tex|
 t here..|
 stderr:
 status 0
-Hello|
-, wor|
-ld!|
-	|
-abc|
-€ÿ m|
-ore t|
-ext h|
-ere.|
-|
+48656c6c6f0a2c20776f720a6c64210a090a6162630a7f80ff206d0a6f726520
+740a65787420680a6572652e0a0a
 stderr:
 status 0
 ```
