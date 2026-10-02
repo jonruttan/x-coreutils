@@ -7,12 +7,12 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and eleven applets: parity with busybox's `coreutils` set, plus
-`join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
+**A hundred and thirteen applets: parity with busybox's `coreutils` set,
+plus `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
 `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its dumpers,
 `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and `uuidgen`,
-its downloader and lookup, `wget` and `whois`, and its `uptime` and
-`free`.**
+its `tree` and `time`, its downloader and lookup, `wget` and `whois`, and
+its `uptime` and `free`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
@@ -20,10 +20,10 @@ its downloader and lookup, `wget` and `whois`, and its `uptime` and
     hexdump id install join link ln logname ls md5sum mkdir mkfifo mktemp
     more mv nice nl nohup nproc od paste printenv printf pwd readlink
     realpath reset rev rm rmdir seq sha1sum sha256sum sha512sum shred
-    shuf sleep sort split stat strings sum sync tac tail tee test timeout
-    touch tr true truncate tsort tty unexpand uniq unix2dos unlink uname
-    uptime uudecode uuencode uuidgen usleep vi wc wget which whois whoami
-    xargs xxd yes
+    shuf sleep sort split stat strings sum sync tac tail tee test time
+    timeout touch tr tree true truncate tsort tty unexpand uniq unix2dos
+    unlink uname uptime uudecode uuencode uuidgen usleep vi wc wget which
+    whois whoami xargs xxd yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -189,6 +189,8 @@ parsed by x-lang's `Opts`.
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
+    cu/tree.x         tree: the directories drawn, as busybox draws them
+    cu/time.x         time: a command run, and its rusage from wait4
     cu/base32.x       base32: five bytes to eight characters, and back
     cu/ascii.x        ascii, crc32 (the zlib CRC-32) and uuidgen
     cu/procps.x       uptime and free, over the platform's Host

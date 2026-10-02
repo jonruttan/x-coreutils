@@ -103,9 +103,11 @@
                        "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
                        "=" "!=" "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
                        "-nt" "-ot" "-ef" "-a" "-o" "!" "(" ")"))
+    (list "time" (%letters "vpafo"))
     (list "timeout" (%letters "sk"))
     (list "touch" (%letters "cdtr"))
     (list "tr" (%letters "cds"))
+    (list "tree" ())
     (list "true" ())
     (list "truncate" (%letters "cs"))
     (list "tsort" ())
