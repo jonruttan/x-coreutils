@@ -7,15 +7,15 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and two applets: parity with busybox's `coreutils` set, plus
+**A hundred and three applets: parity with busybox's `coreutils` set, plus
 `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
 `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, and its
-downloader and lookup, `wget` and `whois`.**
+network tools, `wget`, `whois` and `nc`.**
 
     arch base64 basename cal cat chgrp chmod chown chroot cksum clear
     cmp comm cp cut date dd df diff dirname dos2unix du echo env expand
     expr factor false find fold groups head id install join link ln
-    logname ls md5sum mkdir mkfifo mktemp more mv nice nl nohup nproc od
+    logname ls md5sum mkdir mkfifo mktemp more mv nc nice nl nohup nproc od
     paste printenv printf pwd readlink realpath reset rev rm rmdir seq
     sha1sum sha256sum sha512sum shred shuf sleep sort split stat strings
     sum sync tac tail tee test timeout touch tr true truncate tsort tty
@@ -184,6 +184,7 @@ parsed by x-lang's `Opts`.
     cu/strings.x      strings: printable runs, found by libc's strspn
     cu/cal.x          cal: a month or a year, Julian to 1752
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
+    cu/nc.x           nc: busybox's netcat 1.10, the copy waiting on the platform's poll
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 

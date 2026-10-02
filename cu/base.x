@@ -54,4 +54,5 @@
 (include-once "./strings.x")
 (include-once "./cal.x")
 (include-once "./net.x")
+(include-once "./nc.x")
 (include-once "./cli.x")
