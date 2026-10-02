@@ -33,7 +33,7 @@
 ; raw-with-signals! fd) and (Term measure fd), which vi's SIGWINCH, SIGTSTP
 ; and asking the terminal its size ride (x-lang#897).
 ;
-; v0.19.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.19.0")
+; v0.20.0 is the release the suite and its sweep bounds are measured on.
+(requires-release "v0.20.0")
 
 (entry "run.x")
