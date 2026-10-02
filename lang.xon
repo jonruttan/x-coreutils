@@ -29,6 +29,10 @@
 ; time, which wget (cu/net.x) reads through -- and Tls connect, which
 ; raised after every handshake before it.
 ;
+; Also (Sys catch-signal N) and (Sys take-signal N), (Term
+; raw-with-signals! fd) and (Term measure fd), which vi's SIGWINCH, SIGTSTP
+; and asking the terminal its size ride (x-lang#897).
+;
 ; v0.19.0 is the release the suite and its sweep bounds are measured on.
 (requires-release "v0.19.0")
 

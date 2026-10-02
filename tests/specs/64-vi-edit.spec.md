@@ -59,7 +59,7 @@ types the bursts, and shows what came of them.
     (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-ve && mkdir -p /tmp/x-cu-ve"))
     (if (null? text) () (file-write-all "/tmp/x-cu-ve/f" text))
     (if (null? mode) () (proc-run (list "/bin/chmod" (first mode) "/tmp/x-cu-ve/f")))
-    (def st (%vi-typed (list target) bursts rows cols #f))
+    (def st (%vi-typed (list target) bursts rows cols))
     (def f (if (file-exists? "/tmp/x-cu-ve/f") (vi-shown (file-read-all "/tmp/x-cu-ve/f")) "no file\n"))
     (display
       (string-concat

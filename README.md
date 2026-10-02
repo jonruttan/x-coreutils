@@ -101,9 +101,15 @@ Self-contained: no `(requires-lang ...)`.
     x-coreutils was installed as (the `version` file `make install`
     writes; `dev` in a checkout), where busybox's gives its own.  A
     message wider than the screen waits for one Return, where busybox's
-    waits again after every Return and takes no more commands.  `^C` from
-    a terminal goes back to the top in command mode, and `^Z` suspends,
-    as busybox's signal handlers do.
+    waits again after every Return and takes no more commands.  It
+    catches busybox's signals: a window resized (SIGWINCH) is measured
+    and drawn again, `^Z` (SIGTSTP) gives the terminal back and stops,
+    and `^C` (SIGINT) goes back to the top of the file in command mode;
+    when neither the terminal nor `$LINES` and `$COLUMNS` say how big
+    the window is, it asks the terminal.  SIGWINCH and SIGTSTP are
+    answered when vi next waits for a key, where busybox's handlers
+    answer them at once, so the two differ only while a long command
+    runs.
   - **Not present**: `who` (utmpx), `stty` (ioctl), `hostid`
     (gethostid) and `mknod` (device numbers), for want of a door this
     bundle will not invent; and `sha3sum`, which needs no door and is
