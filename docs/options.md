@@ -41,7 +41,9 @@ the work.  Applet parity is the other axis: see the README.
 | `find` | _not a busybox applet_ | -name -iname -path -type -size -newer -maxdepth -mindepth -empty -print -print0 -exec -true -false -not -a -and -o -or ! ( ) | | - |
 | `fold` | -b -s -w | -b -s -w |  | 100% |
 | `groups` |  |  |  | - |
+| `hd` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
+| `hexdump` | -b -c -d -o -x -C -e -f -n -s -v | -b -c -d -o -x -C -v -e -f -n -s |  | 100% |
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -d -c -D -p -m -o -g -t | -s | 88% |
 | `join` | _not a busybox applet_ | -t | | - |
@@ -108,6 +110,7 @@ the work.  Applet parity is the other axis: see the README.
 | `which` | -a | -a |  | 100% |
 | `whoami` |  |  |  | - |
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -0 -n -a -E -I -s | -p | 90% |
+| `xxd` | -l -s -a -p -i -r -g -c -o | -a -i -r -p -ps -l -s -g -c -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 455 of 458 busybox options accepted (99%).**
+**Total: 475 of 478 busybox options accepted (99%).**

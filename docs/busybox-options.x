@@ -49,7 +49,9 @@
     (list "false" ())
     (list "fold" (%letters "bsw"))
     (list "groups" ())
+    (list "hd" ())
     (list "head" (%letters "ncqv"))
+    (list "hexdump" (%letters "bcdoxCefnsv"))
     (list "id" (%letters "ugGnr"))
     (list "install" (%letters "cdDspogmt"))
     (list "link" ())
@@ -120,6 +122,7 @@
     (list "which" (%letters "a"))
     (list "whoami" ())
     (list "xargs" (%letters "0aEInprstx"))
+    (list "xxd" (%letters "lsapirgco"))
     (list "yes" ())
     (list "[" (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
                     "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
