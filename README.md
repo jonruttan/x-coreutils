@@ -7,21 +7,21 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and six applets: parity with busybox's `coreutils` set, plus
+**A hundred and eight applets: parity with busybox's `coreutils` set, plus
 `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
 `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its dumpers,
-`hexdump`, `hd` and `xxd`, and its network tools, `wget`, `whois` and
-`nc`.**
+`hexdump`, `hd` and `xxd`, its network tools, `wget`, `whois` and `nc`,
+and its `uptime` and `free`.**
 
     arch base64 basename cal cat chgrp chmod chown chroot cksum clear
     cmp comm cp cut date dd df diff dirname dos2unix du echo env expand
-    expr factor false find fold groups hd head hexdump id install join
-    link ln logname ls md5sum mkdir mkfifo mktemp more mv nc nice nl
+    expr factor false find fold free groups hd head hexdump id install
+    join link ln logname ls md5sum mkdir mkfifo mktemp more mv nc nice nl
     nohup nproc od paste printenv printf pwd readlink realpath reset rev
     rm rmdir seq sha1sum sha256sum sha512sum shred shuf sleep sort split
     stat strings sum sync tac tail tee test timeout touch tr true
-    truncate tsort tty unexpand uniq unix2dos unlink uname uudecode
-    uuencode usleep vi wc wget which whois whoami xargs xxd yes
+    truncate tsort tty unexpand uniq unix2dos unlink uname uptime
+    uudecode uuencode usleep vi wc wget which whois whoami xargs xxd yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -188,6 +188,7 @@ parsed by x-lang's `Opts`.
     cu/nc.x           nc: busybox's netcat 1.10, the copy waiting on the platform's poll
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
+    cu/procps.x       uptime and free, over the platform's Host
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 
