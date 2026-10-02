@@ -12,7 +12,7 @@ tools report, not a value.
 ### a run of an applet with its standard input, stdout, stderr and status
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-upf && mkdir -p /tmp/x-cu-upf")) (def nf (fn (_ n) (string-append "/tmp/x-cu-upf/" n))) (def run-out (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def sh-out (fn (_ cmd) (do (proc-run (list "/bin/sh" "-c" (string-append cmd (string-append " > " (nf ".sh"))))) (file-read-all (nf ".sh"))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-upf && mkdir -p /tmp/x-cu-upf")) (def nf (fn (_ n) (string-append "/tmp/x-cu-upf/" n))) (def run-out (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def sh-out (fn (_ cmd) (do (proc-run (list "/bin/sh" "-c" (string-append cmd (string-append " > " (nf ".sh"))))) (file-read-all (nf ".sh"))))) (def with-tz (fn (_ tz thunk) (do (def was (sys-getenv "TZ")) (sys-setenv "TZ" tz) (def r (thunk)) (if (null? was) (sys-unsetenv "TZ") (sys-setenv "TZ" was)) r))) (display "made"))
 ```
 ---
     made
@@ -21,11 +21,11 @@ tools report, not a value.
 
 ### the line: under an hour, an hour, a day, days; the users; the loads
 
-The time is 1790000000, 14:13:20 UTC.  The loads are hundredths, as
-load-centi makes them from the kernel's fixed-point counts.
+The time is 1790000000, 14:13:20 in the zone TZ=UTC0 names.  The loads are
+hundredths, as load-centi makes them from the kernel's fixed-point counts.
 
 ```cu
-(do (display (%ps-uptime-line 1790000000 59 0 (list 0 0 0))) (display (%ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (%ps-uptime-line 1790000000 3600 2 (list 384 530 708))) (display (%ps-uptime-line 1790000000 87000 3 (list 188 99 0))) (display (%ps-uptime-line 1790000000 191220 12 (list 1525 1525 1500))) (display (%ps-uptime-line 1790036309 38700 1 (list 0 199 10000))))
+(with-tz "UTC0" (fn (_) (display (%ps-uptime-line 1790000000 59 0 (list 0 0 0))) (display (%ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (%ps-uptime-line 1790000000 3600 2 (list 384 530 708))) (display (%ps-uptime-line 1790000000 87000 3 (list 188 99 0))) (display (%ps-uptime-line 1790000000 191220 12 (list 1525 1525 1500))) (display (%ps-uptime-line 1790036309 38700 1 (list 0 199 10000)))))
 ```
 ---
 ```output
@@ -35,6 +35,21 @@ load-centi makes them from the kernel's fixed-point counts.
  14:13:20 up 1 day, 10 min,  3 users,  load average: 1.88, 0.99, 0.00
  14:13:20 up 2 days,  5:07,  12 users,  load average: 15.25, 15.25, 15.00
  00:18:29 up 10:45,  1 users,  load average: 0.00, 1.99, 100.00
+```
+
+### the clock is local time: a zone behind UTC with daylight time, and one half an hour off
+
+POSIX rule strings, which glibc and Darwin read alike with no zone database.
+
+```cu
+(do (with-tz "EST5EDT,M3.2.0,M11.1.0" (fn (_) (display (%ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (%ps-uptime-line 1790036309 38700 1 (list 0 199 10000))))) (with-tz "<+0530>-5:30" (fn (_) (display (%ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (%ps-uptime-line 1790036309 38700 1 (list 0 199 10000))))))
+```
+---
+```output
+ 10:13:20 up 59 min,  1 users,  load average: 1.00, 0.50, 0.00
+ 20:18:29 up 10:45,  1 users,  load average: 0.00, 1.99, 100.00
+ 19:43:20 up 59 min,  1 users,  load average: 1.00, 0.50, 0.00
+ 05:48:29 up 10:45,  1 users,  load average: 0.00, 1.99, 100.00
 ```
 
 ### load-centi truncates a count over its scale to hundredths, as LOAD_INT and LOAD_FRAC do
@@ -47,13 +62,13 @@ Counts over 65536, sysinfo's scale, and over 2048, Darwin's fscale.
 ---
     (0 384 530 708 99 199 10000 384 99)
 
-### uptime -s: the boot time
+### uptime -s: the boot time, in UTC and in local zones
 
 ```cu
-(display (%ps-boot-line 1790000000))
+(map (fn (_ tz) (with-tz tz (fn (_) (%ps-boot-line 1790000000)))) (list "UTC0" "EST5EDT,M3.2.0,M11.1.0" "<+0530>-5:30"))
 ```
 ---
-    2026-09-21 14:13:20
+    ("2026-09-21 14:13:20\n" "2026-09-21 10:13:20\n" "2026-09-21 19:43:20\n")
 
 ## free
 
@@ -170,7 +185,7 @@ On Darwin the system's word is `sysctl kern.boottime`; elsewhere this case
 compares the line with itself.
 
 ```cu
-(let ((r (run-out (list "uptime" "-s")))) (def sys (sh-out "b=$(sysctl -n kern.boottime 2>/dev/null | sed -n 's/^{ sec = \\([0-9]*\\),.*/\\1/p'); if [ -n \"$b\" ]; then date -u -r \"$b\" '+%Y-%m-%d %H:%M:%S'; fi")) (list (if (str=? sys "") #t (str=? sys (first r))) (first (rest r)) (first (rest (rest r)))))
+(let ((r (run-out (list "uptime" "-s")))) (def sys (sh-out "b=$(sysctl -n kern.boottime 2>/dev/null | sed -n 's/^{ sec = \\([0-9]*\\),.*/\\1/p'); if [ -n \"$b\" ]; then date -r \"$b\" '+%Y-%m-%d %H:%M:%S'; fi")) (list (if (str=? sys "") #t (str=? sys (first r))) (first (rest r)) (first (rest (rest r)))))
 ```
 ---
     (#t "" 0)
