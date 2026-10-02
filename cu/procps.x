@@ -12,9 +12,9 @@
 ; records on Linux and Darwin -- busybox's own sources, sysinfo(2) and
 ; /proc/meminfo, on Linux.  The layouts are busybox's to the space.
 ;
-; uptime's clock is UTC: the platform's date has no timezone (cu/date.x), and
-; busybox prints local time.  The users counted are the utmpx sessions of type
-; USER_PROCESS with a user name, as busybox counts them.
+; uptime's clock is local time, as busybox's localtime gives it: (Date local)
+; reads the zone TZ names, through the C library.  The users counted are the
+; utmpx sessions of type USER_PROCESS with a user name, as busybox counts them.
 ;
 ; free on Darwin has no shared, buffers, reclaimable or available: each counts
 ; as busybox counts a /proc/meminfo line that is not there, 0, and the three it
@@ -40,7 +40,7 @@
 ; uptime -s: when the machine booted, as YYYY-MM-DD HH:MM:SS
 (def %ps-boot-line
   (fn (_ boot)
-    (def d (Date from-unix boot))
+    (def d (Date local boot))
     (def two (fn (_ k) (%cu-pad-zero (%cu-int->str (Assoc get k d)) 2)))
     (string-concat
       (list (%cu-pad-zero (%cu-int->str (Assoc get (lit year) d)) 4)
@@ -51,7 +51,7 @@
 ; minutes, the USERS logged in and the LOADS, three hundredths
 (def %ps-uptime-line
   (fn (_ now up users loads)
-    (def d (Date from-unix now))
+    (def d (Date local now))
     (def two (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
     (def days (%ps-div up 86400))
     (def minutes (%ps-div up 60))
