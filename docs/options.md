@@ -107,7 +107,8 @@ the work.  Applet parity is the other axis: see the README.
 | `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | -c -q -S --continue --quiet --server-response --spider --no-check-certificate -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent -O -o -P -Y -U -T -t --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries --header --post-data --post-file |  | 100% |
 | `which` | -a | -a |  | 100% |
 | `whoami` |  |  |  | - |
+| `whois` | -i -h -p | -i -h -p |  | 100% |
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -r -t -x -0 -n -a -E -I -s | -p | 90% |
 | `yes` |  |  |  | - |
 
-**Total: 455 of 458 busybox options accepted (99%).**
+**Total: 458 of 461 busybox options accepted (99%).**

@@ -7,10 +7,10 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and one applets: parity with busybox's `coreutils` set, plus
+**A hundred and two applets: parity with busybox's `coreutils` set, plus
 `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
 `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, and its
-downloader, `wget`.**
+downloader and lookup, `wget` and `whois`.**
 
     arch base64 basename cal cat chgrp chmod chown chroot cksum clear
     cmp comm cp cut date dd df diff dirname dos2unix du echo env expand
@@ -20,7 +20,7 @@ downloader, `wget`.**
     sha1sum sha256sum sha512sum shred shuf sleep sort split stat strings
     sum sync tac tail tee test timeout touch tr true truncate tsort tty
     unexpand uniq unix2dos unlink uname uudecode uuencode usleep vi wc
-    wget which whoami xargs yes
+    wget which whois whoami xargs yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -177,7 +177,7 @@ parsed by x-lang's `Opts`.
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/strings.x      strings: printable runs, found by libc's strspn
     cu/cal.x          cal: a month or a year, Julian to 1752
-    cu/net.x          wget, over the platform's Http: busybox's url, redirects, retries
+    cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 

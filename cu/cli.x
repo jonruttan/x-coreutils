@@ -106,6 +106,7 @@
     (pair "date" %cu-date)
     (pair "which" %cu-which)
     (pair "wget" %cu-wget)
+    (pair "whois" %cu-whois)
     (pair "xargs" %cu-xargs)
     (pair "vi" %cu-vi)
     (pair "more" %cu-more)
@@ -253,6 +254,7 @@
     (pair "tty" (list (list "-s") ()))
     (pair "pwd" (list (list "-L" "-P") ()))
     (pair "which" (list (list "-a") ()))
+    (pair "whois" (list (list "-i") (list "-h" "-p")))
     ; busybox spells each long option as a short one too; wget reads either.
     ; -n takes busybox's four ignored -nX forms whole.
     (pair "wget" (list (list "-c" "-q" "-S" "--continue" "--quiet" "--server-response"
