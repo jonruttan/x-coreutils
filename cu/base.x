@@ -56,4 +56,6 @@
 (include-once "./net.x")
 (include-once "./dump.x")
 (include-once "./hexdump.x")
+(include-once "./base32.x")
+(include-once "./ascii.x")
 (include-once "./cli.x")
