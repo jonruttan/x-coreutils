@@ -7,10 +7,11 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and four applets: parity with busybox's `coreutils` set, plus
+**A hundred and five applets: parity with busybox's `coreutils` set, plus
 `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
 `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its dumpers,
-`hexdump`, `hd` and `xxd`, and its downloader, `wget`.**
+`hexdump`, `hd` and `xxd`, and its downloader and lookup, `wget` and
+`whois`.**
 
     arch base64 basename cal cat chgrp chmod chown chroot cksum clear
     cmp comm cp cut date dd df diff dirname dos2unix du echo env expand
@@ -20,7 +21,7 @@ one bundle -- organized like busybox:
     rmdir seq sha1sum sha256sum sha512sum shred shuf sleep sort split
     stat strings sum sync tac tail tee test timeout touch tr true
     truncate tsort tty unexpand uniq unix2dos unlink uname uudecode
-    uuencode usleep vi wc wget which whoami xargs xxd yes
+    uuencode usleep vi wc wget which whois whoami xargs xxd yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -101,9 +102,15 @@ Self-contained: no `(requires-lang ...)`.
     x-coreutils was installed as (the `version` file `make install`
     writes; `dev` in a checkout), where busybox's gives its own.  A
     message wider than the screen waits for one Return, where busybox's
-    waits again after every Return and takes no more commands.  `^C` from
-    a terminal goes back to the top in command mode, and `^Z` suspends,
-    as busybox's signal handlers do.
+    waits again after every Return and takes no more commands.  It
+    catches busybox's signals: a window resized (SIGWINCH) is measured
+    and drawn again, `^Z` (SIGTSTP) gives the terminal back and stops,
+    and `^C` (SIGINT) goes back to the top of the file in command mode;
+    when neither the terminal nor `$LINES` and `$COLUMNS` say how big
+    the window is, it asks the terminal.  SIGWINCH and SIGTSTP are
+    answered when vi next waits for a key, where busybox's handlers
+    answer them at once, so the two differ only while a long command
+    runs.
   - **Not present**: `who` (utmpx), `stty` (ioctl), `hostid`
     (gethostid) and `mknod` (device numbers), for want of a door this
     bundle will not invent; and `sha3sum`, which needs no door and is
@@ -177,9 +184,9 @@ parsed by x-lang's `Opts`.
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/strings.x      strings: printable runs, found by libc's strspn
     cu/cal.x          cal: a month or a year, Julian to 1752
+    cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
-    cu/net.x          wget, over the platform's Http: busybox's url, redirects, retries
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 

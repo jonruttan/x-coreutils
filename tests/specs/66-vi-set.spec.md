@@ -106,7 +106,7 @@ types the bursts, and shows what came of them.
     (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vs && mkdir -p /tmp/x-cu-vs"))
     (if (null? text) () (vi-write-file "/tmp/x-cu-vs/f" text))
     (if (null? mode) () (proc-run (list "/bin/chmod" (first mode) "/tmp/x-cu-vs/f")))
-    (def st (%vi-typed (list target) bursts rows cols #f))
+    (def st (%vi-typed (list target) bursts rows cols))
     (def f (if (file-exists? "/tmp/x-cu-vs/f") (vi-file-shown "/tmp/x-cu-vs/f") "no file\n"))
     (display
       (string-concat

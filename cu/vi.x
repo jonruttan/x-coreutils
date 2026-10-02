@@ -15,12 +15,15 @@
 ; rides the integer doors, which allocate nothing where the tower's + and <
 ; cost a hundred objects a call.
 ;
-; The terminal is x's Term: raw mode and the window's size.  Keys are read a
-; byte at a time and decoded here as busybox's read_key decodes them: after an
-; Escape, each further byte of a sequence must come within 50 ms, so a lone
-; Escape is a key of its own.  Where the bytes come from and where the screen
-; goes are swappable, so a spec can type at the editor in bursts -- the pause
-; between two bursts outlasts the 50 ms -- and read back what it drew.
+; The terminal is x's Term: raw mode with its signal keys left on, as busybox
+; leaves them, and the window's size.  SIGWINCH and SIGTSTP are caught through
+; Sys and answered while a key is waited for; SIGINT is the engine's.  Keys
+; are read a byte at a time and decoded here as busybox's read_key decodes
+; them: after an Escape, each further byte of a sequence must come within 50
+; ms, so a lone Escape is a key of its own.  Where the bytes come from and where
+; the screen goes are swappable, so a spec can type at the editor in bursts --
+; the pause between two bursts outlasts the 50 ms -- send it signals between
+; them, and read back what it drew.
 ;
 ; x has no automatic collect.  The editor sweeps once a key, after drawing the
 ; screen: a collect walks the whole heap, ~6 ms, and a key leaves tens of
@@ -605,18 +608,65 @@
   (fn (self a b i)
     (if (= (byte-at a i) (byte-at b i)) (self a b (%vi- i 1)) i)))
 
-; the window measured again; a change of size redraws it all
-(def %vi-window ())
+; the window as the terminal reports it, (columns . rows), or nil when it
+; reports nothing
+(def %vi-measure ())
+
+; busybox's query_screen_dimensions: the window's size, where $LINES and
+; $COLUMNS override what the terminal says and a size under 2 is 24 by 80.
+; Answers whether the size is a guess: the terminal said nothing and neither
+; variable is set.
+(def %vi-query-dims!
+  (fn (_)
+    (def m (%vi-measure))
+    (def lines (%vi-getenv "LINES"))
+    (def cols (%vi-getenv "COLUMNS"))
+    (set! %vi-rows (%vi-min (%vi-dim (if (null? m) 0 (rest m)) lines 24) 4096))
+    (set! %vi-columns (%vi-min (%vi-dim (if (null? m) 0 (first m)) cols 80) 4096))
+    (if (null? m) (if (null? lines) (null? cols) #f) #f)))
+
+; busybox's wh_helper: the variable's number over the terminal's, the default
+; for one under 2 or past 29999
+(def %vi-dim
+  (fn (_ measured var dflt)
+    (def v (if (null? var) measured (%vi-atoi var)))
+    (if (if (%vi< 1 v) (%vi< v 30000) #f) v dflt)))
+
+; atoi: blanks, a sign, then digits as far as they go
+(def %vi-atoi
+  (fn (_ s)
+    (def i (%vi-skip-blanks 0 s))
+    (def sign (if (%vi< i (byte-len s)) (byte-at s i) 0))
+    (def neg? (= sign #\-))
+    (def j (if (if neg? #t (= sign #\+)) (%vi+ i 1) i))
+    (def n (%vi-num-from s j (%vi-digits-end j s) 0))
+    (if neg? (%vi- 0 n) n)))
+
+; set when the size was asked of the terminal: busybox's refresh then
+; measures no more, though SIGWINCH still does
+(def %vi-rowcol-error #f)
+
+; busybox's refresh: the window measured again, and a change of size redraws
+; it all
 (def %vi-window-check
   (fn (_ full?)
-    (def w (%vi-window))
-    (def cols (%vi-min (first w) 4096))
-    (def rows (%vi-min (rest w) 4096))
+    (def cols %vi-columns)
+    (def rows %vi-rows)
+    (if %vi-rowcol-error () (%vi-query-dims!))
     (if (if (= cols %vi-columns) (= rows %vi-rows) #f) full?
-      (do (set! %vi-columns cols)
-          (set! %vi-rows rows)
-          (%vi-new-screen!)
-          #t))))
+      (do (%vi-new-screen!) #t))))
+
+; busybox's ask: the cursor sent past the bottom corner and its position
+; asked for; a reply within 100 ms is the size, and any other key is lost
+(def %vi-ask-terminal!
+  (fn (_)
+    (%vi-put (string-append %vi-esc "[999;999H" %vi-esc "[6n"))
+    (%vi-flush!)
+    (def k (if (%vi-src-ready? 100) (%vi-read-key) ()))
+    (if (if (null? k) #f (= k %vi-key-cursor-pos))
+      (do (set! %vi-rows (%vi-min (first %vi-cursor-reply) 4096))
+          (set! %vi-columns (%vi-min (rest %vi-cursor-reply) 4096)))
+      ())))
 
 (def %vi-redraw!
   (fn (_ full?)
@@ -738,7 +788,12 @@
 (def %vi-src-read ())
 (def %vi-src-ready? ())
 (def %vi-kbuf ())           ; bytes read after an Escape and not yet used
-(def %vi-tty? #f)           ; the keys come from a terminal busybox keeps ISIG on
+
+; the signals busybox's handlers catch: ARRIVED? answers whether one ('winch
+; or 'tstp) came since it was last asked; STOP! stops the process until it is
+; continued
+(def %vi-arrived? ())
+(def %vi-stop! ())
 
 ; busybox's escape sequences (libbb/read_key.c), each with its key code
 (def %vi-key-up -2)
@@ -751,6 +806,11 @@
 (def %vi-key-delete -9)
 (def %vi-key-page-up -10)
 (def %vi-key-page-down -11)
+
+; the terminal's answer to where its cursor is, ESC [ ROW ; COL R; the
+; numbers in %vi-cursor-reply, (ROW . COL)
+(def %vi-key-cursor-pos -256)
+(def %vi-cursor-reply ())
 
 ; each sequence as the bytes after the Escape, with its code; shortest first,
 ; as busybox orders them
@@ -825,7 +885,8 @@
     (if (null? b) ()
       (%vi-seq-try walk seqs (string-append buf (bytes->str (list b))) i))))
 
-; no sequence matched: more bytes read while they come, up to busybox's 15
+; no sequence matched: more bytes read while they come, up to busybox's 15,
+; each one read making the run a cursor report if it now is one
 (def %vi-drain
   (fn (self buf)
     (if (if (%vi< (byte-len buf) 15) (%vi-src-ready? 50) #f)
@@ -833,12 +894,51 @@
       buf)))
 (def %vi-drained
   (fn (_ again buf b)
-    (if (null? b) () (again (string-append buf (bytes->str (list b)))))))
+    (if (null? b) ()
+      (%vi-drained-report again (string-append buf (bytes->str (list b)))))))
+(def %vi-drained-report
+  (fn (_ again buf)
+    (def rc (%vi-cursor-report buf))
+    (if (null? rc) (again buf)
+      (do (set! %vi-cursor-reply rc) %vi-key-cursor-pos))))
+
+; busybox's test for a cursor report: [ ROW ; COL R, each number from 1
+; through 0x7FFF; (ROW . COL), or nil
+(def %vi-cursor-report
+  (fn (_ s)
+    (def n (byte-len s))
+    (match
+      ((%vi< n 5) ())
+      ((not (= (byte-at s 0) #\[)) ())
+      ((not (= (byte-at s (%vi- n 1)) #\R)) ())
+      ((not (%vi-digit? (byte-at s 1))) ())
+      (#t (%vi-cursor-report-col s (%vi-number-at s 1))))))
+(def %vi-cursor-report-col
+  (fn (_ s row)
+    (def at (rest row))
+    (def ok? (if (%vi< (%vi+ at 1) (byte-len s))
+               (if (= (byte-at s at) #\;) (%vi-digit? (byte-at s (%vi+ at 1))) #f)
+               #f))
+    (if ok? (%vi-cursor-report-end s (first row) (%vi-number-at s (%vi+ at 1))) ())))
+; the number in S's digits from I, and where they stop: (N . END)
+(def %vi-number-at
+  (fn (_ s i)
+    (def end (%vi-digits-end i s))
+    (pair (%vi-num-from s i end 0) end)))
+(def %vi-cursor-report-end
+  (fn (_ s row col)
+    (match
+      ((not (= (rest col) (%vi- (byte-len s) 1))) ())
+      ((%vi< row 1) ())
+      ((%vi< (first col) 1) ())
+      ((%vi< 32767 (%vi| row (first col))) ())
+      (#t (pair row (first col))))))
 
 (def %vi-escape-rest
   (fn (_ again buf)
     (match
       ((null? buf) ())
+      ((number? buf) buf)
       ((%vi< (byte-len buf) 2) (do (set! %vi-kbuf (%vi-str->list buf)) 27))
       (#t (again)))))
 
@@ -846,8 +946,7 @@
 (def %vi-str->list
   (fn (_ s) (if (= (byte-len s) 0) () (list (%vi& (byte-at s 0) 255)))))
 
-; busybox's readit: a key, or the editor ends when the input does.  A
-; terminal's ^C interrupts whatever is under way, as vi's SIGINT handler does.
+; busybox's readit: a key, or the editor ends when the input does.
 ; busybox's get_one_char: a key . replays first, as it was kept; else one
 ; read, and kept for . while a command that changes the text is typed
 (def %vi-get-one-char
@@ -856,27 +955,45 @@
     (if (null? q) (%vi-read-one-char) q)))
 
 (def %vi-read-one-char
-  (fn (self)
+  (fn (_)
     (def c (%vi-read-key))
     (match
       ((null? c) (Err raise (lit vi-eof) "vi: can't read user input" ()))
-      ((if %vi-tty? (= c (%vi-ctrl #\C)) #f) (Err raise (lit vi-interrupt) "vi: interrupt" ()))
-      ((if %vi-tty? (= c (%vi-ctrl #\Z)) #f) (do (%vi-suspend!) (self)))
       (%vi-adding2q (do (%vi-lmc-keep! c) c))
       (#t c))))
 
-; a terminal's ^Z, as busybox's SIGTSTP handler: the terminal given back and
-; the process stopped; once continued, the terminal raw again and all of the
-; screen drawn
+; busybox's SIGWINCH and SIGTSTP handlers, run while a key is waited for,
+; which is where vi spends its time.  ^C is SIGINT, which the engine turns
+; into a raise at the next step, wherever vi is (%vi-caught).
+(def %vi-signals!
+  (fn (_)
+    (if (%vi-arrived? (lit winch)) (%vi-winched!) ())
+    (if (%vi-arrived? (lit tstp)) (%vi-suspend!) ())))
+
+; busybox's winch_handler: the window measured, asked of the terminal or not,
+; and all of the screen drawn at its size
+(def %vi-winched!
+  (fn (_)
+    (%vi-query-dims!)
+    (%vi-new-screen!)
+    (%vi-redraw! #t)
+    (%vi-flush!)))
+
+; busybox's tstp_handler: the terminal given back and the process stopped;
+; once continued, the terminal raw again and all of the screen drawn.
+; SIGTTOU is ignored first, as the terminal is set from what may by then be
+; the background.
 (def %vi-suspend!
   (fn (_)
+    (Sys signal (Sys sigttou) (Sys sig-ign))
     (%vi-bottom-clear)
     (%vi-flush!)
     (%vi-cooked!)
-    (sys-kill (Sys getpid) (if os-darwin? 17 19))
+    (%vi-stop!)
     (%vi-raw!)
     (set! %vi-last-status ())
-    (%vi-redraw! #t)))
+    (%vi-redraw! #t)
+    (%vi-flush!)))
 
 ; busybox's get_input_line: PROMPT on the bottom line and a line typed after
 ; it, ended by Return or Escape; backing up past the prompt ends it empty
@@ -1511,7 +1628,8 @@
     (%vi-raw!)
     (set! %vi-rows 24)
     (set! %vi-columns 80)
-    (%vi-window-check #t)
+    (set! %vi-rowcol-error (%vi-query-dims!))
+    (if %vi-rowcol-error (%vi-ask-terminal!) ())
     (%vi-new-screen!)
     (%vi-init-text-buffer! name)
     (%vi-mark! 26 0)
@@ -1561,15 +1679,27 @@
       ())
     ()))
 
-; ^C from a terminal: back to the top in command mode, as busybox's
-; siglongjmp to its restart point; the end of the input ends the editing
+; ^C, the engine's STOP: back to the top of the file in command mode, as
+; busybox's siglongjmp to its restart point; the end of the input ends the
+; editing
 (def %vi-caught
   (fn (_ e)
     (match
-      ((eq? (%cu-err-label e) (lit vi-interrupt))
-        (do (set! %vi-screenbegin 0) (set! %vi-dot 0) (%vi-reset!) (%vi-redraw! #f) ()))
+      ((Err stop? e) (%vi-restart!))
       ((eq? (%cu-err-label e) (lit vi-eof)) e)
       (#t (error e)))))
+
+; busybox's restart point in edit_file: the top of the file, command mode, no
+; count and no left offset, nothing kept for .
+(def %vi-restart!
+  (fn (_)
+    (set! %vi-screenbegin 0)
+    (set! %vi-dot 0)
+    (%vi-reset!)
+    (set! %vi-ioq ())
+    (set! %vi-adding2q #f)
+    (%vi-redraw! #f)
+    ()))
 
 ; busybox's INIT_G: every run starts from the same state, whatever the run
 ; before it left -- the column j aims for, the registers, the left offset
@@ -1679,24 +1809,44 @@
     (set! %vi-sink %vi-tty-write)
     (set! %vi-shell %vi-tty-shell)
     (set! %vi-getenv sys-getenv)
-    (set! %vi-window (fn (_) (Term window 0)))
+    (set! %vi-measure (fn (_) (Term measure 0)))
+    (set! %vi-arrived? %vi-tty-arrived?)
+    (set! %vi-stop! (fn (_) (sys-kill (Sys getpid) (Sys sigstop))))
     (def saved (list ()))
-    (set! %vi-raw! (fn (_) (set-first! saved (Term raw! 0)) (set! %vi-tty? (if (null? (first saved)) #f #t))))
+    (set! %vi-raw! (fn (_) (set-first! saved (Term raw-with-signals! 0))))
     (set! %vi-cooked! (fn (_) (Term restore! 0 (first saved))))
-    (%vi-start argv)))
+    (Sys catch-signal (Sys sigwinch))
+    (Sys catch-signal (Sys sigtstp))
+    (def st (guard (e (do (%vi-signals-default!) (error e))) (%vi-start argv)))
+    (%vi-signals-default!)
+    st))
 
-; busybox's readit: wait until a byte can be read, then read it.  stdin may
-; come non-blocking, so a read that would block, or was interrupted, is tried
+(def %vi-tty-arrived?
+  (fn (_ sig)
+    (Sys take-signal (if (eq? sig (lit winch)) (Sys sigwinch) (Sys sigtstp)))))
+
+(def %vi-signals-default!
+  (fn (_)
+    (Sys signal (Sys sigwinch) (Sys sig-dfl))
+    (Sys signal (Sys sigtstp) (Sys sig-dfl))))
+
+; busybox's readit: wait until a byte can be read, then read it; a signal
+; that comes first is handled, then the wait goes on.  stdin may come
+; non-blocking, so a read that would block, or was interrupted, is tried
 ; again; any other failure, like the end, ends the input.
 (def %vi-byte-buf (%str-make-raw 1))
 (def %vi-tty-read
   (fn (self)
-    (%vi-poll 0 1 -1)
+    (%vi-signals!)
+    (def p (%vi-poll 0 1 -1))
+    (if (if (%vi< p 0) (%vi-again? p) #f) (self) (%vi-tty-read-byte self))))
+(def %vi-tty-read-byte
+  (fn (_ again)
     (def r (File read 0 %vi-byte-buf 1))
     (match
       ((%vi< 0 r) (%vi& (byte-at %vi-byte-buf 0) 255))
       ((= r 0) ())
-      ((%vi-again? r) (self))
+      ((%vi-again? r) (again))
       (#t ()))))
 
 (def %vi-again?
@@ -1733,27 +1883,41 @@
 
 ; --- for the specs ----------------------------------------------------------
 
-; a run with typed keys: BURSTS a list of strings, each typed at once, with a
-; pause between them; ROWS by COLS the window.  Answers the exit status; what
-; was drawn is in %vi-drawn.
+; a run with typed keys: BURSTS a list, each typed at once with a pause
+; between them; ROWS by COLS the window, which says nothing of its size when
+; they are 0.  A burst is a string of keys, or a signal arriving in the pause:
+; 'winch, 'tstp, 'int, or (resize ROWS COLS), the window's new size and the
+; SIGWINCH that tells of it.  %vi-typed-waiting is a burst already there when
+; vi starts.  Answers the exit status; what was drawn is in %vi-drawn, and
+; how many times vi stopped itself in %vi-typed-stops.
 (def %vi-drawn ())
 (def %vi-burst "")
 (def %vi-burst-i 0)
 (def %vi-bursts ())
+(def %vi-typed-waiting "")
+(def %vi-typed-dims ())
+(def %vi-typed-pending ())
+(def %vi-typed-stops 0)
 
 (def %vi-typed
-  (fn (_ argv bursts rows cols tty?)
-    (set! %vi-burst "")
+  (fn (_ argv bursts rows cols)
+    (set! %vi-burst %vi-typed-waiting)
+    (set! %vi-typed-waiting "")
     (set! %vi-burst-i 0)
     (set! %vi-bursts bursts)
     (set! %vi-drawn ())
+    (set! %vi-typed-dims (if (= rows 0) () (pair cols rows)))
+    (set! %vi-typed-pending ())
     (set! %vi-src-read %vi-typed-read)
     (set! %vi-src-ready? (fn (_ . ms) (%vi< %vi-burst-i (byte-len %vi-burst))))
     (set! %vi-sink (fn (_ s) (set! %vi-drawn (pair s %vi-drawn))))
     (set! %vi-shell %vi-typed-shell)
     (set! %vi-getenv (fn (_ n) (%vi-env-ref n %vi-typed-env)))
-    (set! %vi-window (fn (_) (pair cols rows)))
-    (set! %vi-raw! (fn (_) (set! %vi-tty? tty?)))
+    (set! %vi-measure (fn (_) %vi-typed-dims))
+    (set! %vi-arrived? %vi-typed-arrived?)
+    (set! %vi-typed-stops 0)
+    (set! %vi-stop! (fn (_) (set! %vi-typed-stops (%vi+ %vi-typed-stops 1))))
+    (set! %vi-raw! (fn (_) ()))
     (set! %vi-cooked! (fn (_) ()))
     (%vi-start argv)))
 
@@ -1764,7 +1928,26 @@
         (do (set! %vi-burst-i (%vi+ %vi-burst-i 1))
             (%vi& (byte-at %vi-burst (%vi- %vi-burst-i 1)) 255)))
       ((null? %vi-bursts) ())
-      (#t (do (set! %vi-burst (first %vi-bursts))
-              (set! %vi-bursts (rest %vi-bursts))
-              (set! %vi-burst-i 0)
-              (self))))))
+      (#t (do (%vi-typed-next! %vi-bursts) (self))))))
+
+; the first of BURSTS typed, or its signal sent and handled as a wait for a
+; key handles it; ^C as the terminal sends it, through the engine's SIGINT
+; flag.  The burst is taken off first: ^C's raise comes at the next step and
+; must not find it there again.
+(def %vi-typed-next!
+  (fn (_ bursts)
+    (def b (first bursts))
+    (set! %vi-bursts (rest bursts))
+    (match
+      ((str? b) (do (set! %vi-burst b) (set! %vi-burst-i 0)))
+      ((eq? b (lit int)) (%set-cell-int! %sigint-flag 1))
+      ((symbol? b) (do (set! %vi-typed-pending (pair b %vi-typed-pending)) (%vi-signals!)))
+      (#t (do (set! %vi-typed-dims (pair (first (rest (rest b))) (first (rest b))))
+              (set! %vi-typed-pending (pair (lit winch) %vi-typed-pending))
+              (%vi-signals!))))))
+
+(def %vi-typed-arrived?
+  (fn (_ sig)
+    (def there? (List any? (fn (_ s) (eq? s sig)) %vi-typed-pending))
+    (if there? (set! %vi-typed-pending (List filter (fn (_ s) (not (eq? s sig))) %vi-typed-pending)) ())
+    there?))
