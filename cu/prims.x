@@ -15,6 +15,7 @@
 (import x/sys/date)
 (import x/type/vector)
 (import x/num/random)
+(import x/codec/hex)
 (import x/type/struct)
 (import x/sys/opts)
 (import x/net/http)
