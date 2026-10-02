@@ -214,9 +214,12 @@
 (def %wget-say
   (fn (_ s) (file-write %wget-msg-fd s)))
 
-; a fatal error: the message, and the run ends with status 1
-(def %wget-die
-  (fn (_ msg) (Err raise (lit wget) msg ())))
+; a fatal error: the message, and the run ends with status 1 -- each applet
+; catches the label net at its top and prints the message after its name
+(def %net-die
+  (fn (_ msg) (Err raise (lit net) msg ())))
+
+(def %wget-die %net-die)
 
 ; the message an io Err carries after its call's name: "Connection refused"
 (def %wget-err-text
@@ -726,7 +729,7 @@
       (do (file-write 2 (string-concat (list "wget: can't open '" log "': " (file-err-text opened) "\n")))
           1)
       (do (unless (null? opened) (set! %wget-msg-fd opened))
-          (let ((st (guard (e (if (eq? (Err label e) (lit wget))
+          (let ((st (guard (e (if (eq? (Err label e) (lit net))
                                 (do (%wget-say (string-concat (list "wget: " (e msg) "\n"))) 1)
                                 (error e)))
                       (let each ((us urls))
@@ -737,3 +740,148 @@
                 (unless (null? opened) (file-close opened))
                 (set! %wget-msg-fd 2)
                 st))))))
+
+; --- whois ---------------------------------------------------------------------
+;
+; busybox's whois: a query a line long to port 43 of whois.iana.org (or -h, -p),
+; the reply kept a line at a time as its fgets reads one -- at most 2,046 bytes,
+; cut at the first CR, LF or NUL, and given a newline -- up to 32K of it.  A
+; reply with no "domain:" or "domain name:" line is asked again as "domain
+; NAME"; after that line, a "whois server:" or "whois:" line names the server
+; to ask next, at port 43, unless it names the one just asked.  The text shows
+; for the last server asked, or for every one with -i.
+
+; a TCP connection to HOST's PORT, or the run ends as busybox's
+; create_and_connect_stream_or_die ends it
+(def %net-connect-or-die
+  (fn (_ host port)
+    (def ip (guard (_ ()) (net-resolve host)))
+    (when (null? ip) (%net-die (string-concat (list "bad address '" host "'"))))
+    (guard (e (if (eq? (%wget-err-op e) (lit connect))
+                (%net-die (string-concat
+                  (list "can't connect to remote host (" ip "): " (%wget-err-text e))))
+                (error e)))
+      (net-connect ip port))))
+
+; S without the blanks at either end
+(def %whois-trim
+  (fn (_ s)
+    (def blank? (fn (_ c) (%wget-memv c (list #\space #\tab #\newline #\return 11 12))))
+    (def a (let go ((i 0)) (if (if (< i (byte-len s)) (blank? (byte-at s i)) #f) (go (+ i 1)) i)))
+    (def b (let go ((j (byte-len s))) (if (if (> j a) (blank? (byte-at s (- j 1))) #f) (go (- j 1)) j)))
+    (substring s a b)))
+
+; what follows PREFIX at the start of S, or nil
+(def %whois-after
+  (fn (_ s prefix)
+    (if (if (>= (byte-len s) (byte-len prefix))
+          (string=? (substring s 0 (byte-len prefix)) prefix) #f)
+      (substring s (byte-len prefix) (byte-len s))
+      ())))
+
+; one line as busybox keeps it: CHUNK's bytes (fgets' piece, reversed) up to
+; the first CR, LF or NUL, then a newline
+(def %whois-text
+  (fn (_ rchunk)
+    (string-append
+      (bytes->str
+        (let go ((bs (reverse rchunk)) (acc ()))
+          (if (if (null? bs) #t (%wget-memv (first bs) (list 13 10 0)))
+            (reverse acc)
+            (go (rest bs) (pair (first bs) acc)))))
+      "\n")))
+
+; ask HOST's PORT for NAME: answers (TEXT . REDIRECT), REDIRECT nil when the
+; reply names no other server
+(def %whois-query
+  (fn (_ host port name pfx)
+    (file-write 1 (string-concat
+      (list "[Querying " host ":" (%cu-int->str port) " '" pfx name "']\n")))
+    (def fd (%net-connect-or-die host port))
+    (net-send fd (string-concat (list pfx name "\r\n")))
+    ; state: the texts so far (reversed), their length, success?, redirect
+    (def st (%whois-read fd (list () 0 #f ())))
+    (net-close fd)
+    (def texts (first st))
+    (def success? (first (rest (rest st))))
+    (def redir (first (rest (rest (rest st)))))
+    (if (if success? #t (not (string=? pfx "")))
+      (pair (string-concat (reverse texts))
+            (if (if (null? redir) #f (string=? redir host)) () redir))
+      (%whois-query host port name "domain "))))
+
+; read FD's reply into the state (TEXTS LENGTH SUCCESS? REDIRECT), a line --
+; an fgets piece -- at a time, until the end or 32K of text
+(def %whois-read
+  (fn (_ fd st0)
+    (let more ((st st0) (chunk ()) (n 0) (run (net-recv-run fd 4096)) (i 0))
+      (match
+        ((>= (first (rest st)) 32768) st)
+        ((null? run) (if (= n 0) st (%whois-line st chunk)))
+        ((>= i (rest run)) (more st chunk n (net-recv-run fd 4096) 0))
+        (#t
+          (let ((b (byte-at (first run) i)))
+            (if (if (= b 10) #t (= (+ n 1) 2046))
+              (more (%whois-line st (pair b chunk)) () 0 run (+ i 1))
+              (more st (pair b chunk) (+ n 1) run (+ i 1)))))))))
+
+; one fgets piece into the state, the success and redirect lines read as
+; busybox reads them: trimmed and lowercased
+(def %whois-line
+  (fn (_ st rchunk)
+    (def text (%whois-text rchunk))
+    (def texts (pair text (first st)))
+    (def len (+ (first (rest st)) (byte-len text)))
+    (def success? (first (rest (rest st))))
+    (def redir (first (rest (rest (rest st)))))
+    (def low (%wget-lower (%whois-trim text)))
+    (match
+      ((not success?)
+        (list texts len
+              (if (%whois-after low "domain:") #t (not (null? (%whois-after low "domain name:"))))
+              redir))
+      ((null? redir)
+        (let ((p (%whois-after low "whois server:")))
+          (let ((p2 (if (null? p) (%whois-after low "whois:") p)))
+            (list texts len #t (if (null? p2) () (%whois-trim p2))))))
+      (#t (list texts len success? redir)))))
+
+; each server in turn: its text when it is the last or -i asks for all
+(def %whois-chase
+  (fn (self host port name all?)
+    (def r (%whois-query host port name ""))
+    (when (if (null? (rest r)) #t all?)
+      (file-write 1 (string-concat (list "[" host "]\n" (first r)))))
+    (unless (null? (rest r))
+      (do (file-write 1 (string-concat (list "[Redirected to " (rest r) "]\n")))
+          (self (rest r) 43 name all?)))))
+
+(def %whois-usage
+  (fn (_)
+    (do (file-write 2
+          (string-concat
+            (list "Usage: whois [-i] [-h SERVER] [-p PORT] NAME...\n\n"
+                  "Query WHOIS info about NAME\n\n"
+                  "\t-i\tShow redirect results too\n"
+                  "\t-h,-p\tServer to query\n")))
+        1)))
+
+(def %cu-whois
+  (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "whois" argv))
+    (def names (Opts operands o))
+    (def host (let ((h (Opts value o "-h"))) (if (null? h) "whois.iana.org" h)))
+    (def pv (Opts value o "-p"))
+    (def port (if (null? pv) 43 (%wget-digits pv)))
+    (match
+      ((null? names) (%whois-usage))
+      ((null? port)
+        (do (file-write 2 (string-concat (list "whois: invalid number '" pv "'\n"))) 1))
+      (#t
+        (guard (e (if (eq? (Err label e) (lit net))
+                    (do (file-write 2 (string-concat (list "whois: " (e msg) "\n"))) 1)
+                    (error e)))
+          (let each ((ns names))
+            (if (null? ns) 0
+              (do (%whois-chase host port (first ns) (Opts on? o "-i"))
+                  (each (rest ns))))))))))

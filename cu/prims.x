@@ -48,7 +48,7 @@
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
-  net-base64)
+  net-base64 net-connect net-send net-recv-run net-close)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -922,3 +922,11 @@
 (def http-head (fn (_ s) (s head)))
 ; the text of an Authorization: Basic credential
 (def net-base64 (fn (_ s) (Base64 encode s)))
+
+; a TCP connection to a dotted quad, raising the io Err connect failed with;
+; send writes a whole string; recv-run reads up to N bytes as a run, nil at
+; the end of input
+(def net-connect (fn (_ ip port) (Socket tcp-connect ip port)))
+(def net-send (fn (_ fd s) (Socket send fd s)))
+(def net-recv-run (fn (_ fd n) (Socket recv-run fd n)))
+(def net-close (fn (_ fd) (Socket close fd)))

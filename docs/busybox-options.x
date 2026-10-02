@@ -118,6 +118,7 @@
                          (list "--spider" "--header" "--post-data" "--post-file"
                                "--no-check-certificate")))
     (list "which" (%letters "a"))
+    (list "whois" (%letters "ihp"))
     (list "whoami" ())
     (list "xargs" (%letters "0aEInprstx"))
     (list "yes" ())
