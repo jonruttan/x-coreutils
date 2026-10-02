@@ -118,6 +118,8 @@
     (pair "hexdump" %cu-hexdump)
     (pair "hd" %cu-hd)
     (pair "xxd" %cu-xxd)
+    (pair "tree" %cu-tree)
+    (pair "time" %cu-time)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 
@@ -254,6 +256,8 @@
     (pair "hexdump" (list (list "-b" "-c" "-d" "-o" "-x" "-C" "-v") (list "-e" "-f" "-n" "-s")))
     (pair "hd" (list () () (lit none)))
     (pair "xxd" (list (list "-a" "-i" "-r" "-p" "-ps") (list "-l" "-s" "-g" "-c" "-o")))
+    (pair "tree" (list () () (lit none)))
+    (pair "time" (list (list "-v" "-p" "-a") (list "-o" "-f") (lit leading)))
     (pair "false" (list () () (lit none)))
     (pair "shred" (list (list "-u" "-f" "-z") (list "-n")))
     (pair "timeout" (list () (list "-s" "-k") (lit leading)))

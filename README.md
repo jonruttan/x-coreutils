@@ -7,11 +7,11 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and five applets: parity with busybox's `coreutils` set, plus
+**A hundred and seven applets: parity with busybox's `coreutils` set, plus
 `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
 `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its dumpers,
-`hexdump`, `hd` and `xxd`, and its downloader and lookup, `wget` and
-`whois`.**
+`hexdump`, `hd` and `xxd`, its `tree` and `time`, and its downloader and
+lookup, `wget` and `whois`.**
 
     arch base64 basename cal cat chgrp chmod chown chroot cksum clear
     cmp comm cp cut date dd df diff dirname dos2unix du echo env expand
@@ -19,8 +19,8 @@ one bundle -- organized like busybox:
     link ln logname ls md5sum mkdir mkfifo mktemp more mv nice nl nohup
     nproc od paste printenv printf pwd readlink realpath reset rev rm
     rmdir seq sha1sum sha256sum sha512sum shred shuf sleep sort split
-    stat strings sum sync tac tail tee test timeout touch tr true
-    truncate tsort tty unexpand uniq unix2dos unlink uname uudecode
+    stat strings sum sync tac tail tee test time timeout touch tr tree
+    true truncate tsort tty unexpand uniq unix2dos unlink uname uudecode
     uuencode usleep vi wc wget which whois whoami xargs xxd yes
     [ [[
 
@@ -187,6 +187,8 @@ parsed by x-lang's `Opts`.
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
+    cu/tree.x         tree: the directories drawn, as busybox draws them
+    cu/time.x         time: a command run, and its rusage from wait4
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 

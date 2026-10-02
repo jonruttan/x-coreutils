@@ -56,4 +56,6 @@
 (include-once "./net.x")
 (include-once "./dump.x")
 (include-once "./hexdump.x")
+(include-once "./tree.x")
+(include-once "./time.x")
 (include-once "./cli.x")
