@@ -61,6 +61,7 @@ the work.  Applet parity is the other axis: see the README.
 | `mktemp` | -d -t -p -q -u | -d -t -q -u -p |  | 100% |
 | `more` | -d -e -f -l -s -u | -d -e -f -l -s -u |  | 100% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
+| `nc` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -n -s -w -v -i |  | 100% |
 | `nohup` |  |  |  | - |
@@ -122,4 +123,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -a -i -r -p -ps -l -s -g -c -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 493 of 496 busybox options accepted (99%).**
+**Total: 503 of 509 busybox options accepted (98%).**

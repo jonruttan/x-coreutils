@@ -52,7 +52,8 @@
   host-boot-time load-centi host-load-centi host-memory host-users
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
-  net-base64 net-connect net-send net-recv-run net-close)
+  net-base64 net-connect net-send net-recv-run net-close
+  net-listen net-accept net-local-port net-peer net-shutdown sys-poll)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -947,3 +948,15 @@
 (def net-send (fn (_ fd s) (Socket send fd s)))
 (def net-recv-run (fn (_ fd n) (Socket recv-run fd n)))
 (def net-close (fn (_ fd) (Socket close fd)))
+
+; nc's doors: a listener on PORT of every interface, the next connection on it,
+; the port a listener holds, a connection's other end as (QUAD . PORT), and
+; shutting a connection's write side.  sys-poll waits on several descriptors:
+; ((FD . (in out)) ...) and a timeout in milliseconds, -1 for none; it answers
+; the ready ones as ((FD . EVENTS) ...), or nil when the time ran out.
+(def net-listen (fn (_ port) (Socket tcp-listen port)))
+(def net-accept (fn (_ fd) (Socket accept fd)))
+(def net-local-port (fn (_ fd) (Socket local-port fd)))
+(def net-peer (fn (_ fd) (Socket peer fd)))
+(def net-shutdown (fn (_ fd) (Socket shutdown fd)))
+(def sys-poll (fn (_ fds ms) (Sys poll fds ms)))
