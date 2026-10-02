@@ -720,6 +720,60 @@ status Pattern not found
 cursor 0 0 bells 0
 ```
 
+### :// with no search before it is the next line
+
+```cu
+(vi-case "one\ntwo\nthree\nfour\nfive\n" (list (vi-b "j") (vi-b "://" (lit cr)) (vi-b "x")) "/tmp/x-cu-vx/f")
+```
+---
+```output
+exit 1
+one
+two
+three
+four
+five
+--
+|one
+|two
+|hree
+|four
+|five
+|~
+|~
+|~
+|~
+status - /tmp/x-cu-vx/f [Modified] 3/5 60%
+cursor 2 0 bells 0
+```
+
+### :?? with no search before it is the line before
+
+```cu
+(vi-case "one\ntwo\nthree\nfour\nfive\n" (list (vi-b "jj") (vi-b ":??" (lit cr)) (vi-b "x")) "/tmp/x-cu-vx/f")
+```
+---
+```output
+exit 1
+one
+two
+three
+four
+five
+--
+|one
+|two
+|hree
+|four
+|five
+|~
+|~
+|~
+|~
+status - /tmp/x-cu-vx/f [Modified] 3/5 60%
+cursor 2 0 bells 0
+```
+
 ### :2,4 goes to the second address
 
 ```cu
