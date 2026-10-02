@@ -114,6 +114,9 @@
     (list "uuencode" (%letters "m"))
     (list "vi" (%letters "cRH"))
     (list "wc" (%letters "cmlwL"))
+    (list "wget" (append (%letters "cqSOoPYUTt")
+                         (list "--spider" "--header" "--post-data" "--post-file"
+                               "--no-check-certificate")))
     (list "which" (%letters "a"))
     (list "whoami" ())
     (list "xargs" (%letters "0aEInprstx"))
