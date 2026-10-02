@@ -18,6 +18,8 @@
 (import x/type/struct)
 (import x/sys/opts)
 (import x/net/http)
+(import x/sys/host)
+(import x/num/float)
 
 (provide cu/prims
   char->integer integer->char byte-at byte-len
@@ -46,6 +48,7 @@
   sys-user-name sys-group-name sys-user-id sys-user-group sys-group-id
   sys-user-groups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
+  host-boot-time load-centi host-load-centi host-memory host-users
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
   net-base64 net-connect net-send net-recv-run net-close)
@@ -342,6 +345,19 @@
 
 (def date-now-iso (fn (_) (Date ->iso (Date now))))
 (def date-now-unix (fn (_) (Date to-unix (Date now))))
+
+; The machine as the kernel reports it (x/sys/host): the same records on Linux
+; and Darwin, a field the kernel does not report nil.  The load averages come
+; as hundredths, truncated: each is the kernel's fixed-point count over its
+; scale, exact as a float, so a hundred times it, cut to an integer, is
+; busybox's LOAD_INT * 100 + LOAD_FRAC.
+(def host-boot-time (fn (_) (Host boot-time)))
+(def load-centi (fn (_ l) (Float ->int (Float * l 100))))
+(def host-load-centi
+  (fn (_) (map load-centi (Host load))))
+(def host-memory (fn (_) (Host memory)))
+(def host-users (fn (_) (Host users)))
+
 (def rng-make (fn (_ seed) (Random sw seed)))
 (def rng-int (fn (_ r n) (r int n)))
 
