@@ -57,6 +57,8 @@
 (include-once "./nc.x")
 (include-once "./dump.x")
 (include-once "./hexdump.x")
+(include-once "./tree.x")
+(include-once "./time.x")
 (include-once "./base32.x")
 (include-once "./ascii.x")
 (include-once "./procps.x")
