@@ -5,7 +5,7 @@ from a busybox built from its source, less the banner line its usage text
 starts with and the rows for options this bundle does not take.  A `|` marks
 the end of each line written to standard output, so a trailing tab shows.
 test, `[`, `[[`, true, false and echo take --help as an operand, as POSIX has
-it, and busybox has no help text for ascii and tree.
+it, and busybox has no help text for ascii, tree and pipe_progress.
 
 ## the fixture
 
@@ -2028,6 +2028,98 @@ Hex dump FILE (or stdin)|
 	-s OFFSET	Skip OFFSET bytes|
 	-o OFFSET	Add OFFSET to displayed offset|
 	-r		Reverse (with -p, assumes no offsets in input)|
+stderr:
+status 0
+```
+
+### fsync
+
+```cu
+(run (list "fsync" "--help") "")
+```
+---
+```output
+Usage: fsync [-d] FILE...|
+|
+Write all buffered blocks in FILEs to disk|
+|
+	-d	Avoid syncing metadata|
+stderr:
+status 0
+```
+
+### flock
+
+```cu
+(run (list "flock" "--help") "")
+```
+---
+```output
+Usage: flock [-sxun] FD | { FILE [-c] PROG ARGS }|
+|
+[Un]lock file descriptor, or lock FILE, run PROG|
+|
+	-s	Shared lock|
+	-x	Exclusive lock (default)|
+	-u	Unlock FD|
+	-n	Fail rather than wait|
+stderr:
+status 0
+```
+
+### setsid
+
+```cu
+(run (list "setsid" "--help") "")
+```
+---
+```output
+Usage: setsid [-c] PROG ARGS|
+|
+Run PROG in a new session. PROG will have no controlling terminal|
+and will not be affected by keyboard signals (^C etc).|
+|
+	-c	Set controlling terminal to stdin|
+stderr:
+status 0
+```
+
+### ttysize
+
+```cu
+(run (list "ttysize" "--help") "")
+```
+---
+```output
+Usage: ttysize [w] [h]|
+|
+Print dimensions of stdin tty, or 80x24|
+stderr:
+status 0
+```
+
+### nologin
+
+```cu
+(run (list "nologin" "--help") "")
+```
+---
+```output
+Usage: nologin|
+|
+Politely refuse a login|
+stderr:
+status 0
+```
+
+### pipe_progress
+
+```cu
+(run (list "pipe_progress" "--help") "")
+```
+---
+```output
+No help available|
 stderr:
 status 0
 ```

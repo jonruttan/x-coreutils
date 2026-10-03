@@ -119,6 +119,12 @@
     (pair "hexdump" %cu-hexdump)
     (pair "hd" %cu-hd)
     (pair "xxd" %cu-xxd)
+    (pair "fsync" %cu-fsync)
+    (pair "flock" %cu-flock)
+    (pair "setsid" %cu-setsid)
+    (pair "ttysize" %cu-ttysize)
+    (pair "nologin" %cu-nologin)
+    (pair "pipe_progress" %cu-pipe-progress)
     (pair "tree" %cu-tree)
     (pair "time" %cu-time)
     (pair "base32" %cu-base32)
@@ -176,7 +182,7 @@
         (#t ())))))
 
 ; The applets busybox prints no help text for.
-(def %cu-no-help (list "ascii" "tree"))
+(def %cu-no-help (list "ascii" "tree" "pipe_progress"))
 
 ; An applet's usage text, for the refusals that print it: busybox's, to
 ; standard error, and 1.

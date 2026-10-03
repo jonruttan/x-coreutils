@@ -1154,6 +1154,51 @@
             (Opts flag "-r" "Reverse (with -p, assumes no offsets in input)")
             (Opts hidden (Opts flag "-a" ""))
             (Opts hidden (Opts flag "-p" ""))))))
+    (pair "fsync"
+      (list
+        (Opts declare "fsync" "[-d] FILE..."
+          "Write all buffered blocks in FILEs to disk"
+          (list
+            (Opts flag "-d" "Avoid syncing metadata")))))
+    (pair "flock"
+      (list
+        (Opts declare "flock" "[-sxun] FD | { FILE [-c] PROG ARGS }"
+          "[Un]lock file descriptor, or lock FILE, run PROG"
+          (list
+            (Opts flag "-s" "Shared lock")
+            (Opts flag "-x" "Exclusive lock (default)")
+            (Opts flag "-u" "Unlock FD")
+            (Opts flag "-n" "Fail rather than wait")
+            (Opts hidden (Opts flag "--shared" ""))
+            (Opts hidden (Opts flag "--exclusive" ""))
+            (Opts hidden (Opts flag "--unlock" ""))
+            (Opts hidden (Opts flag "--nonblock" ""))))
+        (lit leading)))
+    (pair "setsid"
+      (list
+        (Opts declare "setsid" "[-c] PROG ARGS"
+          "Run PROG in a new session. PROG will have no controlling terminal\nand will not be affected by keyboard signals (^C etc)."
+          (list
+            (Opts flag "-c" "Set controlling terminal to stdin")))
+        (lit leading)))
+    (pair "ttysize"
+      (list
+        (Opts declare "ttysize" "[w] [h]"
+          "Print dimensions of stdin tty, or 80x24"
+          (list))
+        (lit none)))
+    (pair "nologin"
+      (list
+        (Opts declare "nologin" ""
+          "Politely refuse a login"
+          (list))
+        (lit none)))
+    (pair "pipe_progress"
+      (list
+        (Opts declare "pipe_progress" "" ()
+          (list)
+          (pair (lit help) #f))
+        (lit none)))
     (pair "tree"
       (list
         (Opts declare "tree" "" ()
