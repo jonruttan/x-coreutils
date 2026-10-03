@@ -62,4 +62,5 @@
 (include-once "./base32.x")
 (include-once "./ascii.x")
 (include-once "./procps.x")
+(include-once "./options.x")
 (include-once "./cli.x")

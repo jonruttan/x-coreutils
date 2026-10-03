@@ -160,22 +160,6 @@
 
 ; --- xxd ----------------------------------------------------------------------------
 
-(def %xxd-usage
-  (fn (_)
-    (do (file-write 2
-          (string-concat
-            (list "Usage: xxd [-ri] [-ps] [-g N] [-c N] [-l LEN] [-s OFS] [-o OFS] [FILE]\n\n"
-                  "Hex dump FILE (or stdin)\n\n"
-                  "\t-g N\t\tBytes per group (default 2)\n"
-                  "\t-c N\t\tBytes per line (default:16, -ps:30, -i:12)\n"
-                  "\t-ps\t\tShow only hex bytes (no offset/spaces)\n"
-                  "\t-i\t\tC include file style\n"
-                  "\t-l LENGTH\tShow only first LENGTH bytes\n"
-                  "\t-s OFFSET\tSkip OFFSET bytes\n"
-                  "\t-o OFFSET\tAdd OFFSET to displayed offset\n"
-                  "\t-r\t\tReverse (with -p, assumes no offsets in input)\n")))
-        1)))
-
 ; NAME as a C identifier, as busybox's print_C_style spells it
 (def %xxd-c-name
   (fn (_ name)
@@ -233,7 +217,7 @@
     (def len (num "-l" 0 %hx-int-max %hx-uint-max -1))
     (def skip (if (null? len) () (num "-s" 0 %hx-off-max %hx-off-max 0)))
     (match
-      ((> (length ops) 1) (%xxd-usage))
+      ((> (length ops) 1) (%cu-usage "xxd"))
       ((null? skip) 1)
       ((Opts on? o "-r") (%xxd-reverse p? (if (null? ops) "-" (first ops)) skip stdin-thunk))
       (#t (%xxd-dump o ops p? len skip stdin-thunk)))))
