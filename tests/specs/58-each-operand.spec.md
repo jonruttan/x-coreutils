@@ -51,7 +51,7 @@ two
 ---
     ((2000000 500000 250000 5000000 90000000 7200000000 86400000000 3000000 1) (() () () () () () ()))
 
-### every interval that is not one is said, and nothing is slept; two that are, summed
+### the first interval that is not one is said, as busybox says it, and nothing is slept; two that are, summed
 
 ```cu
 (do (sys-dup2 2 8) (let ((e (file-open-write "/tmp/x-cu-eo-err"))) (do (sys-dup2 e 2) (display (cu-run (list "sleep" "1x" "0.1" "2y") "")) (sys-dup2 8 2) (file-close e))) (newline) (display (file-read-all "/tmp/x-cu-eo-err")) (display (cu-run (list "sleep" "0.05" "0.05") "")) (file-unlink "/tmp/x-cu-eo-err"))
@@ -59,7 +59,6 @@ two
 ---
 ```output
 1
-sleep: invalid time interval '1x'
-sleep: invalid time interval '2y'
+sleep: invalid number '1x'
 0
 ```
