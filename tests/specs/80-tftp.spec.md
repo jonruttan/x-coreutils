@@ -9,7 +9,9 @@ name" (0) for a name holding one.  D/srv holds small.txt (6 bytes) and
 big.bin (1500 bytes) and an empty file.  Every expectation is busybox's
 own output for the same requests against busybox's tftpd; the report
 gives stdout, stderr, the status and each file left in D/work, and the
-text of any file a put left in D/srv.
+text of any file a put left in D/srv.  The progress meter's clock is
+held still for each run, so a run that crosses a second draws only the
+lines busybox draws within one.
 
 ## the fixture
 
@@ -97,9 +99,12 @@ text of any file a put left in D/srv.
     (def oo (file-open-write (string-append tf "/out")))
     (def ee (file-open-write (string-append tf "/err")))
     (sys-dup2 oo 1) (sys-dup2 ee 2)
-    (let tick ((s0 (date-now-unix))) (when (= (date-now-unix) s0) (do (sys-usleep 20000) (tick s0))))
+    (def tf-clock date-now-unix)
+    (def tf-now (date-now-unix))
+    (set! date-now-unix (fn (_) tf-now))
     (def st (guard (e (do (file-write 2 (string-append "raised: " (if (Err err? e) (e msg) "?"))) -1))
               (cu-run (pair "tftp" (map (fn (_ a) (tf-arg port a)) args)) "")))
+    (set! date-now-unix tf-clock)
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (sys-kill pid 9) (sys-wait pid)
     (display (string-concat (list (file-read-all (string-append tf "/out")) "stderr:\n"
