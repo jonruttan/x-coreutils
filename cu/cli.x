@@ -127,6 +127,7 @@
     (pair "pipe_progress" %cu-pipe-progress)
     (pair "getopt" %cu-getopt)
     (pair "run-parts" %cu-run-parts)
+    (pair "tar" %cu-tar)
     (pair "tree" %cu-tree)
     (pair "time" %cu-time)
     (pair "base32" %cu-base32)

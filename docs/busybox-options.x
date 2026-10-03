@@ -105,6 +105,10 @@
     (list "sync" (%letters "df"))
     (list "tac" ())
     (list "tail" (%letters "cfnqsv"))
+    (list "tar" (list "-c" "-x" "-t" "-z" "-J" "-j" "-a" "-h" "-m" "-v" "-o" "-k" "-O" "-f" "-C"
+                      "-T" "-X" "--lzma" "--exclude" "--overwrite" "--strip-components"
+                      "--no-recursion" "--numeric-owner" "--no-same-permissions"
+                      "--to-command"))
     (list "tee" (%letters "ai"))
     (list "test" (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
                        "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
