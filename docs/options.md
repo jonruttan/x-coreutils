@@ -46,6 +46,7 @@ the work.  Applet parity is the other axis: see the README.
 | `fold` | -b -s -w | -b -s -w |  | 100% |
 | `free` | -b -k -m -g -h | -b -k -m -g -h |  | 100% |
 | `fsync` | -d | -d |  | 100% |
+| `getopt` | -o -n -q -Q -s -T -u -a -l | -q -Q -T -u -a --quiet --quiet-output --test --unquoted --alternative -o -n -s -l --options --longoptions --shell --name |  | 100% |
 | `groups` |  |  |  | - |
 | `hd` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
@@ -81,6 +82,7 @@ the work.  Applet parity is the other axis: see the README.
 | `rev` |  |  |  | - |
 | `rm` | -i -r -R -f -v | -i -f -R -r -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
+| `run-parts` | -a -u --reverse --test --exit-on-error --list | --reverse --test --exit-on-error --list -a -u --arg --umask |  | 100% |
 | `seq` | -w -s | -w -s |  | 100% |
 | `setsid` | -c | -c |  | 100% |
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
@@ -129,4 +131,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 509 of 515 busybox options accepted (98%).**
+**Total: 524 of 530 busybox options accepted (98%).**
