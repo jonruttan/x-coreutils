@@ -1834,6 +1834,22 @@ stderr:
 status 0
 ```
 
+### nslookup
+
+```cu
+(run (list "nslookup" "--help") "")
+```
+---
+```output
+Usage: nslookup [-type=QUERY_TYPE] [-debug] HOST [DNS_SERVER]|
+|
+Query DNS about HOST|
+|
+QUERY_TYPE: soa,ns,a,aaaa,cname,mx,txt,ptr,srv,any|
+stderr:
+status 0
+```
+
 ### tftp
 
 ```cu

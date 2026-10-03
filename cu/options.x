@@ -1042,6 +1042,15 @@
             (%cu-hidden-flags %nc-flags)
             (%cu-hidden-args %nc-values)))
         (lit none)))
+    ; nslookup reads its own -NAME=VALUE options, so none
+    (pair "nslookup"
+      (list
+        (Opts declare "nslookup" "[-type=QUERY_TYPE] [-debug] HOST [DNS_SERVER]"
+          "Query DNS about HOST\n\nQUERY_TYPE: soa,ns,a,aaaa,cname,mx,txt,ptr,srv,any"
+          (append (list)
+            (%cu-hidden-flags (list "-debug"))
+            (%cu-hidden-args (list "-type" "-querytype" "-port" "-retry" "-timeout" "-t"))))
+        (lit none)))
     ; tftp reads tftp-hpa's "-c get FILE" before its options, so none; -m is
     ; HPA_COMPAT's mode, taken and never shown
     (pair "tftp"

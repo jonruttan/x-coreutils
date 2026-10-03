@@ -35,7 +35,8 @@
 ;
 ; v0.23.0: (Socket send-to-run) and (Socket recv-from-run), binary UDP
 ; datagrams with their sender (x-lang#910), which tftp (cu/tftp.x) sends
-; and reads its packets through.
+; and reads its packets through, and the DNS server in the nslookup spec
+; answers through.
 ;
 ; v0.23.0 is the release the suite and its sweep bounds are measured on.
 (requires-release "v0.23.0")

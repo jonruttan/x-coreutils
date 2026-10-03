@@ -25,9 +25,9 @@
 ; the pause between two bursts outlasts the 50 ms -- send it signals between
 ; them, and read back what it drew.
 ;
-; x has no automatic collect.  The editor sweeps once a key, after drawing the
-; screen: a collect walks the whole heap, ~6 ms, and a key leaves tens of
-; thousands of objects.
+; x has no automatic collect.  The editor sweeps after drawing the screen, once
+; the objects live have grown a set amount since the last sweep: a collect
+; walks the whole heap, ~6 ms, whatever a key left (%vi-sweep-if-due!).
 
 (import x/repl/term)
 
@@ -170,14 +170,19 @@
     (set! %vi-dot 0)
     (set! %vi-screenbegin 0)
     (set! %vi-nl-total 0)
+    (%vi-touch! 0)
     (%vi-lc-forget!)))
 
 ; the line-number cache holds for the text before %vi-lc-pos, so any change
-; there drops it
+; there drops it; every change counts in %vi-text-version, which says whether
+; the rows the screen shows can have changed
+(def %vi-text-version 0)
 (def %vi-lc-forget!
   (fn (_) (set! %vi-lc-pos 0) (set! %vi-lc-n 0)))
 (def %vi-touch!
-  (fn (_ p) (if (%vi< p %vi-lc-pos) (%vi-lc-forget!) ())))
+  (fn (_ p)
+    (set! %vi-text-version (%vi+ %vi-text-version 1))
+    (if (%vi< p %vi-lc-pos) (%vi-lc-forget!) ())))
 
 ; busybox's text_hole_make: SIZE bytes of spaces opened at P
 (def %vi-hole-make!
@@ -305,7 +310,21 @@
 
 (def %vi-end-screen
   (fn (_)
-    (%vi-end-line (%vi-next-lines %vi-screenbegin (%vi- %vi-rows 2)))))
+    (if (if (= %vi-es-version %vi-text-version)
+          (if (= %vi-es-top %vi-screenbegin) (= %vi-es-rows %vi-rows) #f)
+          #f)
+      %vi-es-at
+      (do (set! %vi-es-at (%vi-end-line (%vi-next-lines %vi-screenbegin (%vi- %vi-rows 2))))
+          (set! %vi-es-version %vi-text-version)
+          (set! %vi-es-top %vi-screenbegin)
+          (set! %vi-es-rows %vi-rows)
+          %vi-es-at))))
+; where the last row's line ends, kept for the text, top and rows it was
+; walked for: the cursor's sync asks every key
+(def %vi-es-at 0)
+(def %vi-es-version -1)
+(def %vi-es-top -1)
+(def %vi-es-rows -1)
 
 (def %vi-next-lines
   (fn (self p n) (if (%vi< 0 n) (self (%vi-next-line p) (%vi- n 1)) p)))
@@ -414,9 +433,21 @@
   (fn (_ row col)
     (def r (%vi-max 0 (%vi-min row (%vi- %vi-rows 1))))
     (def c (%vi-max 0 (%vi-min col (%vi- %vi-columns 1))))
-    (%vi-put (string-concat
-               (list %vi-esc "[" (%cu-int->str (%vi+ r 1)) ";"
-                     (%cu-int->str (%vi+ c 1)) "H")))))
+    (%vi-put (string-append %vi-esc "[" (%vi-num->str (%vi+ r 1)) ";"
+                            (%vi-num->str (%vi+ c 1)) "H"))))
+
+; N in decimal, by the integer doors: the general number's arithmetic
+; allocates at every step, and this runs several times a key
+(def %vi-num->str
+  (fn (_ n)
+    (match
+      ((%vi< n 0) (bytes->str (pair 45 (%vi-digit-list (%vi- 0 n) ()))))
+      ((%vi< n 10) (bytes->str (list (%vi+ n 48))))
+      (#t (bytes->str (%vi-digit-list n ()))))))
+(def %vi-digit-list
+  (fn (self n acc)
+    (if (= n 0) acc
+      (self (%vi/ n 10) (pair (%vi+ (%vi% n 10) 48) acc)))))
 
 (def %vi-bottom-clear
   (fn (_)
@@ -559,17 +590,39 @@
       (#t (%vi- (%vi-next-column c start) 1)))))
 
 ; busybox's refresh: each row that differs from what the screen shows is
-; written again, and the cursor put on the dot
+; written again, and the cursor put on the dot.  The rows are not formatted
+; again when nothing they show from can have changed since the last refresh
+; drew them: the text, the top of the screen, the left offset, the tab stop,
+; and the rows themselves, which a redraw or an erase replaces.  Busybox
+; formats every row and finds them the same; the bytes written are the same.
+(def %vi-drawn-screen ())
+(def %vi-drawn-version -1)
+(def %vi-drawn-top -1)
+(def %vi-drawn-tabstop -1)
 (def %vi-refresh!
   (fn (_ full?)
     (def full (%vi-window-check full?))
     (%vi-sync-cursor! %vi-dot)
     (def moved (if (= %vi-offset %vi-old-offset) #f #t))
-    (set! %vi-screen
-      (%vi-refresh-rows %vi-screenbegin 0 %vi-screen (if full #t moved) ()))
+    (if (%vi-rows-current? (if full #t moved)) ()
+      (do (set! %vi-screen
+            (%vi-refresh-rows %vi-screenbegin 0 %vi-screen (if full #t moved) ()))
+          (set! %vi-drawn-screen %vi-screen)
+          (set! %vi-drawn-version %vi-text-version)
+          (set! %vi-drawn-top %vi-screenbegin)
+          (set! %vi-drawn-tabstop %vi-tabstop)))
     (%vi-place-cursor %vi-crow %vi-ccol)
     (if %vi-keep-index () (set! %vi-cindex (%vi+ %vi-ccol %vi-offset)))
     (set! %vi-old-offset %vi-offset)))
+
+(def %vi-rows-current?
+  (fn (_ force)
+    (match
+      (force #f)
+      ((not (eq? %vi-screen %vi-drawn-screen)) #f)
+      ((not (= %vi-text-version %vi-drawn-version)) #f)
+      ((not (= %vi-screenbegin %vi-drawn-top)) #f)
+      (#t (= %vi-tabstop %vi-drawn-tabstop)))))
 
 (def %vi-refresh-rows
   (fn (self tp li old force acc)
@@ -693,15 +746,15 @@
     (def before (if (= (byte-at %vi-text eol) #\newline) (%vi- cur 1) cur))
     (def tot (%vi- (%vi+ cur (%vi- %vi-nl-total before)) 1))
     (def s
-      (string-concat
-        (list (%vi-bsub "-IR-" (%vi% %vi-cmd-mode 4) 1) " "
-              (if (null? %vi-filename) "No file" %vi-filename)
-              (if (= %vi-readonly 0) "" " [Readonly]")
-              (if (= %vi-modified 0) "" " [Modified]")
-              " " (%cu-int->str (if (%vi< 0 tot) cur 0))
-              "/" (%cu-int->str (if (%vi< 0 tot) tot 0))
-              " " (%cu-int->str (if (%vi< 0 tot) (%vi/ (%vi* 100 cur) tot) 100))
-              "%")))
+      (string-append
+        (%vi-bsub "-IR-" (%vi% %vi-cmd-mode 4) 1) " "
+        (if (null? %vi-filename) "No file" %vi-filename)
+        (if (= %vi-readonly 0) "" " [Readonly]")
+        (if (= %vi-modified 0) "" " [Modified]")
+        " " (%vi-num->str (if (%vi< 0 tot) cur 0))
+        "/" (%vi-num->str (if (%vi< 0 tot) tot 0))
+        " " (%vi-num->str (if (%vi< 0 tot) (%vi/ (%vi* 100 cur) tot) 100))
+        "%"))
     (def most (%vi-min %vi-columns 199))
     (if (%vi< most (byte-len s)) (%vi-bsub s 0 most) s)))
 
@@ -718,9 +771,16 @@
       ())
     (%vi-flush!)))
 
+; the sum of S's bytes, kept for the last S summed: the status line is the
+; same text key after key, and a byte loop costs ~80 us
+(def %vi-sum-text "")
+(def %vi-sum-of-text 0)
 (def %vi-bufsum
   (fn (_ s)
-    (%vi-sum-from s 0 0)))
+    (if (string=? s %vi-sum-text) %vi-sum-of-text
+      (do (set! %vi-sum-text s)
+          (set! %vi-sum-of-text (%vi-sum-from s 0 0))
+          %vi-sum-of-text))))
 (def %vi-sum-from
   (fn (self s i n)
     (if (%vi< i (byte-len s)) (self s (%vi+ i 1) (%vi+ n (%vi& (byte-at s i) 255))) n)))
@@ -1188,8 +1248,8 @@
   (fn (_ op s cnt)
     (%vi-status-line!
       (string-concat
-        (list op " " (%cu-int->str (%vi* (%vi-newlines-of s) cnt)) " lines ("
-              (%cu-int->str (%vi* (byte-len s) cnt)) " chars) from ["
+        (list op " " (%vi-num->str (%vi* (%vi-newlines-of s) cnt)) " lines ("
+              (%vi-num->str (%vi* (byte-len s) cnt)) " chars) from ["
               (bytes->str (list (%vi-what-reg))) "]")))))
 
 (def %vi-newlines-of
@@ -1516,7 +1576,7 @@
     (def more (%vi- (%vi- (length %vi-files) %vi-optind) 1))
     (if (%vi< 0 more)
       (do (set! %vi-modified 0)
-          (%vi-status-line-bold! (string-append (%cu-int->str more) " more file(s) to edit")))
+          (%vi-status-line-bold! (string-append (%vi-num->str more) " more file(s) to edit")))
       (set! %vi-editing 0))))
 
 ; --- files ------------------------------------------------------------------
@@ -1675,9 +1735,23 @@
     (%vi-dot-watch! c)
     (%vi-do-cmd c)
     (if (if (null? %vi-kbuf) (if (%vi-src-ready? 0) #f #t) #f)
-      (do (%vi-refresh! #f) (%vi-show-status-line!) (%cu-heap-collect))
+      (do (%vi-refresh! #f) (%vi-show-status-line!) (%vi-sweep-if-due!))
       ())
     ()))
+
+; the heap swept once the objects live have grown %vi-heap-room past what the
+; last sweep left: a sweep walks every live object, the whole editor included,
+; so it costs the same whatever a key left, and is paid every few keys, not
+; every key.  The live count is the engine's, read without a walk.
+(def %vi-heap-room 262144)
+(def %vi-heap-floor 0)
+(def %vi-live-objects
+  (fn (_) (%cell-int (first (%reflect-base-cell (lit alloc-count))))))
+(def %vi-sweep-if-due!
+  (fn (_)
+    (if (%vi< (%vi+ %vi-heap-floor %vi-heap-room) (%vi-live-objects))
+      (do (%cu-heap-collect) (set! %vi-heap-floor (%vi-live-objects)))
+      ())))
 
 ; ^C, the engine's STOP: back to the top of the file in command mode, as
 ; busybox's siglongjmp to its restart point; the end of the input ends the
@@ -1732,7 +1806,10 @@
     (%vi-undo-init!)
     (set! %vi-readonly 0)
     (%vi-dot-init!)
-    (set! %vi-screen ())))
+    (set! %vi-screen ())
+    (set! %vi-drawn-screen ())
+    (set! %vi-drawn-version -1)
+    (set! %vi-es-version -1)))
 
 ; busybox's vi_main: each file in turn on the alternate screen
 ; busybox's vi_main from its getopt32: -H lists the features and -h the

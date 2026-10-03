@@ -18,12 +18,10 @@
 ; alist, and the only sums it owns are a day-of-year, a twelve-hour clock and the
 ; length of a month.
 ;
-; Everything is UTC, including without -u. The platform's date is UTC only
-; ("No timezones, no locale -- boundary code converts at the edge"), so `date`
-; and `date -u` print the same thing. -u is declared because asking for UTC and
-; getting it honours the flag; the divergence is the other way, since a caller
-; wanting local time gets UTC and is not told. That wants a timezone door in
-; the platform.
+; Times are local, as busybox's are: (Date local) splits unix seconds in the
+; zone TZ names and (Date local->unix) puts a local time back, both through the
+; C library's localtime_r and mktime.  -u is busybox's TZ=UTC0: UTC both ways.
+; touch, ls and cal read and show times the same way.
 ;
 ; -s is not declared: setting the clock needs a syscall exposed on no arch this
 ; runs on here, and root besides.
@@ -43,6 +41,32 @@
   (list 31 28 31 30 31 30 31 31 30 31 30 31))
 
 (def %cu-date-get (fn (_ d k) (Assoc get k d)))
+
+; Unix seconds as a date alist in the zone, with its offset and name: UTC's
+; when UTC is asked for, as busybox's -u sets TZ=UTC0, the local zone's
+; otherwise
+(def %cu-date-split
+  (fn (_ secs utc)
+    (if utc
+      (append (Date from-unix secs) (list (pair (lit offset) 0) (pair (lit zone) "UTC")))
+      (Date local secs))))
+
+; A date alist back to unix seconds, read in UTC or in the local zone
+(def %cu-date-join (fn (_ d utc) (if utc (Date to-unix d) (Date local->unix d))))
+
+; Now, as a date alist in the zone
+(def %cu-date-today (fn (_ utc) (%cu-date-split (date-now-unix) utc)))
+
+; The zone's offset as %z writes it, +hhmm, or with COLON? +hh:mm, as -I does
+(def %cu-date-zone
+  (fn (_ d colon?)
+    (def off (Assoc get-or 0 (lit offset) d))
+    (def a (if (< off 0) (- 0 off) off))
+    (string-concat
+      (list (if (< off 0) "-" "+") (%cu-date-pad2 (%cu-date-div a 3600))
+            (if colon? ":" "") (%cu-date-pad2 (% (%cu-date-div a 60) 60))))))
+
+(def %cu-date-div (fn (_ a b) (/ (- a (% a b)) b)))
 
 ; N in WIDTH columns, filled before it with FILLER: "0", or " "
 (def %cu-date-pad
@@ -104,8 +128,8 @@
       ((= c 117) (%cu-int->str (if (= (%cu-date-get d (lit wday)) 0) 7
                                  (%cu-date-get d (lit wday)))))        ; u
       ((= c 115) (%cu-int->str secs))                                  ; s
-      ((= c 122) "+0000")                                              ; z
-      ((= c 90) "UTC")                                                 ; Z
+      ((= c 122) (%cu-date-zone d #f))                                  ; z
+      ((= c 90) (Assoc get-or "UTC" (lit zone) d))                      ; Z
       ((= c 110) "\n")                                                 ; n
       ((= c 116) "\t")                                                 ; t
       ((= c 37) "%")                                                   ; %
@@ -216,7 +240,7 @@
 ; the second may reach MAX-SECOND: touch -t takes 60 and rolls it into the next
 ; minute, where date -d stops at 59.
 (def %cu-date-moment
-  (fn (_ year month day hour minute second max-second)
+  (fn (_ year month day hour minute second max-second utc)
     (def month-days
       (if (if (>= month 1) (<= month 12) #f)
         (+ (%cu-nth (- month 1) %cu-date-mon-days)
@@ -228,10 +252,11 @@
       ((> hour 23) ())
       ((> minute 59) ())
       ((> second max-second) ())
-      (#t (Date to-unix
+      (#t (%cu-date-join
             (list (pair (lit year) year) (pair (lit month) month)
                   (pair (lit day) day) (pair (lit hour) hour)
-                  (pair (lit minute) minute) (pair (lit second) second)))))))
+                  (pair (lit minute) minute) (pair (lit second) second))
+            utc)))))
 
 ; -d's spellings when no -D is given: a date; a date with a time after a space
 ; or a T, seconds optional, and after a T a closing Z in either case; or a time
@@ -260,12 +285,12 @@
               (#t (self (+ i 1) (pair (%cu-b->s b) acc) #f)))))))
     (go 0 () #f)))
 
-; the seconds a -d with no -D names, or nil
+; the seconds a -d with no -D names, or nil, read in UTC or the local zone
 (def %cu-date-spelled
-  (fn (_ spec)
+  (fn (_ spec utc)
     (def s (%cu-date-squeeze spec))
     (def end (byte-len s))
-    (def today (Date now))
+    (def today (%cu-date-today utc))
     (def moment
       (fn (_ d)
         (def field (fn (_ k default) (Assoc get-or default k d)))
@@ -274,7 +299,7 @@
           (field (lit month) (Assoc get (lit month) today))
           (field (lit day) (Assoc get (lit day) today))
           (field (lit hour) 0) (field (lit minute) 0) (field (lit second) 0)
-          59)))
+          59 utc)))
     (def try
       (fn (self fmts)
         (if (null? fmts) ()
@@ -293,17 +318,17 @@
       (#t (lit ignored)))))
 
 (def %cu-date-of
-  (fn (_ spec fmt)
+  (fn (_ spec fmt utc)
     ; the seconds -d asked for, or nil
     (match
       ((null? spec) ())
       ((not (null? fmt))
         (let ((d (%cu-date-scan fmt spec)))
-          (if (null? d) () (Date to-unix (%cu-date-whole d)))))
+          (if (null? d) () (%cu-date-join (%cu-date-whole d) utc))))
       ((if (> (byte-len spec) 1) (= (byte-at spec 0) 64) #f)
         (let ((r (%cu-date-digits spec 1 20)))
           (if (null? r) () (first r))))
-      (#t (%cu-date-spelled spec)))))
+      (#t (%cu-date-spelled spec utc)))))
 
 ; A scanned date holds only the fields the format named; to-unix wants a day
 ; and a month at least, so the missing ones take the epoch's.
@@ -324,12 +349,12 @@
 ; are declared as flags instead, which the parser matches whole before trying
 ; them as a cluster. Answers nil when no spelling was given.
 (def %cu-date-iso-fmt
-  (fn (_ o)
+  (fn (_ o zone)
     (match
-      ((Opts on? o "-Iseconds") "%Y-%m-%dT%H:%M:%S+0000")
-      ((Opts on? o "-Iminutes") "%Y-%m-%dT%H:%M+0000")
-      ((Opts on? o "-Ihours") "%Y-%m-%dT%H+0000")
-      ((Opts on? o "-Ins") "%Y-%m-%dT%H:%M:%S,000000000+0000")
+      ((Opts on? o "-Iseconds") (string-append "%Y-%m-%dT%H:%M:%S" zone))
+      ((Opts on? o "-Iminutes") (string-append "%Y-%m-%dT%H:%M" zone))
+      ((Opts on? o "-Ihours") (string-append "%Y-%m-%dT%H" zone))
+      ((Opts on? o "-Ins") (string-append "%Y-%m-%dT%H:%M:%S,000000000" zone))
       ((Opts on? o "-Idate") "%Y-%m-%d")
       ((Opts on? o "-I") "%Y-%m-%d")
       (#t ()))))
@@ -357,17 +382,18 @@
       (match
         ((not (null? rfile))
           (%cu-stat-get (file-stat-full rfile) (lit mtime)))
-        ((not (null? dspec)) (%cu-date-of dspec (Opts value o "-D")))
+        ((not (null? dspec)) (%cu-date-of dspec (Opts value o "-D") (Opts on? o "-u")))
         (#t (date-now-unix))))
     (if (null? secs)
       (do (file-write 2
             (string-append "date: invalid date '"
               (string-append dspec "'\n"))) 1)
-      (let ((d (Date from-unix secs)))
+      (let ((d (%cu-date-split secs (Opts on? o "-u"))))
+        (def iso (%cu-date-iso-fmt o (%cu-date-zone d #t)))
         (let ((fmt
                 (match
                   ((Opts on? o "-R") "%a, %d %b %Y %H:%M:%S %z")
-                  ((not (null? (%cu-date-iso-fmt o))) (%cu-date-iso-fmt o))
+                  ((not (null? iso)) iso)
                   ((not (null? (%cu-date-plus ops))) (%cu-date-plus ops))
                   (#t "%a %b %e %H:%M:%S %Z %Y"))))
           (do (display (string-append (%cu-date-fmt fmt d secs) "\n")) 0))))))

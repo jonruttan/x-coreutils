@@ -206,7 +206,7 @@
     (match
       ((> n 2) (%cu-usage "cal"))
       ((= n 0)
-        (let ((today (Date now)))
+        (let ((today (%cu-date-today #f)))
           (show (if year? 0 (Assoc get (lit month) today)) (Assoc get (lit year) today))))
       (#t
         (let ((month (if (if (= n 2) (not year?) #f)
