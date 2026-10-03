@@ -1051,6 +1051,20 @@
             (%cu-hidden-flags (list "-debug"))
             (%cu-hidden-args (list "-type" "-querytype" "-port" "-retry" "-timeout" "-t"))))
         (lit none)))
+    ; tftp reads tftp-hpa's "-c get FILE" before its options, so none; -m is
+    ; HPA_COMPAT's mode, taken and never shown
+    (pair "tftp"
+      (list
+        (Opts declare "tftp" "[OPTIONS] HOST [PORT]"
+          "Transfer a file from/to tftp server"
+          (list
+            (Opts arg "-l" "FILE" "Local FILE")
+            (Opts arg "-r" "FILE" "Remote FILE")
+            (Opts flag "-g" "Get file")
+            (Opts flag "-p" "Put file")
+            (Opts arg "-b" "SIZE" "Transfer blocks in bytes")
+            (Opts hidden (Opts arg "-m" "" ""))))
+        (lit none)))
     ; -p is NOT here on purpose; cu/sys2.x says why
     (pair "xargs"
       (list

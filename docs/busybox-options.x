@@ -137,6 +137,7 @@
                                "--no-check-certificate")))
     (list "nc" (%letters "elkpswinubvoz"))
     (list "nslookup" (list "-type" "-debug"))
+    (list "tftp" (%letters "lrgpb"))
     (list "which" (%letters "a"))
     (list "whois" (%letters "ihp"))
     (list "whoami" ())

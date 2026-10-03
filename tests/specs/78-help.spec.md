@@ -1850,6 +1850,26 @@ stderr:
 status 0
 ```
 
+### tftp
+
+```cu
+(run (list "tftp" "--help") "")
+```
+---
+```output
+Usage: tftp [OPTIONS] HOST [PORT]|
+|
+Transfer a file from/to tftp server|
+|
+	-l FILE	Local FILE|
+	-r FILE	Remote FILE|
+	-g	Get file|
+	-p	Put file|
+	-b SIZE	Transfer blocks in bytes|
+stderr:
+status 0
+```
+
 ### xargs
 
 ```cu

@@ -109,6 +109,7 @@
     (pair "whois" %cu-whois)
     (pair "nc" %cu-nc)
     (pair "nslookup" %cu-nslookup)
+    (pair "tftp" %cu-tftp)
     (pair "xargs" %cu-xargs)
     (pair "vi" %cu-vi)
     (pair "more" %cu-more)

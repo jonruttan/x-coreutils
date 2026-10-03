@@ -102,6 +102,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tail` | -c -f -n -q -s -v | -q -v -f -c -n -s |  | 100% |
 | `tee` | -a -i | -a -i |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
+| `tftp` | -l -r -g -p -b | -l -r -g -p -b -m |  | 100% |
 | `time` | -v -p -a -f -o | -v -p -a -f -o |  | 100% |
 | `timeout` | -s -k | -s -k |  | 100% |
 | `touch` | -c -d -t -r | -c -d -t -r |  | 100% |
@@ -132,4 +133,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 526 of 532 busybox options accepted (98%).**
+**Total: 531 of 537 busybox options accepted (98%).**
