@@ -47,8 +47,9 @@ forks the command AND a watchdog, because there is no alarm door.
 `vi` is busybox's: its screen, keys and messages, each case checked
 against busybox's own vi typed the same keys; it keeps busybox's one
 buffer of bytes, searches it with libc's `memchr`, `strcspn` and
-`memmem`, and sweeps the heap once a key, so its memory stays flat
-however long it runs.
+`memmem`, and sweeps the heap once the objects live have grown a set
+amount, so its memory stays bounded however long it runs; a refresh
+formats the rows again only when what they show can have changed.
 Self-contained: no `(requires-lang ...)`.
 
 ## Known limits
