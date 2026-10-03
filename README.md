@@ -7,25 +7,26 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and twenty-two applets: parity with busybox's `coreutils`
+**A hundred and twenty-three applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
-its network tools, `wget`, `whois` and `nc`, and its `uptime` and `free`.**
+its network tools, `wget`, `whois`, `nc` and `nslookup`, and its `uptime`
+and `free`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
     echo env expand expr factor false find flock fold free fsync getopt
     groups hd head hexdump id install join link ln logname ls md5sum
-    mkdir mkfifo mktemp more mv nc nice nl nohup nologin nproc od paste
-    pipe_progress printenv printf pwd readlink realpath reset rev rm
-    rmdir run-parts seq setsid sha1sum sha256sum sha512sum shred shuf
-    sleep sort split stat strings sum sync tac tail tee test time timeout
-    touch tr tree true truncate tsort tty ttysize unexpand uniq unix2dos
-    unlink uname uptime uudecode uuencode uuidgen usleep vi wc wget which
-    whois whoami xargs xxd yes
+    mkdir mkfifo mktemp more mv nc nice nl nohup nologin nproc nslookup
+    od paste pipe_progress printenv printf pwd readlink realpath reset
+    rev rm rmdir run-parts seq setsid sha1sum sha256sum sha512sum shred
+    shuf sleep sort split stat strings sum sync tac tail tee test time
+    timeout touch tr tree true truncate tsort tty ttysize unexpand uniq
+    unix2dos unlink uname uptime uudecode uuencode uuidgen usleep vi wc
+    wget which whois whoami xargs xxd yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -122,7 +123,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.22.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.23.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -192,6 +193,7 @@ parsed by x-lang's `Opts`.
     cu/cal.x          cal: a month or a year, Julian to 1752
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/nc.x           nc: busybox's netcat 1.10, the copy waiting on the platform's poll
+    cu/dns.x          nslookup: busybox's DNS client, its queries and replies in x
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
     cu/tree.x         tree: the directories drawn, as busybox draws them
