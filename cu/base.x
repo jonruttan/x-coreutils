@@ -57,6 +57,7 @@
 (include-once "./nc.x")
 (include-once "./dns.x")
 (include-once "./tftp.x")
+(include-once "./ftp.x")
 (include-once "./dump.x")
 (include-once "./hexdump.x")
 (include-once "./tree.x")

@@ -46,7 +46,9 @@ the work.  Applet parity is the other axis: see the README.
 | `fold` | -b -s -w | -b -s -w |  | 100% |
 | `free` | -b -k -m -g -h | -b -k -m -g -h |  | 100% |
 | `fsync` | -d | -d |  | 100% |
-| `getopt` | -o -n -q -Q -s -T -u -a -l | -q -Q -T -u -a --quiet --quiet-output --test --unquoted --alternative -o -n -s -l --options --longoptions --shell --name |  | 100% |
+| `ftpget` | -c -v -u -p -P | -c -v --verbose -u -p -P --continue --username --password --port |  | 100% |
+| `ftpput` | -c -v -u -p -P | -v -c --verbose -u -p -P --continue --username --password --port |  | 100% |
+| `getopt` | -o -n -q -Q -s -T -u -a -l | -a -q -Q -T -u --alternative --quiet --quiet-output --test --unquoted -l -n -o -s --longoptions --name --options --shell |  | 100% |
 | `groups` |  |  |  | - |
 | `hd` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
@@ -103,7 +105,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -z -J -j --lzma --to-command | 80% |
 | `tee` | -a -i | -a -i |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
-| `tftp` | -l -r -g -p -b | -l -r -g -p -b -m |  | 100% |
+| `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
 | `time` | -v -p -a -f -o | -v -p -a -f -o |  | 100% |
 | `timeout` | -s -k | -s -k |  | 100% |
 | `touch` | -c -d -t -r | -c -d -t -r |  | 100% |
@@ -134,4 +136,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 551 of 562 busybox options accepted (98%).**
+**Total: 561 of 572 busybox options accepted (98%).**

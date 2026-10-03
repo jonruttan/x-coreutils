@@ -142,6 +142,8 @@
     (list "nc" (%letters "elkpswinubvoz"))
     (list "nslookup" (list "-type" "-debug"))
     (list "tftp" (%letters "lrgpb"))
+    (list "ftpget" (%letters "cvupP"))
+    (list "ftpput" (%letters "cvupP"))
     (list "which" (%letters "a"))
     (list "whois" (%letters "ihp"))
     (list "whoami" ())
