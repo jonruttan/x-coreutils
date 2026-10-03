@@ -95,7 +95,12 @@
 (def %cu-rev
   (fn (self l acc)
     (if (null? l) acc (self (rest l) (pair (first l) acc)))))
-(def append (fn (_ a b) (List append a b)))
+; any number of lists, as List append takes them: a third list given to a
+; two-list append is dropped without a word
+(def append
+  (fn (_ a b . more)
+    (if (null? more) (List append a b)
+      (List fold (fn (_ acc l) (List append acc l)) (List append a b) more))))
 (def map (fn (_ f l) (List map f l)))
 (def filter (fn (_ p l) (List filter p l)))
 (def set-first! %set-first!)

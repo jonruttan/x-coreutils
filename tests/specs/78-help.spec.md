@@ -2140,6 +2140,66 @@ stderr:
 status 0
 ```
 
+### getopt
+
+```cu
+(run (list "getopt" "--help") "")
+```
+---
+```output
+Usage: getopt [OPTIONS] [--] OPTSTRING PARAMS|
+|
+	-a		Allow long options starting with single -|
+	-l LOPT[,...]	Long options to recognize|
+	-n PROGNAME	The name under which errors are reported|
+	-o OPTSTRING	Short options to recognize|
+	-q		No error messages on unrecognized options|
+	-Q		No normal output|
+	-s SHELL	Set shell quoting conventions|
+	-T		Version test (exits with 4)|
+	-u		Don't quote output|
+|
+Example:|
+|
+O=`getopt -l bb: -- ab:c:: "$@"` || exit 1|
+eval set -- "$O"|
+while true; do|
+	case "$1" in|
+	-a)	echo A; shift;;|
+	-b|--bb) echo "B:'$2'"; shift 2;;|
+	-c)	case "$2" in|
+		"")	echo C; shift 2;;|
+		*)	echo "C:'$2'"; shift 2;;|
+		esac;;|
+	--)	shift; break;;|
+	*)	echo Error; exit 1;;|
+	esac|
+done|
+stderr:
+status 0
+```
+
+### run-parts
+
+```cu
+(run (list "run-parts" "--help") "")
+```
+---
+```output
+Usage: run-parts [-a ARG]... [-u UMASK] [--reverse] [--test] [--exit-on-error] [--list] DIRECTORY|
+|
+Run a bunch of scripts in DIRECTORY|
+|
+	-a ARG		Pass ARG as argument to scripts|
+	-u UMASK	Set UMASK before running scripts|
+	--reverse	Reverse execution order|
+	--test		Dry run|
+	--exit-on-error	Exit if a script exits with non-zero|
+	--list		Print names of matching files even if they are not executable|
+stderr:
+status 0
+```
+
 ### tree
 
 ```cu
