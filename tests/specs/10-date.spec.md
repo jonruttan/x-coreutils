@@ -2,7 +2,8 @@
 
 date, and the strftime it grew.
 
-Every block pins the time with `-d @SECONDS`; a spec that read the clock would
+Every block pins the time with `-d @SECONDS`, and the suite runs under
+`TZ=UTC0` (tests/spec-runner.sh); a spec that read the clock would
 pass until midnight somewhere.
 
 The calendar is `x/sys/date.x`'s, so what is exercised here is the formatting,
@@ -56,7 +57,7 @@ Sat|Saturday|Sep|Sep|September|PM|6|6|256
 0
 ```
 
-### the zone is UTC because the platform has no other
+### under TZ=UTC0 the zone is UTC, its offset +0000
 
 ```cu
 (display (cu-run (list "date" "-d" "@1757796602" "+%z|%Z|%s|%%") ""))
@@ -228,7 +229,7 @@ Sat, 13 Sep 2025 20:50:02 +0000
 0
 ```
 
-### -I is the date, and its SPEC attaches
+### -I is the date, and its SPEC attaches; the zone is +hh:mm, as busybox writes it
 
 `-I`'s argument is optional and attached, which Opts cannot declare, so the
 five spellings are declared outright.
@@ -240,11 +241,11 @@ five spellings are declared outright.
 ---
 ```output
 2025-09-13
-02025-09-13T20:50:02+0000
+02025-09-13T20:50:02+00:00
 0
 ```
 
-### -u asks for UTC and gets it, which is all this platform has
+### -u asks for UTC, as busybox's TZ=UTC0 does
 
 ```cu
 (display (cu-run (list "date" "-u" "-d" "@1757796602" "+%F %T %Z") ""))
@@ -253,6 +254,66 @@ five spellings are declared outright.
 ```output
 2025-09-13 20:50:02 UTC
 0
+```
+
+## local time
+
+These set TZ to a POSIX rule, which glibc and Darwin read alike with no zone
+database, and put the suite's UTC0 back.  The expectations are the system
+date's in the same zone: `TZ=... date -r SECS`, and `date -j -f` for reading.
+
+### the default format, %z, %Z and -R in a zone behind UTC with daylight time
+
+```cu
+(do (sys-setenv "TZ" "EST5EDT,M3.2.0,M11.1.0")
+    (def r (list (cu-run (list "date" "-d" "@1757796602") "")
+                 (cu-run (list "date" "-d" "@1757796602" "+%z|%Z") "")
+                 (cu-run (list "date" "-R" "-d" "@1757796602") "")
+                 (cu-run (list "date" "-Iseconds" "-d" "@1757796602") "")
+                 (cu-run (list "date" "-u" "-d" "@1757796602") "")))
+    (sys-setenv "TZ" "UTC0")
+    (display r))
+```
+---
+```output
+Sat Sep 13 16:50:02 EDT 2025
+-0400|EDT
+Sat, 13 Sep 2025 16:50:02 -0400
+2025-09-13T16:50:02-04:00
+Sat Sep 13 20:50:02 UTC 2025
+(0 0 0 0 0)
+```
+
+### a zone half an hour off, across midnight
+
+```cu
+(do (sys-setenv "TZ" "<+0530>-5:30")
+    (def r (cu-run (list "date" "-d" "@1757796602" "+%F %T %z %Z") ""))
+    (sys-setenv "TZ" "UTC0")
+    (display r))
+```
+---
+```output
+2025-09-14 02:20:02 +0530 +0530
+0
+```
+
+### -d and -D read a local time, and -u reads it as UTC
+
+```cu
+(do (sys-setenv "TZ" "EST5EDT,M3.2.0,M11.1.0")
+    (def r (list (cu-run (list "date" "-d" "2025-09-13 16:50:02" "+%s") "")
+                 (cu-run (list "date" "-D" "%Y%m%d%H%M%S" "-d" "20250115120000" "+%s") "")
+                 (cu-run (list "date" "-u" "-d" "2025-09-13 16:50:02" "+%s") "")))
+    (sys-setenv "TZ" "UTC0")
+    (display r))
+```
+---
+```output
+1757796602
+1736960400
+1757782202
+(0 0 0)
 ```
 
 ### -s is not declared, because the clock cannot be set from here

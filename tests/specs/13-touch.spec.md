@@ -1,10 +1,9 @@
 # @weight 2
 
 touch -d, -t and -r: the time a file is given, rather than the clock.  Times
-are read back as unix seconds, so nothing here depends on the timezone of the
-machine running it; the expected seconds are GNU touch's under TZ=UTC.  -d
-reads its date the way date does, so as UTC (cu/date.x records that
-divergence).
+are read back as unix seconds.  -t and -d read a local time, as busybox's do;
+the suite runs under TZ=UTC0 (tests/spec-runner.sh), so the expected seconds
+are GNU touch's under TZ=UTC, and the case that sets another zone says so.
 
 ## the fixtures
 
@@ -83,6 +82,18 @@ readers accept either and the cases below state the signed time.
 1560600000 1560600000
 1577923200 1577923200
 ```
+
+### -t and -d read local time, and ls -l shows the local day
+
+Under `EST5EDT`, 16:50:02 on 13 September 2025 is 1757796602, and 20:00 that
+evening is midnight in UTC, 1757808000: ls -l shows it on the 13th, where in
+UTC it is the 14th.
+
+```cu
+(do (sys-setenv "TZ" "EST5EDT,M3.2.0,M11.1.0") (cu-run (list "touch" "-t" "202509131650.02" (tch "est")) "") (cu-run (list "touch" "-d" "2025-09-13 20:00:00" (tch "est2")) "") (sys-dup2 1 9) (def fd (file-open-write (tch ".out"))) (sys-dup2 fd 1) (cu-run (list "ls" "-l" (tch "est2")) "") (sys-dup2 9 1) (file-close fd) (sys-setenv "TZ" "UTC0") (display (list (mt (tch "est")) (mt (tch "est2")) (Str8 includes? " Sep 13  2025 " (file-read-all (tch ".out"))))))
+```
+---
+    (1757796602 1757808000 #t)
 
 ### a missing operand is created at the time asked, and -c leaves it missing
 

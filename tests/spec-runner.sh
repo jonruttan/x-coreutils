@@ -70,4 +70,11 @@ fi
 # suite that suspects the collect can measure rather than inherit the knob.
 export SPEC_SEAM_COLLECT="${SPEC_SEAM_COLLECT:-1}"
 
+# The suite reads and writes times in one zone, UTC, whatever the machine's:
+# date, touch, ls and cal are local-time tools, as busybox's are, so their
+# expectations hold only where the zone is known.  A case about local time sets
+# its own TZ and puts this one back.
+TZ=UTC0
+export TZ
+
 . "$X_ROOT/tests/spec-runner.sh"
