@@ -434,11 +434,27 @@
         (list "Connecting to " (%wget-host t) " (" ip ":" (%cu-int->str (rest np)) ")\n"))))
     ip))
 
-; open the exchange for T: the stream, its head read.  A refused connection is
-; busybox's "can't connect"; anything else that keeps a response from arriving
-; -- no head, a failed handshake, a certificate that does not verify -- is its
-; "error getting response".  POST answers the body to send, read now -- after
-; the "Connecting to", where busybox reads --post-file -- or nil for a GET
+; what keeps a response from arriving, in busybox's words: a refused
+; connection is "can't connect to remote host (IP): ..."; an io failure -- the
+; handshake, a certificate that does not verify, a read or a write -- and Http's
+; own report of a head it cannot read are "error getting response".  Anything
+; else is not the network's doing -- a platform without Http open, say -- and
+; answers nil, so the caller raises it as it is.
+(def %wget-open-failure
+  (fn (_ e ip)
+    (def label (Err label e))
+    (match
+      ((if (eq? label (lit io)) (eq? (%wget-err-op e) (lit connect)) #f)
+        (string-concat (list "can't connect to remote host (" ip "): " (%wget-err-text e))))
+      ((eq? label (lit io)) "error getting response")
+      ((if (eq? label (lit value)) (%whois-after (e msg) "Http: bad response") #f)
+        "error getting response")
+      (#t ()))))
+
+; open the exchange for T: the stream, its head read, or the run ends in the
+; words %wget-open-failure gives the failure.  POST answers the body to send,
+; read now -- after the "Connecting to", where busybox reads --post-file -- or
+; nil for a GET
 (def %wget-open
   (fn (_ t ip post)
     (def body (post))
@@ -450,12 +466,8 @@
     (def opts
       (append (list (pair (lit redirects) 0))
         (if (Opts on? %wget-cfg "--no-check-certificate") (list (list (lit insecure))) ())))
-    (guard (e (match
-                ((not (%wget-memq (Err label e) (list (lit io) (lit value)))) (error e))
-                ((eq? (%wget-err-op e) (lit connect))
-                  (%wget-die (string-concat
-                    (list "can't connect to remote host (" ip "): " (%wget-err-text e)))))
-                (#t (%wget-die "error getting response"))))
+    (guard (e (let ((why (if (Err err? e) (%wget-open-failure e ip) ())))
+                (if (null? why) (error e) (%wget-die why))))
       (http-open (if (null? body) "GET" "POST") url (%wget-headers t body) body opts))))
 
 ; --- the body ------------------------------------------------------------------
