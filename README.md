@@ -60,10 +60,11 @@ Self-contained: no `(requires-lang ...)`.
     and `id -Gn` print numbers.  `chown` and `chgrp` take numeric ids
     only, and their reports name ids where GNU's name a user and a
     group: `changed group of 'f' from 0 to 20`.
-  - **`date` is UTC, in the C locale.** Neither TZ nor the locale is
-    read, so `date` prints what `TZ=UTC LC_ALL=C date` prints.
-    `date -d` and `touch -d` read a date as UTC, spelled as an ISO 8601
-    date or time or as `@SECONDS`, not in GNU's free-form words.
+  - **`date` is in the C locale.** Times are local, in the zone TZ
+    names, as busybox's are, but the locale is not read, so names print
+    as `LC_ALL=C date` prints them.  `date -d` and `touch -d` read a
+    date spelled as an ISO 8601 date or time or as `@SECONDS`, not in
+    GNU's free-form words.
   - **`tty` answers isatty**, not a terminal name: there is no ttyname
     door, so it prints `/dev/tty` or `not a tty`.
   - **`which` tests existence**, not the execute bit.

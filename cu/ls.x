@@ -152,7 +152,7 @@
 ; Mon DD HH:MM within six months either way, Mon DD  YYYY otherwise
 (def %ls-date
   (fn (_ t now)
-    (def d (Date from-unix t))
+    (def d (Date local t))
     (def f (fn (_ k) (rest (Assoc entry k d))))
     (def recent? (< (if (> now t) (- now t) (- t now)) 15768000))
     (string-concat
