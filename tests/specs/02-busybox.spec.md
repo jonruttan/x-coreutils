@@ -236,14 +236,14 @@ string builder instead -- `write` shows the exact bytes.
 
 `ls -l` once printed `-l` (and now, since the ls tranche, lists).  The
 dispatcher checks the leading option tokens against the applet's table:
-an unknown one is refused on stderr, with GNU's status for the applet.
+an unknown one is refused on stderr, with busybox's status for the applet.
 
 ```cu
 (do (display (cu-run (list "ls" "-Q" "/tmp") "")) (display " ") (display (cu-run (list "sort" "-rn") "3\n10\n")) )
 ```
 ---
 ```output
-2 10
+1 10
 3
 0
 ```
