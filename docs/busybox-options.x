@@ -81,6 +81,7 @@
     (list "printenv" ())
     (list "pipe_progress" ())
     (list "printf" ())
+    (list "ps" (%letters "oT"))
     (list "pwd" (%letters "LP"))
     (list "readlink" (%letters "fnv"))
     (list "realpath" ())

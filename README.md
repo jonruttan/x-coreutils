@@ -7,21 +7,21 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and twenty-five applets: parity with busybox's `coreutils`
+**A hundred and twenty-six applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget`, `whois`, `nc`, `nslookup` and `tftp`, its
-`uptime` and `free`, and its `tar`.**
+`uptime`, `free` and `ps`, and its `tar`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
     echo env expand expr factor false find flock fold free fsync getopt
     groups hd head hexdump id install join link ln logname ls md5sum
     mkdir mkfifo mktemp more mv nc nice nl nohup nologin nproc nslookup
-    od paste pipe_progress printenv printf pwd readlink realpath reset
+    od paste pipe_progress printenv printf ps pwd readlink realpath reset
     rev rm rmdir run-parts seq setsid sha1sum sha256sum sha512sum shred
     shuf sleep sort split stat strings sum sync tac tail tar tee test
     tftp time timeout touch tr tree true truncate tsort tty ttysize
@@ -123,7 +123,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.23.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.24.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -205,7 +205,7 @@ parsed by x-lang's `Opts`.
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order
     cu/tar.x          tar: ustar archives listed, extracted and made
-    cu/procps.x       uptime and free, over the platform's Host
+    cu/procps.x       uptime, free and ps, over the platform's Host
     cu/options.x      each applet's option declaration and help text
     cu/cli.x          the applet table, the option parse, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere

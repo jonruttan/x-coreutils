@@ -50,6 +50,7 @@
   sys-user-groups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   host-boot-time load-centi host-load-centi host-memory host-users
+  host-processes host-args
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
   net-base64 net-connect net-send net-recv-run net-close
@@ -366,6 +367,8 @@
   (fn (_) (map load-centi (Host load))))
 (def host-memory (fn (_) (Host memory)))
 (def host-users (fn (_) (Host users)))
+(def host-processes (fn (_) (Host processes)))
+(def host-args (fn (_ pid) (Host args pid)))
 
 (def rng-make (fn (_ seed) (Random sw seed)))
 (def rng-int (fn (_ r n) (r int n)))

@@ -138,6 +138,7 @@
     (pair "uuidgen" %cu-uuidgen)
     (pair "uptime" %cu-uptime)
     (pair "free" %cu-free)
+    (pair "ps" %cu-ps)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 

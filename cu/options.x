@@ -1397,6 +1397,21 @@
             (Opts hidden (Opts flag "-m" ""))
             (Opts hidden (Opts flag "-g" ""))
             (Opts hidden (Opts flag "-h" ""))))))
+    ; busybox's usage names -T too; threads are not in the records ps reads,
+    ; so -T is not accepted and not shown
+    (pair "ps"
+      (list
+        (Opts declare "ps" "[-o COL1,COL2=HEADER]"
+          "Show list of processes"
+          (list
+            (Opts arg "-o" "COL1,COL2=HEADER" "Select columns for display")
+            (Opts hidden (Opts flag "-Z" ""))
+            (Opts hidden (Opts flag "-a" ""))
+            (Opts hidden (Opts flag "-A" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-e" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-l" ""))))))
     ; test and its spellings are an EXPRESSION, not an option list: the operators
     ; are declared so the parse knows them, and the applet parses the expression
     ; itself.  --help is an operand, as POSIX has it.

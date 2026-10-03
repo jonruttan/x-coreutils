@@ -2372,6 +2372,25 @@ stderr:
 status 0
 ```
 
+### ps
+
+busybox's usage names -T as well, which ps does not accept: threads are not in
+the records it reads.
+
+```cu
+(run (list "ps" "--help") "")
+```
+---
+```output
+Usage: ps [-o COL1,COL2=HEADER]|
+|
+Show list of processes|
+|
+	-o COL1,COL2=HEADER	Select columns for display|
+stderr:
+status 0
+```
+
 ### test
 
 ```cu
