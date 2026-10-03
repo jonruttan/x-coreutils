@@ -128,6 +128,7 @@
                          (list "--spider" "--header" "--post-data" "--post-file"
                                "--no-check-certificate")))
     (list "nc" (%letters "elkpswinubvoz"))
+    (list "nslookup" (list "-type" "-debug"))
     (list "which" (%letters "a"))
     (list "whois" (%letters "ihp"))
     (list "whoami" ())

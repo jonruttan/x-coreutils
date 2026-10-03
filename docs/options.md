@@ -66,6 +66,7 @@ the work.  Applet parity is the other axis: see the README.
 | `nl` | -b -n -s -w -v -i | -b -n -s -w -v -i |  | 100% |
 | `nohup` |  |  |  | - |
 | `nproc` | --all --ignore=N | --all --ignore |  | 100% |
+| `nslookup` | -type -debug | -debug -type -querytype -port -retry -timeout -t |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
 | `paste` | -d -s | -s -d |  | 100% |
 | `printenv` |  |  |  | - |
@@ -123,4 +124,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -a -i -r -p -ps -l -s -g -c -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 503 of 509 busybox options accepted (98%).**
+**Total: 505 of 511 busybox options accepted (98%).**
