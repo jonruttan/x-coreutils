@@ -170,7 +170,8 @@
       (list
         (Opts declare "dirname" "FILENAME"
           "Strip non-directory suffix from FILENAME"
-          (list))))
+          (list))
+        (lit none)))
     (pair "cp"
       (list
         (Opts declare "cp" "[-arPLHpfinlsTu] SOURCE DEST\nor: cp [-arPLHpfinlsu] SOURCE... { -t DIRECTORY | DIRECTORY }"
@@ -446,7 +447,8 @@
       (list
         (Opts declare "usleep" "N"
           "Pause for N microseconds"
-          (list))))
+          (list))
+        (lit none)))
     (pair "tty"
       (list
         (Opts declare "tty" "[-s]"
@@ -459,7 +461,7 @@
         (Opts declare "nohup" "PROG ARGS"
           "Run PROG immune to hangups, with output to a non-tty"
           (list))
-        (lit leading)))
+        (lit none)))
     (pair "[["
       (list
         (Opts declare "[[" "" ()
@@ -467,7 +469,7 @@
             (Opts hidden (Opts flag "--help" "")))
             (%cu-hidden-flags %cu-test-operators))
           (pair (lit help) #f))
-        (lit leading)))
+        (lit none)))
     (pair "od"
       (list
         (Opts declare "od" "[-abcdfhilovxs] [-t TYPE] [-A RADIX] [-N SIZE] [-j SKIP] [-S MINSTR] [-w WIDTH] [FILE]..."
@@ -594,7 +596,8 @@
       (list
         (Opts declare "realpath" "FILE..."
           "Print absolute pathnames of FILEs"
-          (list))))
+          (list))
+        (lit none)))
     (pair "mkfifo"
       (list
         (Opts declare "mkfifo" "[-m MODE] NAME"
@@ -687,7 +690,7 @@
         (Opts declare "chroot" "NEWROOT [PROG ARGS]"
           "Run PROG with root directory set to NEWROOT"
           (list))
-        (lit leading)))
+        (lit none)))
     (pair "echo"
       (list
         (Opts declare "echo" "" ()
@@ -937,12 +940,14 @@
       (list
         (Opts declare "printenv" "[VARIABLE]..."
           "Print environment VARIABLEs.\nIf no VARIABLE specified, print all."
-          (list))))
+          (list))
+        (lit none)))
     (pair "sleep"
       (list
         (Opts declare "sleep" "[N]..."
           "Pause for a time equal to the total of the args given, where each arg can\nhave an optional suffix of (s)econds, (m)inutes, (h)ours, or (d)ays"
-          (list))))
+          (list))
+        (lit none)))
     ; -s is NOT declared; cu/date.x says why.  -I's SPEC is attached and optional,
     ; which Opts has no way to say, so the five spellings are declared outright.
     (pair "date"
@@ -1137,8 +1142,7 @@
       (list
         (Opts declare "hd" "FILE..."
           "hd is an alias for hexdump -C"
-          (list))
-        (lit none)))
+          (list))))
     (pair "xxd"
       (list
         (Opts declare "xxd" "[-ri] [-ps] [-g N] [-c N] [-l LEN] [-s OFS] [-o OFS] [FILE]"
@@ -1267,7 +1271,7 @@
             (Opts hidden (Opts flag "--help" "")))
             (%cu-hidden-flags %cu-test-operators))
           (pair (lit help) #f))
-        (lit leading)))
+        (lit none)))
     (pair "["
       (list
         (Opts declare "[" "" ()
@@ -1275,4 +1279,4 @@
             (Opts hidden (Opts flag "--help" "")))
             (%cu-hidden-flags %cu-test-operators))
           (pair (lit help) #f))
-        (lit leading)))))
+        (lit none)))))

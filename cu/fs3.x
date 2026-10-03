@@ -916,9 +916,19 @@
                         ((if (= wst fired) (< st 128) #f) 124)
                         (#t st))))))))))))
 
+; usleep N: N microseconds, N digits and nothing else, as busybox reads it; no
+; N is the usage, and anything else an invalid number
 (def %cu-usleep
   (fn (_ argv stdin-thunk)
-    (do (sys-usleep (if (null? argv) 0 (%cu-num-prefix (first argv)))) 0)))
+    (def n (if (null? argv) "" (first argv)))
+    (def digits?
+      (fn (self i)
+        (if (>= i (byte-len n)) #t
+          (if (if (>= (byte-at n i) #\0) (<= (byte-at n i) #\9) #f) (self (+ i 1)) #f))))
+    (match
+      ((null? argv) (%cu-usage "usleep"))
+      ((if (> (byte-len n) 0) (digits? 0) #f) (do (sys-usleep (%cu-num-prefix n)) 0))
+      (#t (do (file-write 2 (string-concat (list "usleep: invalid number '" n "'\n"))) 1)))))
 
 ; tty(1) names the terminal; there is no ttyname door, so this answers
 ; the QUESTION isatty asks and says so plainly.
