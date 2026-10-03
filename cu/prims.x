@@ -53,7 +53,8 @@
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
   net-base64 net-connect net-send net-recv-run net-close
-  net-listen net-accept net-local-port net-peer net-shutdown sys-poll)
+  net-listen net-accept net-local-port net-peer net-shutdown sys-poll
+  net-udp-connect sys-time-ms)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -965,3 +966,10 @@
 (def net-peer (fn (_ fd) (Socket peer fd)))
 (def net-shutdown (fn (_ fd) (Socket shutdown fd)))
 (def sys-poll (fn (_ fds ms) (Sys poll fds ms)))
+
+; nslookup's: a UDP socket connected to a dotted quad's PORT -- read and
+; written as a file descriptor, a datagram a call -- and the wall clock in
+; milliseconds
+(def net-udp-connect (fn (_ ip port) (Socket udp-connect ip port)))
+(def sys-time-ms
+  (fn (_) (let ((t (Sys time-of-day))) (+ (* 1000 (first t)) (/ (- (rest t) (% (rest t) 1000)) 1000)))))

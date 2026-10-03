@@ -50,13 +50,13 @@
           (match
             ((= lead 4) (num 0 4))
             ((= lead 2) (let ((yy (num 0 2))) (if (>= yy 69) (+ 1900 yy) (+ 2000 yy))))
-            (#t (Assoc get (lit year) (Date now)))))
+            (#t (Assoc get (lit year) (%cu-date-today #f)))))
         (def month (num lead (+ lead 2)))
         (def day (num (+ lead 2) (+ lead 4)))
         (def hour (num (+ lead 4) (+ lead 6)))
         (def minute (num (+ lead 6) (+ lead 8)))
         (def second (if (= dot end) 0 (num (+ dot 1) end)))
-        (%cu-date-moment year month day hour minute second 60)))))
+        (%cu-date-moment year month day hour minute second 60 #f)))))
 
 (def %cu-touch
   (fn (_ argv stdin-thunk)
@@ -67,7 +67,7 @@
     (def dspec (Opts value o "-d"))
     (def tspec (Opts value o "-t"))
     (def ref-st (if (null? rfile) () (file-stat-full rfile)))
-    (def dsecs (if (null? dspec) () (%cu-date-of dspec ())))
+    (def dsecs (if (null? dspec) () (%cu-date-of dspec () #f)))
     (def tsecs (if (null? tspec) () (%cu-touch-stamp tspec)))
     (def refused
       (match

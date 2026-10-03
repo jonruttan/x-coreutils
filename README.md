@@ -7,26 +7,26 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and twenty-three applets: parity with busybox's `coreutils`
+**A hundred and twenty-four applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
-its network tools, `wget`, `whois` and `nc`, its `uptime` and `free`,
-and its `tar`.**
+its network tools, `wget`, `whois`, `nc` and `nslookup`, its `uptime`
+and `free`, and its `tar`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
     echo env expand expr factor false find flock fold free fsync getopt
     groups hd head hexdump id install join link ln logname ls md5sum
-    mkdir mkfifo mktemp more mv nc nice nl nohup nologin nproc od paste
-    pipe_progress printenv printf pwd readlink realpath reset rev rm
-    rmdir run-parts seq setsid sha1sum sha256sum sha512sum shred shuf
-    sleep sort split stat strings sum sync tac tail tar tee test time
-    timeout touch tr tree true truncate tsort tty ttysize unexpand uniq
-    unix2dos unlink uname uptime uudecode uuencode uuidgen usleep vi wc
-    wget which whois whoami xargs xxd yes
+    mkdir mkfifo mktemp more mv nc nice nl nohup nologin nproc nslookup
+    od paste pipe_progress printenv printf pwd readlink realpath reset
+    rev rm rmdir run-parts seq setsid sha1sum sha256sum sha512sum shred
+    shuf sleep sort split stat strings sum sync tac tail tar tee test
+    time timeout touch tr tree true truncate tsort tty ttysize unexpand
+    uniq unix2dos unlink uname uptime uudecode uuencode uuidgen usleep vi
+    wc wget which whois whoami xargs xxd yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -48,8 +48,9 @@ forks the command AND a watchdog, because there is no alarm door.
 `vi` is busybox's: its screen, keys and messages, each case checked
 against busybox's own vi typed the same keys; it keeps busybox's one
 buffer of bytes, searches it with libc's `memchr`, `strcspn` and
-`memmem`, and sweeps the heap once a key, so its memory stays flat
-however long it runs.
+`memmem`, and sweeps the heap once the objects live have grown a set
+amount, so its memory stays bounded however long it runs; a refresh
+formats the rows again only when what they show can have changed.
 Self-contained: no `(requires-lang ...)`.
 
 ## Known limits
@@ -61,10 +62,11 @@ Self-contained: no `(requires-lang ...)`.
     and `id -Gn` print numbers.  `chown` and `chgrp` take numeric ids
     only, and their reports name ids where GNU's name a user and a
     group: `changed group of 'f' from 0 to 20`.
-  - **`date` is UTC, in the C locale.** Neither TZ nor the locale is
-    read, so `date` prints what `TZ=UTC LC_ALL=C date` prints.
-    `date -d` and `touch -d` read a date as UTC, spelled as an ISO 8601
-    date or time or as `@SECONDS`, not in GNU's free-form words.
+  - **`date` is in the C locale.** Times are local, in the zone TZ
+    names, as busybox's are, but the locale is not read, so names print
+    as `LC_ALL=C date` prints them.  `date -d` and `touch -d` read a
+    date spelled as an ISO 8601 date or time or as `@SECONDS`, not in
+    GNU's free-form words.
   - **`tty` answers isatty**, not a terminal name: there is no ttyname
     door, so it prints `/dev/tty` or `not a tty`.
   - **`which` tests existence**, not the execute bit.
@@ -121,7 +123,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.22.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.23.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -191,6 +193,7 @@ parsed by x-lang's `Opts`.
     cu/cal.x          cal: a month or a year, Julian to 1752
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/nc.x           nc: busybox's netcat 1.10, the copy waiting on the platform's poll
+    cu/dns.x          nslookup: busybox's DNS client, its queries and replies in x
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
     cu/tree.x         tree: the directories drawn, as busybox draws them
