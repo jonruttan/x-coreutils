@@ -38,7 +38,7 @@
 ; and reads its packets through, and the DNS server in the nslookup spec
 ; answers through.
 ;
-; v0.23.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.23.0")
+; v0.24.0 is the release the suite and its sweep bounds are measured on.
+(requires-release "v0.24.0")
 
 (entry "run.x")
