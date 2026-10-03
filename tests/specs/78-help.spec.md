@@ -1870,6 +1870,45 @@ stderr:
 status 0
 ```
 
+### ftpget
+
+```cu
+(run (list "ftpget" "--help") "")
+```
+---
+```output
+Usage: ftpget [OPTIONS] HOST [LOCAL_FILE] REMOTE_FILE|
+|
+Download a file via FTP|
+|
+	-c	Continue previous transfer|
+	-v	Verbose|
+	-u USER	Username|
+	-p PASS	Password|
+	-P PORT|
+stderr:
+status 0
+```
+
+### ftpput
+
+```cu
+(run (list "ftpput" "--help") "")
+```
+---
+```output
+Usage: ftpput [OPTIONS] HOST [REMOTE_FILE] LOCAL_FILE|
+|
+Upload a file to a FTP server|
+|
+	-v	Verbose|
+	-u USER	Username|
+	-p PASS	Password|
+	-P PORT|
+stderr:
+status 0
+```
+
 ### xargs
 
 ```cu

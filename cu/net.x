@@ -483,11 +483,12 @@
             (%wget-die (string-concat (list "can't open '" fname "': " (file-err-text fd))))
             (do (set! %wget-out-fd fd) (set! %wget-pos 0))))))))
 
-; write the body: answers #t when it all arrived, #f for a partial download --
-; a count that ran out early, a chunk cut short, or a body with neither a
-; count nor chunks, which busybox reads to the end and counts as cut short
+; write the body, read through RD -- (RD N) answers up to N bytes as a run, nil
+; at the end: answers #t when it all arrived, #f for a partial download -- a
+; count that ran out early, a chunk cut short, or a body with neither a count
+; nor chunks, which busybox reads to the end and counts as cut short
 (def %wget-retrieve
-  (fn (_ s fname clen chunked?)
+  (fn (_ rd fname clen chunked?)
     (unless (%wget-quiet?)
       (%wget-say (if (= %wget-out-fd 1) "writing to stdout\n"
                    (string-concat (list "saving to '" fname "'\n")))))
@@ -502,7 +503,7 @@
                   (%wget-pm-update! %wget-beg 0 (total-of 0 #f) #f)))
     (def got
       (let go ((tr 0))
-        (let ((piece (guard (_ (lit broken)) (http-read s 65536))))
+        (let ((piece (guard (_ (lit broken)) (rd 65536))))
           (match
             ((eq? piece (lit broken)) (pair tr #f))
             ((null? piece) (pair tr (if chunked? #t (if (null? clen) #f (= tr clen)))))
@@ -570,7 +571,6 @@
   (fn (_ url stdin-thunk)
     (def t0 (%wget-url url))
     (when (null? t0) (%wget-die (string-append "not an http or ftp url: " url)))
-    (when (string=? (%wget-scheme t0) "ftp") (%wget-die (string-append "ftp is not supported: " url)))
     (def named (%wget-value "-O" "--output-document"))
     (def fname
       (match
@@ -596,11 +596,25 @@
           (set! %wget-out-fd -1))
       (set! %wget-reset-pos %wget-pos))))
 
+; busybox's reset_beg_range_to_zero: a server that will not start part way
+; through gets the whole file, written over what -c kept
+(def %wget-restart-failed!
+  (fn (_)
+    (%wget-say "wget: restart failed\n")
+    (set! %wget-beg 0)
+    (when (>= %wget-out-fd 0)
+      (do (file-seek %wget-out-fd %wget-reset-pos)
+          (set! %wget-pos %wget-reset-pos)))))
+
 ; one try at the url; a partial download tries again from where it stopped,
 ; RETRIES more times -- without end when -t is 0
 (def %wget-attempt
   (fn (self t0 fname post tries retries)
-    (def outcome (%wget-hop t0 (%wget-connecting t0) 16 fname post))
+    (def ip (%wget-connecting t0))
+    (def outcome
+      (if (string=? (%wget-scheme t0) "ftp")
+        (%wget-ftp-hop t0 ip fname)
+        (%wget-hop t0 ip 16 fname post)))
     (when (if (number? outcome) (if (= tries 0) #t (> retries 0)) #f)
       (do (set! %wget-beg (+ %wget-beg outcome))
           (self t0 fname post tries (- retries 1))))))
@@ -616,12 +630,7 @@
     (when (%wget-show?) (%wget-say (string-concat (list "  " (first head) "\n"))))
     (match
       ((%wget-memv status (list 200 201 202 203 204))
-        (when (> %wget-beg 0)
-          (do (%wget-say "wget: restart failed\n")
-              (set! %wget-beg 0)
-              (when (>= %wget-out-fd 0)
-                (do (file-seek %wget-out-fd %wget-reset-pos)
-                    (set! %wget-pos %wget-reset-pos))))))
+        (when (> %wget-beg 0) (%wget-restart-failed!)))
       ((%wget-memv status (list 300 301 302 303 307 308)) ())
       ((if (= status 206) (> %wget-beg 0) #f) ())
       (#t (do (http-close s)
@@ -638,7 +647,8 @@
             (lit done)))
       (#t
         (do (if (string=? fname "-") (set! %wget-out-fd 1) (%wget-out! fname))
-            (let ((r (%wget-retrieve s fname (first (rest found)) (first (rest (rest found))))))
+            (let ((r (%wget-retrieve (fn (_ n) (http-read s n)) fname
+                                     (first (rest found)) (first (rest (rest found))))))
               (do (http-close s)
                   (if (rest r) (lit done) (first r)))))))))
 

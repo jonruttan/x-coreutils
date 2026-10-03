@@ -46,6 +46,8 @@ the work.  Applet parity is the other axis: see the README.
 | `fold` | -b -s -w | -b -s -w |  | 100% |
 | `free` | -b -k -m -g -h | -b -k -m -g -h |  | 100% |
 | `fsync` | -d | -d |  | 100% |
+| `ftpget` | -c -v -u -p -P | -c -v --verbose -u -p -P --continue --username --password --port |  | 100% |
+| `ftpput` | -c -v -u -p -P | -v -c --verbose -u -p -P --continue --username --password --port |  | 100% |
 | `getopt` | -o -n -q -Q -s -T -u -a -l | -a -q -Q -T -u --alternative --quiet --quiet-output --test --unquoted -l -n -o -s --longoptions --name --options --shell |  | 100% |
 | `groups` |  |  |  | - |
 | `hd` |  |  |  | - |
@@ -134,4 +136,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 551 of 562 busybox options accepted (98%).**
+**Total: 561 of 572 busybox options accepted (98%).**
