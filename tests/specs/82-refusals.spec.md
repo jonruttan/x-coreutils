@@ -3350,7 +3350,7 @@ status 1
 ```output
 stderr:
 tar: unrecognized option: ~
-Usage: tar c|x|t [-ahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
+Usage: tar c|x|t [-zahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
 
 Create, extract, or list files from a tar file
 
@@ -3364,6 +3364,7 @@ Create, extract, or list files from a tar file
 	-m	Don't restore mtime
 	-o	Don't restore user:group
 	-k	Don't replace existing files
+	-z	(De)compress using gzip
 	-a	(De)compress based on extension
 	-h	Follow symlinks
 	-T FILE	File with names to include
@@ -3386,7 +3387,7 @@ status 1
 ```output
 stderr:
 tar: unrecognized option: nope
-Usage: tar c|x|t [-ahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
+Usage: tar c|x|t [-zahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
 
 Create, extract, or list files from a tar file
 
@@ -3400,6 +3401,7 @@ Create, extract, or list files from a tar file
 	-m	Don't restore mtime
 	-o	Don't restore user:group
 	-k	Don't replace existing files
+	-z	(De)compress using gzip
 	-a	(De)compress based on extension
 	-h	Follow symlinks
 	-T FILE	File with names to include
@@ -3422,7 +3424,7 @@ status 1
 ```output
 stderr:
 tar: option requires an argument: f
-Usage: tar c|x|t [-ahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
+Usage: tar c|x|t [-zahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
 
 Create, extract, or list files from a tar file
 
@@ -3436,6 +3438,7 @@ Create, extract, or list files from a tar file
 	-m	Don't restore mtime
 	-o	Don't restore user:group
 	-k	Don't replace existing files
+	-z	(De)compress using gzip
 	-a	(De)compress based on extension
 	-h	Follow symlinks
 	-T FILE	File with names to include
@@ -3446,6 +3449,118 @@ Create, extract, or list files from a tar file
 	--no-recursion		Don't descend in directories
 	--numeric-owner		Use numeric user:group
 	--no-same-permissions	Don't restore access permissions
+status 1
+```
+
+### gzip -~
+
+```cu
+(run (list "gzip" "-~") "")
+```
+---
+```output
+stderr:
+gzip: unrecognized option: ~
+Usage: gzip [-cfkdt] [FILE]...
+
+Compress FILEs (or stdin)
+
+	-d	Decompress
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+```
+
+### gzip --nope
+
+```cu
+(run (list "gzip" "--nope") "")
+```
+---
+```output
+stderr:
+gzip: unrecognized option: nope
+Usage: gzip [-cfkdt] [FILE]...
+
+Compress FILEs (or stdin)
+
+	-d	Decompress
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+```
+
+### gunzip -~
+
+```cu
+(run (list "gunzip" "-~") "")
+```
+---
+```output
+stderr:
+gunzip: unrecognized option: ~
+Usage: gunzip [-cfkt] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+```
+
+### gunzip --nope
+
+```cu
+(run (list "gunzip" "--nope") "")
+```
+---
+```output
+stderr:
+gunzip: unrecognized option: nope
+Usage: gunzip [-cfkt] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+```
+
+### zcat -~
+
+```cu
+(run (list "zcat" "-~") "")
+```
+---
+```output
+stderr:
+zcat: unrecognized option: ~
+Usage: zcat [FILE]...
+
+Decompress to stdout
+status 1
+```
+
+### zcat --nope
+
+```cu
+(run (list "zcat" "--nope") "")
+```
+---
+```output
+stderr:
+zcat: unrecognized option: nope
+Usage: zcat [FILE]...
+
+Decompress to stdout
 status 1
 ```
 
