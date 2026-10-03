@@ -199,13 +199,13 @@ behaving exactly as before.
 ---
     #t
 
-### an option diff does not take is still refused
+### an option diff does not take is still refused, with busybox's status, 1
 
 ```cu
 (display (cu-run (list "diff" "-Z" "/tmp/x-cu-df-1" "/tmp/x-cu-df-2") ""))
 ```
 ---
-    2
+    1
 
 ## the unified format
 

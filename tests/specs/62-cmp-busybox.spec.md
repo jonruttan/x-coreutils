@@ -121,7 +121,15 @@ stderr:
 cmp: invalid number 'k'
 status 1
 stderr:
-cmp: invalid option -- 'Q'
+cmp: unrecognized option: Q
+Usage: cmp [-l|s] [-n NUM] FILE1 [FILE2 [SKIP1 [SKIP2]]]
+
+Compare FILE1 with FILE2 (or stdin)
+
+	-l	Show decimal offset and octal byte value for differing bytes,
+		don't stop on first mismatch
+	-s	Quiet
+	-n NUM	Compare at most NUM bytes
 status 1
 ```
 

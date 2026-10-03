@@ -206,13 +206,13 @@ compares the line with itself.
 ---
     (0 0 (1024 1 1024 1048576 1073741824 0 1048576 1048576 1073741824))
 
-### an option neither knows is refused, as every applet here refuses one
+### an option neither knows is refused, as busybox refuses it: uptime through getopt, free with its usage alone
 
 ```cu
 (list (rest (run-out (list "uptime" "-x"))) (rest (run-out (list "free" "-x"))))
 ```
 ---
-    (("uptime: invalid option -- 'x'\n" 1) ("free: invalid option -- 'x'\n" 1))
+    (("uptime: unrecognized option: x\nUsage: uptime\n\nDisplay the time since the last boot\n" 1) ("Usage: free [-bkmgh]\n\nDisplay free and used memory\n" 1))
 
 ## cleanup
 

@@ -498,13 +498,13 @@ b
 0
 ```
 
-### an undeclared flag is still refused, by the same parse
+### an undeclared flag is still refused, by the same parse, with busybox's status: 2 for sort, 1 for ls and cat
 
 ```cu
 (do (display (cu-run (list "sort" "-Q") "a\n")) (display (cu-run (list "ls" "-Q") "")) (display (cu-run (list "cat" "-Q") "")))
 ```
 ---
-    221
+    211
 
 ### an attached value, and a number that is nobody's flag
 

@@ -147,26 +147,25 @@
               (do (display (string-append v "\n")) (self (rest ns) st)))))))
     (if (null? argv) (%cu-env argv stdin-thunk) (go argv 0))))
 
-; sleep INTERVAL...: as long as they come to between them.  An interval that
-; is not one is said, each of them, and nothing is slept: status 1.
+; sleep INTERVAL...: as long as they come to between them.  The first interval
+; that is not one is said, as busybox says it, and nothing is slept: status 1.
 (def %cu-sleep
   (fn (_ argv stdin-thunk)
     (def us (map %cu-sleep-us argv))
     (def bad
-      (fn (self as xs st)
-        (if (null? as) st
-          (do (if (null? (first xs))
-                (file-write 2
-                  (string-concat
-                    (list "sleep: invalid time interval '" (first as) "'\n")))
-                ())
-              (self (rest as) (rest xs) (if (null? (first xs)) 1 st))))))
+      (fn (self as xs)
+        (match
+          ((null? as) ())
+          ((null? (first xs)) (first as))
+          (#t (self (rest as) (rest xs))))))
     (def total
       (fn (self xs acc)
         (if (null? xs) acc (self (rest xs) (+ acc (first xs))))))
+    (def b (bad argv us))
     (match
       ((null? argv) (%cu-missing-operand "sleep" argv))
-      ((= (bad argv us 0) 1) 1)
+      ((not (null? b))
+        (do (file-write 2 (string-concat (list "sleep: invalid number '" b "'\n"))) 1))
       (#t (do (%cu-sleep-for (total us 0)) 0)))))
 
 ; Interval A in microseconds, or nil where it is not one: digits, with a

@@ -272,51 +272,55 @@
     (%cu-last-given-in (map (fn (_ v) (first v)) (Assoc get (lit values) o))
       flags ())))
 
-; An option TOK that APPLET does not take, refused in GNU's words, with GNU's
-; status for that applet
+; An option TOK that APPLET does not take, refused as busybox refuses it: musl
+; getopt's line, then the applet's usage text, on standard error; 2 for sort and
+; tty, whose busybox exits with 2 on a usage error, and 1 for the rest
 (def %cu-refuse-option
   (fn (_ applet tok)
-    (do (file-write 2
-          (string-append applet
-            (string-append ": " (string-append (%cu-refusal applet tok) "\n"))))
-        (%cu-refusal-status applet))))
+    (do (unless (if (%cu-member-s? applet %cu-usage-only) #t
+                  ; chmod reads a dash word as a mode before getopt sees it
+                  (if (string=? applet "chmod")
+                    (not (if (> (byte-len tok) 1) (= (byte-at tok 1) #\-) #f)) #f))
+          (file-write 2 (string-concat (list applet ": " (%cu-refusal applet tok) "\n"))))
+        (file-write 2 (Opts usage (first (%cu-row-of applet))))
+        (if (%cu-member-s? applet (list "sort" "tty")) 2 1))))
 
-; What is wrong with TOK.  A value option with nothing after it `requires an
-; argument`; another long option is `unrecognized`; in a short cluster, read
-; left to right as getopt reads one, the first letter APPLET does not declare
-; is the `invalid option`
+; The applets busybox reads without getopt, refusing what they do not take with
+; the usage text alone.
+(def %cu-usage-only (list "factor" "dd" "whoami" "logname" "nice" "free"))
+
+; The applets busybox reads with getopt and no long options: `--NAME` is the
+; option `-`, refused as that.
+(def %cu-short-only (list "head" "hexdump" "hd"))
+
+; What is wrong with TOK, in musl getopt's words, which busybox's are.  A value
+; option with nothing after it is `option requires an argument: C`; in a short
+; cluster, read left to right as getopt reads one, the first letter APPLET does
+; not declare is `unrecognized option: C`; a long option is named without its
+; dashes.
 (def %cu-refusal
   (fn (_ applet tok)
     (def spec (%cu-spec-of applet))
     (def flags (if (null? spec) () (first spec)))
     (def values (if (null? spec) () (first (rest spec))))
     (def end (byte-len tok))
-    (def quoted (fn (_ s) (string-append "'" (string-append s "'"))))
-    (def letter (fn (_ i) (quoted (substring tok i (+ i 1)))))
     (def go
       (fn (self i)
         (let ((opt (string-append "-" (substring tok i (+ i 1)))))
           (match
-            ((>= i end) (string-append "unrecognized option " (quoted tok)))
+            ((>= i end) (string-append "unrecognized option: " (substring tok 1 end)))
             ((%cu-member-s? opt values)
-              (string-append "option requires an argument -- " (letter i)))
+              (string-append "option requires an argument: " (substring tok i (+ i 1))))
             ((%cu-member-s? opt flags) (self (+ i 1)))
-            (#t (string-append "invalid option -- " (letter i)))))))
+            (#t (string-append "unrecognized option: " (substring tok i (+ i 1))))))))
     (match
+      ; find reads its expression itself, and names the word whole
+      ((string=? applet "find") (string-append "unrecognized: " tok))
       ((not (if (> end 2) (= (byte-at tok 1) 45) #f)) (go 1))
+      ((%cu-member-s? applet %cu-short-only) "unrecognized option: -")
       ((%cu-member-s? tok values)
-        (string-append "option "
-          (string-append (quoted tok) " requires an argument")))
-      (#t (string-append "unrecognized option " (quoted tok))))))
-
-; GNU's status for a refused option: 125 where the applet runs a command, 2
-; where GNU's refuses with its trouble status, and 1 elsewhere
-(def %cu-refusal-status
-  (fn (_ applet)
-    (match
-      ((%cu-member-s? applet (list "env" "nohup" "nice" "chroot" "timeout")) 125)
-      ((%cu-member-s? applet (list "sort" "ls" "tty" "printenv" "diff")) 2)
-      (#t 1))))
+        (string-append "option requires an argument: " (substring tok 2 end)))
+      (#t (string-append "unrecognized option: " (substring tok 2 end))))))
 
 ; Too few operands, in GNU's words: none at all is `missing operand`, and some
 ; is `missing operand after 'LAST'`, LAST the last of them.  GNU follows either
