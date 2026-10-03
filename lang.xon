@@ -33,7 +33,11 @@
 ; raw-with-signals! fd) and (Term measure fd), which vi's SIGWINCH, SIGTSTP
 ; and asking the terminal its size ride (x-lang#897).
 ;
-; v0.22.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.22.0")
+; v0.23.0: (Socket send-to-run) and (Socket recv-from-run), binary UDP
+; datagrams with their sender (x-lang#910), which tftp (cu/tftp.x) sends
+; and reads its packets through.
+;
+; v0.23.0 is the release the suite and its sweep bounds are measured on.
+(requires-release "v0.23.0")
 
 (entry "run.x")
