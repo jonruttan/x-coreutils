@@ -690,37 +690,11 @@
 
 ; --- the applet ------------------------------------------------------------------
 
-; busybox's usage text, less the banner naming its binary; status 1
-(def %wget-usage
-  (fn (_)
-    (file-write 2
-      (string-concat
-        (list "Usage: wget [-cqS] [--spider] [-O FILE] [-o LOGFILE] [--header STR]...\n"
-              "\t[-U AGENT] [--post-data STR | --post-file FILE] [-Y on/off]\n"
-              "\t[--no-check-certificate] [-P DIR] [-T SEC] [-t TRIES] URL...\n"
-              "\nRetrieve files via HTTP or FTP\n\n"
-              "\t--spider\tOnly check URL existence: $? is 0 if exists\n"
-              "\t--header STR\tAdd STR (of form 'header: value') to headers\n"
-              "\t-U AGENT\tUse AGENT for User-Agent header\n"
-              "\t--post-data STR\tSend STR using POST method\n"
-              "\t--post-file FILE\tSend FILE using POST method\n"
-              "\t--no-check-certificate\tDon't validate the server's certificate\n"
-              "\t-c\t\tContinue retrieval of partial download\n"
-              "\t-q\t\tQuiet\n"
-              "\t-P DIR\t\tSave to DIR (default .)\n"
-              "\t-S    \t\tShow server response\n"
-              "\t-t TRIES\tRetry count (default 20)\n"
-              "\t-T SEC\t\tNetwork read timeout is SEC seconds\n"
-              "\t-O FILE\t\tSave to FILE ('-' for stdout)\n"
-              "\t-o LOGFILE\tLog messages to FILE\n"
-              "\t-Y on/off\tUse proxy\n")))
-    1))
-
 (def %cu-wget
   (fn (_ argv stdin-thunk)
     (set! %wget-cfg (%cu-opts "wget" argv))
     (def urls (Opts operands %wget-cfg))
-    (if (null? urls) (%wget-usage)
+    (if (null? urls) (%cu-usage "wget")
       (do (set! %wget-msg-fd 2)
           (set! %wget-out-fd (if (string=? (if (null? (%wget-value "-O" "--output-document")) ""
                                               (%wget-value "-O" "--output-document")) "-")
@@ -868,16 +842,6 @@
       (do (file-write 1 (string-concat (list "[Redirected to " (rest r) "]\n")))
           (self (rest r) 43 name all?)))))
 
-(def %whois-usage
-  (fn (_)
-    (do (file-write 2
-          (string-concat
-            (list "Usage: whois [-i] [-h SERVER] [-p PORT] NAME...\n\n"
-                  "Query WHOIS info about NAME\n\n"
-                  "\t-i\tShow redirect results too\n"
-                  "\t-h,-p\tServer to query\n")))
-        1)))
-
 (def %cu-whois
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "whois" argv))
@@ -886,7 +850,7 @@
     (def pv (Opts value o "-p"))
     (def port (if (null? pv) 43 (%wget-digits pv)))
     (match
-      ((null? names) (%whois-usage))
+      ((null? names) (%cu-usage "whois"))
       ((null? port)
         (do (file-write 2 (string-concat (list "whois: invalid number '" pv "'\n"))) 1))
       (#t

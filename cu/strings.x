@@ -164,18 +164,6 @@
               (set! %sg-out ())
               (rest r))))))
 
-(def %sg-usage
-  (fn (_)
-    (do (file-write 2
-          (string-concat
-            (list "Usage: strings [-fo] [-t o|d|x] [-n LEN] [FILE]...\n\n"
-                  "Display printable strings in a binary file\n\n"
-                  "\t-f\t\tPrecede strings with filenames\n"
-                  "\t-o\t\tPrecede strings with octal offsets\n"
-                  "\t-t o|d|x\tPrecede strings with offsets in base 8/10/16\n"
-                  "\t-n LEN\t\tAt least LEN characters form a string (default 4)\n")))
-        1)))
-
 ; strings [-fo] [-t o|d|x] [-n LEN] [FILE]...
 (def %cu-strings-applet
   (fn (_ argv stdin-thunk)
@@ -209,7 +197,7 @@
                         (self (rest names) 1)))))))))
     (match
       ((null? len) 1)
-      ((null? radix) (%sg-usage))
+      ((null? radix) (%cu-usage "strings"))
       (#t (do (%sg-resolve!)
               (set! %sg-least len)
               (set! %sg-radix-of (if offsets? radix ()))

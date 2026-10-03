@@ -21,20 +21,6 @@
 (def %tftp-flags (list "-g" "-p"))
 (def %tftp-values (list "-l" "-r" "-b" "-m"))
 
-; busybox's usage text, less the banner naming its binary; status 1
-(def %tftp-usage
-  (fn (_)
-    (do (file-write 2
-          (string-concat
-            (list "Usage: tftp [OPTIONS] HOST [PORT]\n\n"
-                  "Transfer a file from/to tftp server\n\n"
-                  "\t-l FILE\tLocal FILE\n"
-                  "\t-r FILE\tRemote FILE\n"
-                  "\t-g\tGet file\n"
-                  "\t-p\tPut file\n"
-                  "\t-b SIZE\tTransfer blocks in bytes\n")))
-        1)))
-
 ; tftp-hpa's "-c get FILE" and "-c put FILE", in any word holding a c, read as
 ; -g -r FILE and -p -r FILE, as busybox's HPA_COMPAT reads them
 (def %tftp-hpa
@@ -279,8 +265,8 @@
     (def put? (Opts on? o "-p"))
     (match
       ((not (null? (Opts unknown o))) (%cu-refuse-option "tftp" (Opts unknown o)))
-      ((if get? put? #f) (%tftp-usage))
-      ((not (if get? #t put?)) (%tftp-usage))
+      ((if get? put? #f) (%cu-usage "tftp"))
+      ((not (if get? #t put?)) (%cu-usage "tftp"))
       (#t
         (let ((blksize (%tftp-blksize (let ((b (Opts value o "-b"))) (if (null? b) "512" b)) 65564)))
           (if (null? blksize) 1
@@ -295,7 +281,7 @@
     (def local
       (if (null? r) l
         (if (null? l) (let ((s (%wget-last-index r #\/))) (if (null? s) r (substring r (+ s 1) (byte-len r)))) l)))
-    (if (if (null? remote) #t (null? ops)) (%tftp-usage)
+    (if (if (null? remote) #t (null? ops)) (%cu-usage "tftp")
       (%tftp-start get? blksize remote (if (string=? local "-") () local)
                    (first ops) (if (null? (rest ops)) 69 (%wget-digits (first (rest ops))))))))
 

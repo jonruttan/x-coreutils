@@ -1742,8 +1742,8 @@
   (fn (_ argv)
     (def o (%cu-opts "vi" argv))
     (match
-      ((Opts on? o "-H") (do (%vi-show-help) (%vi-usage)))
-      ((Opts on? o "-h") (%vi-usage))
+      ((Opts on? o "-H") (do (%vi-show-help) (%cu-usage "vi")))
+      ((Opts on? o "-h") (%cu-usage "vi"))
       (#t (%vi-main (Opts operands o) (Opts values o "-c") (Opts on? o "-R"))))))
 
 (def %vi-show-help
@@ -1760,17 +1760,6 @@
               "\n\tSignal catching- ^C"
               "\n\tJob suspend and resume with ^Z"
               "\n\tAdapt to window re-sizes\n")))))
-
-; busybox's usage text, less the banner naming its binary; status 1
-(def %vi-usage
-  (fn (_)
-    (file-write 2
-      (string-concat
-        (list "Usage: vi [-c CMD] [-R] [-H] [FILE]...\n\nEdit FILE\n\n"
-              "\t-c CMD\tInitial command to run ($EXINIT and ~/.exrc also available)\n"
-              "\t-R\tRead-only\n"
-              "\t-H\tList available features\n")))
-    1))
 
 ; each file in turn on the alternate screen, after $EXINIT's commands or,
 ; when it is not set, ~/.exrc's

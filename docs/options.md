@@ -71,8 +71,8 @@ the work.  Applet parity is the other axis: see the README.
 | `nproc` | --all --ignore=N | --all --ignore |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
 | `paste` | -d -s | -s -d |  | 100% |
-| `pipe_progress` |  |  |  | - |
 | `printenv` |  |  |  | - |
+| `pipe_progress` |  |  |  | - |
 | `printf` |  |  |  | - |
 | `pwd` | -L -P | -L -P |  | 100% |
 | `readlink` | -f -n -v | -f -e -n -v |  | 100% |
