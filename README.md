@@ -7,13 +7,13 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and twenty applets: parity with busybox's `coreutils` set,
+**A hundred and twenty-one applets: parity with busybox's `coreutils` set,
 plus `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
 `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its dumpers,
 `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and `uuidgen`,
 its `tree` and `time`, its `fsync`, `flock`, `setsid`, `ttysize`,
-`nologin` and `pipe_progress`, its network tools, `wget`, `whois` and
-`nc`, and its `uptime` and `free`.**
+`nologin` and `pipe_progress`, its network tools, `wget`, `whois`, `nc`
+and `tftp`, and its `uptime` and `free`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
@@ -22,8 +22,8 @@ its `tree` and `time`, its `fsync`, `flock`, `setsid`, `ttysize`,
     mkfifo mktemp more mv nc nice nl nohup nologin nproc od paste
     pipe_progress printenv printf pwd readlink realpath reset rev rm
     rmdir seq setsid sha1sum sha256sum sha512sum shred shuf sleep sort
-    split stat strings sum sync tac tail tee test time timeout touch tr
-    tree true truncate tsort tty ttysize unexpand uniq unix2dos unlink
+    split stat strings sum sync tac tail tee test tftp time timeout touch
+    tr tree true truncate tsort tty ttysize unexpand uniq unix2dos unlink
     uname uptime uudecode uuencode uuidgen usleep vi wc wget which whois
     whoami xargs xxd yes
     [ [[
@@ -190,6 +190,7 @@ parsed by x-lang's `Opts`.
     cu/cal.x          cal: a month or a year, Julian to 1752
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/nc.x           nc: busybox's netcat 1.10, the copy waiting on the platform's poll
+    cu/tftp.x         tftp: busybox's client, blocks and options over UDP datagrams
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
     cu/tree.x         tree: the directories drawn, as busybox draws them

@@ -108,6 +108,7 @@
     (pair "wget" %cu-wget)
     (pair "whois" %cu-whois)
     (pair "nc" %cu-nc)
+    (pair "tftp" %cu-tftp)
     (pair "xargs" %cu-xargs)
     (pair "vi" %cu-vi)
     (pair "more" %cu-more)
@@ -293,6 +294,9 @@
     ; nc parses its own line -- -e takes the rest of it, the program's flags
     ; too -- so none: the lists, cu/nc.x's own, say what it accepts
     (pair "nc" (list %nc-flags %nc-values (lit none)))
+    ; tftp reads tftp-hpa's "-c get FILE" before its options: none, the lists for
+    ; the matrix
+    (pair "tftp" (list %tftp-flags %tftp-values (lit none)))
     ; busybox spells each long option as a short one too; wget reads either.
     ; -n takes busybox's four ignored -nX forms whole.
     (pair "wget" (list (list "-c" "-q" "-S" "--continue" "--quiet" "--server-response"

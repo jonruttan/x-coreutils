@@ -53,7 +53,8 @@
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
   net-base64 net-connect net-send net-recv-run net-close
-  net-listen net-accept net-local-port net-peer net-shutdown sys-poll)
+  net-listen net-accept net-local-port net-peer net-shutdown sys-poll
+  net-udp-bind net-send-to-run net-recv-from-run)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -960,3 +961,10 @@
 (def net-peer (fn (_ fd) (Socket peer fd)))
 (def net-shutdown (fn (_ fd) (Socket shutdown fd)))
 (def sys-poll (fn (_ fds ms) (Sys poll fds ms)))
+
+; tftp's: a UDP socket bound to PORT (0 for any) of every interface, a run sent
+; to a dotted quad's PORT as one datagram, and the next datagram as (RUN . (IP
+; . PORT)), its sender with it
+(def net-udp-bind (fn (_ port) (Socket udp-bind port)))
+(def net-send-to-run (fn (_ fd run ip port) (Socket send-to-run fd run ip port)))
+(def net-recv-from-run (fn (_ fd n) (Socket recv-from-run fd n)))

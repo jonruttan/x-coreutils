@@ -71,8 +71,8 @@ the work.  Applet parity is the other axis: see the README.
 | `nproc` | --all --ignore=N | --all --ignore |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
 | `paste` | -d -s | -s -d |  | 100% |
-| `printenv` |  |  |  | - |
 | `pipe_progress` |  |  |  | - |
+| `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
 | `pwd` | -L -P | -L -P |  | 100% |
 | `readlink` | -f -n -v | -f -e -n -v |  | 100% |
@@ -99,6 +99,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tail` | -c -f -n -q -s -v | -q -v -f -n -c -s |  | 100% |
 | `tee` | -a -i | -a -i |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
+| `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
 | `time` | -v -p -a -f -o | -v -p -a -o -f |  | 100% |
 | `timeout` | -s -k | -s -k |  | 100% |
 | `touch` | -c -d -t -r | -c -r -d -t |  | 100% |
@@ -129,4 +130,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -a -i -r -p -ps -l -s -g -c -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 509 of 515 busybox options accepted (98%).**
+**Total: 514 of 520 busybox options accepted (98%).**
