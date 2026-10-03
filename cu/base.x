@@ -61,5 +61,6 @@
 (include-once "./time.x")
 (include-once "./base32.x")
 (include-once "./ascii.x")
+(include-once "./session.x")
 (include-once "./procps.x")
 (include-once "./cli.x")

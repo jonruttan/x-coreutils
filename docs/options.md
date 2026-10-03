@@ -42,8 +42,10 @@ the work.  Applet parity is the other axis: see the README.
 | `factor` |  | -h |  | - |
 | `false` |  |  |  | - |
 | `find` | _not a busybox applet_ | -name -iname -path -type -size -newer -maxdepth -mindepth -empty -print -print0 -exec -true -false -not -a -and -o -or ! ( ) | | - |
+| `flock` | -s -x -u -n | -s -x -n -u --shared --exclusive --unlock --nonblock |  | 100% |
 | `fold` | -b -s -w | -b -s -w |  | 100% |
 | `free` | -b -k -m -g -h | -b -k -m -g -h |  | 100% |
+| `fsync` | -d | -d |  | 100% |
 | `groups` |  |  |  | - |
 | `hd` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
@@ -65,10 +67,12 @@ the work.  Applet parity is the other axis: see the README.
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -n -s -w -v -i |  | 100% |
 | `nohup` |  |  |  | - |
+| `nologin` |  |  |  | - |
 | `nproc` | --all --ignore=N | --all --ignore |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
 | `paste` | -d -s | -s -d |  | 100% |
 | `printenv` |  |  |  | - |
+| `pipe_progress` |  |  |  | - |
 | `printf` |  |  |  | - |
 | `pwd` | -L -P | -L -P |  | 100% |
 | `readlink` | -f -n -v | -f -e -n -v |  | 100% |
@@ -78,6 +82,7 @@ the work.  Applet parity is the other axis: see the README.
 | `rm` | -i -r -R -f -v | -i -r -R -f -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
 | `seq` | -w -s | -w -s |  | 100% |
+| `setsid` | -c | -c |  | 100% |
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha512sum` | -c -s -w | -c -s -w |  | 100% |
@@ -103,6 +108,7 @@ the work.  Applet parity is the other axis: see the README.
 | `truncate` | -c -s | -c -s |  | 100% |
 | `tsort` |  |  |  | - |
 | `tty` | -s | -s |  | 100% |
+| `ttysize` |  |  |  | - |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -s -n -r -v -m -p -i -o |  | 100% |
 | `unexpand` | -f -a -t | -a -f -t |  | 100% |
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
@@ -123,4 +129,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -a -i -r -p -ps -l -s -g -c -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 503 of 509 busybox options accepted (98%).**
+**Total: 509 of 515 busybox options accepted (98%).**
