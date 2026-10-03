@@ -66,7 +66,7 @@
     (string-concat
       (list (%vi-no %vi-ai) "autoindent " (%vi-no %vi-et) "expandtab "
             (%vi-no %vi-fl) "flash " (%vi-no %vi-ic) "ignorecase "
-            (%vi-no %vi-sm) "showmatch tabstop=" (%cu-int->str %vi-tabstop)))))
+            (%vi-no %vi-sm) "showmatch tabstop=" (%vi-num->str %vi-tabstop)))))
 (def %vi-no (fn (_ bit) (if (%vi-opt? bit) "" "no")))
 
 (def %vi-set-words

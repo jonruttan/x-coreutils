@@ -271,7 +271,7 @@
         (if (%vi< e 0) () (do (set! %vi-dot (%vi-find-line e)) (%vi-dot-skip-over-ws!))))
       ((= c0 #\!) (%vi-colon-shell buf (%vi-part parts 6) got?))
       ((if (= c0 #\=) (= (byte-len cmd) 1) #f)
-        (%vi-status-line! (%cu-int->str (if got? e (%vi-count-lines 0 %vi-dot)))))
+        (%vi-status-line! (%vi-num->str (if got? e (%vi-count-lines 0 %vi-dot)))))
       ((%vi-prefix? cmd "delete") (%vi-colon-delete got? q r))
       ((%vi-prefix? cmd "edit") (%vi-colon-edit cmd args force?))
       ((%vi-prefix? cmd "file") (%vi-colon-file args e))
@@ -328,8 +328,8 @@
     (%vi-text-yank! (first qr) (rest qr) %vi-ydreg 1)
     (%vi-status-line!
       (string-concat
-        (list "Yank " (%cu-int->str (%vi-count-lines (first qr) (rest qr)))
-              " lines (" (%cu-int->str (byte-len (first (%vi-reg %vi-ydreg))))
+        (list "Yank " (%vi-num->str (%vi-count-lines (first qr) (rest qr)))
+              " lines (" (%vi-num->str (byte-len (first (%vi-reg %vi-ydreg))))
               " chars) into [" (bytes->str (list (%vi-what-reg))) "]")))))
 
 ; :l -- the first line of the range spelled out, a newline as $
@@ -361,7 +361,7 @@
       ((%vi< 0 %vi-modified)
         (%vi-status-line-bold! (string-append "No write since last change (:" cmd "! overrides)")))
       ((if (= c #\q) (%vi< 0 more) #f)
-        (%vi-status-line-bold! (string-append (%cu-int->str more) " more file(s) to edit")))
+        (%vi-status-line-bold! (string-append (%vi-num->str more) " more file(s) to edit")))
       ((if (= c #\n) (%vi< more 1) #f) (%vi-status-line-bold! "No more files to edit"))
       ((if (= c #\p) (%vi< %vi-optind 1) #f) (%vi-status-line-bold! "No previous files to edit"))
       (#t (do (if (= c #\p) (set! %vi-optind (%vi- %vi-optind 2)) ()) (set! %vi-editing 0))))))
@@ -442,8 +442,8 @@
       (string-concat
         (list "'" name "'" (if (%vi< size 0) " [New file]" "")
               (if (= %vi-readonly 0) "" " [Readonly]")
-              " " (%cu-int->str (%vi-count-lines 0 (%vi- %vi-end 1))) "L, "
-              (%cu-int->str %vi-end) "C")))))
+              " " (%vi-num->str (%vi-count-lines 0 (%vi- %vi-end 1))) "L, "
+              (%vi-num->str %vi-end) "C")))))
 
 ; :r -- a file's bytes after the addressed line, or the current one
 (def %vi-colon-read
@@ -464,8 +464,8 @@
       (do (%vi-status-line!
             (string-concat
               (list "'" name "'" (if (= %vi-readonly 0) "" " [Readonly]")
-                    " " (%cu-int->str (%vi-count-lines q (%vi+ q (%vi- size 1)))) "L, "
-                    (%cu-int->str size) "C")))
+                    " " (%vi-num->str (%vi-count-lines q (%vi+ q (%vi- size 1)))) "L, "
+                    (%vi-num->str size) "C")))
           (set! %vi-dot (%vi-find-line num))))))
 
 ; :w :wq :wn :x -- the range into a file.  A name given must not be another
@@ -506,8 +506,8 @@
     (%vi-status-line!
       (string-concat
         (list "'" name "' "
-              (%cu-int->str (%vi-count-lines q (%vi-max q (%vi- (%vi+ q l) 1)))) "L, "
-              (%cu-int->str l) "C")))
+              (%vi-num->str (%vi-count-lines q (%vi-max q (%vi- (%vi+ q l) 1)))) "L, "
+              (%vi-num->str l) "C")))
     (if (= l size)
       (do (if (if (= q 0) (= (%vi+ q l) %vi-end) #f) (set! %vi-modified 0) ())
           (%vi-written-ends cmd force?))
@@ -523,7 +523,7 @@
       ((if (= (%vi-byte-of cmd 0) #\x) #t (= c1 #\q))
         (match
           ((if (%vi< 0 more) (if force? #f #t) #f)
-            (%vi-status-line-bold! (string-append (%cu-int->str more) " more file(s) to edit")))
+            (%vi-status-line-bold! (string-append (%vi-num->str more) " more file(s) to edit")))
           (#t (do (if (%vi< 0 more) (set! %vi-optind (length %vi-files)) ())
                   (set! %vi-editing 0)))))
       (#t ()))))
@@ -567,8 +567,8 @@
               (if (%vi< 1 (first res))
                 (%vi-status-line!
                   (string-concat
-                    (list (%cu-int->str (first res)) " substitutions on "
-                          (%cu-int->str (rest res)) " lines")))
+                    (list (%vi-num->str (first res)) " substitutions on "
+                          (%vi-num->str (rest res)) " lines")))
                 ()))))))
 
 ; line I of the range starting at Q; answers (SUBS . LINES)
@@ -711,7 +711,7 @@
 (def %vi-shell-ran
   (fn (_ st)
     (if (= st 0) ()
-      (%vi-put (string-concat (list "\nshell returned " (%cu-int->str st) "\n\n"))))
+      (%vi-put (string-concat (list "\nshell returned " (%vi-num->str st) "\n\n"))))
     (%vi-raw!)
     (%vi-hit-return "")))
 
@@ -726,7 +726,7 @@
 ; the file's bytes go to the sink after
 (def %vi-typed-shell
   (fn (_ cmd)
-    (def out (string-append "/tmp/x-cu-vi-shell." (%cu-int->str (Sys getpid))))
+    (def out (string-append "/tmp/x-cu-vi-shell." (%vi-num->str (Sys getpid))))
     (%vi-fds-aside! out)
     (def st (%vi-tty-shell cmd))
     (%vi-fds-back!)

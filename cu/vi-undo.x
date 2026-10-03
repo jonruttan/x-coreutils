@@ -210,8 +210,8 @@
   (fn (_ what len start)
     (%vi-status-line!
       (string-concat
-        (list "Undo [" (%cu-int->str %vi-modified) "] " what " " (%cu-int->str len)
-              " chars at position " (%cu-int->str start))))))
+        (list "Undo [" (%vi-num->str %vi-modified) "] " what " " (%vi-num->str len)
+              " chars at position " (%vi-num->str start))))))
 
 ; --- . ----------------------------------------------------------------------
 
@@ -282,5 +282,5 @@
     (if (= %vi-lmc-len 0) ()
       (do (if (= %vi-cmdcnt 0) () (set! %vi-dotcnt %vi-cmdcnt))
           (set! %vi-ioq
-            (List append (%vi-bytes-of (%cu-int->str %vi-dotcnt) 0)
+            (List append (%vi-bytes-of (%vi-num->str %vi-dotcnt) 0)
               (List append (reverse %vi-lmc) (list 0))))))))
