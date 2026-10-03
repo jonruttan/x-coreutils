@@ -138,7 +138,7 @@ That last line is a real pipeline of x tools, and it works today.
 Applet parity is one axis; OPTION parity is the other.  `docs/options.md`
 is the generated matrix -- every busybox option per applet, which of them
 this bundle accepts, and what is missing.  `make options` regenerates it
-from `docs/busybox-options.x` and the option DECLARATION in `cu/cli.x`
+from `docs/busybox-options.x` and the option DECLARATION in `cu/options.x`
 -- the one row per applet that the guard checks and the applet reads,
 parsed by x-lang's `Opts`.
 
@@ -198,7 +198,8 @@ parsed by x-lang's `Opts`.
     cu/ascii.x        ascii, crc32 (the zlib CRC-32) and uuidgen
     cu/session.x      fsync, flock, setsid, ttysize, nologin, pipe_progress
     cu/procps.x       uptime and free, over the platform's Host
-    cu/cli.x          the applet table, the option declaration, cu-run, cu-main
+    cu/options.x      each applet's option declaration and help text
+    cu/cli.x          the applet table, the option parse, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 
 <p align="center"><img src="docs/bitwise-mark.svg" alt="Bitwise" width="96"></p>
