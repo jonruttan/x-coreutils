@@ -2220,6 +2220,41 @@ stderr:
 status 0
 ```
 
+### tar
+
+```cu
+(run (list "tar" "--help") "")
+```
+---
+```output
+Usage: tar c|x|t [-ahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...|
+|
+Create, extract, or list files from a tar file|
+|
+	c	Create|
+	x	Extract|
+	t	List|
+	-f FILE	Name of TARFILE ('-' for stdin/out)|
+	-C DIR	Change to DIR before operation|
+	-v	Verbose|
+	-O	Extract to stdout|
+	-m	Don't restore mtime|
+	-o	Don't restore user:group|
+	-k	Don't replace existing files|
+	-a	(De)compress based on extension|
+	-h	Follow symlinks|
+	-T FILE	File with names to include|
+	-X FILE	File with glob patterns to exclude|
+	--exclude PATTERN	Glob pattern to exclude|
+	--overwrite		Replace existing files|
+	--strip-components NUM	NUM of leading components to strip|
+	--no-recursion		Don't descend in directories|
+	--numeric-owner		Use numeric user:group|
+	--no-same-permissions	Don't restore access permissions|
+stderr:
+status 0
+```
+
 ### tree
 
 ```cu
