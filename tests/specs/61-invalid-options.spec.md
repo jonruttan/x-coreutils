@@ -100,6 +100,24 @@ nproc: option '--ignore' requires an argument
 status 1
 ```
 
+### an applet that reads its own line
+
+nc parses its options itself and refuses through its declaration, where its
+value options are hidden rows.
+
+```cu
+(do (run (list "nc" "-p")) (run (list "nc" "-w")))
+```
+---
+```output
+stderr:
+nc: option requires an argument -- 'p'
+status 1
+stderr:
+nc: option requires an argument -- 'w'
+status 1
+```
+
 ### cleanup
 
 ```cu
