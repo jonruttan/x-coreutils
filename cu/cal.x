@@ -188,16 +188,6 @@
       (pair (%cal-center (%cu-int->str year) (if julian 56 64) 0)
         (pair "\n\n" (blocks 0 ()))))))
 
-(def %cal-usage
-  (fn (_)
-    (do (file-write 2
-          (string-concat
-            (list "Usage: cal [-jmy] [[MONTH] YEAR]\n\nDisplay a calendar\n\n"
-                  "\t-j\tUse julian dates\n"
-                  "\t-m\tWeek starts on Monday\n"
-                  "\t-y\tDisplay the entire year\n")))
-        1)))
-
 ; cal [-jmy] [[MONTH] YEAR]
 (def %cu-cal
   (fn (_ argv stdin-thunk)
@@ -214,7 +204,7 @@
                 (%cal-month month year weekstart julian)))
             0)))
     (match
-      ((> n 2) (%cal-usage))
+      ((> n 2) (%cu-usage "cal"))
       ((= n 0)
         (let ((today (Date now)))
           (show (if year? 0 (Assoc get (lit month) today)) (Assoc get (lit year) today))))

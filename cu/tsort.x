@@ -117,10 +117,6 @@
           (do (file-write 1 (string-concat (reverse (first r))))
               (if (= (rest r) 0) 0 1))))))
 
-(def %ts-usage
-  (fn (_)
-    (do (file-write 2 "Usage: tsort [FILE]\n\nTopological sort\n") 1)))
-
 ; tsort [FILE]: FILE, or `-` or no operand standard input.  A FILE that will
 ; not open ends it; one that opens and will not read, a directory, is empty.
 (def %cu-tsort
@@ -130,7 +126,7 @@
     (def take
       (fn (_ p s)
         (%ts-words (%cu-run-text p) (first s) (rest s))))
-    (if (if (pair? ops) (pair? (rest ops)) #f) (%ts-usage)
+    (if (if (pair? ops) (pair? (rest ops)) #f) (%cu-usage "tsort")
       (let ((src (%cu-pieces name stdin-thunk)))
         (if (Err err? src)
           (do (file-write 2

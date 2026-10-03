@@ -7,23 +7,25 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and fifteen applets: parity with busybox's `coreutils` set,
-plus `join`, `find`, busybox's editor, `vi`, its pager and terminal tools,
-`more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its dumpers,
-`hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and `uuidgen`,
-its `tree` and `time`, its network tools, `wget`, `whois`, `nc` and
-`nslookup`, and its `uptime` and `free`.**
+**A hundred and twenty-one applets: parity with busybox's `coreutils`
+set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
+tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
+dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
+`uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
+`ttysize`, `nologin` and `pipe_progress`, its network tools, `wget`,
+`whois`, `nc` and `nslookup`, and its `uptime` and `free`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
-    echo env expand expr factor false find fold free groups hd head
-    hexdump id install join link ln logname ls md5sum mkdir mkfifo mktemp
-    more mv nc nice nl nohup nproc nslookup od paste printenv printf pwd
-    readlink realpath reset rev rm rmdir seq sha1sum sha256sum sha512sum
-    shred shuf sleep sort split stat strings sum sync tac tail tee test
-    time timeout touch tr tree true truncate tsort tty unexpand uniq
-    unix2dos unlink uname uptime uudecode uuencode uuidgen usleep vi wc
-    wget which whois whoami xargs xxd yes
+    echo env expand expr factor false find flock fold free fsync groups
+    hd head hexdump id install join link ln logname ls md5sum mkdir
+    mkfifo mktemp more mv nc nice nl nohup nologin nproc nslookup od
+    paste pipe_progress printenv printf pwd readlink realpath reset rev
+    rm rmdir seq setsid sha1sum sha256sum sha512sum shred shuf sleep sort
+    split stat strings sum sync tac tail tee test time timeout touch tr
+    tree true truncate tsort tty ttysize unexpand uniq unix2dos unlink
+    uname uptime uudecode uuencode uuidgen usleep vi wc wget which whois
+    whoami xargs xxd yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -118,7 +120,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.20.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.22.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -195,6 +197,7 @@ parsed by x-lang's `Opts`.
     cu/time.x         time: a command run, and its rusage from wait4
     cu/base32.x       base32: five bytes to eight characters, and back
     cu/ascii.x        ascii, crc32 (the zlib CRC-32) and uuidgen
+    cu/session.x      fsync, flock, setsid, ttysize, nologin, pipe_progress
     cu/procps.x       uptime and free, over the platform's Host
     cu/cli.x          the applet table, the option declaration, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere

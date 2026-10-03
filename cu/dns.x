@@ -34,16 +34,6 @@
   (list "NOERROR" "FORMERR" "SERVFAIL" "NXDOMAIN" "NOTIMP" "REFUSED" "YXDOMAIN"
         "YXRRSET" "NXRRSET" "NOTAUTH" "NOTZONE" "11" "12" "13" "14" "15"))
 
-; busybox's usage text, less the banner naming its binary; status 1
-(def %ns-usage
-  (fn (_)
-    (do (file-write 2
-          (string-concat
-            (list "Usage: nslookup [-type=QUERY_TYPE] [-debug] HOST [DNS_SERVER]\n\n"
-                  "Query DNS about HOST\n\n"
-                  "QUERY_TYPE: soa,ns,a,aaaa,cname,mx,txt,ptr,srv,any\n")))
-        1)))
-
 ; busybox's xatou_range: VAL's digits within LO..HI, or the run ends
 (def %ns-number
   (fn (_ val lo hi)
@@ -555,9 +545,9 @@
   (fn (_ argv)
     (def parsed (%ns-options argv ()))
     (match
-      ((eq? parsed (lit usage)) (%ns-usage))
-      ((null? (rest parsed)) (%ns-usage))
-      ((if (not (null? (rest (rest parsed)))) (not (null? (rest (rest (rest parsed))))) #f) (%ns-usage))
+      ((eq? parsed (lit usage)) (%cu-usage "nslookup"))
+      ((null? (rest parsed)) (%cu-usage "nslookup"))
+      ((if (not (null? (rest (rest parsed)))) (not (null? (rest (rest (rest parsed))))) #f) (%cu-usage "nslookup"))
       (#t (%ns-lookup (first parsed) (first (rest parsed))
                       (if (null? (rest (rest parsed))) () (first (rest (rest parsed)))))))))
 
