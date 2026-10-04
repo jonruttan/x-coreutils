@@ -78,6 +78,7 @@ the work.  Applet parity is the other axis: see the README.
 | `pipe_progress` |  |  |  | - |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
+| `ps` | -o -T | -o -Z -a -A -d -e -f -l | -T | 50% |
 | `pwd` | -L -P | -L -P |  | 100% |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
 | `realpath` |  |  |  | - |
@@ -136,4 +137,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 561 of 572 busybox options accepted (98%).**
+**Total: 562 of 574 busybox options accepted (98%).**

@@ -5758,6 +5758,57 @@ Display free and used memory
 status 1
 ```
 
+### ps -~
+
+```cu
+(run (list "ps" "-~") "")
+```
+---
+```output
+stderr:
+ps: unrecognized option: ~
+Usage: ps [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
+### ps --nope
+
+```cu
+(run (list "ps" "--nope") "")
+```
+---
+```output
+stderr:
+ps: unrecognized option: nope
+Usage: ps [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
+### ps -o
+
+```cu
+(run (list "ps" "-o") "")
+```
+---
+```output
+stderr:
+ps: option requires an argument: o
+Usage: ps [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
 ### test -~
 
 ```cu
