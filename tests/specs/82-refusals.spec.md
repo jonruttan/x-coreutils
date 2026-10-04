@@ -4508,6 +4508,236 @@ Query WHOIS info about NAME
 status 1
 ```
 
+### tftp -~
+
+```cu
+(run (list "tftp" "-~") "")
+```
+---
+```output
+stderr:
+tftp: unrecognized option: ~
+Usage: tftp [OPTIONS] HOST [PORT]
+
+Transfer a file from/to tftp server
+
+	-l FILE	Local FILE
+	-r FILE	Remote FILE
+	-g	Get file
+	-p	Put file
+	-b SIZE	Transfer blocks in bytes
+status 1
+```
+
+### tftp --nope
+
+```cu
+(run (list "tftp" "--nope") "")
+```
+---
+```output
+stderr:
+tftp: unrecognized option: nope
+Usage: tftp [OPTIONS] HOST [PORT]
+
+Transfer a file from/to tftp server
+
+	-l FILE	Local FILE
+	-r FILE	Remote FILE
+	-g	Get file
+	-p	Put file
+	-b SIZE	Transfer blocks in bytes
+status 1
+```
+
+### tftp -l
+
+```cu
+(run (list "tftp" "-l") "")
+```
+---
+```output
+stderr:
+tftp: option requires an argument: l
+Usage: tftp [OPTIONS] HOST [PORT]
+
+Transfer a file from/to tftp server
+
+	-l FILE	Local FILE
+	-r FILE	Remote FILE
+	-g	Get file
+	-p	Put file
+	-b SIZE	Transfer blocks in bytes
+status 1
+```
+
+### nslookup -~
+
+```cu
+(run (list "nslookup" "-~") "")
+```
+---
+```output
+stderr:
+Usage: nslookup [-type=QUERY_TYPE] [-debug] HOST [DNS_SERVER]
+
+Query DNS about HOST
+
+QUERY_TYPE: soa,ns,a,aaaa,cname,mx,txt,ptr,srv,any
+status 1
+```
+
+### nslookup --nope
+
+```cu
+(run (list "nslookup" "--nope") "")
+```
+---
+```output
+stderr:
+Usage: nslookup [-type=QUERY_TYPE] [-debug] HOST [DNS_SERVER]
+
+Query DNS about HOST
+
+QUERY_TYPE: soa,ns,a,aaaa,cname,mx,txt,ptr,srv,any
+status 1
+```
+
+### nslookup -type
+
+```cu
+(run (list "nslookup" "-type") "")
+```
+---
+```output
+stderr:
+nslookup: invalid query type ""
+status 1
+```
+
+### ftpget -~
+
+```cu
+(run (list "ftpget" "-~") "")
+```
+---
+```output
+stderr:
+ftpget: unrecognized option: ~
+Usage: ftpget [OPTIONS] HOST [LOCAL_FILE] REMOTE_FILE
+
+Download a file via FTP
+
+	-c	Continue previous transfer
+	-v	Verbose
+	-u USER	Username
+	-p PASS	Password
+	-P PORT
+status 1
+```
+
+### ftpget --nope
+
+```cu
+(run (list "ftpget" "--nope") "")
+```
+---
+```output
+stderr:
+ftpget: unrecognized option: nope
+Usage: ftpget [OPTIONS] HOST [LOCAL_FILE] REMOTE_FILE
+
+Download a file via FTP
+
+	-c	Continue previous transfer
+	-v	Verbose
+	-u USER	Username
+	-p PASS	Password
+	-P PORT
+status 1
+```
+
+### ftpget -u
+
+```cu
+(run (list "ftpget" "-u") "")
+```
+---
+```output
+stderr:
+ftpget: option requires an argument: u
+Usage: ftpget [OPTIONS] HOST [LOCAL_FILE] REMOTE_FILE
+
+Download a file via FTP
+
+	-c	Continue previous transfer
+	-v	Verbose
+	-u USER	Username
+	-p PASS	Password
+	-P PORT
+status 1
+```
+
+### ftpput -~
+
+```cu
+(run (list "ftpput" "-~") "")
+```
+---
+```output
+stderr:
+ftpput: unrecognized option: ~
+Usage: ftpput [OPTIONS] HOST [REMOTE_FILE] LOCAL_FILE
+
+Upload a file to a FTP server
+
+	-v	Verbose
+	-u USER	Username
+	-p PASS	Password
+	-P PORT
+status 1
+```
+
+### ftpput --nope
+
+```cu
+(run (list "ftpput" "--nope") "")
+```
+---
+```output
+stderr:
+ftpput: unrecognized option: nope
+Usage: ftpput [OPTIONS] HOST [REMOTE_FILE] LOCAL_FILE
+
+Upload a file to a FTP server
+
+	-v	Verbose
+	-u USER	Username
+	-p PASS	Password
+	-P PORT
+status 1
+```
+
+### ftpput -u
+
+```cu
+(run (list "ftpput" "-u") "")
+```
+---
+```output
+stderr:
+ftpput: option requires an argument: u
+Usage: ftpput [OPTIONS] HOST [REMOTE_FILE] LOCAL_FILE
+
+Upload a file to a FTP server
+
+	-v	Verbose
+	-u USER	Username
+	-p PASS	Password
+	-P PORT
+status 1
+```
+
 ### nc -~
 
 ```cu
@@ -5525,6 +5755,57 @@ stderr:
 Usage: free [-bkmgh]
 
 Display free and used memory
+status 1
+```
+
+### ps -~
+
+```cu
+(run (list "ps" "-~") "")
+```
+---
+```output
+stderr:
+ps: unrecognized option: ~
+Usage: ps [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
+### ps --nope
+
+```cu
+(run (list "ps" "--nope") "")
+```
+---
+```output
+stderr:
+ps: unrecognized option: nope
+Usage: ps [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
+### ps -o
+
+```cu
+(run (list "ps" "-o") "")
+```
+---
+```output
+stderr:
+ps: option requires an argument: o
+Usage: ps [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
 status 1
 ```
 

@@ -1070,6 +1070,35 @@
             (Opts arg "-b" "SIZE" "Transfer blocks in bytes")
             (Opts hidden (Opts arg "-m" "" ""))))
         (lit none)))
+    ; ftpget and ftpput share ftpgetput.c's options: ftpput takes -c too, and
+    ; busybox's --continue takes an argument; -P's row has no text of its own
+    (pair "ftpget"
+      (list
+        (Opts declare "ftpget" "[OPTIONS] HOST [LOCAL_FILE] REMOTE_FILE"
+          "Download a file via FTP"
+          (append
+            (list
+              (Opts flag "-c" "Continue previous transfer")
+              (Opts flag "-v" "Verbose")
+              (Opts arg "-u" "USER" "Username")
+              (Opts arg "-p" "PASS" "Password")
+              (Opts text "\t-P PORT")
+              (Opts hidden (Opts arg "-P" "" "")))
+            (%cu-hidden-flags (list "--verbose"))
+            (%cu-hidden-args (list "--continue" "--username" "--password" "--port"))))))
+    (pair "ftpput"
+      (list
+        (Opts declare "ftpput" "[OPTIONS] HOST [REMOTE_FILE] LOCAL_FILE"
+          "Upload a file to a FTP server"
+          (append
+            (list
+              (Opts flag "-v" "Verbose")
+              (Opts arg "-u" "USER" "Username")
+              (Opts arg "-p" "PASS" "Password")
+              (Opts text "\t-P PORT")
+              (Opts hidden (Opts arg "-P" "" "")))
+            (%cu-hidden-flags (list "-c" "--verbose"))
+            (%cu-hidden-args (list "--continue" "--username" "--password" "--port"))))))
     ; -p is NOT here on purpose; cu/sys2.x says why
     (pair "xargs"
       (list
