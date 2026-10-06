@@ -123,28 +123,28 @@
 ; input line never holds, so the addresses end on it.
 (import x/reader/lexer)
 
-(def %vi-ex-lexer ())
-
-(def %vi-ex-tokens
-  (fn (_ s)
-    (if (null? %vi-ex-lexer) (%vi-ex-lexer-make!) ())
-    (%vi-ex-lexer read-str s)))
-
-(def %vi-ex-lexer-make!
+(def %vi-ex-lexer-cell (pair () ()))
+(def %vi-ex-lexer
   (fn (_)
-    (def digits (list (pair #\0 #\9)))
-    (def letters (list (pair #\a #\z) (pair #\A #\Z)))
-    (set! %vi-ex-lexer
-      (Lexer make
-        (list (Lexer run (lit sp) (list #\space #\tab) (list #\space #\tab))
-              (Lexer run (lit num) digits digits)
-              (Lexer escape (lit mark) #\')
-              (Lexer table (lit op) (list "." "$" "%" "," ";" "+" "-"))
-              (Lexer until (lit fwd) "/" "/" (lit take) (lit to-end))
-              (Lexer until (lit back) "?" "?" (lit take) (lit to-end))
-              (Lexer run (lit word) letters letters)
-              (Lexer any (lit other)))
-        "\n"))))
+    (if (null? (first %vi-ex-lexer-cell))
+      ((fn (_ digits letters)
+         (set-first! %vi-ex-lexer-cell
+           (Lexer make
+             (list (Lexer run (lit sp) (list #\space #\tab) (list #\space #\tab))
+                   (Lexer run (lit num) digits digits)
+                   (Lexer escape (lit mark) #\')
+                   (Lexer table (lit op) (list "." "$" "%" "," ";" "+" "-"))
+                   (Lexer until (lit fwd) "/" "/" (lit take) (lit to-end))
+                   (Lexer until (lit back) "?" "?" (lit take) (lit to-end))
+                   (Lexer run (lit word) letters letters)
+                   (Lexer any (lit other)))
+             "\n")))
+       (list (pair #\0 #\9))
+       (list (pair #\a #\z) (pair #\A #\Z)))
+      ())
+    (first %vi-ex-lexer-cell)))
+
+(def %vi-ex-tokens (fn (_ s) ((%vi-ex-lexer) read-str s)))
 
 ; the text of the first of tokens TS, "" when there are none
 (def %vi-tok-text (fn (_ ts) (if (null? ts) "" (first (rest (first ts))))))
