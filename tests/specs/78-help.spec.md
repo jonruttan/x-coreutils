@@ -1909,6 +1909,33 @@ stderr:
 status 0
 ```
 
+### httpd
+
+```cu
+(run (list "httpd" "--help") "")
+```
+---
+```output
+Usage: httpd [-ifv[v]] [-c CONFFILE] [-p [IP:]PORT] [-M MAXCONN] [-K KILLSEC] [-u USER[:GRP]] [-r REALM] [-h HOME]|
+or httpd -d/-e/-m STRING|
+|
+Listen for incoming HTTP requests|
+|
+	-i		Inetd mode|
+	-f		Run in foreground|
+	-v[v]		Verbose|
+	-p [IP:]PORT	Bind to IP:PORT (default *:80)|
+	-M NUM		Pause if NUM connections are open (default 256)|
+	-K NUM		Kill CGIs after NUM seconds|
+	-r REALM	Authentication Realm for Basic Authentication|
+	-h HOME		Home directory (default .)|
+	-c FILE		Configuration file (default {/etc,HOME}/httpd.conf)|
+	-e STRING	HTML encode STRING|
+	-d STRING	URL decode STRING|
+stderr:
+status 0
+```
+
 ### xargs
 
 ```cu

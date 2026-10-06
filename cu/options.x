@@ -1099,6 +1099,27 @@
               (Opts hidden (Opts arg "-P" "" "")))
             (%cu-hidden-flags (list "-c" "--verbose"))
             (%cu-hidden-args (list "--continue" "--username" "--password" "--port"))))))
+    ; httpd's rows are laid out by hand; -u and -m are not taken yet
+    (pair "httpd"
+      (list
+        (Opts declare "httpd"
+          "[-ifv[v]] [-c CONFFILE] [-p [IP:]PORT] [-M MAXCONN] [-K KILLSEC] [-u USER[:GRP]] [-r REALM] [-h HOME]\nor httpd -d/-e/-m STRING"
+          "Listen for incoming HTTP requests"
+          (append
+            (list
+              (Opts text "\t-i\t\tInetd mode")
+              (Opts text "\t-f\t\tRun in foreground")
+              (Opts text "\t-v[v]\t\tVerbose")
+              (Opts text "\t-p [IP:]PORT\tBind to IP:PORT (default *:80)")
+              (Opts text "\t-M NUM\t\tPause if NUM connections are open (default 256)")
+              (Opts text "\t-K NUM\t\tKill CGIs after NUM seconds")
+              (Opts text "\t-r REALM\tAuthentication Realm for Basic Authentication")
+              (Opts text "\t-h HOME\t\tHome directory (default .)")
+              (Opts text "\t-c FILE\t\tConfiguration file (default {/etc,HOME}/httpd.conf)")
+              (Opts text "\t-e STRING\tHTML encode STRING")
+              (Opts text "\t-d STRING\tURL decode STRING"))
+            (%cu-hidden-flags (list "-i" "-f" "-v"))
+            (%cu-hidden-args (list "-p" "-M" "-K" "-r" "-h" "-c" "-e" "-d"))))))
     ; -p is NOT here on purpose; cu/sys2.x says why
     (pair "xargs"
       (list

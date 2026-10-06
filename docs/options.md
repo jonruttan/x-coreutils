@@ -53,6 +53,7 @@ the work.  Applet parity is the other axis: see the README.
 | `hd` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
 | `hexdump` | -b -c -d -o -x -C -e -f -n -s -v | -b -c -d -o -x -C -v -e -n -s -f |  | 100% |
+| `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -r -h -c -e -d | -m -u | 84% |
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
 | `join` | _not a busybox applet_ | -t | | - |
@@ -78,7 +79,7 @@ the work.  Applet parity is the other axis: see the README.
 | `pipe_progress` |  |  |  | - |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
-| `ps` | -o -T | -o -Z -a -A -d -e -f -l | -T | 50% |
+| `ps` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
 | `pwd` | -L -P | -L -P |  | 100% |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
 | `realpath` |  |  |  | - |
@@ -137,4 +138,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 562 of 574 busybox options accepted (98%).**
+**Total: 573 of 587 busybox options accepted (97%).**
