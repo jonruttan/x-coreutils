@@ -4738,6 +4738,90 @@ Upload a file to a FTP server
 status 1
 ```
 
+### httpd -~
+
+```cu
+(run (list "httpd" "-~") "")
+```
+---
+```output
+stderr:
+httpd: unrecognized option: ~
+Usage: httpd [-ifv[v]] [-c CONFFILE] [-p [IP:]PORT] [-M MAXCONN] [-K KILLSEC] [-u USER[:GRP]] [-r REALM] [-h HOME]
+or httpd -d/-e/-m STRING
+
+Listen for incoming HTTP requests
+
+	-i		Inetd mode
+	-f		Run in foreground
+	-v[v]		Verbose
+	-p [IP:]PORT	Bind to IP:PORT (default *:80)
+	-M NUM		Pause if NUM connections are open (default 256)
+	-K NUM		Kill CGIs after NUM seconds
+	-r REALM	Authentication Realm for Basic Authentication
+	-h HOME		Home directory (default .)
+	-c FILE		Configuration file (default {/etc,HOME}/httpd.conf)
+	-e STRING	HTML encode STRING
+	-d STRING	URL decode STRING
+status 1
+```
+
+### httpd --nope
+
+```cu
+(run (list "httpd" "--nope") "")
+```
+---
+```output
+stderr:
+httpd: unrecognized option: nope
+Usage: httpd [-ifv[v]] [-c CONFFILE] [-p [IP:]PORT] [-M MAXCONN] [-K KILLSEC] [-u USER[:GRP]] [-r REALM] [-h HOME]
+or httpd -d/-e/-m STRING
+
+Listen for incoming HTTP requests
+
+	-i		Inetd mode
+	-f		Run in foreground
+	-v[v]		Verbose
+	-p [IP:]PORT	Bind to IP:PORT (default *:80)
+	-M NUM		Pause if NUM connections are open (default 256)
+	-K NUM		Kill CGIs after NUM seconds
+	-r REALM	Authentication Realm for Basic Authentication
+	-h HOME		Home directory (default .)
+	-c FILE		Configuration file (default {/etc,HOME}/httpd.conf)
+	-e STRING	HTML encode STRING
+	-d STRING	URL decode STRING
+status 1
+```
+
+### httpd -c
+
+```cu
+(run (list "httpd" "-c") "")
+```
+---
+```output
+stderr:
+httpd: option requires an argument: c
+Usage: httpd [-ifv[v]] [-c CONFFILE] [-p [IP:]PORT] [-M MAXCONN] [-K KILLSEC] [-u USER[:GRP]] [-r REALM] [-h HOME]
+or httpd -d/-e/-m STRING
+
+Listen for incoming HTTP requests
+
+	-i		Inetd mode
+	-f		Run in foreground
+	-v[v]		Verbose
+	-p [IP:]PORT	Bind to IP:PORT (default *:80)
+	-M NUM		Pause if NUM connections are open (default 256)
+	-K NUM		Kill CGIs after NUM seconds
+	-r REALM	Authentication Realm for Basic Authentication
+	-h HOME		Home directory (default .)
+	-c FILE		Configuration file (default {/etc,HOME}/httpd.conf)
+	-e STRING	HTML encode STRING
+	-d STRING	URL decode STRING
+status 1
+```
+
 ### nc -~
 
 ```cu

@@ -145,6 +145,7 @@
     (list "tftp" (%letters "lrgpb"))
     (list "ftpget" (%letters "cvupP"))
     (list "ftpput" (%letters "cvupP"))
+    (list "httpd" (%letters "cdhermupMKifv"))
     (list "which" (%letters "a"))
     (list "whois" (%letters "ihp"))
     (list "whoami" ())
