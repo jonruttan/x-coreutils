@@ -118,9 +118,11 @@
 ; one-byte operators, a /pattern/ or ?pattern? whose closing byte may be
 ; missing, and a word or any other byte where the addresses end.  A token's
 ; first byte tells its kind, as busybox's get_one_address tells it.  Made at
-; the first colon command, so an applet that never reads one never imports
-; the Lexer.  The end text is a newline, which no address reads and an
+; the first colon command, so an applet that never reads one never pays for
+; its states.  The end text is a newline, which no address reads and an
 ; input line never holds, so the addresses end on it.
+(import x/reader/lexer)
+
 (def %vi-ex-lexer ())
 
 (def %vi-ex-tokens
@@ -130,7 +132,6 @@
 
 (def %vi-ex-lexer-make!
   (fn (_)
-    (import x/reader/lexer)
     (def digits (list (pair #\0 #\9)))
     (def letters (list (pair #\a #\z) (pair #\A #\Z)))
     (set! %vi-ex-lexer
