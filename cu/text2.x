@@ -19,12 +19,13 @@
     (def e? (if (null? v) #f (string=? v "-e")))
     (def ops (Opts operands o))
     ; the escapes are cu/fmt-lex.x's, read as echo's manual spells them; a \c
-    ; ends the output, newline and all.  What goes out is a run -- bytes and
-    ; their count -- so a \0 is written like any other byte
+    ; ends the output, newline and all.  What goes out is runs -- bytes and
+    ; their count, one a piece between escapes -- so a \0 is written like any
+    ; other byte
     (let ((r (let ((joined (%cu-join-with ops " ")))
                (if e? (%cu-esc-run joined (lit arg))
-                 (pair (%cu-run-of joined) #f)))))
-      (do (file-write-run 1 (first r))
+                 (pair (list (%cu-run-of joined)) #f)))))
+      (do (%cu-write-runs 1 (first r))
           (if (if n? #t (rest r)) () (file-write 1 "\n"))
           0))))
 
@@ -117,9 +118,9 @@
                     ((string=? conv "b")
                       (let ((r (%cu-esc-run arg (lit arg))))
                         (if (rest r)
-                          (do (%cu-printf-put (pair (first r) acc))
+                          (do (%cu-printf-put (%cu-runs-onto (first r) acc))
                               (list #t as2 (lit stop)))
-                          (self (rest ts) as2 #t (pair (first r) acc)))))
+                          (self (rest ts) as2 #t (%cu-runs-onto (first r) acc)))))
                     (#t
                       (do (%cu-printf-put acc)
                           (list used as (%cu-fmt-raw t))))))))))))
