@@ -20,6 +20,7 @@
 (import x/sys/opts)
 (import x/net/http)
 (import x/sys/host)
+(import x/type/regex)
 (import x/num/float)
 
 (provide cu/prims
@@ -50,7 +51,7 @@
   sys-user-groups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   host-boot-time load-centi host-load-centi host-memory host-users
-  host-processes host-args
+  host-processes host-args host-process host-exe sys-signals sys-getpid re-compile re-search
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
   net-base64 net-connect net-send net-recv-run net-close
@@ -385,6 +386,14 @@
 (def host-users (fn (_) (Host users)))
 (def host-processes (fn (_) (Host processes)))
 (def host-args (fn (_ pid) (Host args pid)))
+(def host-process (fn (_ pid) (Host process pid)))
+(def host-exe (fn (_ pid) (Host exe pid)))
+(def sys-signals (fn (_) (Sys signals)))
+(def sys-getpid (fn (_) (Sys getpid)))
+; a POSIX extended expression as x/type/regex reads one, and where it first
+; matches in S, (start end), or nil
+(def re-compile (fn (_ pat) (Regex compile pat)))
+(def re-search (fn (_ rx s) (Regex search s rx)))
 
 (def rng-make (fn (_ seed) (Random sw seed)))
 (def rng-int (fn (_ r n) (r int n)))

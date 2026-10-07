@@ -142,6 +142,9 @@
     (pair "uptime" %cu-uptime)
     (pair "free" %cu-free)
     (pair "ps" %cu-ps)
+    (pair "pidof" %cu-pidof)
+    (pair "pgrep" %cu-pgrep)
+    (pair "pkill" %cu-pkill)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 
@@ -210,6 +213,10 @@
                 (if (null? (rest (rest spec))) () (first (rest (rest spec))))))
     (match
       ((eq? label (lit leading)) (Opts parse-leading flags values argv))
+      ; a first word that is -SIGNAL is the applet's own, read before getopt
+      ; as busybox's pkill reads it
+      ((eq? label (lit signal))
+        (Opts parse flags values (if (null? (%pg-signal-word argv)) argv (rest argv))))
       ; options up to the first word that is not a cluster of the flags; each
       ; letter reaches the parse as a word of its own, so the flags are listed
       ; in the order given (the parse reverses a cluster's), and the rest come

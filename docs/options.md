@@ -76,7 +76,10 @@ the work.  Applet parity is the other axis: see the README.
 | `nslookup` | -type -debug | -debug -type -querytype -port -retry -timeout -t |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
 | `paste` | -d -s | -s -d |  | 100% |
+| `pgrep` | -l -a -f -n -o -v -x -s -P | -l -a -f -n -o -v -x -e -s -P |  | 100% |
+| `pidof` | -s -o | -s -o |  | 100% |
 | `pipe_progress` |  |  |  | - |
+| `pkill` | -l -x -f -s -P -v -n -o -e | -l -x -f -v -n -o -e -a -s -P |  | 100% |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
 | `ps` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
@@ -138,4 +141,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 573 of 587 busybox options accepted (97%).**
+**Total: 593 of 607 busybox options accepted (97%).**

@@ -5893,6 +5893,213 @@ Show list of processes
 status 1
 ```
 
+### pidof -~
+
+```cu
+(run (list "pidof" "-~") "")
+```
+---
+```output
+stderr:
+pidof: unrecognized option: ~
+Usage: pidof [-s] [-o PID] [NAME]...
+
+List PIDs of all processes with names that match NAMEs
+
+	-s	Show only one PID
+	-o PID	Omit given pid
+		Use %PPID to omit pid of pidof's parent
+status 1
+```
+
+### pidof --nope
+
+```cu
+(run (list "pidof" "--nope") "")
+```
+---
+```output
+stderr:
+pidof: unrecognized option: nope
+Usage: pidof [-s] [-o PID] [NAME]...
+
+List PIDs of all processes with names that match NAMEs
+
+	-s	Show only one PID
+	-o PID	Omit given pid
+		Use %PPID to omit pid of pidof's parent
+status 1
+```
+
+### pidof -o
+
+```cu
+(run (list "pidof" "-o") "")
+```
+---
+```output
+stderr:
+pidof: option requires an argument: o
+Usage: pidof [-s] [-o PID] [NAME]...
+
+List PIDs of all processes with names that match NAMEs
+
+	-s	Show only one PID
+	-o PID	Omit given pid
+		Use %PPID to omit pid of pidof's parent
+status 1
+```
+
+### pgrep -~
+
+```cu
+(run (list "pgrep" "-~") "")
+```
+---
+```output
+stderr:
+pgrep: unrecognized option: ~
+Usage: pgrep [-flanovx] [-s SID|-P PPID|PATTERN]
+
+Display process(es) selected by regex PATTERN
+
+	-l	Show command name too
+	-a	Show command line too
+	-f	Match against entire command line
+	-n	Show the newest process only
+	-o	Show the oldest process only
+	-v	Negate the match
+	-x	Match whole name (not substring)
+	-s	Match session ID (0 for current)
+	-P	Match parent process ID
+status 1
+```
+
+### pgrep --nope
+
+```cu
+(run (list "pgrep" "--nope") "")
+```
+---
+```output
+stderr:
+pgrep: unrecognized option: nope
+Usage: pgrep [-flanovx] [-s SID|-P PPID|PATTERN]
+
+Display process(es) selected by regex PATTERN
+
+	-l	Show command name too
+	-a	Show command line too
+	-f	Match against entire command line
+	-n	Show the newest process only
+	-o	Show the oldest process only
+	-v	Negate the match
+	-x	Match whole name (not substring)
+	-s	Match session ID (0 for current)
+	-P	Match parent process ID
+status 1
+```
+
+### pgrep -P
+
+```cu
+(run (list "pgrep" "-P") "")
+```
+---
+```output
+stderr:
+pgrep: option requires an argument: P
+Usage: pgrep [-flanovx] [-s SID|-P PPID|PATTERN]
+
+Display process(es) selected by regex PATTERN
+
+	-l	Show command name too
+	-a	Show command line too
+	-f	Match against entire command line
+	-n	Show the newest process only
+	-o	Show the oldest process only
+	-v	Negate the match
+	-x	Match whole name (not substring)
+	-s	Match session ID (0 for current)
+	-P	Match parent process ID
+status 1
+```
+
+### pkill -~
+
+```cu
+(run (list "pkill" "-~") "")
+```
+---
+```output
+stderr:
+pkill: unrecognized option: ~
+Usage: pkill [-l|-SIGNAL] [-xfvnoe] [-s SID|-P PPID|PATTERN]
+
+Send signal to processes selected by regex PATTERN
+
+	-l	List all signals
+	-x	Match whole name (not substring)
+	-f	Match against entire command line
+	-s SID	Match session ID (0 for current)
+	-P PPID	Match parent process ID
+	-v	Negate the match
+	-n	Signal the newest process only
+	-o	Signal the oldest process only
+	-e	Display name and PID of the process being killed
+status 1
+```
+
+### pkill --nope
+
+```cu
+(run (list "pkill" "--nope") "")
+```
+---
+```output
+stderr:
+pkill: unrecognized option: nope
+Usage: pkill [-l|-SIGNAL] [-xfvnoe] [-s SID|-P PPID|PATTERN]
+
+Send signal to processes selected by regex PATTERN
+
+	-l	List all signals
+	-x	Match whole name (not substring)
+	-f	Match against entire command line
+	-s SID	Match session ID (0 for current)
+	-P PPID	Match parent process ID
+	-v	Negate the match
+	-n	Signal the newest process only
+	-o	Signal the oldest process only
+	-e	Display name and PID of the process being killed
+status 1
+```
+
+### pkill -P
+
+```cu
+(run (list "pkill" "-P") "")
+```
+---
+```output
+stderr:
+pkill: option requires an argument: P
+Usage: pkill [-l|-SIGNAL] [-xfvnoe] [-s SID|-P PPID|PATTERN]
+
+Send signal to processes selected by regex PATTERN
+
+	-l	List all signals
+	-x	Match whole name (not substring)
+	-f	Match against entire command line
+	-s SID	Match session ID (0 for current)
+	-P PPID	Match parent process ID
+	-v	Negate the match
+	-n	Signal the newest process only
+	-o	Signal the oldest process only
+	-e	Display name and PID of the process being killed
+status 1
+```
+
 ### test -~
 
 ```cu
