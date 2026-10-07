@@ -113,57 +113,95 @@
 
 ; --- addresses --------------------------------------------------------------
 
-; busybox's get_one_address: a line number from BUF at I -- . $ 'x /pat/
-; ?pat? or digits, with + and - offsets -- the current line by default.
-; Answers (I ADDR . GOT?), or nil when a mark or a pattern failed.
+; The addresses before a colon command, read as tokens by x/reader/lexer:
+; blanks, digits, a mark ('x, the quote and whichever byte follows it), the
+; one-byte operators, a /pattern/ or ?pattern? whose closing byte may be
+; missing, and a word or any other byte where the addresses end.  A token's
+; first byte tells its kind, as busybox's get_one_address tells it.  Made at
+; the first colon command, so an applet that never reads one never pays for
+; its states.  The end text is a newline, which no address reads and an
+; input line never holds, so the addresses end on it.
+(import x/reader/lexer)
+
+(def %vi-ex-lexer-cell (pair () ()))
+(def %vi-ex-lexer
+  (fn (_)
+    (if (null? (first %vi-ex-lexer-cell))
+      ((fn (_ digits letters)
+         (set-first! %vi-ex-lexer-cell
+           (Lexer make
+             (list (Lexer run (lit sp) (list #\space #\tab) (list #\space #\tab))
+                   (Lexer run (lit num) digits digits)
+                   (Lexer escape (lit mark) #\')
+                   (Lexer table (lit op) (list "." "$" "%" "," ";" "+" "-"))
+                   (Lexer until (lit fwd) "/" "/" (lit take) (lit to-end))
+                   (Lexer until (lit back) "?" "?" (lit take) (lit to-end))
+                   (Lexer run (lit word) letters letters)
+                   (Lexer any (lit other)))
+             "\n")))
+       (list (pair #\0 #\9))
+       (list (pair #\a #\z) (pair #\A #\Z)))
+      ())
+    (first %vi-ex-lexer-cell)))
+
+(def %vi-ex-tokens (fn (_ s) ((%vi-ex-lexer) read-str s)))
+
+; the text of the first of tokens TS, "" when there are none
+(def %vi-tok-text (fn (_ ts) (if (null? ts) "" (first (rest (first ts))))))
+
+; busybox's get_one_address: a line number from tokens TS, the first at I of
+; the line -- . $ 'x /pat/ ?pat? or digits, with + and - offsets -- the
+; current line by default.  Answers (TS I ADDR . GOT?), TS the tokens from
+; where it stopped, or nil when a mark or a pattern failed.
 (def %vi-get-one-address
-  (fn (_ buf i)
-    (%vi-address-from buf i #f (%vi-count-lines 0 %vi-dot) 0)))
+  (fn (_ ts i)
+    (%vi-address-from ts i #f (%vi-count-lines 0 %vi-dot) 0)))
 
 (def %vi-address-from
-  (fn (self buf i got addr sign)
-    (def c (%vi-byte-of buf i))
+  (fn (self ts i got addr sign)
+    (def text (%vi-tok-text ts))
+    (def next (%vi+ i (byte-len text)))
+    (def c (%vi-byte-of text 0))
     (match
       ((%vi-blank? c)
-        (self buf (%vi+ i 1) got (if got (%vi+ addr sign) addr) (if got 0 sign)))
-      ((if got #f (= c #\.)) (self buf (%vi+ i 1) #t addr sign))
-      ((if got #f (= c #\$)) (self buf (%vi+ i 1) #t (%vi-count-lines 0 (%vi- %vi-end 1)) sign))
-      ((if got #f (= c #\')) (%vi-address-mark self buf i sign))
-      ((if got #f (if (= c #\/) #t (= c #\?))) (%vi-address-search self buf i c sign))
-      ((%vi-digit? c) (%vi-address-number self buf i got addr sign))
+        (self (rest ts) next got (if got (%vi+ addr sign) addr) (if got 0 sign)))
+      ((if got #f (= c #\.)) (self (rest ts) next #t addr sign))
+      ((if got #f (= c #\$)) (self (rest ts) next #t (%vi-count-lines 0 (%vi- %vi-end 1)) sign))
+      ((if got #f (= c #\')) (%vi-address-mark self ts next text sign))
+      ((if got #f (if (= c #\/) #t (= c #\?))) (%vi-address-search self ts next text c sign))
+      ((%vi-digit? c) (%vi-address-number self ts next text got addr sign))
       ((if (= c #\-) #t (= c #\+))
-        (self buf (%vi+ i 1) #t (if got (%vi+ addr sign) addr) (if (= c #\-) -1 1)))
-      (#t (pair i (pair (%vi+ addr sign) got))))))
+        (self (rest ts) next #t (if got (%vi+ addr sign) addr) (if (= c #\-) -1 1)))
+      (#t (pair ts (pair i (pair (%vi+ addr sign) got)))))))
 
 (def %vi-address-number
-  (fn (_ walk buf i got addr sign)
-    (def j (%vi-digits-end i buf))
-    (def num (%vi-num-from buf i j 0))
-    (walk buf j #t (if got (%vi+ addr (if (%vi< sign 0) (%vi- 0 num) num)) num) 0)))
+  (fn (_ walk ts next text got addr sign)
+    (def num (%vi-num-from text 0 (byte-len text) 0))
+    (walk (rest ts) next #t (if got (%vi+ addr (if (%vi< sign 0) (%vi- 0 num) num)) num) 0)))
 
 (def %vi-address-mark
-  (fn (_ walk buf i sign)
-    (def c (%vi| (%vi-byte-of buf (%vi+ i 1)) 32))
+  (fn (_ walk ts next text sign)
+    (def c (%vi| (%vi-byte-of text 1) 32))
     (def q (if (%vi-in? c #\a #\z) (%vi-mark (%vi- c #\a)) -1))
     (if (%vi< q 0)
       (do (%vi-status-line-bold! "Mark not set") ())
-      (walk buf (%vi+ i 2) #t (%vi-count-lines 0 q) sign))))
+      (walk (rest ts) next #t (%vi-count-lines 0 q) sign))))
 
 ; /pat/ and ?pat?: the next line holding the pattern, round from the far end
-; of the text; an empty pattern is the last one
+; of the text; an empty pattern is the last one.  TEXT is the token, its
+; closing byte there or not.
 (def %vi-address-search
-  (fn (_ walk buf i c sign)
-    (def q (%vi-char-at buf (%vi+ i 1) c))
-    (if (= q (%vi+ i 1)) ()
-      (set! %vi-last-search-pattern (%vi-bsub buf i (%vi- q i))))
-    (def next (if (= (%vi-byte-of buf q) c) (%vi+ q 1) q))
+  (fn (_ walk ts next text c sign)
+    (def n (byte-len text))
+    (def body (if (if (%vi< 1 n) (= (byte-at text (%vi- n 1)) c) #f) (%vi- n 1) n))
+    (if (= body 1) () (set! %vi-last-search-pattern (%vi-bsub text 0 body)))
     (def dir (if (= c #\/) 1 -1))
     (def pat (%vi-pattern-text))
     (def from (if (= c #\/) (%vi-next-line %vi-dot) (%vi-begin-line %vi-dot)))
     (def found (%vi-address-find from pat dir))
     (if (%vi< found 0)
       (do (%vi-status-line-bold! "Pattern not found") ())
-      (walk buf next #t (%vi-count-lines 0 found) sign))))
+      (walk (rest ts) next #t (%vi-count-lines 0 found) sign))))
 
 (def %vi-address-find
   (fn (_ from pat dir)
@@ -177,41 +215,45 @@
       (self buf (%vi+ i 1) c)
       i)))
 
-; busybox's get_address: the addresses before a colon command, as many as
-; typed, the last two kept -- % for them all, , between two and ; to move to
-; the first before reading the second.  Answers (I B E . GOT), GOT's bit 0 an
-; address given and bit 1 two, or nil on an error.
+; busybox's get_address: the addresses at I of BUF before a colon command, as
+; many as typed, the last two kept -- % for them all, , between two and ; to
+; move to the first before reading the second.  Answers (I B E . GOT), GOT's
+; bit 0 an address given and bit 1 two, or nil on an error.
 (def %vi-get-address
   (fn (_ buf i)
     (def save %vi-dot)
-    (def r (%vi-addresses buf i #t -1 -1 0))
+    (def r (%vi-addresses (%vi-ex-tokens (%vi-bsub buf i (%vi- (byte-len buf) i)))
+             i #t -1 -1 0))
     (set! %vi-dot save)
     r))
 
 (def %vi-addresses
-  (fn (self buf i want-addr? b e got)
-    (def c (%vi-byte-of buf i))
+  (fn (self ts i want-addr? b e got)
+    (def text (%vi-tok-text ts))
+    (def next (%vi+ i (byte-len text)))
+    (def c (%vi-byte-of text 0))
     (match
-      ((%vi-blank? c) (self buf (%vi+ i 1) want-addr? b e got))
+      ((%vi-blank? c) (self (rest ts) next want-addr? b e got))
       ((if want-addr? (= c #\%) #f)
-        (self buf (%vi+ i 1) #f 1 (%vi-count-lines 0 (%vi- %vi-end 1)) 3))
-      (want-addr? (%vi-address-next self buf i b e got))
+        (self (rest ts) next #f 1 (%vi-count-lines 0 (%vi- %vi-end 1)) 3))
+      (want-addr? (%vi-address-next self ts i b e got))
       ((if (= c #\,) #t (= c #\;))
         (do (if (= c #\;) (set! %vi-dot (%vi-find-line e)) ())
-            (self buf (%vi+ i 1) #t b e got)))
+            (self (rest ts) next #t b e got)))
       (#t (list i b e got)))))
 
 (def %vi-address-next
-  (fn (_ walk buf i b e got)
-    (def a (%vi-get-one-address buf i))
+  (fn (_ walk ts i b e got)
+    (def a (%vi-get-one-address ts i))
     (if (null? a) ()
-      (%vi-address-took walk buf (first a) (first (rest a)) (rest (rest a)) b e got))))
+      (%vi-address-took walk (first a) (first (rest a)) (first (rest (rest a)))
+        (rest (rest (rest a))) b e got))))
 
 (def %vi-address-took
-  (fn (_ walk buf j addr valid? b e got)
-    (def c (%vi-byte-of buf j))
+  (fn (_ walk ts j addr valid? b e got)
+    (def c (%vi-byte-of (%vi-tok-text ts) 0))
     (if (match (valid? #t) ((= c #\,) #t) ((= c #\;) #t) (#t (= (%vi& got 1) 1)))
-      (walk buf j #f e addr (%vi| (%vi* got 2) 1))
+      (walk ts j #f e addr (%vi| (%vi* got 2) 1))
       (list j b e got))))
 
 ; --- the colon commands -----------------------------------------------------

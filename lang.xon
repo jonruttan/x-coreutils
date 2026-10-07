@@ -42,6 +42,10 @@
 ; (x-lang#908), read in thousands of objects rather than hundreds of
 ; thousands (x-lang#912), which ps (cu/procps.x) reads for every process.
 ;
+; v0.25.0: Lexer until rules that take their close or run to the end of the
+; text (x-lang#920), which read vi's ex addresses (cu/vi-ex.x): a /pattern/
+; whose closing / may be missing is one token.
+;
 ; v0.26.0 is the release the suite and its sweep bounds are measured on.
 (requires-release "v0.26.0")
 
