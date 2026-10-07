@@ -42,7 +42,7 @@
 ; (x-lang#908), read in thousands of objects rather than hundreds of
 ; thousands (x-lang#912), which ps (cu/procps.x) reads for every process.
 ;
-; v0.25.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.25.0")
+; v0.26.0 is the release the suite and its sweep bounds are measured on.
+(requires-release "v0.26.0")
 
 (entry "run.x")
