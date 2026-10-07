@@ -54,7 +54,7 @@
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
   net-base64 net-connect net-send net-recv-run net-close
-  net-listen net-accept net-local-port net-peer net-shutdown sys-poll
+  net-listen net-listen-on net-accept net-local-port net-peer net-shutdown sys-poll
   net-udp-connect sys-time-ms
   net-udp-bind net-send-to-run net-recv-from-run)
 
@@ -965,6 +965,7 @@
 ; ((FD . (in out)) ...) and a timeout in milliseconds, -1 for none; it answers
 ; the ready ones as ((FD . EVENTS) ...), or nil when the time ran out.
 (def net-listen (fn (_ port) (Socket tcp-listen port)))
+(def net-listen-on (fn (_ ip port) (Socket tcp-listen-on ip port)))
 (def net-accept (fn (_ fd) (Socket accept fd)))
 (def net-local-port (fn (_ fd) (Socket local-port fd)))
 (def net-peer (fn (_ fd) (Socket peer fd)))

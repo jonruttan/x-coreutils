@@ -15,8 +15,8 @@
 ; busybox's page for it, or the page an Ennn: line names.
 ;
 ; -i answers the one request on stdin and stdout.  Without it httpd listens on
-; -p's port (80 unless given) and answers each connection in a process of its
-; own; without -f it first leaves the terminal, as bb_daemonize does.  A
+; -p's port (80 unless given) -- every address's, or one address's for
+; -p HOST[:PORT] -- and answers each connection in a process of its own; without -f it first leaves the terminal, as bb_daemonize does.  A
 ; connection's process is the grandchild of the listener, so none is left to
 ; reap: busybox ignores SIGCHLD to the same end.
 ;
@@ -684,17 +684,28 @@
       (do (unless (Opts on? o "-f") (%hd-daemonize))
           (%hd-listen lfd)))))
 
-; openServer: -p's port on every address, 80 unless given
+; openServer: -p's PORT on every address, or HOST[:PORT] (80 unless given) on
+; HOST's alone; a port that is not one is "bad port", a host that does not
+; resolve "bad address" naming the whole of -p's value
 (def %hd-open-server
   (fn (_ v)
-    (def port
-      (if (null? v) 80
-        (let ((n (%wget-digits v)))
-          (if (if (null? n) #t (if (= n 0) #t (> n 65535)))
-            (%hd-die (string-concat (list "-p " v ": an address to bind is not supported; give a port")))
-            n))))
-    (guard (e (if (Err err? e) (%hd-die (string-append "bind: " (%wget-err-text e))) (error e)))
-      (net-listen port))))
+    (def n (if (null? v) 80 (%wget-digits v)))
+    (guard (e (if (eq? (Err label e) (lit io)) (%hd-die (string-append "bind: " (%wget-err-text e))) (error e)))
+      (if (if (null? n) #f (if (> n 0) (<= n 65535) #f))
+        (net-listen n)
+        (%hd-listen-on v)))))
+
+(def %hd-listen-on
+  (fn (_ v)
+    (def colon (%wget-last-index v #\:))
+    (def host (if (null? colon) v (substring v 0 colon)))
+    (def pv (if (null? colon) () (substring v (+ colon 1) (byte-len v))))
+    (def port (if (null? pv) 80 (%wget-digits pv)))
+    (when (if (null? port) #t (> port 65535))
+      (%hd-die (string-concat (list "bad port '" pv "'"))))
+    (def ip (if (= (byte-len host) 0) () (guard (_ ()) (net-resolve host))))
+    (when (null? ip) (%hd-die (string-concat (list "bad address '" v "'"))))
+    (net-listen-on ip port)))
 
 
 ; xchdir: #t when DIR is now the working directory
