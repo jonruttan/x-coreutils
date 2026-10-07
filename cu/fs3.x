@@ -571,18 +571,18 @@
       (fn (_ i)
         (match
           ((not swab?) i)
-          ((= (% i 2) 1) (- i 1))
-          ((< (+ i 1) n) (+ i 1))
+          ((= (%cu& i 1) 1) (%cu- i 1))
+          ((%cu< (%cu+ i 1) n) (%cu+ i 1))
           (#t i))))
     (def cased
       (fn (_ b)
-        (let ((lo (if (if lower? (if (>= b 65) (<= b 90) #f) #f) (+ b 32) b)))
-          (if (if upper? (if (>= lo 97) (<= lo 122) #f) #f) (- lo 32) lo))))
+        (let ((lo (if (if lower? (if (%cu< 64 b) (%cu< b 91) #f) #f) (%cu+ b 32) b)))
+          (if (if upper? (if (%cu< 96 lo) (%cu< lo 123) #f) #f) (%cu- lo 32) lo))))
     (def go
       (fn (self k acc)
-        (if (< k 0) acc
-          (do (if (= (& k %cu-sweep-bytes) 0) (%cu-sweep! k) ())
-              (self (- k 1) (pair (cased (byte-at t (from k))) acc))))))
+        (if (%cu< k 0) acc
+          (do (if (= (%cu& k %cu-sweep-bytes) 0) (%cu-sweep! k) ())
+              (self (%cu- k 1) (pair (cased (byte-at t (from k))) acc))))))
     (if (if swab? #t (if lower? #t upper?))
       (pair (bytes->str (go (- n 1) ())) n)
       r)))

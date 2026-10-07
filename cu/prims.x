@@ -115,6 +115,22 @@
 (def bit-shl (fn (_ a n) (<< a n)))
 (def bit-shr (fn (_ a n) (>> a n)))
 
+; The engine's integer prims, for a loop over bytes, indices and counts: a
+; step costs a tenth of what it does on the platform's operators, which check
+; their operands and promote past a machine word.  These do neither -- a nil
+; operand crashes the engine and a sum past a word wraps -- so they take only
+; what is an integer by construction, never a value read from a user.  There
+; is no > or >=: a > b is (%cu< b a), and a >= b swaps the branches of a <.
+(def %cu+ (prim-ref (lit int) (lit +)))
+(def %cu- (prim-ref (lit int) (lit -)))
+(def %cu* (prim-ref (lit int) (lit *)))
+(def %cu% (prim-ref (lit int) (lit %)))
+(def %cu< (prim-ref (lit int) (lit <)))
+(def %cu& (prim-ref (lit int) (lit &)))
+(def %cu| (prim-ref (lit int) (lit |)))
+(def %cu<< (prim-ref (lit int) (lit <<)))
+(def %cu>> (prim-ref (lit int) (lit >>)))
+
 (def file-read-all (fn (_ path) (File read-all path)))
 (def file-write-all (fn (_ path text) (File write-all path text)))
 (def file-exists? (fn (_ path) (File exists? path)))

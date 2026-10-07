@@ -247,16 +247,17 @@
     (def go
       (fn (self i run n)
         (match
-          ((>= i end) (if (> n 0) (put (%cu-run-bytes (reverse run) n)) ()))
-          ((>= n 4096) (do (put (%cu-run-bytes (reverse run) n)) (self i () 0)))
-          (#t
-            (let ((b (byte-at s i)))
-              (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+          ((%cu< 4095 n) (do (put (%cu-run-bytes (reverse run) n)) (self i () 0)))
+          ((%cu< i end)
+            (do (def b (byte-at s i))
+                (if (= (%cu& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
                 (match
-                  ((= b 13) (self (+ i 1) run n))
+                  ((= b 13) (self (%cu+ i 1) run n))
                   ((if dos? (= b 10) #f)
-                    (self (+ i 1) (pair 10 (pair 13 run)) (+ n 2)))
-                  (#t (self (+ i 1) (pair b run) (+ n 1))))))))))
+                    (self (%cu+ i 1) (pair 10 (pair 13 run)) (%cu+ n 2)))
+                  (#t (self (%cu+ i 1) (pair b run) (%cu+ n 1))))))
+          ((%cu< 0 n) (put (%cu-run-bytes (reverse run) n)))
+          (#t ()))))
     (go 0 () 0)))
 
 ; NAME's bytes as its pieces, a list of runs, or the io Err it would not open
@@ -566,16 +567,25 @@
 (def %cu-b64-char
   (fn (_ v) (byte-at %cu-b64-alphabet v)))
 
-; the inverse: -1 for anything outside the alphabet, the pad among them
+; the inverse, a table read by byte: each byte's value plus one, and 128 for
+; anything outside the alphabet, the pad among them -- so no entry is a NUL
+(def %cu-b64-values
+  (bytes->str
+    (let go ((b 255) (acc ()))
+      (if (< b 0) acc
+        (go (- b 1)
+            (pair (match
+                    ((if (>= b 65) (<= b 90) #f) (- b 64))
+                    ((if (>= b 97) (<= b 122) #f) (- b 70))
+                    ((if (>= b 48) (<= b 57) #f) (+ b 5))
+                    ((= b 43) 63)
+                    ((= b 47) 64)
+                    (#t 128))
+                  acc))))))
+
+; byte B's value in the alphabet, or 127 for anything outside it
 (def %cu-b64-value
-  (fn (_ b)
-    (match
-      ((if (>= b 65) (<= b 90) #f) (- b 65))
-      ((if (>= b 97) (<= b 122) #f) (+ (- b 97) 26))
-      ((if (>= b 48) (<= b 57) #f) (+ (- b 48) 52))
-      ((= b 43) 62)
-      ((= b 47) 63)
-      (#t (- 0 1)))))
+  (fn (_ b) (%cu- (byte-at %cu-b64-values b) 1)))
 
 ; S in base64, put out as it is made: lines of WRAP characters, each ended by a
 ; newline, the last one too when it holds any; WRAP 0 is one line and no
@@ -597,32 +607,35 @@
     (def s (first r))
     (def end (rest r))
     (def full (if (= wrap 0) 4096 wrap))
-    ; the characters CS onto LINE, and a line out when it fills
+    ; character C onto LINE, and the line out when it fills: (LINE . COL)
     (def push
-      (fn (self cs line col)
-        (match
-          ((null? cs) (pair line col))
-          ((= (+ col 1) full)
-            (do (%cu-b64-out wrap (pair (first cs) line)) (self (rest cs) () 0)))
-          (#t (self (rest cs) (pair (first cs) line) (+ col 1))))))
+      (fn (_ c line col)
+        (if (= (%cu+ col 1) full)
+          (do (%cu-b64-out wrap (pair c line)) (pair () 0))
+          (pair (pair c line) (%cu+ col 1)))))
+    ; a step's four characters onto LINE, from N, the step's 24 bits, and
+    ; HAVE, how many of its three bytes the input held; a step short of
+    ; bytes is padded out.  Bindings here are defs, not lets: a let costs a
+    ; hundred objects a step, a def none past its value.
+    (def step
+      (fn (_ n have line col)
+        (do (def a (push (%cu-b64-char (%cu>> n 18)) line col))
+            (def b (push (%cu-b64-char (%cu& (%cu>> n 12) 63)) (first a) (rest a)))
+            (def c (push (if (%cu< 1 have) (%cu-b64-char (%cu& (%cu>> n 6) 63)) 61)
+                         (first b) (rest b)))
+            (push (if (%cu< 2 have) (%cu-b64-char (%cu& n 63)) 61)
+                  (first c) (rest c)))))
     (def go
       (fn (self i line col)
-        (if (if (>= i end) #t (if (< (- end i) 3) (not last?) #f))
-          (list i line col)
-          (let ((b0 (byte-at s i)))
-            (def have (- end i))
-            (def b1 (if (> have 1) (byte-at s (+ i 1)) 0))
-            (def b2 (if (> have 2) (byte-at s (+ i 2)) 0))
-            (def n (+ (bit-shl b0 16) (+ (bit-shl b1 8) b2)))
-            (def r
-              (push
-                (list (%cu-b64-char (bit-and (bit-shr n 18) 63))
-                      (%cu-b64-char (bit-and (bit-shr n 12) 63))
-                      (if (> have 1) (%cu-b64-char (bit-and (bit-shr n 6) 63)) 61)
-                      (if (> have 2) (%cu-b64-char (bit-and n 63)) 61))
-                line col))
-            (do (%cu-sweep-at i %cu-sweep-lines)
-                (self (+ i 3) (first r) (rest r)))))))
+        (do (def have (%cu- end i))
+            (if (if (%cu< have 3) (if (%cu< 0 have) (not last?) #t) #f)
+              (list i line col)
+              (do (def lc (step (%cu+ (%cu<< (byte-at s i) 16)
+                                  (%cu+ (if (%cu< 1 have) (%cu<< (byte-at s (%cu+ i 1)) 8) 0)
+                                        (if (%cu< 2 have) (byte-at s (%cu+ i 2)) 0)))
+                                have line col))
+                  (if (= (%cu& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+                  (self (%cu+ i 3) (first lc) (rest lc)))))))
     (go 0 from-line from-col)))
 
 ; a line of the encoding out: LINE's characters, newest first, and the newline
@@ -678,28 +691,28 @@
     (def go
       (fn (self i out n k bits pads)
         (match
-          ((>= n 4096) (do (%cu-b64-flush put out n) (self i () 0 k bits pads)))
-          ((>= i end) (list out n k bits pads))
-          (#t
-            (let ((b (byte-at s i)))
-              (def v (%cu-b64-value b))
-              (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+          ((%cu< 4095 n) (do (%cu-b64-flush put out n) (self i () 0 k bits pads)))
+          ((%cu< i end)
+            (do (def b (byte-at s i))
+                (def v (%cu-b64-value b))
+                (if (= (%cu& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
                 (match
-                  ((= b 10) (self (+ i 1) out n k bits pads))
-                  ((if (= b 61) (>= k 2) #f)
-                    (if (= (+ k pads 1) 4)
-                      (self (+ i 1) (%cu-b64-spell k bits out)
-                        (+ n (%cu-b64-spelt k)) 0 0 0)
-                      (self (+ i 1) out n k bits (+ pads 1))))
-                  ((if (>= v 0) (= pads 0) #f)
+                  ((= b 10) (self (%cu+ i 1) out n k bits pads))
+                  ((if (= b 61) (%cu< 1 k) #f)
+                    (if (= (%cu+ k (%cu+ pads 1)) 4)
+                      (self (%cu+ i 1) (%cu-b64-spell k bits out)
+                        (%cu+ n (%cu-b64-spelt k)) 0 0 0)
+                      (self (%cu+ i 1) out n k bits (%cu+ pads 1))))
+                  ((if (%cu< v 64) (= pads 0) #f)
                     (if (= k 3)
-                      (self (+ i 1) (%cu-b64-spell 4 (+ (bit-shl bits 6) v) out)
-                        (+ n 3) 0 0 0)
-                      (self (+ i 1) out n (+ k 1) (+ (bit-shl bits 6) v) 0)))
-                  (garbage? (self (+ i 1) out n k bits pads))
+                      (self (%cu+ i 1) (%cu-b64-spell 4 (%cu+ (%cu<< bits 6) v) out)
+                        (%cu+ n 3) 0 0 0)
+                      (self (%cu+ i 1) out n (%cu+ k 1) (%cu+ (%cu<< bits 6) v) 0)))
+                  (garbage? (self (%cu+ i 1) out n k bits pads))
                   (#t (do (%cu-b64-flush put (%cu-b64-spell k bits out)
-                            (+ n (%cu-b64-spelt k)))
-                          #f)))))))))
+                            (%cu+ n (%cu-b64-spelt k)))
+                          #f)))))
+          (#t (list out n k bits pads)))))
     (go 0 (first st) (%cu-nth 1 st) (%cu-nth 2 st) (%cu-nth 3 st) (%cu-nth 4 st))))
 
 (def %cu-b64-fresh (list () 0 0 0 0))
@@ -717,12 +730,12 @@
 (def %cu-b64-spell
   (fn (_ k bits out)
     (match
-      ((= k 4) (pair (bit-and bits 255)
-                 (pair (bit-and (bit-shr bits 8) 255)
-                   (pair (bit-shr bits 16) out))))
-      ((= k 3) (pair (bit-and (bit-shr bits 2) 255)
-                 (pair (bit-shr bits 10) out)))
-      ((= k 2) (pair (bit-shr bits 4) out))
+      ((= k 4) (pair (%cu& bits 255)
+                 (pair (%cu& (%cu>> bits 8) 255)
+                   (pair (%cu>> bits 16) out))))
+      ((= k 3) (pair (%cu& (%cu>> bits 2) 255)
+                 (pair (%cu>> bits 10) out)))
+      ((= k 2) (pair (%cu>> bits 4) out))
       (#t out))))
 
 (def %cu-b64-spelt
