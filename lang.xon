@@ -51,6 +51,9 @@
 ; directives and echo's escapes (cu/fmt-lex.x): a trailing % is the directive
 ; % printf refuses by name.
 ;
+; Also (Socket tcp-listen-on host port), a listener bound to one local address
+; (x-lang#928), which httpd -p IP:PORT (cu/httpd.x) binds.
+;
 ; v0.26.0 is the release the suite and its sweep bounds are measured on.
 (requires-release "v0.26.0")
 

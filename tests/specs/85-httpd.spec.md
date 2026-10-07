@@ -45,6 +45,13 @@ and ask it over a TCP connection.
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (Sys chdir hd-home)
     (display (hd-show (file-read-all "/tmp/x-cu-hd/out") st (file-read-all "/tmp/x-cu-hd/err")))))
+  (def hd-ask-port (fn (_ port req)
+    (let ((c (let try ((n 0)) (let ((fd (guard (_ ()) (Socket tcp-connect "127.0.0.1" port))))
+                                (if (if (null? fd) (< n 200) #f) (do (sys-usleep 20000) (try (+ n 1))) fd)))))
+      (do (Socket send c req)
+          (let go ((acc "")) (let ((r (Socket recv-run c 4096)))
+                               (if (null? r) (do (Socket close c) acc)
+                                 (go (string-append acc (substring (first r) 0 (rest r)))))))))))
   (def hd-str (fn (_ args)
     (proc-run (list "/bin/sh" "-c" "mkdir -p /tmp/x-cu-hd"))
     (sys-dup2 1 9) (sys-dup2 2 8)
@@ -1082,6 +1089,66 @@ The requested URL was not found
 === log
 [::ffff:127.0.0.1]:PORT: response:200
 [::ffff:127.0.0.1]:PORT: response:404
+```
+
+### -p 127.0.0.1:PORT: a listener on the loopback alone, answering
+
+```cu
+(do (def hb-p0 (Socket tcp-listen 0)) (def hb-port (Socket local-port hb-p0)) (Socket close hb-p0)
+  (hd-sh ":" "")
+  (def hb-pid (sys-fork))
+  (when (= hb-pid 0)
+    (do (cu-run (list "httpd" "-f" "-p" (string-append "127.0.0.1:" (%cu-int->str hb-port)) "-h" hd-w) "")
+        (sys-exit 0)))
+  (def hb-a (hd-ask-port hb-port "GET / HTTP/1.0\r\n\r\n"))
+  (sys-kill hb-pid 9) (sys-wait hb-pid)
+  (Sys chdir hd-home)
+  (display (Str8 replace "\r" "<CR>" (string-concat (map (fn (_ l) (string-append l "\n")) (filter (fn (_ l) (not (Str8 starts? "Date: " l))) (hd-lines hb-a)))))))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-6"<CR>
+Content-Length: 6<CR>
+<CR>
+hello
+```
+
+### -p HOST:PORT with a port that is not one
+
+```cu
+(hd-str (list "-f" "-p" "127.0.0.1:x"))
+```
+---
+```output
+|status 1
+httpd: bad port 'x'
+```
+
+### -p HOST:PORT with a host that does not resolve
+
+```cu
+(hd-str (list "-f" "-p" "nohost.invalid:8083"))
+```
+---
+```output
+|status 1
+httpd: bad address 'nohost.invalid:8083'
+```
+
+### -p :PORT, a host of nothing
+
+```cu
+(hd-str (list "-f" "-p" ":8084"))
+```
+---
+```output
+|status 1
+httpd: bad address ':8084'
 ```
 
 ## the strings
