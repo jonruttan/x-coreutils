@@ -27,20 +27,19 @@
 ; Width and precision are -1 when the format did not give them, which differs
 ; from 0: "%.0f" asked for no decimals and "%f" did not ask. A lone % at the
 ; end is a literal %.
+;
+; ## THE PLATFORM'S LEXER, ITS STATES COMPILED
+;
+; The scanning is x/reader/lexer's: a directive is a pattern -- %, then any
+; flags, width and precision, then the one byte that names the conversion --
+; and an escape is a backslash and up to three octal digits, or x and up to
+; two hex digits, or whichever byte follows.  The rules make a tokenizer base
+; whose states run as native code, made on the first format and kept; it
+; rebuilds itself after a state image loads.  What a token means stays here:
+; the directive's parts, and the byte an escape names, are read off the
+; token's text once it is cut, and no x code runs inside the base.
 
-(def %cu-fl-types (pair () ()))
-(def %cu-fl-type!
-  (fn (_ nm hs)
-    (set-first! %cu-fl-types (pair (pair nm hs) (first %cu-fl-types)))))
-
-(def %cu-fl-raw (pair () ()))
-
-; Escapes are printf's, not every format's; a caller that does not want them
-; gets the backslash and the character as written.
-(def %cu-fl-escapes (pair #f ()))
-
-(def %cu-fl-read-string (prim-ref (lit tok) (lit read-str)))
-(def %cu-fl-token (prim-ref (lit buf) (lit tok)))
+(import x/reader/lexer)
 
 (def %cu-fl-flag-byte?
   (fn (_ c)
@@ -54,31 +53,68 @@
 
 (def %cu-fl-digit? (fn (_ c) (if (>= c 48) (<= c 57) #f)))
 
-; --- the directive -----------------------------------------------------------
+; --- the rules ---------------------------------------------------------------
 ;
-; One state consumes flags, width and precision, stopping at the conversion
-; character -- any byte that is none of those. The score is set there,
-; including it.
+; The escape rules are listed longest-match first, and the two-byte escape
+; last: a tie between an octal escape of one digit and the plain escape is
+; the same two bytes either way.  Each has a tag of its own, since a tag
+; names the type on the base; a consumer takes every tag but lit and dir as
+; an escape.  A literal run is every byte but % and the backslash.
+;
+; THE END TEXT IS A %.  The lexer appends it so the last token meets a
+; delimiter, and a byte in the literal class would be swallowed by a trailing
+; literal run and lost with it; a % ends the run, and alone at the end it is
+; no token, since a directive wants a byte after it.  A format's own trailing
+; % or backslash takes the appended byte and the lexer cuts it back off, so
+; "a%" is the literal a and the directive %, which printf refuses by name.
 
-(def %cu-fl-pct-body ())
-(set! %cu-fl-pct-body
-  (fn (_ buffer score chr)
-    (if (if (%cu-fl-flag-byte? chr) #t
-          (if (%cu-fl-digit? chr) #t (= chr 46)))      ; .
-      %cu-fl-pct-body
-      (%score-set score 1 buffer))))
+(def %cu-fl-escape-rules
+  (fn (_ zero?)
+    (list
+      (Lexer pattern (lit oct)
+        (if zero?
+          (list (list "\\" 1 1) (list "0" 0 1) (list "01234567" 1 3))
+          (list (list "\\" 1 1) (list "01234567" 1 3))))
+      (Lexer pattern (lit hex)
+        (list (list "\\" 1 1) (list "x" 1 1) (list "0123456789abcdefABCDEF" 1 2)))
+      (Lexer escape (lit esc) 92))))
 
-(def %cu-fl-t-pct
-  (list
-    (pair (lit analyse)
-      (fn (_ buffer score chr)
-        (if (= chr 37)
-          ; a % alone is still a match; read decides what it meant
-          (%seq (%score-set score 1 buffer) %cu-fl-pct-body)
-          ())))
-    (pair (lit read)
-      (fn (_ . args) (%cu-fl-directive (%cu-fl-token (first args)))))))
-(%cu-fl-type! "CU-FMT-PCT" %cu-fl-t-pct)
+(def %cu-fl-lexer-cell (pair () ()))
+(def %cu-fl-lexer
+  (fn (_)
+    (if (null? (first %cu-fl-lexer-cell))
+      ((fn (_ other)
+         (set-first! %cu-fl-lexer-cell
+           (Lexer make
+             (pair
+               (Lexer pattern (lit dir)
+                 (list (list "%" 1 1) (list "-0+ #123456789." 0 ()) (list #t 1 1)))
+               (append (%cu-fl-escape-rules #f)
+                 (list (Lexer run (lit lit) other other))))
+             "%")))
+       ; every byte but % (37) and the backslash (92), high bytes either way
+       ; the engine hands them over
+       (list (pair 0 36) (pair 38 91) (pair 93 255) (pair -128 -1))))
+    (first %cu-fl-lexer-cell)))
+
+; echo -e and %b read the same escapes with the leading 0 their manuals spell
+; (\0NNN), so the octal escape may open with one; and there is no %, so the
+; end text is a backslash, which a literal run ends at and which alone at the
+; end is no token
+(def %cu-fl-arg-lexer-cell (pair () ()))
+(def %cu-fl-arg-lexer
+  (fn (_)
+    (if (null? (first %cu-fl-arg-lexer-cell))
+      ((fn (_ other)
+         (set-first! %cu-fl-arg-lexer-cell
+           (Lexer make
+             (append (%cu-fl-escape-rules #t)
+               (list (Lexer run (lit lit) other other)))
+             "\\")))
+       (list (pair 0 91) (pair 93 255) (pair -128 -1))))
+    (first %cu-fl-arg-lexer-cell)))
+
+; --- the directive -----------------------------------------------------------
 
 ; "%-05.2f" -> (dir #t #t 5 2 "f"). The token always opens with % and, when the
 ; format ran out, holds nothing else.
@@ -225,38 +261,48 @@
         (let ((b (bit-and (first d) 255)))
           (list (%cu-b->s b) (rest d) #f b))))))
 
-; S with its escapes decoded: (RUN . STOPPED?), STOPPED? when a \c ended it.
-; The run is bytes and their count (cu/prims.x) because \0 names a NUL, which
-; no text can carry past: the bytes are gathered as the reader names them and
-; packed once.
+; S with its escapes decoded: (RUNS . STOPPED?), STOPPED? when a \c ended it.
+; RUNS is a list of runs -- bytes and their count (cu/prims.x) -- one a
+; piece: a literal token is its own text, by reference, and an escape is the
+; byte it names, which may be the NUL no text carries past.  The pieces are
+; written one after another rather than packed, since packing them meant
+; gathering every literal byte in x.  The tokens are the arg lexer's, whose
+; escapes open as echo's do; VARIANT names them to the decoder.
 (def %cu-esc-run
-  (fn (_ s variant) (%cu-esc-walk s 0 variant () 0)))
+  (fn (_ s variant)
+    (def go
+      (fn (self ts acc)
+        (if (null? ts) (pair (reverse acc) #f)
+          (let ((tag (first (first ts))) (tx (first (rest (first ts)))))
+            (if (eq? tag (lit lit))
+              (self (rest ts) (pair (%cu-run-of tx) acc))
+              (let ((e (%cu-esc-token tag tx variant)))
+                (if (%cu-nth 2 e)
+                  (pair (reverse acc) #t)
+                  (self (rest ts) (pair (%cu-esc-one-run e) acc)))))))))
+    (if (= (byte-len s) 0) (pair () #f)
+      (go ((%cu-fl-arg-lexer) read-str s) ()))))
 
-(def %cu-esc-walk
-  (fn (self s i variant acc n)
+; RUNS onto ACC, which holds runs in reverse, so the first run goes deepest
+(def %cu-runs-onto
+  (fn (self runs acc)
+    (if (null? runs) acc (self (rest runs) (pair (first runs) acc)))))
+
+; RUNS to FD, in order, each through the counted write
+(def %cu-write-runs
+  (fn (self fd runs)
+    (if (null? runs) ()
+      (do (file-write-run fd (first runs)) (self fd (rest runs))))))
+
+; The escape token TX, read by the rule TAG names, decoded as %cu-esc-at
+; decodes one: the tag says what the token holds, so an octal or hex escape
+; goes straight to its digits.
+(def %cu-esc-token
+  (fn (_ tag tx variant)
     (match
-      ((>= i (byte-len s)) (pair (%cu-run-bytes (reverse acc) n) #f))
-      ((not (= (byte-at s i) 92))
-        (self s (+ i 1) variant (pair (byte-at s i) acc) (+ n 1)))
-      (#t
-        (let ((e (%cu-esc-at s i variant)))
-          (let ((next (%cu-esc-onto e acc)))
-            (if (%cu-nth 2 e)
-              (pair (%cu-run-bytes (reverse (first next)) (+ n (rest next))) #t)
-              (self s (%cu-nth 1 e) variant (first next) (+ n (rest next))))))))))
-
-; the bytes of the escape E onto ACC, which holds the run in reverse: the one
-; byte E names, or the bytes of the text it stands for where it names none.
-; Answers (ACC . HOW-MANY-MORE).
-(def %cu-esc-onto
-  (fn (_ e acc)
-    (if (>= (%cu-nth 3 e) 0) (pair (pair (%cu-nth 3 e) acc) 1)
-      (%cu-bytes-onto (first e) 0 acc 0))))
-
-(def %cu-bytes-onto
-  (fn (self s i acc n)
-    (if (>= i (byte-len s)) (pair acc n)
-      (self s (+ i 1) (pair (byte-at s i) acc) (+ n 1)))))
+      ((eq? tag (lit oct)) (%cu-esc-number tx 1 variant))
+      ((eq? tag (lit hex)) (%cu-esc-hex-at tx 2 0))
+      (#t (%cu-esc-at tx 0 variant)))))
 
 ; the run one escape stands for, for a caller that holds the escape alone
 (def %cu-esc-one-run
@@ -264,108 +310,34 @@
     (if (>= (%cu-nth 3 e) 0) (pair (%cu-b->s (%cu-nth 3 e)) 1)
       (%cu-run-of (first e)))))
 
-; --- the escape, as the reader scores it --------------------------------------
-;
-; The token runs past the backslash for a number: three octal digits at most,
-; or x and two hex digits at most.  Each state marks a match and goes on, so
-; the longest one wins and \x with no digit after it is still the two bytes it
-; was written as.
-
-(def %cu-fl-t-esc
-  (list
-    (pair (lit analyse)
-      (fn (_ buffer score chr)
-        (if (= chr 92) (%seq (%score-set score 1 buffer) %cu-fl-esc-tail) ())))
-    (pair (lit read)
-      (fn (_ . args) (%cu-fl-escape (%cu-fl-token (first args)))))))
-
-(def %cu-fl-esc-tail ())
-(def %cu-fl-esc-oct2 ())
-(def %cu-fl-esc-oct3 ())
-(def %cu-fl-esc-hex1 ())
-(def %cu-fl-esc-hex2 ())
-(set! %cu-fl-esc-tail
-  (fn (_ buffer score chr)
-    (match
-      ((%cu-esc-octal? chr) (%seq (%score-set score 1 buffer) %cu-fl-esc-oct2))
-      ((= chr 120) (%seq (%score-set score 1 buffer) %cu-fl-esc-hex1))   ; x
-      (#t (%score-set score 1 buffer)))))
-(set! %cu-fl-esc-oct2
-  (fn (_ buffer score chr)
-    (if (%cu-esc-octal? chr)
-      (%seq (%score-set score 1 buffer) %cu-fl-esc-oct3)
-      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
-(set! %cu-fl-esc-oct3
-  (fn (_ buffer score chr)
-    (if (%cu-esc-octal? chr) (%score-set score 1 buffer)
-      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
-(set! %cu-fl-esc-hex1
-  (fn (_ buffer score chr)
-    (if (%cu-esc-hex? chr) (%seq (%score-set score 1 buffer) %cu-fl-esc-hex2)
-      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
-(set! %cu-fl-esc-hex2
-  (fn (_ buffer score chr)
-    (if (%cu-esc-hex? chr) (%score-set score 1 buffer)
-      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
-
-(%cu-fl-type! "CU-FMT-ESC" %cu-fl-t-esc)
-
 ; the token an escape scored, as the run it stands for -- bytes and their
 ; count, since \0 names a NUL that no text carries past; a \c answers the stop
 ; its caller acts on, since a format's output ends there.  A caller that reads
 ; no escapes is handed the token's own text.
 (def %cu-fl-escape
-  (fn (_ tok)
-    (if (not (first %cu-fl-escapes)) tok
+  (fn (_ tag tok escapes?)
+    (if (not escapes?) tok
       (if (< (byte-len tok) 2) tok
-        (let ((e (%cu-esc-at tok 0 (lit format))))
+        (let ((e (%cu-esc-token tag tok (lit format))))
           (if (%cu-nth 2 e) (lit stop) (%cu-esc-one-run e)))))))
-
-; --- the literal run ---------------------------------------------------------
-
-(def %cu-fl-plain?
-  (fn (_ c) (if (= c 37) #f (not (= c 92)))))
-
-(def %cu-fl-lit-more ())
-(set! %cu-fl-lit-more
-  (fn (_ buffer score chr)
-    (if (%cu-fl-plain? chr)
-      %cu-fl-lit-more
-      (%seq (%buffer-unread buffer) (%score-set score 1 buffer)))))
-
-(def %cu-fl-t-lit
-  (list
-    (pair (lit analyse)
-      (fn (_ buffer score chr)
-        (if (%cu-fl-plain? chr)
-          (%seq (%score-set score 1 buffer) %cu-fl-lit-more)
-          ())))
-    (pair (lit read)
-      (fn (_ . args) (%cu-fl-token (first args))))))
-(%cu-fl-type! "CU-FMT-LIT" %cu-fl-t-lit)
-
-(def %cu-fl-base!
-  (fn (_)
-    (if (null? (first %cu-fl-raw))
-      (let ((b (Base make-tok)))
-        (do
-          ((fn (self l)
-             (if (null? l) ()
-               (do (self (rest l))
-                   (Base make-type b (first (first l)) (rest (first l))))))
-           (first %cu-fl-types))
-          (set-first! %cu-fl-raw (Base raw-of b))
-          (first %cu-fl-raw)))
-      (first %cu-fl-raw))))
 
 ; A format -> its tokens. ESCAPES? says whether a backslash means something
 ; here: printf says yes, a strftime format says no.
 (def %cu-fmt-parse
   (fn (_ fmt escapes?)
-    (do
-      (set-first! %cu-fl-escapes escapes?)
-      (if (= (byte-len fmt) 0) ()
-        (%cu-fl-read-string (%cu-fl-base!) fmt)))))
+    (def go
+      (fn (self ts acc)
+        (if (null? ts) (reverse acc)
+          (let ((tag (first (first ts))) (tx (first (rest (first ts)))))
+            (self (rest ts)
+              (pair
+                (match
+                  ((eq? tag (lit dir)) (%cu-fl-directive tx))
+                  ((eq? tag (lit lit)) tx)
+                  (#t (%cu-fl-escape tag tx escapes?)))
+                acc))))))
+    (if (= (byte-len fmt) 0) ()
+      (go ((%cu-fl-lexer) read-str fmt) ()))))
 
 ; the parts of a directive token, named
 (def %cu-fmt-dir? (fn (_ t) (if (pair? t) (eq? (first t) (lit dir)) #f)))
