@@ -399,3 +399,187 @@
     (string-concat
       (pair (if header? (line (map (fn (_ c) (first (rest c))) shown)) "")
             (rows procs 0 ())))))
+
+; --- pidof, pgrep, pkill ----------------------------------------------------
+;
+; busybox's procps/pidof.c and procps/pgrep.c over the same process records
+; ps reads.  They read a process's arguments and executable only when its
+; name has not already decided, and sweep every 32 processes, as ps does.
+
+; S after its last /, by libc's strrchr
+(def %pg-base
+  (fn (_ s)
+    (%ps-resolve!)
+    (def slash (%cu-ptr-call %ps-c-strrchr s 47))   ; 47 is /, a byte for the FFI
+    (if (= slash 0) s (substring s (+ (- slash (%ps-addr s)) 1) (byte-len s)))))
+
+; the first N bytes of S, or all of it when it is shorter
+(def %pg-head (fn (_ s n) (if (> (byte-len s) n) (substring s 0 n) s)))
+
+; each process in turn, a sweep every 32
+(def %pg-each
+  (fn (_ procs f)
+    (def go
+      (fn (self ps k)
+        (if (null? ps) ()
+          (do (if (= (% k 32) 31) (%cu-heap-collect) ())
+              (f (first ps))
+              (self (rest ps) (+ k 1))))))
+    (go procs 0)))
+
+; busybox's find_pid_by_name, for one process P: its comm as comm_match reads
+; it -- the first 15 bytes, and when comm fills them, the basename of argv[1]
+; settles it -- or the basename of argv[0], or its executable, whole when NAME
+; is a path and by basename otherwise
+(def %pg-named?
+  (fn (_ p name)
+    (def comm (Assoc get (lit comm) p))
+    (def pid (Assoc get (lit pid) p))
+    (def args (fn (_) (host-args pid)))
+    (def by-comm
+      (if (str=? (%pg-head comm 15) (%pg-head name 15))
+        (if (< (byte-len comm) 15) #t
+          (let ((a (args)))
+            (if (if (null? a) #t (null? (rest a))) #f (str=? (%pg-base (first (rest a))) name))))
+        #f))
+    (match
+      (by-comm #t)
+      ((let ((a (args))) (if (null? a) #f (str=? (%pg-base (first a)) name))) #t)
+      (#t (let ((e (host-exe pid)))
+            (if (null? e) #f
+              (str=? (if (= (byte-at name 0) #\/) e (%pg-base e)) name)))))))
+
+(def %cu-pidof
+  (fn (_ argv stdin-thunk)
+    (def o (%cu-opts "pidof" argv))
+    (def me (host-process (sys-getpid)))
+    ; -o %PPID is pidof's parent
+    (def omits
+      (map (fn (_ v) (if (str=? v "%PPID") (Assoc get (lit ppid) me) (%cu-range-number "pidof" v 0 4294967295)))
+           (Opts values o "-o")))
+    (if (List any? null? omits) 1
+      (let ((procs (%ps-sorted (host-processes))) (single (Opts on? o "-s")))
+        (def found
+          (fn (_ name)
+            (def hits (list ()))
+            (%pg-each procs (fn (_ p) (if (%pg-named? p name) (set-first! hits (pair (Assoc get (lit pid) p) (first hits))) ())))
+            ; busybox reverses its scan, newest pid first
+            (def kept (filter (fn (_ pid) (not (List includes? pid omits))) (first hits)))
+            (if (if single (not (null? kept)) #f) (list (first kept)) kept)))
+        (def all (List flat-map found (Opts operands o)))
+        (if (null? all) 1
+          (do (display (string-append (%cu-join-with (map %cu-int->str all) " ") "\n")) 0))))))
+
+
+; busybox's get_signum: a number below the kernel's 32, or a name in any case,
+; with or without SIG -- EXIT is 0.  nil for neither.
+(def %pg-signum
+  (fn (_ s)
+    (def up (Str8 upcase s))
+    (def bare (if (Str8 starts? "SIG" up) (substring up 3 (byte-len up)) up))
+    (def n (if (if (> (byte-len s) 0) (if (>= (byte-at s 0) #\0) (<= (byte-at s 0) #\9) #f) #f)
+             (%cu-num-prefix s) ()))
+    (match
+      ((not (null? n)) (if (if (str=? (%cu-int->str n) s) (< n 32) #f) n ()))
+      ((str=? bare "EXIT") 0)
+      (#t (let ((hit (List find (fn (_ e) (str=? (first e) bare)) (sys-signals))))
+            (if (null? hit) () (rest hit)))))))
+
+(def %cu-pgrep (fn (_ argv stdin-thunk) (%pg-run "pgrep" argv)))
+
+; the signal ARGV's first word names as -SIGNAL, or nil; the parse (cu/cli.x)
+; sets that word aside for pkill
+(def %pg-signal-word
+  (fn (_ argv)
+    (if (if (null? argv) #f (if (> (byte-len (first argv)) 1) (= (byte-at (first argv) 0) #\-) #f))
+      (%pg-signum (substring (first argv) 1 (byte-len (first argv)))) ())))
+
+(def %cu-pkill
+  (fn (_ argv stdin-thunk)
+    (def sig (%pg-signal-word argv))
+    (%pg-run-with "pkill" argv (if (null? sig) cu-sigterm sig))))
+
+(def %pg-run (fn (_ applet argv) (%pg-run-with applet argv cu-sigterm)))
+
+(def %pg-run-with
+  (fn (_ applet argv signo)
+    (def o (%cu-opts applet argv))
+    (def on (fn (_ f) (Opts on? o f)))
+    (def num (fn (_ f) (let ((v (Opts value o f))) (if (null? v) -1 (%cu-range-number applet v 0 2147483647)))))
+    (def ops (Opts operands o))
+    (def sid-asked (num "-s"))
+    (def ppid (num "-P"))
+    (def me (sys-getpid))
+    (match
+      ((if (null? sid-asked) #t (null? ppid)) 1)
+      ((if (str=? applet "pkill") (on "-l") #f)
+        ; busybox's print_signames
+        (do (map (fn (_ e) (display (string-concat (list (%cu-pad-left (%cu-int->str (rest e)) 2) ") " (first e) "\n"))))
+                 (sys-signals))
+            0))
+      ((if (< sid-asked 0) (if (< ppid 0) (if (null? ops) #t (not (null? (rest ops)))) #f) #f)
+        (%cu-usage applet))
+      (#t (%pg-scan applet o ops
+            (if (= sid-asked 0) (Assoc get (lit sid) (host-process me)) sid-asked)
+            ppid me signo)))))
+
+; busybox's pgrep_main from the scan on: each process but this one, its argv[0]
+; -- or with -f its whole command line, a control byte or NUL as a space --
+; tried against the pattern, then its comm; -x wants the whole of it; -v turns
+; the match over; -o stops at the first and -n acts on the last
+(def %pg-scan
+  (fn (_ applet o ops sid ppid me signo)
+    (def on (fn (_ f) (Opts on? o f)))
+    (def rx (if (null? ops) () (re-compile (first ops))))
+    (def full (on "-f"))
+    (def invert (on "-v"))
+    (def matches?
+      (fn (_ cmd)
+        (let ((m (re-search rx cmd)))
+          (if (null? m) #f
+            (if (on "-x") (if (= (first m) 0) (= (first (rest m)) (byte-len cmd)) #f) #t)))))
+    (def act
+      (fn (_ p shown)
+        (def pid (Assoc get (lit pid) p))
+        (if (str=? applet "pgrep")
+          (display (string-append (%cu-int->str pid)
+                     (if (if (on "-l") #t (on "-a")) (string-append " " shown "\n") "\n")))
+          (do (sys-kill pid signo)
+              (if (on "-e") (display (string-concat (list shown " killed (pid " (%cu-int->str pid) ")\n"))) ())))))
+    (def found (list ()))
+    (def stop (list #f))
+    (%pg-each (%ps-sorted (host-processes))
+      (fn (_ p)
+        (def pid (Assoc get (lit pid) p))
+        (def ids-differ (if (if (>= ppid 0) (not (= ppid (Assoc get (lit ppid) p))) #f) #t
+                          (if (>= sid 0) (not (= sid (Assoc get (lit sid) p))) #f)))
+        (if (match ((first stop) #t) ((= pid me) #t) (invert #f) (#t ids-differ)) ()
+          (let ((args (host-args pid)) (comm (Assoc get (lit comm) p)))
+            (def cmd (if (null? args) comm
+                       (if full (%pg-spaced (%cu-join-with args " ")) (first args))))
+            ; what -l and -a print: the first argument, or with -f -a the line
+            (def shown (if (null? args) comm (if (if full (on "-a")) cmd (first args))))
+            (def by-cmd (if (null? rx) #f (matches? cmd)))
+            (def m (match ((null? rx) #t) (by-cmd #t) ((null? args) #f) (#t (matches? comm))))
+            (def hit (if (if invert ids-differ #f) #t (if invert (not m) m)))
+            ; a match by comm shows comm
+            (def shown2 (match ((not hit) shown) ((null? rx) shown) ((null? args) shown) (by-cmd shown) (#t comm)))
+            (if hit
+              (if (on "-n") (set-first! found (pair p shown2))
+                (do (act p shown2)
+                    (set-first! found (pair p shown2))
+                    (if (on "-o") (set-first! stop #t) ())))
+              ())))))
+    (if (null? (first found)) 1
+      (do (if (on "-n") (act (first (first found)) (rest (first found))) ()) 0))))
+
+; S with each control byte as a space, as busybox prints a command line
+(def %pg-spaced
+  (fn (_ s)
+    (%ps-resolve!)
+    (def end (byte-len s))
+    (def go
+      (fn (self i acc)
+        (if (>= i end) (bytes->str (reverse acc))
+          (let ((b (byte-at s i))) (self (+ i 1) (pair (if (< b 32) #\space b) acc))))))
+    (if (= (%cu-ptr-call %ps-c-strcspn s %ps-controls) end) s (go 0 ()))))

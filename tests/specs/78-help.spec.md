@@ -2457,6 +2457,72 @@ stderr:
 status 0
 ```
 
+### pidof
+
+```cu
+(run (list "pidof" "--help") "")
+```
+---
+```output
+Usage: pidof [-s] [-o PID] [NAME]...|
+|
+List PIDs of all processes with names that match NAMEs|
+|
+	-s	Show only one PID|
+	-o PID	Omit given pid|
+		Use %PPID to omit pid of pidof's parent|
+stderr:
+status 0
+```
+
+### pgrep
+
+```cu
+(run (list "pgrep" "--help") "")
+```
+---
+```output
+Usage: pgrep [-flanovx] [-s SID|-P PPID|PATTERN]|
+|
+Display process(es) selected by regex PATTERN|
+|
+	-l	Show command name too|
+	-a	Show command line too|
+	-f	Match against entire command line|
+	-n	Show the newest process only|
+	-o	Show the oldest process only|
+	-v	Negate the match|
+	-x	Match whole name (not substring)|
+	-s	Match session ID (0 for current)|
+	-P	Match parent process ID|
+stderr:
+status 0
+```
+
+### pkill
+
+```cu
+(run (list "pkill" "--help") "")
+```
+---
+```output
+Usage: pkill [-l|-SIGNAL] [-xfvnoe] [-s SID|-P PPID|PATTERN]|
+|
+Send signal to processes selected by regex PATTERN|
+|
+	-l	List all signals|
+	-x	Match whole name (not substring)|
+	-f	Match against entire command line|
+	-s SID	Match session ID (0 for current)|
+	-P PPID	Match parent process ID|
+	-v	Negate the match|
+	-n	Signal the newest process only|
+	-o	Signal the oldest process only|
+	-e	Display name and PID of the process being killed|
+stderr:
+status 0
+```
+
 ### test
 
 ```cu

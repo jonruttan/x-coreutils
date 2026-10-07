@@ -1462,6 +1462,49 @@
             (Opts hidden (Opts flag "-e" ""))
             (Opts hidden (Opts flag "-f" ""))
             (Opts hidden (Opts flag "-l" ""))))))
+    (pair "pidof"
+      (list
+        (Opts declare "pidof" "[-s] [-o PID] [NAME]..."
+          "List PIDs of all processes with names that match NAMEs"
+          (list
+            (Opts flag "-s" "Show only one PID")
+            (Opts arg "-o" "PID" "Omit given pid")
+            (Opts text "\t\tUse %PPID to omit pid of pidof's parent")))))
+    ; busybox's getopt32 string, "vlafxones:+P:+", is pgrep's and pkill's
+    ; both; each help text names what it documents
+    (pair "pgrep"
+      (list
+        (Opts declare "pgrep" "[-flanovx] [-s SID|-P PPID|PATTERN]"
+          "Display process(es) selected by regex PATTERN"
+          (list
+            (Opts flag "-l" "Show command name too")
+            (Opts flag "-a" "Show command line too")
+            (Opts flag "-f" "Match against entire command line")
+            (Opts flag "-n" "Show the newest process only")
+            (Opts flag "-o" "Show the oldest process only")
+            (Opts flag "-v" "Negate the match")
+            (Opts flag "-x" "Match whole name (not substring)")
+            (Opts text "\t-s\tMatch session ID (0 for current)")
+            (Opts text "\t-P\tMatch parent process ID")
+            (Opts hidden (Opts arg "-s" "" ""))
+            (Opts hidden (Opts arg "-P" "" ""))
+            (Opts hidden (Opts flag "-e" ""))))))
+    (pair "pkill"
+      (list
+        (Opts declare "pkill" "[-l|-SIGNAL] [-xfvnoe] [-s SID|-P PPID|PATTERN]"
+          "Send signal to processes selected by regex PATTERN"
+          (list
+            (Opts flag "-l" "List all signals")
+            (Opts flag "-x" "Match whole name (not substring)")
+            (Opts flag "-f" "Match against entire command line")
+            (Opts arg "-s" "SID" "Match session ID (0 for current)")
+            (Opts arg "-P" "PPID" "Match parent process ID")
+            (Opts flag "-v" "Negate the match")
+            (Opts flag "-n" "Signal the newest process only")
+            (Opts flag "-o" "Signal the oldest process only")
+            (Opts flag "-e" "Display name and PID of the process being killed")
+            (Opts hidden (Opts flag "-a" ""))))
+        (lit signal)))
     ; test and its spellings are an EXPRESSION, not an option list: the operators
     ; are declared so the parse knows them, and the applet parses the expression
     ; itself.  --help is an operand, as POSIX has it.

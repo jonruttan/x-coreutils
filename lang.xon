@@ -46,6 +46,9 @@
 ; text (x-lang#920), which read vi's ex addresses (cu/vi-ex.x): a /pattern/
 ; whose closing / may be missing is one token.
 ;
+; v0.26.0: (Host exe pid) and (Sys signals) (x-lang#926), which pidof matches
+; an executable through and pkill names its signals through (cu/procps.x).
+;
 ; v0.26.0 is the release the suite and its sweep bounds are measured on.
 (requires-release "v0.26.0")
 
