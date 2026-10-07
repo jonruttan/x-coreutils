@@ -34,11 +34,12 @@
   (fn (_ s i size end)
     (def go
       (fn (self k acc)
-        (if (>= k size) acc
-          (self (+ k 1)
-            (+ acc
-              (bit-shl (if (< (+ i k) end) (byte-at s (+ i k)) 0)
-                (* 8 k)))))))
+        (if (%cu< k size)
+          (self (%cu+ k 1)
+            (%cu+ acc
+              (%cu<< (if (%cu< (%cu+ i k) end) (byte-at s (%cu+ i k)) 0)
+                (%cu* 8 k))))
+          acc)))
     (go 0 0)))
 
 ; the signed reading of the same word
@@ -92,13 +93,34 @@
         (#t (lit c)))
       size)))
 
+; the fields of the bytes FROM to STOP of S.  A field of one byte is read from
+; a table made the first time its type is asked for, so a line costs a lookup
+; a byte rather than the making of a field.
 (def %cu-od-line
   (fn (_ s from stop od-type size)
-    (def go
-      (fn (self i acc)
-        (if (>= i stop) (string-concat (reverse acc))
-          (self (+ i size) (pair (%cu-od-field s i stop od-type size) acc)))))
-    (go from ())))
+    (if (= size 1)
+      (let ((t (%cu-od-table od-type)))
+        (let go ((i (%cu- stop 1)) (acc ()))
+          (if (%cu< i from) (string-concat acc)
+            (go (%cu- i 1) (pair (t (byte-at s i)) acc)))))
+      (let go ((i from) (acc ()))
+        (if (%cu< i stop)
+          (go (%cu+ i size) (pair (%cu-od-field s i stop od-type size) acc))
+          (string-concat (reverse acc)))))))
+
+; the one-byte fields of each type asked for so far: (TYPE . VECTOR), the
+; vector holding byte B's field at B
+(def %cu-od-tables (list ()))
+
+(def %cu-od-table
+  (fn (_ od-type)
+    (let ((e (Assoc entry od-type (first %cu-od-tables))))
+      (if (null? e)
+        (let ((t (vec-build 256
+                   (fn (_ b) (%cu-od-field (bytes->str (list b)) 0 1 od-type 1)))))
+          (do (set-first! %cu-od-tables (pair (pair od-type t) (first %cu-od-tables)))
+              t))
+        (rest e)))))
 
 (def %cu-od-radix
   (fn (_ s)
@@ -269,31 +291,29 @@
 ; the historical alphabet: six bits plus 32, with 0 written as a
 ; backtick rather than a space (the busybox table)
 (def %cu-uu-char
-  (fn (_ v) (if (= v 0) 96 (+ v 32))))
+  (fn (_ v) (if (= v 0) 96 (%cu+ v 32))))
 
 (def %cu-uu-value
-  (fn (_ b) (if (= b 96) 0 (bit-and (- b 32) 63))))
+  (fn (_ b) (if (= b 96) 0 (%cu& (%cu- b 32) 63))))
 
+; the line of the historical encoding that bytes FROM to STOP of S make: its
+; length character, then four characters a step of three bytes, the bytes past
+; STOP read as 0
 (def %cu-uu-line
   (fn (_ s from stop)
-    (def n (- stop from))
+    (def at (fn (_ i) (if (%cu< i stop) (byte-at s i) 0)))
     (def go
       (fn (self i acc)
-        (if (>= i stop) (string-concat (reverse acc))
-          (let ((b0 (byte-at s i)))
-            (def b1 (if (< (+ i 1) stop) (byte-at s (+ i 1)) 0))
-            (def b2 (if (< (+ i 2) stop) (byte-at s (+ i 2)) 0))
-            (def w (+ (bit-shl b0 16) (+ (bit-shl b1 8) b2)))
-            (self (+ i 3)
-              (pair
-                (list->string
-                  (list
-                    (integer->char (%cu-uu-char (bit-and (bit-shr w 18) 63)))
-                    (integer->char (%cu-uu-char (bit-and (bit-shr w 12) 63)))
-                    (integer->char (%cu-uu-char (bit-and (bit-shr w 6) 63)))
-                    (integer->char (%cu-uu-char (bit-and w 63)))))
-                acc))))))
-    (string-append (%cu-b->s (%cu-uu-char n)) (go from ()))))
+        (if (%cu< i stop)
+          (do (def w (%cu+ (%cu<< (byte-at s i) 16)
+                           (%cu+ (%cu<< (at (%cu+ i 1)) 8) (at (%cu+ i 2)))))
+              (self (%cu+ i 3)
+                (pair (%cu-uu-char (%cu& w 63))
+                  (pair (%cu-uu-char (%cu& (%cu>> w 6) 63))
+                    (pair (%cu-uu-char (%cu& (%cu>> w 12) 63))
+                      (pair (%cu-uu-char (%cu>> w 18)) acc))))))
+          (bytes->str (reverse acc)))))
+    (go from (list (%cu-uu-char (%cu- stop from))))))
 
 ; uuencode [FILE] NAME: one operand or two.  There is no GNU build here to
 ; measure; BSD's refuses any other count with a usage line and 1, and so does
@@ -384,21 +404,21 @@
   (fn (_ line)
     (def n (%cu-uu-value (byte-at line 0)))
     (def end (byte-len line))
+    (def at (fn (_ i) (if (%cu< i end) (%cu-uu-value (byte-at line i)) 0)))
+    ; a step: four characters, the three bytes they spell, as many of those as
+    ; the line still owes kept
     (def go
       (fn (self i out acc)
-        (if (if (>= i end) #t (>= out n)) (reverse acc)
-          (let ((c0 (%cu-uu-value (byte-at line i))))
-            (def c1 (if (< (+ i 1) end) (%cu-uu-value (byte-at line (+ i 1))) 0))
-            (def c2 (if (< (+ i 2) end) (%cu-uu-value (byte-at line (+ i 2))) 0))
-            (def c3 (if (< (+ i 3) end) (%cu-uu-value (byte-at line (+ i 3))) 0))
-            (def w (+ (bit-shl c0 18)
-                     (+ (bit-shl c1 12) (+ (bit-shl c2 6) c3))))
-            (def three
-              (list (bit-and (bit-shr w 16) 255)
-                    (bit-and (bit-shr w 8) 255)
-                    (bit-and w 255)))
-            (def keep (let ((left (- n out))) (if (> left 3) 3 left)))
-            (self (+ i 4) (+ out 3) (%cu-onto (%cu-take three keep) acc))))))
+        (if (if (%cu< i end) (%cu< out n) #f)
+          (do (def w (%cu+ (%cu<< (at i) 18)
+                           (%cu+ (%cu<< (at (%cu+ i 1)) 12)
+                                 (%cu+ (%cu<< (at (%cu+ i 2)) 6) (at (%cu+ i 3))))))
+              (def left (%cu- n out))
+              (def one (pair (%cu& (%cu>> w 16) 255) acc))
+              (def two (if (%cu< 1 left) (pair (%cu& (%cu>> w 8) 255) one) one))
+              (self (%cu+ i 4) (%cu+ out 3)
+                (if (%cu< 2 left) (pair (%cu& w 255) two) two)))
+          (reverse acc))))
     (if (= n 0) () (go 1 0 ()))))
 
 ; the list BS, in order, onto the front of ACC, which is newest first
