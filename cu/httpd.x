@@ -66,6 +66,8 @@
 (def %hd-cgi-env ())          ; (NAME . VALUE) a script is given from the headers
 (def %hd-hdr-total 0)         ; the header lines' bytes so far
 (def %hd-interp ())           ; the interpreter a *.ext: line names for the file
+(def %hd-authorized -1)       ; -1 until a check, then #t or #f
+(def %hd-remote-user ())      ; the user an Authorization: line named and a check passed
 
 ; the response is over: the run's top answers 0
 (def %hd-done (fn (_) (Err raise (lit httpd-done) "" ())))
@@ -438,10 +440,96 @@
       ((= ch #\.) (set! %hd-mime (pair (pair (substring line 0 colon) after) %hd-mime)))
       ((if (= ch #\*) (if (> (byte-len line) 1) (= (byte-at line 1) #\.) #f) #f)
         (set! %hd-scripts (pair (pair (substring line 1 colon) after) %hd-scripts)))
-      ((= ch #\/)
-        (set! %hd-auth (pair (pair (string-append (if first? "" (string-append "/" path)) (substring line 0 colon)) after)
-                             %hd-auth)))
+      ((= ch #\/) (%hd-conf-auth! (string-append (if first? "" (string-append "/" path)) (substring line 0 colon)) after))
       (#t (%hd-conf-error line file)))))
+
+; /path:user:pass, the path made canonical, kept longest first -- and ahead of
+; an earlier line of the same length
+(def %hd-conf-auth!
+  (fn (_ path up)
+    (def c (let ((p (%hd-canon path))) (if (null? p) "/" p)))
+    (def key (if (if (> (byte-len c) 1) (= (byte-at c (- (byte-len c) 1)) #\/) #f)
+               (substring c 0 (- (byte-len c) 1)) c))
+    (set! %hd-auth
+      (let go ((as %hd-auth))
+        (if (if (null? as) #t (>= (byte-len key) (byte-len (first (first as)))))
+          (pair (pair key up) as)
+          (pair (first as) (go (rest as))))))))
+
+; check_user_passwd: UP (user:pass) against the /path: lines whose path is a
+; prefix of PATH at a slash.  Once one matches, only lines of the same path are
+; asked.  A user of * matches anyone; a password of * is the user's in
+; /etc/passwd or /etc/shadow; one starting $1$ is compared as md5-crypt, any
+; other as plain text.  #t when one agrees -- the user then named -- or when no
+; line's path matches at all
+(def %hd-check-auth
+  (fn (_ path up)
+    (let go ((as %hd-auth) (prev ()))
+      (if (null? as) (null? prev)
+        (let ((dir (first (first as))) (entry (rest (first as))))
+          (match
+            ((if (null? prev) #f (not (string=? prev dir))) (go (rest as) prev))
+            ((not (%hd-auth-prefix? dir path)) (go (rest as) prev))
+            ((%hd-auth-entry-ok? entry up)
+              (do (set! %hd-remote-user (let ((c (%wget-index up #\: 0))) (if (null? c) up (substring up 0 c))))
+                  #t))
+            (#t (go (rest as) dir))))))))
+
+(def %hd-auth-prefix?
+  (fn (_ dir path)
+    (if (= (byte-len dir) 1) #t
+      (if (Str8 starts? dir path)
+        (if (= (byte-len path) (byte-len dir)) #t (= (byte-at path (byte-len dir)) #\/))
+        #f))))
+
+; one user:pass line against UP
+(def %hd-auth-entry-ok?
+  (fn (_ entry up)
+    (def uc (%wget-index up #\: 0))
+    (def ec (%wget-index entry #\: 0))
+    (match
+      ((if (null? uc) #t (null? ec)) (string=? entry up))
+      ((if (= (byte-at entry 0) #\*) #f (not (string=? (substring entry 0 (+ ec 1)) (substring up 0 (+ uc 1))))) #f)
+      (#t (%hd-password-ok? (substring entry (+ ec 1) (byte-len entry))
+                            (substring up 0 uc) (substring up (+ uc 1) (byte-len up)))))))
+
+(def %hd-password-ok?
+  (fn (_ stored user given)
+    (match
+      ((Str8 starts? "*" stored)
+        (let ((sys (%hd-system-password user)))
+          (if (null? sys) #f (%hd-crypt-equal? given sys))))
+      ((if (> (byte-len stored) 1) (if (= (byte-at stored 0) #\$)
+                                     (if (= (byte-at stored 1) #\y) #t (%hd-alnum? (byte-at stored 1))) #f) #f)
+        (%hd-crypt-equal? given stored))
+      (#t (string=? given stored)))))
+
+; pw_encrypt GIVEN with STORED's salt, compared: $1$ is md5-crypt; the other
+; hashes busybox reads ($5$, $6$, $y$, DES) never agree here
+(def %hd-crypt-equal?
+  (fn (_ given stored)
+    (if (Str8 starts? "$1$" stored)
+      (string=? (%cu-md5-crypt given (substring stored 3 (byte-len stored))) stored)
+      #f)))
+
+; USER's password field from /etc/passwd, or /etc/shadow's when that is x or *
+(def %hd-system-password
+  (fn (_ user)
+    (def pw (%hd-passwd-field "/etc/passwd" user))
+    (if (if (null? pw) #f (if (string=? pw "x") #t (string=? pw "*")))
+      (let ((sp (%hd-passwd-field "/etc/shadow" user))) (if (null? sp) pw sp))
+      pw)))
+
+(def %hd-passwd-field
+  (fn (_ file user)
+    (if (not (%t-permitted? file 4)) ()
+      (let go ((ls (%cu-lines (file-read-all file))))
+        (if (null? ls) ()
+          (let ((l (first ls)) (c (%wget-index (first ls) #\: 0)))
+            (if (if (null? c) #f (string=? (substring l 0 c) user))
+              (let ((c2 (%wget-index l #\: (+ c 1))))
+                (substring l (+ c 1) (if (null? c2) (byte-len l) c2)))
+              (go (rest ls)))))))))
 
 ; A: or D: AFTER: * (D:* denies every address no A: line allows), or an
 ; address and mask; a malformed one denies every address.  D lines go first
@@ -484,7 +572,8 @@
     (set! %hd-moved ()) (set! %hd-query ())
     (set! %hd-range-start -1) (set! %hd-range-end 0) (set! %hd-range-len -1)
     (set! %hd-if-none-match ()) (set! %hd-etag "")
-    (set! %hd-post-len 0) (set! %hd-cgi-env ()) (set! %hd-hdr-total 0) (set! %hd-interp ())))
+    (set! %hd-post-len 0) (set! %hd-cgi-env ()) (set! %hd-hdr-total 0) (set! %hd-interp ())
+    (set! %hd-authorized -1) (set! %hd-remote-user ())))
 
 ; handle_incoming_and_exit
 (def %hd-handle
@@ -526,8 +615,11 @@
     ; index page is cgi-bin/index.cgi's, when that may be run
     (def target (if (if dir-url? (not (Str8 starts? "cgi-bin/" rel)) #f) (string-append rel %hd-index) rel))
     (def cgi (%hd-locate url rel target dir-url?))
-    (%hd-headers (string=? method "POST") (not (null? cgi)))
+    (%hd-headers (string=? method "POST") (not (null? cgi)) url)
     (when (string=? (%wget-last-part url) "httpd.conf") (%hd-fail 403))
+    ; no Authorization: line: a path the /path: lines guard is refused
+    (when (number? %hd-authorized) (set! %hd-authorized (%hd-check-auth url "")))
+    (unless %hd-authorized (%hd-fail 401))
     (unless (null? %hd-moved) (%hd-fail 302))
     (unless (null? cgi)
       (%hd-send-cgi (if (eq? cgi (lit index)) "/cgi-bin/index.cgi" url) url method))
@@ -567,7 +659,7 @@
 ; a POST's Content-Length, Range and If-None-Match are read; for a script
 ; every other line is a variable of its environment
 (def %hd-headers
-  (fn (self post? cgi?)
+  (fn (self post? cgi? url)
     (let ((h (%hd-line)))
       (unless (= (byte-len h) 0)
         (do (set! %hd-hdr-total (+ %hd-hdr-total (byte-len h)))
@@ -575,12 +667,32 @@
             (match
               ((if post? (%hd-prefix-ci? h "Content-Length:") #f)
                 (%hd-content-length! (%hd-after-header h "Content-Length:")))
+              ((%hd-prefix-ci? h "Authorization:") (%hd-authorization! h url cgi?))
               ((%hd-prefix-ci? h "Range:") (%hd-range! (%hd-after-header h "Range:")))
               ((%hd-prefix-ci? h "If-None-Match:")
                 (set! %hd-if-none-match (%hd-after-header h "If-None-Match:")))
               (cgi? (%hd-cgi-header! h))
               (#t ()))
-            (self post? cgi?))))))
+            (self post? cgi? url))))))
+
+; Authorization: Basic CREDENTIALS, decoded and checked against URL's /path:
+; lines; any other scheme is a header like the rest
+(def %hd-authorization!
+  (fn (_ h url cgi?)
+    (let ((v (%hd-after-header h "Authorization:")))
+      (if (%hd-prefix-ci? v "Basic")
+        (set! %hd-authorized (%hd-check-auth url (%hd-b64-decode (substring v 5 (byte-len v)))))
+        (when cgi? (%hd-cgi-header! h))))))
+
+; decode_base64: the characters of the alphabet decoded, any other byte passed
+; over, the first = ending it
+(def %hd-b64-decode
+  (fn (_ s)
+    (def eq (%wget-index s #\= 0))
+    (def body (if (null? eq) s (substring s 0 eq)))
+    (def out (list ""))
+    (%cu-b64-decode-to body (fn (_ r) (set-first! out (string-append (first out) (substring (first r) 0 (rest r))))) #t)
+    (first out)))
 
 ; a POST's length: digits and nothing else, or a 400
 (def %hd-content-length!
@@ -651,7 +763,8 @@
               (pair "SERVER_PROTOCOL" "HTTP/1.1")
               (pair "GATEWAY_INTERFACE" "CGI/1.1"))
         (%hd-remote-env)
-        (if (> %hd-post-len 0) (list (pair "CONTENT_LENGTH" (%cu-int->str %hd-post-len))) ())))
+        (if (> %hd-post-len 0) (list (pair "CONTENT_LENGTH" (%cu-int->str %hd-post-len))) ())
+        (if (null? %hd-remote-user) () (list (pair "REMOTE_USER" %hd-remote-user) (pair "AUTH_TYPE" "Basic")))))
     (def from (sys-pipe))
     (def to (sys-pipe))
     (def pid (sys-fork))
@@ -875,6 +988,8 @@
           (let ((s (%hd-pct-decode (Opts value o "-d") #f)))
             (do (file-write 1 (let ((z (%wget-index s 0 0))) (if (null? z) s (substring s 0 z)))) 0)))
         ((not (null? (Opts value o "-e"))) (do (file-write 1 (%hd-encode (Opts value o "-e"))) 0))
+        ((not (null? (Opts value o "-m")))
+          (do (file-write 1 (string-append (%cu-md5-crypt (Opts value o "-m") (%hd-salt 8)) "\n")) 0))
         (#t (%hd-run o stdin-thunk))))))
 
 (def %hd-run
@@ -932,3 +1047,13 @@
 (def %hd-chdir
   (fn (_ dir) (let ((r (guard (_ -1) (Sys chdir dir)))) (if (number? r) (>= r 0) #t))))
 
+
+; crypt_make_rand64encoded: N characters of crypt's base-64, from /dev/urandom
+(def %hd-salt
+  (fn (_ n)
+    (let ((fd (file-open-read "/dev/urandom")))
+      (let ((r (file-read-run fd n)))
+        (do (file-close fd)
+            (string-concat
+              (map (fn (_ b) (let ((v (bit-and b 63))) (substring %cu-crypt64 v (+ v 1))))
+                   (%cu-bytes (first r) 0 (rest r)))))))))

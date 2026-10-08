@@ -1280,6 +1280,309 @@ The requested method is not recognized
 [status 0]
 ```
 
+## Basic authentication
+
+### a guarded path with no credentials: 401 and the realm
+
+```cu
+(hd-case "mkdir secret && printf 's\\n' > secret/f.txt && printf '/secret:bob:pw\\n' > c.conf" "GET /secret/f.txt HTTP/1.0\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 401 Unauthorized<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+WWW-Authenticate: Basic realm="Web Server Authentication"<CR>
+<CR>
+<HTML><HEAD><TITLE>401 Unauthorized</TITLE></HEAD>
+<BODY><H1>401 Unauthorized</H1>
+
+</BODY></HTML>
+[status 0]
+```
+
+### the right user and password
+
+```cu
+(hd-case "mkdir secret && printf 's\\n' > secret/f.txt && printf '/secret:bob:pw\\n' > c.conf" "GET /secret/f.txt HTTP/1.0\\r\\nAuthorization: Basic Ym9iOnB3\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-2"<CR>
+Content-Length: 2<CR>
+<CR>
+s
+[status 0]
+```
+
+### a wrong password
+
+```cu
+(hd-case "mkdir secret && printf 's\\n' > secret/f.txt && printf '/secret:bob:pw\\n' > c.conf" "GET /secret/f.txt HTTP/1.0\\r\\nauthorization: basic Ym9iOmJhZA==\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 401 Unauthorized<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+WWW-Authenticate: Basic realm="Web Server Authentication"<CR>
+<CR>
+<HTML><HEAD><TITLE>401 Unauthorized</TITLE></HEAD>
+<BODY><H1>401 Unauthorized</H1>
+
+</BODY></HTML>
+[status 0]
+```
+
+### -r names the realm
+
+```cu
+(hd-case "mkdir secret && printf 's\\n' > secret/f.txt && printf '/secret:bob:pw\\n' > c.conf" "GET /secret/f.txt HTTP/1.0\\r\\n\\r\\n" (list "-c" "c.conf" "-r" "Back.Room"))
+```
+---
+```output
+HTTP/1.1 401 Unauthorized<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+WWW-Authenticate: Basic realm="Back.Room"<CR>
+<CR>
+<HTML><HEAD><TITLE>401 Unauthorized</TITLE></HEAD>
+<BODY><H1>401 Unauthorized</H1>
+
+</BODY></HTML>
+[status 0]
+```
+
+### a path no line guards
+
+```cu
+(hd-case "printf '/secret:bob:pw\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
+### a prefix that ends inside a name guards nothing
+
+```cu
+(hd-case "mkdir secret && printf 's\\n' > secret/f.txt && printf '/sec:bob:pw\\n' > c.conf" "GET /secret/f.txt HTTP/1.0\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-2"<CR>
+Content-Length: 2<CR>
+<CR>
+s
+[status 0]
+```
+
+### an md5-crypt password, right
+
+```cu
+(hd-case "printf '/:bob:$1$saltsalt$9xy1btjgzLYfb7hivXtC//\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\nAuthorization: Basic Ym9iOnNlY3JldA==\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
+### an md5-crypt password, wrong
+
+```cu
+(hd-case "printf '/:bob:$1$saltsalt$9xy1btjgzLYfb7hivXtC//\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\nAuthorization: Basic Ym9iOnB3\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 401 Unauthorized<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+WWW-Authenticate: Basic realm="Web Server Authentication"<CR>
+<CR>
+<HTML><HEAD><TITLE>401 Unauthorized</TITLE></HEAD>
+<BODY><H1>401 Unauthorized</H1>
+
+</BODY></HTML>
+[status 0]
+```
+
+### a user of * takes anyone
+
+```cu
+(hd-case "printf '/:*:pw\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\nAuthorization: Basic YW55b25lOnB3\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
+### the longest path decides: the shorter one's user is refused
+
+```cu
+(hd-case "mkdir secret && printf 's\\n' > secret/f.txt && printf '/:a:1\\n/secret:b:2\\n' > c.conf" "GET /secret/f.txt HTTP/1.0\\r\\nAuthorization: Basic YTox\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 401 Unauthorized<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+WWW-Authenticate: Basic realm="Web Server Authentication"<CR>
+<CR>
+<HTML><HEAD><TITLE>401 Unauthorized</TITLE></HEAD>
+<BODY><H1>401 Unauthorized</H1>
+
+</BODY></HTML>
+[status 0]
+```
+
+### the longest path decides: its own user is let in
+
+```cu
+(hd-case "mkdir secret && printf 's\\n' > secret/f.txt && printf '/:a:1\\n/secret:b:2\\n' > c.conf" "GET /secret/f.txt HTTP/1.0\\r\\nAuthorization: Basic Yjoy\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-2"<CR>
+Content-Length: 2<CR>
+<CR>
+s
+[status 0]
+```
+
+### a subdirectory's httpd.conf guards a file in it
+
+```cu
+(hd-case "printf 'x\\n' > sub/f.txt && printf '/f.txt:bob:pw\\n' > sub/httpd.conf" "GET /sub/f.txt HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 401 Unauthorized<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+WWW-Authenticate: Basic realm="Web Server Authentication"<CR>
+<CR>
+<HTML><HEAD><TITLE>401 Unauthorized</TITLE></HEAD>
+<BODY><H1>401 Unauthorized</H1>
+
+</BODY></HTML>
+[status 0]
+```
+
+### a scheme other than Basic
+
+```cu
+(hd-case "printf '/:bob:pw\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\nAuthorization: Digest Ym9iOnB3\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 401 Unauthorized<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+WWW-Authenticate: Basic realm="Web Server Authentication"<CR>
+<CR>
+<HTML><HEAD><TITLE>401 Unauthorized</TITLE></HEAD>
+<BODY><H1>401 Unauthorized</H1>
+
+</BODY></HTML>
+[status 0]
+```
+
+### an E401 page
+
+```cu
+(hd-case "printf '/:bob:pw\\nE401:no.html\\n' > c.conf && printf '<p>who?</p>\\n' > no.html" "GET /r.txt HTTP/1.0\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 401 Unauthorized<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+WWW-Authenticate: Basic realm="Web Server Authentication"<CR>
+<CR>
+<p>who?</p>
+[status 0]
+```
+
+### REMOTE_USER and AUTH_TYPE for a script
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\n%%s %%s\\\\n\" \"$REMOTE_USER\" \"$AUTH_TYPE\"\\n' > cgi-bin/u && chmod +x cgi-bin/u && printf '/cgi-bin:bob:pw\\n' > c.conf" "GET /cgi-bin/u HTTP/1.0\\r\\nAuthorization: Basic Ym9iOnB3\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+bob Basic
+[status 0]
+```
+
+### -m: a $1$ hash with eight characters of salt, which hashes the password again the same
+
+```cu
+(do (proc-run (list "/bin/sh" "-c" "mkdir -p /tmp/x-cu-hd"))
+    (sys-dup2 1 9)
+    (def hm-o (file-open-write "/tmp/x-cu-hd/out"))
+    (sys-dup2 hm-o 1)
+    (def hm-st (cu-run (list "httpd" "-m" "pass") ""))
+    (sys-dup2 9 1) (file-close hm-o)
+    (def hm (file-read-all "/tmp/x-cu-hd/out"))
+    (list hm-st (byte-len hm) (substring hm 0 3) (substring hm 11 12) (substring hm 34 35)
+          (string=? (%cu-md5-crypt "pass" (substring hm 3 11)) (substring hm 0 34))))
+```
+---
+    (0 35 "$1$" "$" "\n" #t)
+
+### md5-crypt as busybox's cryptpw -m md5 writes it
+
+```cu
+(list (%cu-md5-crypt "secret" "saltsalt") (%cu-md5-crypt "x" "ab") (%cu-md5-crypt "a-much-longer-password-than-16-bytes" "12345678") (%cu-md5-crypt "" "xyz"))
+```
+---
+    ("$1$saltsalt$9xy1btjgzLYfb7hivXtC//" "$1$ab$e2KlfqG5YBMTjSz7XF.Eu1" "$1$12345678$Wdd9w490ag62uQQwem2Yr0" "$1$xyz$kjXWClpYD0.j9bPLUk/Ii.")
+
 ## a listener
 
 ### -f -v -p PORT: two connections, each answered, -v naming each peer

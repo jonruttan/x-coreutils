@@ -1099,7 +1099,7 @@
               (Opts hidden (Opts arg "-P" "" "")))
             (%cu-hidden-flags (list "-c" "--verbose"))
             (%cu-hidden-args (list "--continue" "--username" "--password" "--port"))))))
-    ; httpd's rows are laid out by hand; -u and -m are not taken yet
+    ; httpd's rows are laid out by hand; -u is not taken yet
     (pair "httpd"
       (list
         (Opts declare "httpd"
@@ -1116,10 +1116,11 @@
               (Opts text "\t-r REALM\tAuthentication Realm for Basic Authentication")
               (Opts text "\t-h HOME\t\tHome directory (default .)")
               (Opts text "\t-c FILE\t\tConfiguration file (default {/etc,HOME}/httpd.conf)")
+              (Opts text "\t-m STRING\tMD5 crypt STRING")
               (Opts text "\t-e STRING\tHTML encode STRING")
               (Opts text "\t-d STRING\tURL decode STRING"))
             (%cu-hidden-flags (list "-i" "-f" "-v"))
-            (%cu-hidden-args (list "-p" "-M" "-K" "-r" "-h" "-c" "-e" "-d"))))))
+            (%cu-hidden-args (list "-p" "-M" "-K" "-r" "-h" "-c" "-m" "-e" "-d"))))))
     ; -p is NOT here on purpose; cu/sys2.x says why
     (pair "xargs"
       (list
