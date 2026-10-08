@@ -163,6 +163,83 @@
         (fn (_ hs block) (%cu-md5-block hs block))))
     (string-concat (map (fn (_ w) (%cu-word-hex-le w)) hs))))
 
+; MD5 of a list of bytes, as a list of sixteen bytes: what md5-crypt hashes
+; holds NULs, which a string would not carry
+(def %cu-md5-bytes
+  (fn (_ bytes)
+    (def n (length bytes))
+    (def zeros (let go ((k (% (- 119 (% n 64)) 64)) (acc ())) (if (= k 0) acc (go (- k 1) (pair 0 acc)))))
+    (def len-bytes (let go ((shift 0) (acc ()))
+                     (if (> shift 56) (reverse acc)
+                       (go (+ shift 8) (pair (bit-and (bit-shr (* n 8) shift) 255) acc)))))
+    (def hs (%cu-hash-blocks (append bytes (list 128) zeros len-bytes)
+              (list 1732584193 4023233417 2562383102 271733878)
+              (fn (_ st block) (%cu-md5-block st block))))
+    (let go ((ws (reverse hs)) (acc ()))
+      (if (null? ws) acc
+        (let ((w (first ws)))
+          (go (rest ws)
+              (pair (bit-and w 255) (pair (bit-and (bit-shr w 8) 255)
+                (pair (bit-and (bit-shr w 16) 255) (pair (bit-and (bit-shr w 24) 255) acc))))))))))
+
+; the bytes of S from A to B
+(def %cu-bytes
+  (fn (_ s a b)
+    (let go ((i (- b 1)) (acc ()))
+      (if (< i a) acc (go (- i 1) (pair (bit-and (byte-at s i) 255) acc))))))
+
+; --- md5-crypt ------------------------------------------------------------------
+;
+; The $1$ password hash busybox's md5_crypt writes (FreeBSD's): KEY with up to
+; eight bytes of SALT, mixed through a thousand rounds of MD5, the sixteen bytes
+; at the end written in crypt's base-64 in its own order.
+
+(def %cu-crypt64 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+
+; N base-64 characters of V, its low six bits first
+(def %cu-to64
+  (fn (self v n)
+    (if (= n 0) ""
+      (string-append (substring %cu-crypt64 (bit-and v 63) (+ (bit-and v 63) 1))
+                     (self (bit-shr v 6) (- n 1))))))
+
+(def %cu-md5-crypt
+  (fn (_ key salt)
+    (def pw (%cu-bytes key 0 (byte-len key)))
+    (def s (let ((end (let go ((i 0)) (if (if (< i (byte-len salt)) (if (< i 8) (not (= (byte-at salt i) #\$)) #f) #f) (go (+ i 1)) i))))
+             (%cu-bytes salt 0 end)))
+    (def alt (%cu-md5-bytes (append pw s pw)))
+    (def lead
+      (append pw (%cu-bytes "$1$" 0 3) s
+        (let go ((pl (length pw)) (acc ()))
+          (if (<= pl 0) acc (go (- pl 16) (append acc (%cu-take alt (if (> pl 16) 16 pl))))))
+        (let go ((i (length pw)) (acc ()))
+          (if (= i 0) acc
+            (go (bit-shr i 1) (append acc (list (if (= (bit-and i 1) 1) 0 (first pw)))))))))
+    (def final
+      (let go ((i 0) (f (%cu-md5-bytes lead)))
+        (if (= i 1000) f
+          (do (when (= (% i 50) 49) (%cu-sweep! i))
+          (go (+ i 1)
+              (%cu-md5-bytes
+                (append (if (= (bit-and i 1) 1) pw f)
+                        (if (= (% i 3) 0) () s)
+                        (if (= (% i 7) 0) () pw)
+                        (if (= (bit-and i 1) 1) f pw))))))))
+    (def b (fn (_ k) (%cu-nth k final)))
+    (string-concat
+      (list "$1$" (bytes->str s) "$"
+            (%cu-to64 (+ (bit-shl (b 0) 16) (bit-shl (b 6) 8) (b 12)) 4)
+            (%cu-to64 (+ (bit-shl (b 1) 16) (bit-shl (b 7) 8) (b 13)) 4)
+            (%cu-to64 (+ (bit-shl (b 2) 16) (bit-shl (b 8) 8) (b 14)) 4)
+            (%cu-to64 (+ (bit-shl (b 3) 16) (bit-shl (b 9) 8) (b 15)) 4)
+            (%cu-to64 (+ (bit-shl (b 4) 16) (bit-shl (b 10) 8) (b 5)) 4)
+            (%cu-to64 (b 11) 2)))))
+
+; the first N of L
+(def %cu-take
+  (fn (self l n) (if (if (= n 0) #t (null? l)) () (pair (first l) (self (rest l) (- n 1))))))
+
 ; --- SHA-1 --------------------------------------------------------------------
 
 (def %cu-sha1-schedule

@@ -1930,6 +1930,7 @@ Listen for incoming HTTP requests|
 	-r REALM	Authentication Realm for Basic Authentication|
 	-h HOME		Home directory (default .)|
 	-c FILE		Configuration file (default {/etc,HOME}/httpd.conf)|
+	-m STRING	MD5 crypt STRING|
 	-e STRING	HTML encode STRING|
 	-d STRING	URL decode STRING|
 stderr:
