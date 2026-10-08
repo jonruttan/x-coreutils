@@ -54,8 +54,14 @@
     (def w (fn (_ one two four)
              (match ((= size 1) one) ((= size 2) two) (#t four))))
     (if (eq? od-type (lit c)) (%cu-pad-left (%cu-od-char (byte-at s i)) 4)
-      (let ((v (%cu-od-word s i size end)))
+      (do (def v (%cu-od-word s i size end))
+        ; a word of up to four bytes is below 2^32, so its digits are made on
+        ; the integer prims; a wider one may pass a machine word
         (match
+          ((if (eq? od-type (lit o)) (%cu< size 5) #f)
+            (%cu-od-digits v 8 (w 3 6 11) #t))
+          ((if (eq? od-type (lit x)) (%cu< size 5) #f)
+            (%cu-od-digits v 16 (w 2 4 8) #t))
           ((eq? od-type (lit o))
             (string-append " " (%cu-pad-zero (%cu-oct->str v) (w 3 6 11))))
           ((eq? od-type (lit x))
@@ -69,9 +75,23 @@
   (fn (_ n radix)
     (match
       ((eq? radix (lit n)) "")
-      ((eq? radix (lit d)) (%cu-pad-zero (%cu-int->str n) 7))
-      ((eq? radix (lit x)) (%cu-pad-zero (%cu-hexs n) 7))
-      (#t (%cu-pad-zero (%cu-oct->str n) 7)))))
+      ((eq? radix (lit d)) (%cu-od-digits n 10 7 #f))
+      ((eq? radix (lit x)) (%cu-od-digits n 16 7 #f))
+      (#t (%cu-od-digits n 8 7 #f)))))
+
+; N, not below zero, in BASE with lower-case letters, zero-padded to WIDTH
+; digits, after a space under SPACE?: a field or an address made on the
+; integer prims
+(def %cu-od-digits
+  (fn (_ n base width space?)
+    (def go
+      (fn (self t k acc)
+        (if (if (= t 0) (%cu< (%cu- width 1) k) #f)
+          (bytes->str (if space? (pair 32 acc) acc))
+          (do (def d (%cu% t base))
+              (self (%cu/ t base) (%cu+ k 1)
+                (pair (if (%cu< d 10) (%cu+ 48 d) (%cu+ 87 d)) acc))))))
+    (go n 0 ())))
 
 ; -t's argument is a letter and an optional size: o2, x1, c, d4
 (def %cu-od-type
@@ -94,33 +114,54 @@
       size)))
 
 ; the fields of the bytes FROM to STOP of S.  A field of one byte is read from
-; a table made the first time its type is asked for, so a line costs a lookup
-; a byte rather than the making of a field.
+; a table made the first time its type is asked for: one string of the 256
+; fields, each W bytes wide, so a line is the table's bytes gathered and made
+; a string once -- no field made, and no string joined, per byte.
 (def %cu-od-line
   (fn (_ s from stop od-type size)
     (if (= size 1)
-      (let ((t (%cu-od-table od-type)))
-        (let go ((i (%cu- stop 1)) (acc ()))
-          (if (%cu< i from) (string-concat acc)
-            (go (%cu- i 1) (pair (t (byte-at s i)) acc)))))
+      (do (def t (%cu-od-table od-type))
+          (def w (first t))
+          (def tb (rest t))
+          ; field bytes AT to J of the table onto ACC, the last first
+          (def field
+            (fn (self at j acc)
+              (if (%cu< j at) acc (self at (%cu- j 1) (pair (byte-at tb j) acc)))))
+          (def go
+            (fn (self i acc)
+              (if (%cu< i from) (bytes->str acc)
+                (do (def at (%cu* (byte-at s i) w))
+                    (self (%cu- i 1) (field at (%cu- (%cu+ at w) 1) acc))))))
+          (go (%cu- stop 1) ()))
       (let go ((i from) (acc ()))
         (if (%cu< i stop)
           (go (%cu+ i size) (pair (%cu-od-field s i stop od-type size) acc))
           (string-concat (reverse acc)))))))
 
-; the one-byte fields of each type asked for so far: (TYPE . VECTOR), the
-; vector holding byte B's field at B
+; the one-byte fields of each type asked for so far: (TYPE W . TABLE), TABLE
+; the 256 fields in byte order, each W bytes wide -- every one-byte type pads
+; its fields to one width
 (def %cu-od-tables (list ()))
 
 (def %cu-od-table
   (fn (_ od-type)
-    (let ((e (Assoc entry od-type (first %cu-od-tables))))
-      (if (null? e)
-        (let ((t (vec-build 256
-                   (fn (_ b) (%cu-od-field (bytes->str (list b)) 0 1 od-type 1)))))
-          (do (set-first! %cu-od-tables (pair (pair od-type t) (first %cu-od-tables)))
-              t))
-        (rest e)))))
+    (def find
+      (fn (self ts)
+        (match
+          ((null? ts) ())
+          ((eq? (first (first ts)) od-type) (rest (first ts)))
+          (#t (self (rest ts))))))
+    (def have (find (first %cu-od-tables)))
+    (if (null? have)
+      (do (def fields
+            (let go ((b 255) (acc ()))
+              (if (%cu< b 0) acc
+                (go (%cu- b 1)
+                    (pair (%cu-od-field (bytes->str (list b)) 0 1 od-type 1) acc)))))
+          (def t (pair (byte-len (first fields)) (string-concat fields)))
+          (set-first! %cu-od-tables (pair (pair od-type t) (first %cu-od-tables)))
+          t)
+      have)))
 
 (def %cu-od-radix
   (fn (_ s)
