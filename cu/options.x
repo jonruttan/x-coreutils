@@ -1139,6 +1139,20 @@
               (Opts text "\t-d STRING\tURL decode STRING"))
             (%cu-hidden-flags (list "-i" "-f" "-v"))
             (%cu-hidden-args (list "-p" "-M" "-K" "-u" "-r" "-h" "-c" "-m" "-e" "-d"))))))
+    (pair "ftpd"
+      (list
+        (Opts declare "ftpd" "[-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]"
+          "FTP server. Chroots to DIR, if this fails (run by non-root), cds to it.\nIt is an inetd service, inetd.conf line:\n\t21 stream tcp nowait root ftpd ftpd /files/to/serve\nCan be run from tcpsvd:\n\ttcpsvd -vE 0.0.0.0 21 ftpd /files/to/serve"
+          (append
+            (list
+              (Opts text "\t-w\tAllow upload")
+              (Opts text "\t-A\tNo login required, client access occurs under ftpd's UID")
+              (Opts text "\t-a USER\tEnable 'anonymous' login and map it to USER")
+              (Opts text "\t-v\tLog errors to stderr. -vv: verbose log")
+              (Opts text "\t-S\tLog errors to syslog. -SS: verbose log")
+              (Opts text "\t-t,-T N\tIdle and absolute timeout"))
+            (%cu-hidden-flags (list "-w" "-A" "-v" "-S"))
+            (%cu-hidden-args (list "-a" "-t" "-T"))))))
     ; -p is NOT here on purpose; cu/sys2.x says why
     (pair "xargs"
       (list

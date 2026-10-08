@@ -1983,6 +1983,31 @@ stderr:
 status 0
 ```
 
+### ftpd
+
+```cu
+(run (list "ftpd" "--help") "")
+```
+---
+```output
+Usage: ftpd [-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]|
+|
+FTP server. Chroots to DIR, if this fails (run by non-root), cds to it.|
+It is an inetd service, inetd.conf line:|
+	21 stream tcp nowait root ftpd ftpd /files/to/serve|
+Can be run from tcpsvd:|
+	tcpsvd -vE 0.0.0.0 21 ftpd /files/to/serve|
+|
+	-w	Allow upload|
+	-A	No login required, client access occurs under ftpd's UID|
+	-a USER	Enable 'anonymous' login and map it to USER|
+	-v	Log errors to stderr. -vv: verbose log|
+	-S	Log errors to syslog. -SS: verbose log|
+	-t,-T N	Idle and absolute timeout|
+stderr:
+status 0
+```
+
 ### xargs
 
 ```cu
