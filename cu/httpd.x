@@ -22,9 +22,11 @@
 ;
 ; httpd.conf is read from /etc, or from the home directory when /etc has none,
 ; or from -c's file: I: (the index page), H: (the home), A:/D: (the addresses
-; allowed and denied), Ennn: (an error page), .ext: (a type) and *.ext: (an
-; interpreter) take effect.  Basic authentication, the proxy and gzip are not
-; served yet: their lines are read and held.
+; allowed and denied), Ennn: (an error page), .ext: (a type), *.ext: (an
+; interpreter), /path:user:pass (Basic authentication) and P:/url:host/path (a
+; url asked of another server).  A client that takes gzip is sent FILE.gz in
+; FILE's place when there is one.  -u gives up root for USER[:GROUP] once the
+; port is bound.
 ;
 ; A file under cgi-bin/ that can be run, a file an interpreter is named for,
 ; and cgi-bin/index.cgi for a directory with no index page are CGI scripts:
@@ -68,6 +70,8 @@
 (def %hd-interp ())           ; the interpreter a *.ext: line names for the file
 (def %hd-authorized -1)       ; -1 until a check, then #t or #f
 (def %hd-remote-user ())      ; the user an Authorization: line named and a check passed
+(def %hd-accept-gzip #f)      ; an Accept-Encoding: line named gzip
+(def %hd-gzip #f)             ; the file sent is URL.gz in its place
 
 ; the response is over: the run's top answers 0
 (def %hd-done (fn (_) (Err raise (lit httpd-done) "" ())))
@@ -197,6 +201,7 @@
                             "Last-Modified: " (%hd-http-date %hd-last-mod) "\r\n"
                             "ETag: " %hd-etag "\r\n"
                             "Content-Length: " (%cu-int->str size) "\r\n"))))
+                (if %hd-gzip "Content-Encoding: gzip\r\n" "")
                 "\r\n"
                 (if (null? info) ""
                   (string-concat
@@ -210,7 +215,7 @@
 ; send_headers_and_exit: no file's headers, then the end
 (def %hd-fail
   (fn (_ code)
-    (set! %hd-file-size -1)
+    (set! %hd-file-size -1) (set! %hd-gzip #f)
     (%hd-send-headers code)
     (%hd-finish)))
 
@@ -253,10 +258,21 @@
 
 ; send_file_and_exit: URL's file, with its headers when HEADERS?; a page sent
 ; for an error has its headers already
+; URL's descriptor -- or, for a client that takes gzip, URL.gz's when there is
+; one, its size and time then the ones sent
+(def %hd-open-maybe-gz
+  (fn (_ url)
+    (def gz (if %hd-accept-gzip (file-open-read (string-append url ".gz")) -1))
+    (if (< gz 0) (file-open-read url)
+      (do (%hd-stat! (file-stat (string-append url ".gz")))
+          (set! %hd-gzip #t)
+          gz))))
+
 (def %hd-send-file
   (fn (_ url headers?)
-    (def fd (file-open-read url))
+    (def fd (%hd-open-maybe-gz url))
     (when (< fd 0) (if headers? (%hd-fail 404) (%hd-finish)))
+    (when %hd-gzip (set! %hd-range-start -1))
     (set! %hd-etag (string-concat (list "\"" (%hd-hex %hd-last-mod) "-" (%hd-hex %hd-file-size) "\"")))
     (when (if (null? %hd-if-none-match) #f (not (null? (%wget-find %hd-if-none-match %hd-etag))))
       (%hd-fail 304))
@@ -573,7 +589,7 @@
     (set! %hd-range-start -1) (set! %hd-range-end 0) (set! %hd-range-len -1)
     (set! %hd-if-none-match ()) (set! %hd-etag "")
     (set! %hd-post-len 0) (set! %hd-cgi-env ()) (set! %hd-hdr-total 0) (set! %hd-interp ())
-    (set! %hd-authorized -1) (set! %hd-remote-user ())))
+    (set! %hd-authorized -1) (set! %hd-remote-user ()) (set! %hd-accept-gzip #f) (set! %hd-gzip #f)))
 
 ; handle_incoming_and_exit
 (def %hd-handle
@@ -590,6 +606,8 @@
     (when (if (null? sp2) #t (not (Str8 starts? "HTTP/" (substring line (+ sp2 1) (byte-len line)))))
       (%hd-fail 400))
     (def url0 (substring line (+ sp1 1) sp2))
+    (let ((pe (%hd-proxy-entry url0)))
+      (unless (null? pe) (%hd-send-proxy pe url0 method (substring line (+ sp2 1) (byte-len line)))))
     (when (if (= (byte-len url0) 0) #t (not (= (byte-at url0 0) #\/))) (%hd-fail 400))
     ; GET, HEAD and POST; any other method is a 400, as busybox's copy of it
     ; measures its length as nothing
@@ -669,6 +687,8 @@
                 (%hd-content-length! (%hd-after-header h "Content-Length:")))
               ((%hd-prefix-ci? h "Authorization:") (%hd-authorization! h url cgi?))
               ((%hd-prefix-ci? h "Range:") (%hd-range! (%hd-after-header h "Range:")))
+              ((%hd-prefix-ci? h "Accept-Encoding:")
+                (unless (null? (%wget-find h "gzip")) (set! %hd-accept-gzip #t)))
               ((%hd-prefix-ci? h "If-None-Match:")
                 (set! %hd-if-none-match (%hd-after-header h "If-None-Match:")))
               (cgi? (%hd-cgi-header! h))
@@ -735,6 +755,60 @@
     (let ((b (%hd-num-at v (+ (rest a) 1))))
       (unless (if (null? (first b)) #t (if (< (rest b) (byte-len v)) #t (< (first b) (first a))))
         (do (set! %hd-range-start (first a)) (set! %hd-range-end (first b)))))))
+
+; --- the proxy ----------------------------------------------------------------------
+
+; find_proxy_entry: the first P: line (the last read) whose /url URL starts with
+(def %hd-proxy-entry
+  (fn (_ url)
+    (let go ((ps %hd-proxy))
+      (match ((null? ps) ())
+             ((Str8 starts? (first (first ps)) url) (first ps))
+             (#t (go (rest ps)))))))
+
+; P:/url:host[:port]/path: the request asked again of HOST's PORT (80 unless
+; given) as METHOD /path+SUFFIX PROTO, followed by everything else the client
+; sends; what the server answers is passed back as it comes.  A host that does
+; not resolve or a connection refused is a 500
+(def %hd-send-proxy
+  (fn (_ pe url method proto)
+    (when (> %hd-verbose 1) (%hd-log (string-append "proxy:" url)))
+    (def hp (first (rest pe)))
+    (def slash (%wget-index hp #\/ 0))
+    (def host-port (substring hp 0 slash))
+    (def colon (%wget-last-index host-port #\:))
+    (def host (if (null? colon) host-port (substring host-port 0 colon)))
+    (def port (if (null? colon) 80 (%wget-digits (substring host-port (+ colon 1) (byte-len host-port)))))
+    (def ip (if (null? port) () (guard (_ ()) (net-resolve host))))
+    (when (null? ip)
+      (do (%hd-log (string-concat (list "bad address '" host "'"))) (%hd-fail 500)))
+    (def fd (guard (_ ()) (net-connect ip port)))
+    (when (null? fd) (%hd-fail 500))
+    (%hd-write-fd fd (string-concat
+      (list method " " (substring hp slash (byte-len hp))
+            (substring url (byte-len (first pe)) (byte-len url)) " " proto "\r\n")))
+    (def writer (%hd-relay-client fd))
+    (%hd-cgi-pass fd)
+    (sys-kill writer 9) (sys-wait writer)
+    (net-close fd)
+    (%hd-finish)))
+
+(def %hd-write-fd
+  (fn (_ fd s) (file-write-run fd (pair s (byte-len s)))))
+
+; the client's bytes to FD -- what was read past the request line, then the
+; rest to its end -- in a process of its own; answers its pid
+(def %hd-relay-client
+  (fn (_ fd)
+    (let ((pid (sys-fork)))
+      (if (= pid 0)
+        (do (guard (_ ())
+              (do (%hd-write-fd fd %hd-in)
+                  (let go ()
+                    (let ((r (%hd-read)))
+                      (unless (null? r) (do (file-write-run fd r) (go)))))))
+            (sys-exit 0))
+        pid))))
 
 ; --- CGI ---------------------------------------------------------------------------
 
@@ -1002,6 +1076,7 @@
     (set! %hd-proxy ())
     (set! %hd-remote-ip 0)
     (let ((r (Opts value o "-r"))) (set! %hd-realm (if (null? r) "Web Server Authentication" r)))
+    (def ug (let ((u (Opts value o "-u"))) (if (null? u) () (%hd-ugid u))))
     (def home (Opts value o "-h"))
     (set! %hd-home (if (null? home) (sys-getcwd) home))
     (unless (null? home)
@@ -1009,6 +1084,7 @@
         (%hd-die (string-concat (list "can't change directory to '" home "': No such file or directory")))))
     (def inetd? (Opts on? o "-i"))
     (def lfd (if inetd? () (%hd-open-server (Opts value o "-p"))))
+    (unless (if inetd? #t (null? ug)) (%hd-drop! ug))
     (%hd-parse-conf "/etc" #t)
     (sys-signal 13 cu-sig-ign)
     (if inetd?
@@ -1057,3 +1133,46 @@
             (string-concat
               (map (fn (_ b) (let ((v (bit-and b 63))) (substring %cu-crypt64 v (+ v 1))))
                    (%cu-bytes (first r) 0 (rest r)))))))))
+
+; --- -u ---------------------------------------------------------------------------
+
+; get_uidgid: USER[:GROUP] as (UID . GID) -- a number, or a name the system
+; knows; a user's GID its login group (the uid itself for a number no account
+; has) unless GROUP names one -- or the run ends naming it unknown
+(def %hd-ugid
+  (fn (_ spec)
+    (def colon (%wget-index spec #\: 0))
+    (def user (if (null? colon) spec (substring spec 0 colon)))
+    (def group (if (null? colon) () (substring spec (+ colon 1) (byte-len spec))))
+    (def unknown (fn (_) (%hd-die (string-append "unknown user/group " spec))))
+    (def n (%hd-whole-number user))
+    (def ug
+      (if (null? n)
+        (let ((uid (sys-user-id user)))
+          (if (null? uid) (unknown) (pair uid (sys-user-group user))))
+        (let ((name (sys-user-name n)))
+          (pair n (if (null? name) n (sys-user-group name))))))
+    (if (null? group) ug
+      (let ((g (%hd-whole-number group)))
+        (if (null? g)
+          (let ((gid (sys-group-id group))) (if (null? gid) (unknown) (pair (first ug) gid)))
+          (pair (first ug) g))))))
+
+; S as a number when it is digits and nothing else
+(def %hd-whole-number
+  (fn (_ s)
+    (let ((n (%hd-num-at s 0))) (if (if (null? (first n)) #f (= (rest n) (byte-len s))) (first n) ()))))
+
+; dropping privileges after binding: setgroups to the one group, setgid,
+; setuid -- each failure the end of the run, named as busybox names it
+(def %hd-drop!
+  (fn (_ ug)
+    (def lib (%cu-dlopen () 1))
+    (def fail? (fn (_ r sym)
+      (let ((e (%ss-call r (lit call) sym)))
+        (unless (null? e) (%hd-die (string-concat (list sym ": " (file-err-text e))))))))
+    (def buf (%str-make-raw 4))
+    (%cu-ptr-set! (%cu-str->ptr buf) 0 (rest ug) 4)
+    (fail? (%cu-ptr-call (%cu-dlsym lib "setgroups") 1 (%cu-str->ptr buf)) "setgroups")
+    (fail? (%cu-ptr-call (%cu-dlsym lib "setgid") (rest ug)) "setgid")
+    (fail? (%cu-ptr-call (%cu-dlsym lib "setuid") (first ug)) "setuid")))
