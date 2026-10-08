@@ -60,7 +60,11 @@
 ; Also (Host exe pid) and (Sys signals) (x-lang#926), which pidof matches
 ; an executable through and pkill names its signals through (cu/procps.x).
 ;
-; v0.26.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.26.0")
+; v0.27.0: the Linux reader takes a process's processor from its stat file's
+; field 39 (x-lang#961), so 85-pidof-pgrep-pkill's fixture /proc writes the
+; 50 fields a kernel writes after the comm.
+;
+; v0.27.0 is the release the suite and its sweep bounds are measured on.
+(requires-release "v0.27.0")
 
 (entry "run.x")
