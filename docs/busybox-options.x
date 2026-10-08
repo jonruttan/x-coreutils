@@ -153,6 +153,8 @@
     (list "ftpget" (%letters "cvupP"))
     (list "ftpput" (%letters "cvupP"))
     (list "httpd" (%letters "cdhermupMKifv"))
+    (list "tcpsvd" (%letters "hEvcCbul"))
+    (list "udpsvd" (%letters "hEvcul"))
     (list "which" (%letters "a"))
     (list "who" (%letters "aH"))
     (list "whois" (%letters "ihp"))

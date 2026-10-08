@@ -5009,6 +5009,156 @@ Listen for incoming HTTP requests
 status 1
 ```
 
+### tcpsvd -~
+
+```cu
+(run (list "tcpsvd" "-~") "")
+```
+---
+```output
+stderr:
+tcpsvd: unrecognized option: ~
+Usage: tcpsvd [-hEv] [-c N] [-C N[:MSG]] [-b N] [-u USER] [-l NAME] IP PORT PROG
+
+Create TCP socket, bind to IP:PORT and listen for incoming connections.
+Run PROG for each connection.
+
+	IP PORT		IP:PORT to listen on
+	PROG ARGS	Program to run
+	-u USER[:GRP]	Change to user/group after bind
+	-c N		Up to N connections simultaneously (default 30)
+	-b N		Allow backlog of approximately N TCP SYNs (default 20)
+	-C N[:MSG]	Allow only up to N connections from the same IP:
+			new connections from this IP address are closed
+			immediately, MSG is written to the peer before close
+	-E		Don't set up environment
+	-h		Look up peer's hostname
+	-l NAME		Local hostname (else look up local hostname in DNS)
+	-v		Verbose
+
+Environment if no -E:
+PROTO='TCP'
+TCPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)
+TCPLOCALADDR='ip:port'
+TCPORIGDSTADDR='ip:port' of destination before firewall
+	Useful for REDIRECTed-to-local connections:
+	iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8080
+TCPCONCURRENCY=num_of_connects_from_this_ip
+If -h:
+TCPLOCALHOST='hostname' (-l NAME is used if specified)
+TCPREMOTEHOST='hostname'
+status 1
+```
+
+### tcpsvd --nope
+
+```cu
+(run (list "tcpsvd" "--nope") "")
+```
+---
+```output
+stderr:
+tcpsvd: unrecognized option: nope
+Usage: tcpsvd [-hEv] [-c N] [-C N[:MSG]] [-b N] [-u USER] [-l NAME] IP PORT PROG
+
+Create TCP socket, bind to IP:PORT and listen for incoming connections.
+Run PROG for each connection.
+
+	IP PORT		IP:PORT to listen on
+	PROG ARGS	Program to run
+	-u USER[:GRP]	Change to user/group after bind
+	-c N		Up to N connections simultaneously (default 30)
+	-b N		Allow backlog of approximately N TCP SYNs (default 20)
+	-C N[:MSG]	Allow only up to N connections from the same IP:
+			new connections from this IP address are closed
+			immediately, MSG is written to the peer before close
+	-E		Don't set up environment
+	-h		Look up peer's hostname
+	-l NAME		Local hostname (else look up local hostname in DNS)
+	-v		Verbose
+
+Environment if no -E:
+PROTO='TCP'
+TCPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)
+TCPLOCALADDR='ip:port'
+TCPORIGDSTADDR='ip:port' of destination before firewall
+	Useful for REDIRECTed-to-local connections:
+	iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8080
+TCPCONCURRENCY=num_of_connects_from_this_ip
+If -h:
+TCPLOCALHOST='hostname' (-l NAME is used if specified)
+TCPREMOTEHOST='hostname'
+status 1
+```
+
+### udpsvd -~
+
+```cu
+(run (list "udpsvd" "-~") "")
+```
+---
+```output
+stderr:
+udpsvd: unrecognized option: ~
+Usage: udpsvd [-hEv] [-c N] [-u USER] [-l NAME] IP PORT PROG
+
+Create UDP socket, bind to IP:PORT and wait for incoming packets.
+Run PROG for each packet, redirecting all further packets with same
+peer ip:port to it.
+
+	IP PORT		IP:PORT to listen on
+	PROG ARGS	Program to run
+	-u USER[:GRP]	Change to user/group after bind
+	-c N		Up to N connections simultaneously (default 30)
+	-E		Don't set up environment
+	-h		Look up peer's hostname
+	-l NAME		Local hostname (else look up local hostname in DNS)
+	-v		Verbose
+
+Environment if no -E:
+PROTO='UDP'
+UDPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)
+UDPLOCALADDR='ip:port'
+If -h:
+UDPLOCALHOST='hostname' (-l NAME is used if specified)
+UDPREMOTEHOST='hostname'
+status 1
+```
+
+### udpsvd --nope
+
+```cu
+(run (list "udpsvd" "--nope") "")
+```
+---
+```output
+stderr:
+udpsvd: unrecognized option: nope
+Usage: udpsvd [-hEv] [-c N] [-u USER] [-l NAME] IP PORT PROG
+
+Create UDP socket, bind to IP:PORT and wait for incoming packets.
+Run PROG for each packet, redirecting all further packets with same
+peer ip:port to it.
+
+	IP PORT		IP:PORT to listen on
+	PROG ARGS	Program to run
+	-u USER[:GRP]	Change to user/group after bind
+	-c N		Up to N connections simultaneously (default 30)
+	-E		Don't set up environment
+	-h		Look up peer's hostname
+	-l NAME		Local hostname (else look up local hostname in DNS)
+	-v		Verbose
+
+Environment if no -E:
+PROTO='UDP'
+UDPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)
+UDPLOCALADDR='ip:port'
+If -h:
+UDPLOCALHOST='hostname' (-l NAME is used if specified)
+UDPREMOTEHOST='hostname'
+status 1
+```
+
 ### httpd -c
 
 ```cu
