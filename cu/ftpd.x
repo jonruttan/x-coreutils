@@ -33,6 +33,7 @@
 (def %fd-rest 0)
 (def %fd-rnfr ())
 (def %fd-local-ip "0.0.0.0")
+(def %fd-in 0)                 ; the control connection: net-stdin-socket's fd
 (def %fd-libc ())
 
 (def %fd-c
@@ -102,10 +103,10 @@
     (match
       ((not (null? crlf)) (%fd-take (+ crlf 2)))
       ((>= (byte-len %fd-inbuf) 8192) (%fd-take 8192))
-      (#t (let ((ready (sys-poll (list (pair 0 (list (lit in)))) (if (= %fd-timeout 0) -1 (* 1000 %fd-timeout)))))
+      (#t (let ((ready (sys-poll (list (pair %fd-in (list (lit in)))) (if (= %fd-timeout 0) -1 (* 1000 %fd-timeout)))))
             (if (null? ready)
               (do (%fd-raw "421 Timeout\r\n") (sys-exit 1))
-              (let ((r (file-read-run 0 4096)))
+              (let ((r (file-read-run %fd-in 4096)))
                 (if (= (rest r) 0)
                   (if (= (byte-len %fd-inbuf) 0) (sys-exit 0) (%fd-take (byte-len %fd-inbuf)))
                   (do (set! %fd-inbuf (string-append %fd-inbuf (substring (first r) 0 (rest r))))
@@ -240,7 +241,7 @@
     (def hi (if (null? c1) () (%wget-digits (substring raw (+ c1 1) c2))))
     (if (if (null? hi) #t (if (> lo 255) #t (> hi 255)))
       (%fd-err 500)
-      (do (set! %fd-port (pair (first (net-peer 0)) (+ (* hi 256) lo))) (%fd-ok 200)))))
+      (do (set! %fd-port (pair (first (net-peer %fd-in)) (+ (* hi 256) lo))) (%fd-ok 200)))))
 
 (def %fd-rest-cmd
   (fn (_)
@@ -497,17 +498,6 @@
 
 ; --- the applet -------------------------------------------------------------------
 
-; the control connection's own address, or nil when stdin is not a socket
-(def %fd-sock-ip
-  (fn (_)
-    (def sa (%str-make-raw 16))
-    (def len (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr len) 0 16 4)
-    (def r (Sys %sign-fold (%cu-ptr-call (%fd-c "getsockname") 0 (%cu-str->ptr sa) (%cu-str->ptr len))))
-    (if (if (< r 0) #t (not (= (byte-at sa (if os-darwin? 1 0)) 2))) ()
-      (string-concat (list (%cu-int->str (byte-at sa 4)) "." (%cu-int->str (byte-at sa 5)) "."
-                           (%cu-int->str (byte-at sa 6)) "." (%cu-int->str (byte-at sa 7)))))))
-
 (def %cu-ftpd
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "ftpd" argv))
@@ -530,9 +520,10 @@
     (set! %fd-timeout (let ((t (Opts value o "-t"))) (if (null? t) 120 (%fd-num t))))
     (def abs (let ((t (Opts value o "-T"))) (if (null? t) 3600 (%fd-num t))))
     (when (if (> abs 0) (> %fd-timeout abs) #f) (set! %fd-timeout abs))
-    (def ip (%fd-sock-ip))
-    (if (null? ip) (%cu-usage "ftpd")
-      (do (set! %fd-local-ip ip)
+    (def in (net-stdin-socket))
+    (if (null? in) (%cu-usage "ftpd")
+      (do (set! %fd-in in)
+          (set! %fd-local-ip (first (net-sock-addr in)))
           (set! %fd-say? (> v 0))
           (when (if (> v 0) #t (> vs 0))
             (set! %fd-name (string-concat (list "ftpd[" (%cu-int->str (sys-getpid)) "]"))))
