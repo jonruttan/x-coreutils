@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and thirty-five applets: parity with busybox's `coreutils`
+**A hundred and thirty-eight applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -15,21 +15,21 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget` (http, https and ftp), `whois`, `nc`,
 `nslookup`, `tftp`, `ftpget`, `ftpput` and `httpd`, its `uptime`, `free`,
-`ps`, `pidof`, `pgrep` and `pkill`, its `who`, `w` and `users`, and its
-`tar`.**
+`ps`, `pidof`, `pgrep` and `pkill`, its `who`, `w` and `users`, its
+`tar`, and its `gzip`, `gunzip` and `zcat`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
     echo env expand expr factor false find flock fold free fsync ftpget
-    ftpput getopt groups hd head hexdump httpd id install join link ln
-    logname ls md5sum mkdir mkfifo mktemp more mv nc nice nl nohup nologin
-    nproc nslookup od paste pgrep pidof pipe_progress pkill printenv
-    printf ps pwd readlink realpath reset rev rm rmdir run-parts seq
-    setsid sha1sum sha256sum sha512sum shred shuf sleep sort split stat
-    strings sum sync tac tail tar tee test tftp time timeout touch tr tree
-    true truncate tsort tty ttysize unexpand uniq unix2dos unlink uname
-    uptime users uudecode uuencode uuidgen usleep vi w wc wget which who
-    whois whoami xargs xxd yes
+    ftpput getopt groups gunzip gzip hd head hexdump httpd id install join
+    link ln logname ls md5sum mkdir mkfifo mktemp more mv nc nice nl nohup
+    nologin nproc nslookup od paste pgrep pidof pipe_progress pkill
+    printenv printf ps pwd readlink realpath reset rev rm rmdir run-parts
+    seq setsid sha1sum sha256sum sha512sum shred shuf sleep sort split
+    stat strings sum sync tac tail tar tee test tftp time timeout touch tr
+    tree true truncate tsort tty ttysize unexpand uniq unix2dos unlink
+    uname uptime users uudecode uuencode uuidgen usleep vi w wc wget which
+    who whois whoami xargs xxd yes zcat
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -213,7 +213,8 @@ parsed by x-lang's `Opts`.
     cu/httpd.x        httpd: busybox's web server -- files, httpd.conf, ranges, ETags, inetd mode or a listener
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order
-    cu/tar.x          tar: ustar archives listed, extracted and made
+    cu/tar.x          tar: ustar archives listed, extracted and made, z through gzip
+    cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
     cu/procps.x       uptime, free, ps, pidof, pgrep and pkill, over the Host
     cu/options.x      each applet's option declaration and help text
     cu/cli.x          the applet table, the option parse, cu-run, cu-main

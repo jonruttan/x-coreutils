@@ -44,7 +44,10 @@
 ;
 ; v0.25.0: Lexer until rules that take their close or run to the end of the
 ; text (x-lang#920), which read vi's ex addresses (cu/vi-ex.x): a /pattern/
-; whose closing / may be missing is one token.
+; whose closing / may be missing is one token.  Zlib's streams, deflate and
+; inflate a buffer at a time (x-lang#921), on an engine whose ptr call passes
+; eight arguments (x-engine-c#86), which gzip, gunzip, zcat and tar's z
+; (cu/gzip.x) read and write through.
 ;
 ; v0.26.0: the Lexer pattern rule, and a token that took the end text is cut
 ; back to the text (x-lang#929), which read printf, date and stat's format

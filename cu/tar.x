@@ -12,7 +12,9 @@
 ; directory first, v names what is done (twice, or with t, in ls -l's form),
 ; O writes the members' contents to standard output.  The archive is ustar
 ; with GNU's long names (an L or K block before the header) and busybox reads
-; pax headers' path and linkpath too.
+; pax headers' path and linkpath too.  z reads and writes it through gzip
+; (cu/gzip.x), as does a with a name ending gz; data beginning with gzip's
+; magic is read through it without z, as busybox finds it.
 ;
 ; Members are matched against the names given as busybox's find_list_entry2
 ; does: a glob against as many leading parts of the path as the glob has
@@ -576,6 +578,15 @@
 
 ; --- writing an archive ---------------------------------------------------------------
 
+; the archive's gzip writer, under z; nil when it is written as it is
+(def %tc-sink ())
+
+; the run R written to the archive on FD
+(def %tc-emit!
+  (fn (_ fd r)
+    (if (null? %tc-sink) (file-write-run fd r)
+      (%gz-sink-write! %tc-sink (first r) (rest r)))))
+
 ; S into the header H at OFF, at most MAX bytes, as strncpy puts it: no NUL
 ; where it fills the field
 (def %tc-put!
@@ -614,7 +625,7 @@
                      (go 0 0))))
           (do (%tc-put! h 148 (%cu-pad-zero (%dp-udigits sum 8 #f) 6) 6)
               (%cu-ptr-set! p 154 0 1)))
-        (file-write-run fd (pair h 512)))))
+        (%tc-emit! fd (pair h 512)))))
 
 ; a GNU long name or link block, TYPE L or K, before the header it belongs to
 (def %tc-longname!
@@ -634,7 +645,7 @@
           (let ((buf (%str-make-raw (* 512 blocks))))
             (do (map (fn (_ i) (%cu-ptr-set! (%cu-str->ptr buf) i 0 1)) (List range 0 (* 512 blocks)))
                 (%tc-put! buf 0 (if dir? (string-append name "/") name) (* 512 blocks))
-                (file-write-run fd (pair buf (* 512 blocks)))))))))
+                (%tc-emit! fd (pair buf (* 512 blocks)))))))))
 
 ; The run's create settings, in a vector: the archive's descriptor, verbose,
 ; the excludes, the hard links met as (DEV INO . NAME), the archive's own
@@ -769,13 +780,13 @@
           (let ((p (src)))
             (if (if (Err err? p) #t (= (rest p) 0)) (%tar-die "short read")
               (let ((k (%tar-min (rest p) left)))
-                (do (file-write-run fd (if (= k (rest p)) p (pair (%tc-sub-run p k) k)))
+                (do (%tc-emit! fd (if (= k (rest p)) p (pair (%tc-sub-run p k) k)))
                     (%cu-sweep-tick! %cu-sweep-lines)
                     (self (- left k)))))))))
     (do (go size)
         (src (lit close))
         (let ((pad (% (- 512 (% size 512)) 512)))
-          (if (= pad 0) () (file-write-run fd (pair (%tc-block) pad)))))))
+          (if (= pad 0) () (%tc-emit! fd (pair (%tc-block) pad)))))))
 
 ; the first K bytes of run P, as a string of its own
 (def %tc-sub-run
@@ -867,6 +878,7 @@
     (def strip (let ((s (Opts value o "--strip-components")))
                  (if (null? s) 0 (%cu-range-number "tar" s 0 2147483647))))
     (do (set! %tar-warned #f)
+        (set! %tc-sink ())
         (set! %tar-pending ())
         (%tar-resolve!)
         (match
@@ -898,7 +910,11 @@
             ((= i 7) (on "-o" "--no-same-owner")) ((= i 8) (Opts on? o "--numeric-owner"))
             ((= i 9) (if root (not (Opts on? o "--no-same-permissions")) #f))
             (#t (not (on "-m" "--touch")))))))
-    (def src (%cu-pieces file stdin-thunk))
+    (def raw (%cu-pieces file stdin-thunk))
+    ; z, or data that begins with gzip's magic, is read through gunzip
+    (def src (if (Err err? raw) raw
+               (if (on "-z" "--gzip") (%gz-tar-pieces raw)
+                 (let ((s (%gz-sniff raw))) (if (first s) (%gz-tar-pieces (rest s)) (rest s))))))
     (if (Err err? src) (%tar-die (string-concat (list "can't open '" file "': " (file-err-text src))))
       (%tar-in-dir (let ((d (Opts value o "-C"))) (if (null? d) (Opts value o "--directory") d))
         (fn (_)
@@ -930,10 +946,21 @@
     (if (null? accept) (%tar-die "empty archive")
       (%tar-in-dir (let ((d (Opts value o "-C"))) (if (null? d) (Opts value o "--directory") d))
         (fn (_)
-          (let ((oks (map (fn (_ n) (%tc-walk c n)) accept)))
-            (do (file-write-run fd (pair (%tc-block) 512))
-                (file-write-run fd (pair (%tc-block) 512))
+          (let ((oks (do (set! %tc-sink (if (%tar-gzip? o file) (%gz-sink fd) ()))
+                         (map (fn (_ n) (%tc-walk c n)) accept))))
+            (do (%tc-emit! fd (pair (%tc-block) 512))
+                (%tc-emit! fd (pair (%tc-block) 512))
+                (if (null? %tc-sink) () (do (%gz-sink-close! %tc-sink) (set! %tc-sink ())))
                 (if (= fd 1) () (file-close fd))
                 (if (%tar-member? #f oks)
                   (do (%tar-say "error exit delayed from previous errors") 1)
                   0))))))))
+
+; c writes through gzip under z, or a with an archive named *gz
+(def %tar-gzip?
+  (fn (_ o file)
+    (match
+      ((Opts on? o "-z") #t)
+      ((Opts on? o "--gzip") #t)
+      ((Opts on? o "-a") (%gz-ends? file "gz"))
+      (#t #f))))

@@ -69,6 +69,7 @@
 (include-once "./getopt.x")
 (include-once "./runparts.x")
 (include-once "./tar.x")
+(include-once "./gzip.x")
 (include-once "./procps.x")
 (include-once "./options.x")
 (include-once "./cli.x")

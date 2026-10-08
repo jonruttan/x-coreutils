@@ -1,13 +1,13 @@
 # @weight 1
 
 busybox's tar (archival/tar.c, libarchive's get_header_tar and
-data_extract_all): t, x and c, uncompressed.  Every expectation is busybox's
-own output, from a busybox built from its source, run as an ordinary user,
-less the banner line its usage text starts with.  A `|` marks the end of each
-line written to standard output; `after:` is what the directory holds once
-the run is done.  A verbose listing's owner and time are shown as OWNER and
-TIME, since they are the user's and the timezone's; a case of its own checks
-the time.
+data_extract_all): t, x and c -- z, through gzip, is in 85-gzip.  Every
+expectation is busybox's own output, from a busybox built from its source, run
+as an ordinary user, less the banner line its usage text starts with.  A `|`
+marks the end of each line written to standard output; `after:` is what the
+directory holds once the run is done.  A verbose listing's owner and time are
+shown as OWNER and TIME, since they are the user's and the timezone's; a case
+of its own checks the time.
 
 ## the fixtures
 
@@ -463,7 +463,7 @@ status 1
 
 ## options
 
-### one of c, x and t, and only one; the help is that of a busybox built without the compressors or --to-command
+### one of c, x and t, and only one; the help is that of a busybox whose one compressor is gzip, built without --to-command
 
 ```cu
 (do (tar-case #t "@" "@" (list "tar" "f" "a.tar")) (tar-case #t "@" "@" (list "tar" "-ctf" "a.tar")))
@@ -471,7 +471,7 @@ status 1
 ---
 ```output
 stderr:
-Usage: tar c|x|t [-ahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
+Usage: tar c|x|t [-zahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
 
 Create, extract, or list files from a tar file
 
@@ -485,6 +485,7 @@ Create, extract, or list files from a tar file
 	-m	Don't restore mtime
 	-o	Don't restore user:group
 	-k	Don't replace existing files
+	-z	(De)compress using gzip
 	-a	(De)compress based on extension
 	-h	Follow symlinks
 	-T FILE	File with names to include
@@ -497,7 +498,7 @@ Create, extract, or list files from a tar file
 	--no-same-permissions	Don't restore access permissions
 status 1
 stderr:
-Usage: tar c|x|t [-ahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
+Usage: tar c|x|t [-zahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
 
 Create, extract, or list files from a tar file
 
@@ -511,6 +512,7 @@ Create, extract, or list files from a tar file
 	-m	Don't restore mtime
 	-o	Don't restore user:group
 	-k	Don't replace existing files
+	-z	(De)compress using gzip
 	-a	(De)compress based on extension
 	-h	Follow symlinks
 	-T FILE	File with names to include
