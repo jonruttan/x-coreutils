@@ -1139,6 +1139,19 @@
               (Opts text "\t-d STRING\tURL decode STRING"))
             (%cu-hidden-flags (list "-i" "-f" "-v"))
             (%cu-hidden-args (list "-p" "-M" "-K" "-u" "-r" "-h" "-c" "-m" "-e" "-d"))))))
+    (pair "ipcalc"
+      (list
+        (Opts declare "ipcalc" "[-bnmphs] ADDRESS[/PREFIX] [NETMASK]"
+          "Calculate and display network settings from IP address"
+          (append
+            (list
+              (Opts flag "-b" "Broadcast address")
+              (Opts flag "-n" "Network address")
+              (Opts flag "-m" "Default netmask for IP")
+              (Opts flag "-p" "Prefix for IP/NETMASK")
+              (Opts flag "-h" "Resolved host name")
+              (Opts flag "-s" "No error messages"))
+            (%cu-hidden-flags (list "--broadcast" "--network" "--netmask" "--prefix" "--hostname" "--silent"))))))
     ; -p is NOT here on purpose; cu/sys2.x says why
     (pair "xargs"
       (list
