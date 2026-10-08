@@ -125,6 +125,7 @@
 (def %cu+ (prim-ref (lit int) (lit +)))
 (def %cu- (prim-ref (lit int) (lit -)))
 (def %cu* (prim-ref (lit int) (lit *)))
+(def %cu/ (prim-ref (lit int) (lit /)))
 (def %cu% (prim-ref (lit int) (lit %)))
 (def %cu< (prim-ref (lit int) (lit <)))
 (def %cu& (prim-ref (lit int) (lit &)))

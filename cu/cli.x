@@ -117,6 +117,7 @@
     (pair "ftpput" %cu-ftpput)
     (pair "httpd" %cu-httpd)
     (pair "dnsd" %cu-dnsd)
+    (pair "ipcalc" %cu-ipcalc)
     (pair "xargs" %cu-xargs)
     (pair "vi" %cu-vi)
     (pair "more" %cu-more)
