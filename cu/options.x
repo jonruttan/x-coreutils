@@ -1337,7 +1337,7 @@
         (lit leading)))
     (pair "tar"
       (list
-        (Opts declare "tar" "c|x|t [-ahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]..."
+        (Opts declare "tar" "c|x|t [-zahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]..."
           "Create, extract, or list files from a tar file"
           (list
             (Opts text "\tc\tCreate")
@@ -1350,6 +1350,7 @@
             (Opts text "\t-m\tDon't restore mtime")
             (Opts text "\t-o\tDon't restore user:group")
             (Opts text "\t-k\tDon't replace existing files")
+            (Opts text "\t-z\t(De)compress using gzip")
             (Opts text "\t-a\t(De)compress based on extension")
             (Opts text "\t-h\tFollow symlinks")
             (Opts text "\t-T FILE\tFile with names to include")
@@ -1367,6 +1368,8 @@
             (Opts hidden (Opts flag "-m" ""))
             (Opts hidden (Opts flag "-o" ""))
             (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-z" ""))
+            (Opts hidden (Opts flag "--gzip" ""))
             (Opts hidden (Opts flag "-a" ""))
             (Opts hidden (Opts flag "-h" ""))
             (Opts hidden (Opts arg "-T" "FILE" ""))
@@ -1395,6 +1398,84 @@
             (Opts hidden (Opts arg "--directory" "" ""))
             (Opts hidden (Opts arg "--files-from" "" ""))
             (Opts hidden (Opts arg "--exclude-from" "" ""))))))
+    (pair "gzip"
+      (list
+        (Opts declare "gzip" "[-cfkdt] [FILE]..."
+          "Compress FILEs (or stdin)"
+          (list
+            (Opts text "\t-d\tDecompress")
+            (Opts text "\t-c\tWrite to stdout")
+            (Opts text "\t-f\tForce")
+            (Opts text "\t-k\tKeep input files")
+            (Opts text "\t-t\tTest integrity")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-1" ""))
+            (Opts hidden (Opts flag "-2" ""))
+            (Opts hidden (Opts flag "-3" ""))
+            (Opts hidden (Opts flag "-4" ""))
+            (Opts hidden (Opts flag "-5" ""))
+            (Opts hidden (Opts flag "-6" ""))
+            (Opts hidden (Opts flag "-7" ""))
+            (Opts hidden (Opts flag "-8" ""))
+            (Opts hidden (Opts flag "-9" ""))
+            (Opts hidden (Opts flag "--stdout" ""))
+            (Opts hidden (Opts flag "--to-stdout" ""))
+            (Opts hidden (Opts flag "--force" ""))
+            (Opts hidden (Opts flag "--verbose" ""))
+            (Opts hidden (Opts flag "--decompress" ""))
+            (Opts hidden (Opts flag "--uncompress" ""))
+            (Opts hidden (Opts flag "--test" ""))
+            (Opts hidden (Opts flag "--quiet" ""))
+            (Opts hidden (Opts flag "--fast" ""))
+            (Opts hidden (Opts flag "--best" ""))
+            (Opts hidden (Opts flag "--no-name" ""))))))
+    (pair "gunzip"
+      (list
+        (Opts declare "gunzip" "[-cfkt] [FILE]..."
+          "Decompress FILEs (or stdin)"
+          (list
+            (Opts text "\t-c\tWrite to stdout")
+            (Opts text "\t-f\tForce")
+            (Opts text "\t-k\tKeep input files")
+            (Opts text "\t-t\tTest integrity")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "--stdout" ""))
+            (Opts hidden (Opts flag "--to-stdout" ""))
+            (Opts hidden (Opts flag "--force" ""))
+            (Opts hidden (Opts flag "--test" ""))
+            (Opts hidden (Opts flag "--no-name" ""))))))
+    (pair "zcat"
+      (list
+        (Opts declare "zcat" "[FILE]..."
+          "Decompress to stdout"
+          (list
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "--stdout" ""))
+            (Opts hidden (Opts flag "--to-stdout" ""))
+            (Opts hidden (Opts flag "--force" ""))
+            (Opts hidden (Opts flag "--test" ""))
+            (Opts hidden (Opts flag "--no-name" ""))))))
     (pair "run-parts"
       (list
         (Opts declare "run-parts" "[-a ARG]... [-u UMASK] [--reverse] [--test] [--exit-on-error] [--list] DIRECTORY"
