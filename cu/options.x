@@ -238,6 +238,53 @@
             (Opts flag "-c" "Check sums against list in FILEs")
             (Opts flag "-s" "Don't output anything, status code shows success")
             (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+    (pair "sha3sum"
+      (list
+        (Opts declare "sha3sum" "[-c[sw]] [-a BITS] [FILE]..."
+          "Print or check SHA3 checksums"
+          (list
+            (Opts text "\t-c\tCheck sums against list in FILEs")
+            (Opts text "\t-s\tDon't output anything, status code shows success")
+            (Opts text "\t-w\tWarn about improperly formatted checksum lines")
+            (Opts text "\t-a BITS\t224 (default), 256, 384, 512")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-w" ""))
+            (Opts hidden (Opts arg "-a" "BITS" ""))))))
+    (pair "cryptpw"
+      (list
+        (Opts declare "cryptpw" "[-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]"
+          "Print crypt(3) hashed PASSWORD"
+          (list
+            (Opts text "\t-P N\tRead password from fd N")
+            (Opts text "\t-m TYPE\tdes,md5,sha256/512,yescrypt (default des)")
+            (Opts text "\t-S SALT")
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "--stdin" ""))
+            (Opts hidden (Opts arg "-P" "N" ""))
+            (Opts hidden (Opts arg "-m" "TYPE" ""))
+            (Opts hidden (Opts arg "-a" "TYPE" ""))
+            (Opts hidden (Opts arg "-S" "SALT" ""))
+            (Opts hidden (Opts arg "--password-fd" "N" ""))
+            (Opts hidden (Opts arg "--salt" "SALT" ""))
+            (Opts hidden (Opts arg "--method" "TYPE" ""))))))
+    (pair "mkpasswd"
+      (list
+        (Opts declare "mkpasswd" "[-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]"
+          "Print crypt(3) hashed PASSWORD"
+          (list
+            (Opts text "\t-P N\tRead password from fd N")
+            (Opts text "\t-m TYPE\tdes,md5,sha256/512,yescrypt (default des)")
+            (Opts text "\t-S SALT")
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "--stdin" ""))
+            (Opts hidden (Opts arg "-P" "N" ""))
+            (Opts hidden (Opts arg "-m" "TYPE" ""))
+            (Opts hidden (Opts arg "-a" "TYPE" ""))
+            (Opts hidden (Opts arg "-S" "SALT" ""))
+            (Opts hidden (Opts arg "--password-fd" "N" ""))
+            (Opts hidden (Opts arg "--salt" "SALT" ""))
+            (Opts hidden (Opts arg "--method" "TYPE" ""))))))
     (pair "cksum"
       (list
         (Opts declare "cksum" "FILE..."

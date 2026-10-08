@@ -70,6 +70,8 @@
 (include-once "./runparts.x")
 (include-once "./tar.x")
 (include-once "./gzip.x")
+(include-once "./sha3.x")
+(include-once "./crypt.x")
 (include-once "./procps.x")
 (include-once "./options.x")
 (include-once "./cli.x")
