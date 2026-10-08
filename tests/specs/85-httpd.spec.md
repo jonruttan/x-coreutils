@@ -1033,6 +1033,253 @@ Content-type: text/html<CR>
 [status 0]
 ```
 
+## CGI
+
+### a script's output, with busybox's 200 line
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\nhello\\\\n\"\\n' > cgi-bin/hello && chmod +x cgi-bin/hello" "GET /cgi-bin/hello HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+hello
+[status 0]
+```
+
+### Status: becomes the status line
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Status: 404 Not Here\\\\r\\\\nContent-type: text/plain\\\\r\\\\n\\\\r\\\\nno\\\\n\"\\n' > cgi-bin/st && chmod +x cgi-bin/st" "GET /cgi-bin/st HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 404 Not Here<CR>
+Content-type: text/plain<CR>
+<CR>
+no
+[status 0]
+```
+
+### Status: with -v
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Status: 404 Not Here\\\\r\\\\nContent-type: text/plain\\\\r\\\\n\\\\r\\\\nno\\\\n\"\\n' > cgi-bin/st && chmod +x cgi-bin/st" "GET /cgi-bin/st HTTP/1.0\\r\\n\\r\\n" (list "-v"))
+```
+---
+```output
+HTTP/1.1 404 Not Here<CR>
+Content-type: text/plain<CR>
+<CR>
+no
+[status 0]
+httpd: cgi response:'404 Not Here'
+```
+
+### Location: is a 302
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Location: /there\\\\r\\\\n\\\\r\\\\n\"\\n' > cgi-bin/loc && chmod +x cgi-bin/loc" "GET /cgi-bin/loc HTTP/1.0\\r\\n\\r\\n" (list "-v"))
+```
+---
+```output
+HTTP/1.1 302 Found<CR>
+Location: /there<CR>
+<CR>
+[status 0]
+httpd: cgi redirect:'/there'
+```
+
+### a status line of the script's own
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"HTTP/1.1 201 Made\\\\r\\\\n\\\\r\\\\nmade\\\\n\"\\n' > cgi-bin/own && chmod +x cgi-bin/own" "GET /cgi-bin/own HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 201 Made<CR>
+<CR>
+made
+[status 0]
+```
+
+### fewer than ten bytes
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf hi\\n' > cgi-bin/short && chmod +x cgi-bin/short" "GET /cgi-bin/short HTTP/1.0\\r\\n\\r\\n" (list "-v"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+hi
+[status 0]
+httpd: cgi response:200
+```
+
+### no output at all
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nexit 0\\n' > cgi-bin/none && chmod +x cgi-bin/none" "GET /cgi-bin/none HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+[status 0]
+```
+
+### the environment
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\n\"\\nfor v in REQUEST_METHOD REQUEST_URI QUERY_STRING PATH_INFO SCRIPT_NAME SCRIPT_FILENAME REMOTE_ADDR REMOTE_PORT SERVER_PROTOCOL GATEWAY_INTERFACE CONTENT_LENGTH CONTENT_TYPE HTTP_USER_AGENT HTTP_X_FOO_BAR HTTP_RANGE HTTP_CONTENT_LENGTH; do eval \"printf \\\\\"%%s=%%s\\\\\\\\n\\\\\" \\\\\"\\\\$v\\\\\" \\\\\"\\\\${$v-unset}\\\\\"\"; done\\n' > cgi-bin/env && chmod +x cgi-bin/env" "GET /cgi-bin/env/extra/path?a=b&c HTTP/1.0\\r\\nUser-Agent: t 1\\r\\nX-Foo-Bar:  1\\r\\nRange: bytes=1-2\\r\\nContent-Length: 3\\r\\nContent-Type: text/x\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+REQUEST_METHOD=GET
+REQUEST_URI=/cgi-bin/env/extra/path?a=b&c
+QUERY_STRING=a=b&c
+PATH_INFO=/extra/path
+SCRIPT_NAME=/cgi-bin/env
+SCRIPT_FILENAME=/tmp/x-cu-hd/www/cgi-bin/env
+REMOTE_ADDR=
+REMOTE_PORT=unset
+SERVER_PROTOCOL=HTTP/1.1
+GATEWAY_INTERFACE=CGI/1.1
+CONTENT_LENGTH=unset
+CONTENT_TYPE=text/x
+HTTP_USER_AGENT=t 1
+HTTP_X_FOO_BAR=1
+HTTP_RANGE=unset
+HTTP_CONTENT_LENGTH=3
+[status 0]
+```
+
+### a POST's body on the script's stdin
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\n[%%s]\\\\n\" \"$CONTENT_LENGTH\"\\ncat\\n' > cgi-bin/post && chmod +x cgi-bin/post" "POST /cgi-bin/post HTTP/1.0\\r\\nContent-Length: 5\\r\\n\\r\\nabcde" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+[5]
+abcde
+[status 0]
+```
+
+### a POST's Content-Length that is not a number
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\ncat\\n' > cgi-bin/post && chmod +x cgi-bin/post" "POST /cgi-bin/post HTTP/1.0\\r\\nContent-Length: 5x\\r\\n\\r\\nabcde" (list))
+```
+---
+```output
+HTTP/1.1 400 Bad Request<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+<CR>
+<HTML><HEAD><TITLE>400 Bad Request</TITLE></HEAD>
+<BODY><H1>400 Bad Request</H1>
+Unsupported method
+</BODY></HTML>
+[status 0]
+```
+
+### a script that is not there
+
+```cu
+(hd-case "mkdir cgi-bin" "GET /cgi-bin/nope HTTP/1.0\\r\\n\\r\\n" (list "-v"))
+```
+---
+```output
+HTTP/1.1 404 Not Found<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+<CR>
+<HTML><HEAD><TITLE>404 Not Found</TITLE></HEAD>
+<BODY><H1>404 Not Found</H1>
+The requested URL was not found
+</BODY></HTML>
+[status 0]
+httpd: can't execute 'nope': No such file or directory
+httpd: response:404
+```
+
+### a script in a directory of cgi-bin, run there
+
+```cu
+(hd-case "mkdir -p cgi-bin/d && printf 'here\\n' > cgi-bin/d/data && printf '#!/bin/sh\\nprintf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\n\"\\ncat data\\n' > cgi-bin/d/s && chmod +x cgi-bin/d/s" "GET /cgi-bin/d/s/x HTTP/1.0\\r\\n\\r\\n" (list "-vvv"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+here
+[status 0]
+httpd: connected
+httpd: GET /cgi-bin/d/s/x
+httpd: cd:cgi-bin/d
+httpd: exec:s (null)
+httpd: cgi response:200
+httpd: closed
+```
+
+### a file a *.ext: line names an interpreter for
+
+```cu
+(hd-case "printf '*.sh:/bin/sh\\n' > c.conf && printf 'printf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\nby sh %%s\\\\n\" \"$SCRIPT_NAME\"\\n' > x.sh" "GET /x.sh?q HTTP/1.0\\r\\n\\r\\n" (list "-vv" "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+by sh /x.sh
+[status 0]
+httpd: GET /x.sh
+httpd: exec:/bin/sh x.sh
+httpd: cgi response:200
+```
+
+### cgi-bin/index.cgi for a directory with no index page
+
+```cu
+(hd-case "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\n%%s %%s\\\\n\" \"$SCRIPT_NAME\" \"$REQUEST_URI\"\\n' > cgi-bin/index.cgi && chmod +x cgi-bin/index.cgi" "GET /sub/?z HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+/cgi-bin/index.cgi /sub/?z
+[status 0]
+```
+
+### a POST to a file
+
+```cu
+(hd-case ":" "POST /r.txt HTTP/1.0\\r\\nContent-Length: 2\\r\\n\\r\\nab" (list))
+```
+---
+```output
+HTTP/1.1 501 Not Implemented<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+<CR>
+<HTML><HEAD><TITLE>501 Not Implemented</TITLE></HEAD>
+<BODY><H1>501 Not Implemented</H1>
+The requested method is not recognized
+</BODY></HTML>
+[status 0]
+```
+
 ## a listener
 
 ### -f -v -p PORT: two connections, each answered, -v naming each peer

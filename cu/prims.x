@@ -42,7 +42,7 @@
   file-stat-full file-lstat-full
   vec-make vec-build vec-ref vec-set!
   proc-run sys-exit sys-dup2 sys-close
-  sys-fork sys-wait sys-exec sys-exec-or-err sys-kill sys-signal sys-isatty sys-usleep
+  sys-fork sys-pipe sys-wait sys-exec sys-exec-or-err sys-kill sys-signal sys-isatty sys-usleep
   cu-sigterm cu-sigkill cu-sigint cu-sighup cu-sig-ign
   sys-getcwd sys-environ sys-getenv sys-setenv sys-unsetenv sys-sleep sys-umask
   date-now-iso date-now-unix rng-make rng-int
@@ -421,6 +421,8 @@
 (def cu-sig-ign 1)
 (def sys-exit (fn (_ n) (Sys exit n)))
 (def sys-dup2 (fn (_ a b) (Sys dup2 a b)))
+; a pipe: (READ-FD . WRITE-FD)
+(def sys-pipe (fn (_) (Sys pipe)))
 (def sys-close (fn (_ fd) (Sys close fd)))
 
 ; The caller's standard input onto fd 0, for an applet that reads it or a
