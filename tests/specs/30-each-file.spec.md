@@ -29,10 +29,10 @@ and statuses are GNU's for the same files.
 ```output
 60b725f10c9c85c70d97880dfe8191b3  a
 3b5d5c3712955042212316173ccf37be  b
-md5sum: nosuch: No such file or directory
+md5sum: can't open 'nosuch': No such file or directory
 status 1
 3f786850e387550fdab836ed7e6dc881de23001b  a
-sha1sum: nosuch: No such file or directory
+sha1sum: can't open 'nosuch': No such file or directory
 status 1
 2418082923 2 a
 2454254050 2 b
@@ -52,14 +52,14 @@ status 1
 ---
 ```output
 87428fc522803d31065e7bce3cf03fe475096631e5e07bbd7a0fde60c4cf25c7  a
-sha256sum: dd: Is a directory
+sha256sum: can't read 'dd': Is a directory
 status 1
 868a6ac6e1d0293d74fad07f6d95952b3e01d3d3153db677a75d8077983fd4e30db6bfc89b7608a93fb26469233a9f1a09572d687a9c5da78b203eb151040a15  b
-sha512sum: dd: Is a directory
+sha512sum: can't read 'dd': Is a directory
 status 1
 ```
 
-### -c counts a listed file it cannot read as one that failed to open
+### -c counts a listed file it cannot read as one that FAILED
 
 The OK and FAILED lines and the status; 33-sum-check has what -c writes to
 stderr.
@@ -70,7 +70,7 @@ stderr.
 ---
 ```output
 /tmp/x-cu-ef/a: OK
-/tmp/x-cu-ef/dd: FAILED open or read
+/tmp/x-cu-ef/dd: FAILED
 status 1
 ```
 
