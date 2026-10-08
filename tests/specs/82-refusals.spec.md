@@ -4854,6 +4854,7 @@ Listen for incoming HTTP requests
 	-p [IP:]PORT	Bind to IP:PORT (default *:80)
 	-M NUM		Pause if NUM connections are open (default 256)
 	-K NUM		Kill CGIs after NUM seconds
+	-u USER[:GRP]	Set uid/gid after binding to port
 	-r REALM	Authentication Realm for Basic Authentication
 	-h HOME		Home directory (default .)
 	-c FILE		Configuration file (default {/etc,HOME}/httpd.conf)
@@ -4883,6 +4884,7 @@ Listen for incoming HTTP requests
 	-p [IP:]PORT	Bind to IP:PORT (default *:80)
 	-M NUM		Pause if NUM connections are open (default 256)
 	-K NUM		Kill CGIs after NUM seconds
+	-u USER[:GRP]	Set uid/gid after binding to port
 	-r REALM	Authentication Realm for Basic Authentication
 	-h HOME		Home directory (default .)
 	-c FILE		Configuration file (default {/etc,HOME}/httpd.conf)
@@ -4912,6 +4914,7 @@ Listen for incoming HTTP requests
 	-p [IP:]PORT	Bind to IP:PORT (default *:80)
 	-M NUM		Pause if NUM connections are open (default 256)
 	-K NUM		Kill CGIs after NUM seconds
+	-u USER[:GRP]	Set uid/gid after binding to port
 	-r REALM	Authentication Realm for Basic Authentication
 	-h HOME		Home directory (default .)
 	-c FILE		Configuration file (default {/etc,HOME}/httpd.conf)

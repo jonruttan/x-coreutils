@@ -1583,6 +1583,317 @@ bob Basic
 ---
     ("$1$saltsalt$9xy1btjgzLYfb7hivXtC//" "$1$ab$e2KlfqG5YBMTjSz7XF.Eu1" "$1$12345678$Wdd9w490ag62uQQwem2Yr0" "$1$xyz$kjXWClpYD0.j9bPLUk/Ii.")
 
+## gzip and -u
+
+### Accept-Encoding: gzip, and a .gz beside the file
+
+```cu
+(hd-case "printf 'pretend gz\\n' > r.txt.gz" "GET /r.txt HTTP/1.0\\r\\nAccept-Encoding: gzip\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-b"<CR>
+Content-Length: 11<CR>
+Content-Encoding: gzip<CR>
+<CR>
+pretend gz
+[status 0]
+```
+
+### gzip named anywhere on the line
+
+```cu
+(hd-case "printf 'pretend gz\\n' > r.txt.gz" "GET /r.txt HTTP/1.0\\r\\naccept-encoding: deflate, gzip;q=0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-b"<CR>
+Content-Length: 11<CR>
+Content-Encoding: gzip<CR>
+<CR>
+pretend gz
+[status 0]
+```
+
+### gzip asked, no .gz: the file
+
+```cu
+(hd-case ":" "GET /r.txt HTTP/1.0\\r\\nAccept-Encoding: gzip\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
+### a .gz there, gzip not asked: the file
+
+```cu
+(hd-case "printf 'pretend gz\\n' > r.txt.gz" "GET /r.txt HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
+### a range is not served from a .gz
+
+```cu
+(hd-case "printf 'pretend gz\\n' > r.txt.gz" "GET /r.txt HTTP/1.0\\r\\nAccept-Encoding: gzip\\r\\nRange: bytes=1-2\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-b"<CR>
+Content-Length: 11<CR>
+Content-Encoding: gzip<CR>
+<CR>
+pretend gz
+[status 0]
+```
+
+### the index page's .gz
+
+```cu
+(hd-case "printf 'pretend gz\\n' > index.html.gz" "GET / HTTP/1.0\\r\\nAccept-Encoding: gzip\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-b"<CR>
+Content-Length: 11<CR>
+Content-Encoding: gzip<CR>
+<CR>
+pretend gz
+[status 0]
+```
+
+### -u: a user the system does not know
+
+```cu
+(hd-case ":" "GET / HTTP/1.0\\r\\n\\r\\n" (list "-u" "nosuchuser"))
+```
+---
+```output
+[status 1]
+httpd: unknown user/group nosuchuser
+```
+
+### -u: a group the system does not know
+
+```cu
+(hd-case ":" "GET / HTTP/1.0\\r\\n\\r\\n" (list "-u" "0:nosuchgroup"))
+```
+---
+```output
+[status 1]
+httpd: unknown user/group 0:nosuchgroup
+```
+
+### -u is not used with -i
+
+```cu
+(hd-case ":" "GET /r.txt HTTP/1.0\\r\\n\\r\\n" (list "-u" "0"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
+### -u: a listener run by a user who is not root cannot take the group
+
+The suite runs as a user who is not root, as busybox's own check of this does.
+
+```cu
+(do (def hu-p0 (Socket tcp-listen 0)) (def hu-port (Socket local-port hu-p0)) (Socket close hu-p0)
+    (hd-str (list "-f" "-p" (%cu-int->str hu-port) "-u" "0")))
+```
+---
+```output
+|status 1
+httpd: setgroups: Operation not permitted
+```
+
+## the proxy
+
+Each case's backend is a forked child answering every connection with the
+request line it was sent, after an HTTP/1.0 200 line, and closing it; c.conf's
+P: lines send /px/ to it, /bad/ to a port nothing listens on, and /nohost/ to a
+name that does not resolve.
+
+### the fixture
+
+```cu
+(do (def px-serve (fn (_ lfd)
+      (do (guard (_ ())
+            (let loop ()
+              (let ((c (Socket accept lfd)))
+                (do (let go ((acc ""))
+                      (let ((nl (%wget-index acc #\newline 0)))
+                        (if (null? nl)
+                          (let ((r (Socket recv-run c 4096)))
+                            (if (null? r) () (go (string-append acc (substring (first r) 0 (rest r))))))
+                          (Socket send c (string-concat (list "HTTP/1.0 200 OK\r\n\r\ngot: " (substring acc 0 nl) "\n"))))))
+                    (Socket close c)
+                    (loop)))))
+          (sys-exec "/bin/sh" (list "-c" "exit 0")))))
+  (def px-case (fn (_ req args)
+    (def lfd (Socket tcp-listen 0))
+    (def port (%cu-int->str (Socket local-port lfd)))
+    (def rfd (Socket tcp-listen 0))
+    (def rport (%cu-int->str (Socket local-port rfd)))
+    (Socket close rfd)
+    (def pid (sys-fork))
+    (when (= pid 0) (px-serve lfd))
+    (Socket close lfd)
+    (hd-case (string-concat (list "printf 'P:/px/:127.0.0.1:" port "/back/\\nP:/bad/:127.0.0.1:" rport "/z/\\nP:/nohost/:nohost.invalid/z/\\n' > c.conf"))
+             req (append (list "-c" "c.conf") args))
+    (sys-kill pid 9) (sys-wait pid)
+    ()))
+  (display "made"))
+```
+---
+    made
+
+### a request under /px/, asked of the backend as /back/
+
+```cu
+(px-case "GET /px/a?x HTTP/1.0\\r\\nHost: h\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.0 200 OK<CR>
+<CR>
+got: GET /back/a?x HTTP/1.0<CR>
+[status 0]
+```
+
+### any method, before httpd checks it
+
+```cu
+(px-case "FOO /px/b HTTP/1.1\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.0 200 OK<CR>
+<CR>
+got: FOO /back/b HTTP/1.1<CR>
+[status 0]
+```
+
+### -vv logs it
+
+```cu
+(px-case "GET /px/a HTTP/1.0\\r\\n\\r\\n" (list "-vv"))
+```
+---
+```output
+HTTP/1.0 200 OK<CR>
+<CR>
+got: GET /back/a HTTP/1.0<CR>
+[status 0]
+httpd: proxy:/px/a
+```
+
+### a backend nothing listens for: 500
+
+```cu
+(px-case "GET /bad/q HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 500 Internal Server Error<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+<CR>
+<HTML><HEAD><TITLE>500 Internal Server Error</TITLE></HEAD>
+<BODY><H1>500 Internal Server Error</H1>
+Internal Server Error
+</BODY></HTML>
+[status 0]
+```
+
+### a backend name that does not resolve: 500
+
+```cu
+(px-case "GET /nohost/q HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 500 Internal Server Error<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+<CR>
+<HTML><HEAD><TITLE>500 Internal Server Error</TITLE></HEAD>
+<BODY><H1>500 Internal Server Error</H1>
+Internal Server Error
+</BODY></HTML>
+[status 0]
+httpd: bad address 'nohost.invalid'
+```
+
+### a url only starting like a P: line's is not proxied
+
+```cu
+(px-case "GET /pxx HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 404 Not Found<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+<CR>
+<HTML><HEAD><TITLE>404 Not Found</TITLE></HEAD>
+<BODY><H1>404 Not Found</H1>
+The requested URL was not found
+</BODY></HTML>
+[status 0]
+```
+
 ## a listener
 
 ### -f -v -p PORT: two connections, each answered, -v naming each peer
