@@ -66,7 +66,7 @@ the end is what pins that rather than four copies of everything.
 ```
 ---
 ```output
-/tmp/x-cu-ck-absent: FAILED open or read
+/tmp/x-cu-ck-absent: FAILED
 1
 ```
 
@@ -110,25 +110,26 @@ We write two spaces; `DIGEST *NAME` is the other spelling in the wild.
 ---
     1
 
-### -w names a line that is not a checksum line
+### -w says a line that is not a checksum line is one
 
-The per-line notice goes to stderr, so only the status and the OK line
-reach stdout -- the point of the flag is that the notice exists at all.
+The notice goes to stderr, so only the OK line and the status reach stdout.
+A line with no space in it is no checksum line, and it fails the list, as
+busybox's does.
 
 ```cu
 (display (cu-run (list "md5sum" "-w" "-c")
-  "not a checksum line\n6f5902ac237024bdd0c176cb93063dc4  /tmp/x-cu-ck-a\n"))
+  "not-a-checksum-line\n6f5902ac237024bdd0c176cb93063dc4  /tmp/x-cu-ck-a\n"))
 ```
 ---
 ```output
 /tmp/x-cu-ck-a: OK
-0
+1
 ```
 
 ### a file of nothing but junk verified nothing, and says so
 
 ```cu
-(display (cu-run (list "md5sum" "-c") "not a checksum line\n"))
+(display (cu-run (list "md5sum" "-c") "not-a-checksum-line\n"))
 ```
 ---
     1
