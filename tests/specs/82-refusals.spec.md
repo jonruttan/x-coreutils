@@ -5189,6 +5189,50 @@ Listen for incoming HTTP requests
 status 1
 ```
 
+### ipcalc -~
+
+```cu
+(run (list "ipcalc" "-~") "")
+```
+---
+```output
+stderr:
+ipcalc: unrecognized option: ~
+Usage: ipcalc [-bnmphs] ADDRESS[/PREFIX] [NETMASK]
+
+Calculate and display network settings from IP address
+
+	-b	Broadcast address
+	-n	Network address
+	-m	Default netmask for IP
+	-p	Prefix for IP/NETMASK
+	-h	Resolved host name
+	-s	No error messages
+status 1
+```
+
+### ipcalc --nope
+
+```cu
+(run (list "ipcalc" "--nope") "")
+```
+---
+```output
+stderr:
+ipcalc: unrecognized option: nope
+Usage: ipcalc [-bnmphs] ADDRESS[/PREFIX] [NETMASK]
+
+Calculate and display network settings from IP address
+
+	-b	Broadcast address
+	-n	Network address
+	-m	Default netmask for IP
+	-p	Prefix for IP/NETMASK
+	-h	Resolved host name
+	-s	No error messages
+status 1
+```
+
 ### nc -~
 
 ```cu

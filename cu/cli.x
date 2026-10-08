@@ -118,6 +118,7 @@
     (pair "httpd" %cu-httpd)
     (pair "tcpsvd" %cu-tcpsvd)
     (pair "udpsvd" %cu-udpsvd)
+    (pair "ipcalc" %cu-ipcalc)
     (pair "xargs" %cu-xargs)
     (pair "vi" %cu-vi)
     (pair "more" %cu-more)
