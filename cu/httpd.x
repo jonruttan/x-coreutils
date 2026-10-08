@@ -22,9 +22,15 @@
 ;
 ; httpd.conf is read from /etc, or from the home directory when /etc has none,
 ; or from -c's file: I: (the index page), H: (the home), A:/D: (the addresses
-; allowed and denied), Ennn: (an error page) and .ext: (a type) take effect.
-; CGI, Basic authentication, the proxy and gzip are not served yet: their
-; lines are read, and a request for a script under cgi-bin/ is answered 501.
+; allowed and denied), Ennn: (an error page), .ext: (a type) and *.ext: (an
+; interpreter) take effect.  Basic authentication, the proxy and gzip are not
+; served yet: their lines are read and held.
+;
+; A file under cgi-bin/ that can be run, a file an interpreter is named for,
+; and cgi-bin/index.cgi for a directory with no index page are CGI scripts:
+; run with the request in their environment and its body on their stdin.  The
+; script is run as ./NAME (the platform's exec looks names up on PATH, so a
+; bare NAME could find another program), where busybox's argv[0] is NAME.
 
 ; --- the state a run sets --------------------------------------------------------
 
@@ -40,6 +46,8 @@
 (def %hd-acl ())              ; (IP MASK A-OR-D), the D lines first
 (def %hd-deny-all #f)
 (def %hd-remote-ip 0)
+(def %hd-rmt ())              ; the peer as IP:PORT, nil when there is none
+(def %hd-home "")             ; the home, absolute when -h gave one or none was given
 
 ; per request
 (def %hd-in "")               ; read and not yet taken
@@ -54,6 +62,10 @@
 (def %hd-range-len -1)
 (def %hd-if-none-match ())
 (def %hd-etag "")
+(def %hd-post-len 0)          ; a POST's Content-Length
+(def %hd-cgi-env ())          ; (NAME . VALUE) a script is given from the headers
+(def %hd-hdr-total 0)         ; the header lines' bytes so far
+(def %hd-interp ())           ; the interpreter a *.ext: line names for the file
 
 ; the response is over: the run's top answers 0
 (def %hd-done (fn (_) (Err raise (lit httpd-done) "" ())))
@@ -418,7 +430,7 @@
       ((= (byte-len after) 0) (%hd-conf-error line file))
       ((= up #\I) (set! %hd-index after))
       ((if first? (= up #\H) #f)
-        (unless (%hd-chdir after)
+        (if (%hd-chdir after) (set! %hd-home after)
           (%hd-die (string-concat (list "can't change directory to '" after "': No such file or directory")))))
       ((if (= up #\A) #t (= up #\D)) (%hd-conf-acl! up after))
       ((if first? (= up #\E) #f) (%hd-conf-errpage! line after file))
@@ -471,7 +483,8 @@
     (set! %hd-file-size -1) (set! %hd-last-mod 0) (set! %hd-mime-found ())
     (set! %hd-moved ()) (set! %hd-query ())
     (set! %hd-range-start -1) (set! %hd-range-end 0) (set! %hd-range-len -1)
-    (set! %hd-if-none-match ()) (set! %hd-etag "")))
+    (set! %hd-if-none-match ()) (set! %hd-etag "")
+    (set! %hd-post-len 0) (set! %hd-cgi-env ()) (set! %hd-hdr-total 0) (set! %hd-interp ())))
 
 ; handle_incoming_and_exit
 (def %hd-handle
@@ -513,39 +526,85 @@
     ; index page is cgi-bin/index.cgi's, when that may be run
     (def target (if (if dir-url? (not (Str8 starts? "cgi-bin/" rel)) #f) (string-append rel %hd-index) rel))
     (def cgi (%hd-locate url rel target dir-url?))
-    (%hd-headers)
+    (%hd-headers (string=? method "POST") (not (null? cgi)))
     (when (string=? (%wget-last-part url) "httpd.conf") (%hd-fail 403))
     (unless (null? %hd-moved) (%hd-fail 302))
-    (when cgi (%hd-fail 501))
+    (unless (null? cgi)
+      (%hd-send-cgi (if (eq? cgi (lit index)) "/cgi-bin/index.cgi" url) url method))
     (unless (%cu-member-s? method (list "GET" "HEAD")) (%hd-fail 501))
     (%hd-send-file target #t)))
 
-; the stat: #t for a script to run, #f for a file to send (or a 302 to make)
+; the stat: the script to run -- normal under cgi-bin/, index for
+; cgi-bin/index.cgi, interp for a file a *.ext: line names an interpreter for
+; -- or nil for a file to send (or a 302 to make)
 (def %hd-locate
   (fn (_ url rel target dir-url?)
     (match
       ((Str8 starts? "cgi-bin/" rel)
-        (if (file-exists? rel) (%hd-cgi-file (file-stat rel) rel) #t))
+        (if (file-exists? rel) (%hd-cgi-file (file-stat rel) rel) (lit normal)))
       ((file-exists? target)
         (let ((st (file-stat target)))
-          (do (if (if (not dir-url?) (eq? (Assoc get (lit file-type) st) (lit dir)) #f)
-                (set! %hd-moved url)
-                (%hd-stat! st))
-              #f)))
-      (dir-url? (if (%t-permitted? "cgi-bin/index.cgi" 1) #t (%hd-fail 404)))
-      (#t #f))))
+          (if (if (not dir-url?) (eq? (Assoc get (lit file-type) st) (lit dir)) #f)
+            (do (set! %hd-moved url) ())
+            (do (%hd-stat! st) (%hd-interp-for target)))))
+      (dir-url? (if (%t-permitted? "cgi-bin/index.cgi" 1) (lit index) (%hd-fail 404)))
+      (#t ()))))
 
-; the header lines, to the blank one: Range and If-None-Match are read
+; interp when a *.ext: line names TARGET's suffix, its interpreter kept
+(def %hd-interp-for
+  (fn (_ target)
+    (def dot (%wget-last-index target #\.))
+    (def hit (if (null? dot) ()
+               (let ((suffix (substring target dot (byte-len target))))
+                 (let go ((ss %hd-scripts))
+                   (match ((null? ss) ())
+                          ((string=? (first (first ss)) suffix) (first ss))
+                          (#t (go (rest ss))))))))
+    (if (null? hit) ()
+      (do (set! %hd-interp (rest hit)) (lit interp)))))
+
+; the header lines, to the blank one, 32 KiB of them at most (413 past that):
+; a POST's Content-Length, Range and If-None-Match are read; for a script
+; every other line is a variable of its environment
 (def %hd-headers
-  (fn (self)
+  (fn (self post? cgi?)
     (let ((h (%hd-line)))
       (unless (= (byte-len h) 0)
-        (do (match
+        (do (set! %hd-hdr-total (+ %hd-hdr-total (byte-len h)))
+            (when (>= %hd-hdr-total 32768) (%hd-fail 413))
+            (match
+              ((if post? (%hd-prefix-ci? h "Content-Length:") #f)
+                (%hd-content-length! (%hd-after-header h "Content-Length:")))
               ((%hd-prefix-ci? h "Range:") (%hd-range! (%hd-after-header h "Range:")))
               ((%hd-prefix-ci? h "If-None-Match:")
                 (set! %hd-if-none-match (%hd-after-header h "If-None-Match:")))
+              (cgi? (%hd-cgi-header! h))
               (#t ()))
-            (self))))))
+            (self post? cgi?))))))
+
+; a POST's length: digits and nothing else, or a 400
+(def %hd-content-length!
+  (fn (_ v)
+    (let ((n (%hd-num-at v 0)))
+      (if (if (null? (first n)) #t (< (rest n) (byte-len v)))
+        (%hd-fail 400)
+        (set! %hd-post-len (first n))))))
+
+; NAME: VALUE as HTTP_NAME=VALUE -- letters upper case, any other byte but a
+; digit an underscore -- and Content-Type as CONTENT_TYPE
+(def %hd-cgi-header!
+  (fn (_ h)
+    (def colon (%wget-index h #\: 0))
+    (unless (null? colon)
+      (let ((name (bytes->str (map (fn (_ c) (match ((if (>= c #\a) (<= c #\z) #f) (- c 32))
+                                                    ((if (>= c #\A) (<= c #\Z) #f) c)
+                                                    ((if (>= c #\0) (<= c #\9) #f) c)
+                                                    (#t #\_)))
+                                   (%tftp-bytes h 0 colon))))
+            (value (substring h (%hd-skip-blanks h (+ colon 1)) (byte-len h))))
+        (set! %hd-cgi-env
+          (pair (pair (if (%hd-prefix-ci? h "Content-Type:") name (string-append "HTTP_" name)) value)
+                %hd-cgi-env))))))
 
 ; Range: bytes=START-[END], as busybox reads it: anything else, or an END
 ; before START, leaves the file whole
@@ -565,14 +624,173 @@
       (unless (if (null? (first b)) #t (if (< (rest b) (byte-len v)) #t (< (first b) (first a))))
         (do (set! %hd-range-start (first a)) (set! %hd-range-end (first b)))))))
 
+; --- CGI ---------------------------------------------------------------------------
+
+; send_cgi_and_exit: URL's script run with the request in its environment, its
+; stdin the request's body and its stdout the response.  The script is the
+; first part of URL that is not a directory; what follows it is PATH_INFO.  It
+; runs in its own directory, through the interpreter a *.ext: line names when
+; one does
+(def %hd-send-cgi
+  (fn (_ url orig method)
+    (def cut (%hd-cgi-split url 1 0))
+    (def script-end (first cut))
+    (def last-slash (rest cut))
+    (def script-url (if (null? script-end) url (substring url 0 script-end)))
+    (def env
+      (append (reverse %hd-cgi-env)
+        (list (pair "PATH_INFO" (if (null? script-end) "" (substring url script-end (byte-len url))))
+              (pair "REQUEST_METHOD" method)
+              (pair "REQUEST_URI" (if (null? %hd-query) orig (string-concat (list orig "?" %hd-query)))))
+        (if (Str8 starts? "/" %hd-home)
+          (list (pair "SCRIPT_FILENAME" (string-append (%hd-strip-slash %hd-home) script-url)))
+          ())
+        (list (pair "SCRIPT_NAME" script-url)
+              (pair "QUERY_STRING" (if (null? %hd-query) "" %hd-query))
+              (pair "SERVER_SOFTWARE" "x-coreutils httpd")
+              (pair "SERVER_PROTOCOL" "HTTP/1.1")
+              (pair "GATEWAY_INTERFACE" "CGI/1.1"))
+        (%hd-remote-env)
+        (if (> %hd-post-len 0) (list (pair "CONTENT_LENGTH" (%cu-int->str %hd-post-len))) ())))
+    (def from (sys-pipe))
+    (def to (sys-pipe))
+    (def pid (sys-fork))
+    (when (= pid 0) (%hd-cgi-child from to env script-url last-slash))
+    (file-close (first to))
+    (file-close (rest from))
+    (def writer (%hd-cgi-feed (rest to)))
+    (%hd-cgi-out (first from))
+    (file-close (first from))
+    (sys-wait pid)
+    (when (> writer 0) (sys-wait writer))
+    (%hd-finish)))
+
+; the first part of URL past I that is not a directory: (ITS-SLASH . LAST-DIR-SLASH),
+; ITS-SLASH nil when every part is one
+(def %hd-cgi-split
+  (fn (self url i last)
+    (let ((s (%wget-index url #\/ i)))
+      (match
+        ((null? s) (pair () last))
+        ((file-dir? (substring url 1 s)) (self url (+ s 1) s))
+        (#t (pair s last))))))
+
+(def %hd-strip-slash
+  (fn (_ s) (if (if (> (byte-len s) 0) (= (byte-at s (- (byte-len s) 1)) #\/) #f)
+              (substring s 0 (- (byte-len s) 1)) s)))
+
+; REMOTE_ADDR and REMOTE_PORT: the peer's IP:PORT split at its last colon
+(def %hd-remote-env
+  (fn (_)
+    (def p (if (null? %hd-rmt) "" %hd-rmt))
+    (def colon (%wget-last-index p #\:))
+    (def cut (if (if (null? colon) #f (null? (%wget-index p #\] colon))) colon ()))
+    (if (null? cut) (list (pair "REMOTE_ADDR" p))
+      (list (pair "REMOTE_ADDR" (substring p 0 cut))
+            (pair "REMOTE_PORT" (substring p (+ cut 1) (byte-len p)))))))
+
+; the script's process: its stdin and stdout the pipes, the environment set, in
+; the script's directory, SIGPIPE back to its default -- then the script, or
+; busybox's 404 on its stdout when it cannot be run
+(def %hd-cgi-child
+  (fn (_ from to env script-url last-slash)
+    (file-close (rest to)) (file-close (first from))
+    (sys-dup2 (first to) 0) (sys-dup2 (rest from) 1)
+    (file-close (first to)) (file-close (rest from))
+    (sys-signal 13 0)
+    (map (fn (_ kv) (sys-setenv (first kv) (rest kv))) env)
+    (def dir (substring script-url 1 last-slash))
+    (def name (substring script-url (+ last-slash 1) (byte-len script-url)))
+    (when (> %hd-verbose 2) (%hd-log (string-append "cd:" dir)))
+    (if (if (> last-slash 0) (not (%hd-chdir dir)) #f)
+      (%hd-log (string-concat (list "can't change directory to '" dir "': No such file or directory")))
+      (do (when (> %hd-verbose 1)
+            (%hd-log (string-concat (list "exec:" (if (null? %hd-interp) name %hd-interp) " "
+                                          (if (null? %hd-interp) "(null)" name)))))
+          (let ((e (if (null? %hd-interp)
+                     (sys-exec-or-err (string-append "./" name) ())
+                     (sys-exec-or-err %hd-interp (list name)))))
+            (when (> %hd-verbose 0)
+              (%hd-log (string-concat (list "can't execute '" (if (null? %hd-interp) name %hd-interp) "': "
+                                            (file-err-text e))))))))
+    (set! %hd-file-size -1)
+    (%hd-send-headers 404)
+    (sys-exit 1)))
+
+; the request's body to the script: what was read past the headers, then the
+; rest of a POST's Content-Length, by a process of its own so the script's
+; output is read meanwhile.  Answers its pid, or 0 when there is nothing to send
+(def %hd-cgi-feed
+  (fn (_ fd)
+    (def left (- %hd-post-len (byte-len %hd-in)))
+    (if (if (= (byte-len %hd-in) 0) (<= left 0) #f)
+      (do (file-close fd) 0)
+      (let ((pid (sys-fork)))
+        (if (= pid 0)
+          (do (guard (_ ())
+                (do (file-write-run fd (pair %hd-in (byte-len %hd-in)))
+                    (let go ((left left))
+                      (when (> left 0)
+                        (let ((r (%hd-read)))
+                          (unless (null? r)
+                            (do (file-write-run fd r) (go (- left (rest r))))))))))
+              (sys-exit 0))
+          (do (file-close fd) pid))))))
+
+; cgi_io_loop_and_exit's output half: the first ten bytes decide the status
+; line -- Status: becomes HTTP/1.1, Location: is a 302, an HTTP/1.1 line of
+; the script's own stays, anything else is given HTTP/1.1 200 OK -- then
+; everything the script writes is passed on
+(def %hd-cgi-out
+  (fn (_ fd)
+    (let go ((head ""))
+      (let ((r (file-read-run fd 8192)))
+        (if (= (rest r) 0)
+          (%hd-cgi-head head)
+          (let ((h (string-append head (substring (first r) 0 (rest r)))))
+            (if (< (byte-len h) 10) (go h)
+              (do (%hd-cgi-head h) (%hd-cgi-pass fd)))))))))
+
+(def %hd-cgi-head
+  (fn (_ h)
+    (match
+      ((if (>= (byte-len h) 10) (Str8 starts? "Status: " h) #f)
+        (let ((out (string-append "HTTP/1.1 " (substring h 8 (byte-len h)))))
+          (do (when (> %hd-verbose 0)
+                (%hd-log (string-concat (list "cgi response:'" (%hd-printable out 9) "'"))))
+              (%hd-write-all out))))
+      ((if (>= (byte-len h) 10) (Str8 starts? "Location: " h) #f)
+        (do (%hd-write-all "HTTP/1.1 302 Found\r\n")
+            (when (> %hd-verbose 0)
+              (%hd-log (string-concat (list "cgi redirect:'" (%hd-printable h 10) "'"))))
+            (%hd-write-all h)))
+      ((if (>= (byte-len h) 10) (Str8 starts? "HTTP/1.1" h) #f) (%hd-write-all h))
+      (#t (do (%hd-write-all "HTTP/1.1 200 OK\r\n")
+              (when (> %hd-verbose 0) (%hd-log "cgi response:200"))
+              (%hd-write-all h))))))
+
+(def %hd-cgi-pass
+  (fn (self fd)
+    (let ((r (file-read-run fd 8192)))
+      (when (> (rest r) 0)
+        (do (file-write-run 1 r) (%cu-sweep! 1) (self fd))))))
+
+; S from I to its first byte that is not plain text
+(def %hd-printable
+  (fn (_ s i)
+    (let go ((j i))
+      (if (if (< j (byte-len s)) (if (>= (byte-at s j) 32) (< (byte-at s j) 127) #f) #f)
+        (go (+ j 1))
+        (substring s i j)))))
+
 ; a file under cgi-bin/: one that is not a regular file is a 403; one no one
-; may run is sent as a file; one that can be run is a script (#t)
+; may run is sent as a file (nil); one that can be run is a script (normal)
 (def %hd-cgi-file
   (fn (_ st rel)
     (match
       ((not (eq? (Assoc get (lit file-type) st) (lit file))) (%hd-fail 403))
-      ((not (%t-permitted? rel 1)) (do (%hd-stat! st) #f))
-      (#t #t))))
+      ((not (%t-permitted? rel 1)) (do (%hd-stat! st) ()))
+      (#t (lit normal)))))
 
 (def %hd-stat!
   (fn (_ st)
@@ -621,12 +839,13 @@
   (fn (_ fd listener?)
     (let ((p (guard (_ ()) (net-peer fd))))
       (if (null? p)
-        (do (set! %hd-remote-ip 0) (set! %hd-name "httpd"))
+        (do (set! %hd-remote-ip 0) (set! %hd-rmt ()) (set! %hd-name "httpd"))
         (do (set! %hd-remote-ip (let ((r (%hd-scan-ip (first p) 0))) (if (null? r) 0 (first r))))
+            (set! %hd-rmt (string-concat
+              (list (if listener? (string-concat (list "[::ffff:" (first p) "]")) (first p))
+                    ":" (%cu-int->str (rest p)))))
             (when (> %hd-verbose 0)
-              (set! %hd-name (string-concat
-                (list (if listener? (string-concat (list "[::ffff:" (first p) "]")) (first p))
-                      ":" (%cu-int->str (rest p)))))))))))
+              (set! %hd-name %hd-rmt)))))))
 
 ; --- the applet --------------------------------------------------------------------------
 
@@ -669,6 +888,7 @@
     (set! %hd-remote-ip 0)
     (let ((r (Opts value o "-r"))) (set! %hd-realm (if (null? r) "Web Server Authentication" r)))
     (def home (Opts value o "-h"))
+    (set! %hd-home (if (null? home) (sys-getcwd) home))
     (unless (null? home)
       (unless (%hd-chdir home)
         (%hd-die (string-concat (list "can't change directory to '" home "': No such file or directory")))))
