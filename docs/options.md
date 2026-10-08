@@ -50,6 +50,8 @@ the work.  Applet parity is the other axis: see the README.
 | `ftpput` | -c -v -u -p -P | -v -c --verbose -u -p -P --continue --username --password --port |  | 100% |
 | `getopt` | -o -n -q -Q -s -T -u -a -l | -a -q -Q -T -u --alternative --quiet --quiet-output --test --unquoted -l -n -o -s --longoptions --name --options --shell |  | 100% |
 | `groups` |  |  |  | - |
+| `gunzip` | -c -f -k -t | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | 100% |
+| `gzip` | -c -f -k -d -t | -c -f -k -v -q -d -t -n -1 -2 -3 -4 -5 -6 -7 -8 -9 --stdout --to-stdout --force --verbose --decompress --uncompress --test --quiet --fast --best --no-name |  | 100% |
 | `hd` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
 | `hexdump` | -b -c -d -o -x -C -e -f -n -s -v | -b -c -d -o -x -C -v -e -n -s -f |  | 100% |
@@ -108,7 +110,7 @@ the work.  Applet parity is the other axis: see the README.
 | `sync` | -d -f | -d -f |  | 100% |
 | `tac` |  |  |  | - |
 | `tail` | -c -f -n -q -s -v | -q -v -f -c -n -s |  | 100% |
-| `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -z -J -j --lzma --to-command | 80% |
+| `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -z --gzip -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -J -j --lzma --to-command | 84% |
 | `tee` | -a -i | -a -i |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
@@ -144,5 +146,6 @@ the work.  Applet parity is the other axis: see the README.
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -0 -r -t -x -a -E -I -n -s | -p | 90% |
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
+| `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 601 of 615 busybox options accepted (97%).**
+**Total: 611 of 624 busybox options accepted (97%).**

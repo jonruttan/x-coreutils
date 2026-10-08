@@ -2361,7 +2361,7 @@ status 0
 ```
 ---
 ```output
-Usage: tar c|x|t [-ahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...|
+Usage: tar c|x|t [-zahmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...|
 |
 Create, extract, or list files from a tar file|
 |
@@ -2375,6 +2375,7 @@ Create, extract, or list files from a tar file|
 	-m	Don't restore mtime|
 	-o	Don't restore user:group|
 	-k	Don't replace existing files|
+	-z	(De)compress using gzip|
 	-a	(De)compress based on extension|
 	-h	Follow symlinks|
 	-T FILE	File with names to include|
@@ -2385,6 +2386,59 @@ Create, extract, or list files from a tar file|
 	--no-recursion		Don't descend in directories|
 	--numeric-owner		Use numeric user:group|
 	--no-same-permissions	Don't restore access permissions|
+stderr:
+status 0
+```
+
+### gzip
+
+```cu
+(run (list "gzip" "--help") "")
+```
+---
+```output
+Usage: gzip [-cfkdt] [FILE]...|
+|
+Compress FILEs (or stdin)|
+|
+	-d	Decompress|
+	-c	Write to stdout|
+	-f	Force|
+	-k	Keep input files|
+	-t	Test integrity|
+stderr:
+status 0
+```
+
+### gunzip
+
+```cu
+(run (list "gunzip" "--help") "")
+```
+---
+```output
+Usage: gunzip [-cfkt] [FILE]...|
+|
+Decompress FILEs (or stdin)|
+|
+	-c	Write to stdout|
+	-f	Force|
+	-k	Keep input files|
+	-t	Test integrity|
+stderr:
+status 0
+```
+
+### zcat
+
+```cu
+(run (list "zcat" "--help") "")
+```
+---
+```output
+Usage: zcat [FILE]...|
+|
+Decompress to stdout|
 stderr:
 status 0
 ```

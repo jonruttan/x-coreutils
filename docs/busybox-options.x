@@ -56,6 +56,8 @@
     (list "fsync" (%letters "d"))
     (list "getopt" (%letters "onqQsTual"))
     (list "groups" ())
+    (list "gunzip" (%letters "cfkt"))
+    (list "gzip" (%letters "cfkdt"))
     (list "hd" ())
     (list "head" (%letters "ncqv"))
     (list "hexdump" (%letters "bcdoxCefnsv"))
@@ -159,6 +161,7 @@
     (list "xargs" (%letters "0aEInprstx"))
     (list "xxd" (%letters "lsapirgco"))
     (list "yes" ())
+    (list "zcat" ())
     (list "[" (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
                     "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
                     "=" "!=" "-eq" "-ne" "-lt" "-le" "-gt" "-ge"
