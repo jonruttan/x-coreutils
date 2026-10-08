@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and thirty-two applets: parity with busybox's `coreutils`
+**A hundred and thirty-five applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -15,7 +15,8 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget` (http, https and ftp), `whois`, `nc`,
 `nslookup`, `tftp`, `ftpget`, `ftpput` and `httpd`, its `uptime`, `free`,
-`ps`, `pidof`, `pgrep` and `pkill`, and its `tar`.**
+`ps`, `pidof`, `pgrep` and `pkill`, its `who`, `w` and `users`, and its
+`tar`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
@@ -27,8 +28,8 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`,
     setsid sha1sum sha256sum sha512sum shred shuf sleep sort split stat
     strings sum sync tac tail tar tee test tftp time timeout touch tr tree
     true truncate tsort tty ttysize unexpand uniq unix2dos unlink uname
-    uptime uudecode uuencode uuidgen usleep vi wc wget which whois whoami
-    xargs xxd yes
+    uptime users uudecode uuencode uuidgen usleep vi w wc wget which who
+    whois whoami xargs xxd yes
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -72,6 +73,9 @@ Self-contained: no `(requires-lang ...)`.
   - **`tty` answers isatty**, not a terminal name: there is no ttyname
     door, so it prints `/dev/tty` or `not a tty`.
   - **`which` tests existence**, not the execute bit.
+  - **`who -a` shows the same sessions as `who`**: the platform reports the
+    utmpx entries of type USER_PROCESS, so the login, boot and run-level
+    entries busybox adds under -a are not there.
   - **Text, not binary.** An applet holds what it reads as a string,
     and a string's length stops at its first NUL byte, so `cat`, `od`,
     `wc`, `cmp`, `dd`, the digests and the other readers see a file or
@@ -120,7 +124,7 @@ Self-contained: no `(requires-lang ...)`.
     answered when vi next waits for a key, where busybox's handlers
     answer them at once, so the two differ only while a long command
     runs.
-  - **Not present**: `who` (utmpx), `stty` (ioctl), `hostid`
+  - **Not present**: `stty` (ioctl), `hostid`
     (gethostid) and `mknod` (device numbers), for want of a door this
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
@@ -174,7 +178,8 @@ parsed by x-lang's `Opts`.
     cu/test.x         test, [ and [[: the expression grammar
     cu/date.x         date, and the strftime it needs
     cu/perm.x         chmod chown chgrp link readlink realpath mkfifo df sync
-    cu/who.x          id whoami logname groups uname arch nproc nice chroot
+    cu/who.x          id whoami logname groups uname arch nproc nice chroot,
+                      who w users
     cu/encode.x       od uuencode uudecode
     cu/expr.x         expr, and the anchored matcher it needs
     cu/diff.x         diff, normal and unified formats (LCS by DP)

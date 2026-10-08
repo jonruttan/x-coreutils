@@ -1166,6 +1166,51 @@ stderr:
 status 0
 ```
 
+### who
+
+```cu
+(run (list "who" "--help") "")
+```
+---
+```output
+Usage: who [-aH]|
+|
+Show who is logged on|
+|
+	-a	Show all|
+	-H	Print column headers|
+stderr:
+status 0
+```
+
+### w
+
+```cu
+(run (list "w" "--help") "")
+```
+---
+```output
+Usage: w|
+|
+Show who is logged on|
+stderr:
+status 0
+```
+
+### users
+
+```cu
+(run (list "users" "--help") "")
+```
+---
+```output
+Usage: users|
+|
+Print the users currently logged on|
+stderr:
+status 0
+```
+
 ### uname
 
 ```cu

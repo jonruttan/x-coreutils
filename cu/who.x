@@ -6,7 +6,7 @@
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)
 ;
-; id whoami groups logname uname arch nproc nice chroot.
+; id whoami groups logname uname arch nproc nice chroot, and who w users.
 ;
 ; A uid's name is the system's, from sys-user-name (cu/prims.x); where the
 ; system has none, $USER or $LOGNAME stands in, and the numeric id is the last
@@ -340,3 +340,65 @@
         (let ((cmd (rest argv)))
           (if (null? cmd) 0
             (do (cu-stdin-to-command!) (sys-exec (first cmd) (rest cmd)) 127)))))))
+
+; --- who, w, users ------------------------------------------------------------
+
+; busybox's coreutils/who.c: who, w and users are one applet.  The sessions are
+; the utmpx database's (host-users, cu/prims.x): each of type USER_PROCESS
+; with a user name.  w is who with its header; users prints the names alone.
+(def %cu-who (fn (_ argv stdin-thunk) (%wh-run "who" argv)))
+(def %cu-w (fn (_ argv stdin-thunk) (%wh-run "w" argv)))
+(def %cu-users (fn (_ argv stdin-thunk) (%wh-run "users" argv)))
+
+(def %wh-run
+  (fn (_ applet argv)
+    (def o (%cu-opts applet argv))
+    ; getopt32's "=0": an operand is busybox's usage
+    (if (not (null? (Opts operands o))) (%cu-usage applet)
+      (let ((sessions (host-users)))
+        (if (string=? applet "users")
+          (display (string-append
+                     (%cu-join-with (map (fn (_ u) (Assoc get (lit user) u)) sessions) " ")
+                     "\n"))
+          (do (if (if (string=? applet "w") #t (Opts on? o "-H"))
+                (display "USER\t\tTTY\t\tIDLE\tTIME\t\t HOST\n") ())
+              (map (fn (_ u) (display (%wh-line u))) sessions)))
+        0))))
+
+; one session as busybox prints it: user, tty, idle, login time, host
+(def %wh-line
+  (fn (_ u)
+    (def tty (Assoc get (lit tty) u))
+    (def host (Assoc get (lit host) u))
+    (string-concat
+      (list (%cu-pad-right (Assoc get (lit user) u) 15) " "
+            (%cu-pad-right tty 15) " "
+            (%cu-pad-right (%wh-idle tty) 7) " "
+            (%wh-ctime (Assoc get (lit time) u)) "  "
+            (if (null? host) "" host) "\n"))))
+
+; the terminal's idle time, from its device's access time: HH:MM under a day,
+; old past it, ? when the device cannot be read
+(def %wh-idle
+  (fn (_ tty)
+    (def st (file-stat-full
+              (if (if (> (byte-len tty) 0) (= (byte-at tty 0) #\/) #f) tty
+                (string-append "/dev/" tty))))
+    (if (null? st) "?"
+      (let ((t (- (date-now-unix) (%cu-stat-get st (lit atime)))))
+        (if (if (>= t 0) (< t 86400) #f)
+          (string-concat (list (%cu-pad-zero (%cu-int->str (%ps-div t 3600)) 2) ":"
+                               (%cu-pad-zero (%cu-int->str (%ps-div (% t 3600) 60)) 2)))
+          "old")))))
+
+; ctime's fields from the month to the seconds, as `ctime(&t) + 4` shows
+; them: Mmm dd hh:mm:ss, local time.  busybox cuts that to sixteen columns,
+; which keep the space after the seconds
+(def %wh-ctime
+  (fn (_ t)
+    (def d (Date local t))
+    (def two (fn (_ k) (%cu-pad-zero (%cu-int->str (Assoc get k d)) 2)))
+    (string-concat
+      (list (%cu-nth (- (Assoc get (lit month) d) 1) %cu-date-mon-abbr)
+            (%cu-pad-left (%cu-int->str (Assoc get (lit day) d)) 3) " "
+            (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second))))))

@@ -127,18 +127,21 @@ the work.  Applet parity is the other axis: see the README.
 | `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
 | `uptime` | -s | -s |  | 100% |
+| `users` |  |  |  | - |
 | `usleep` |  |  |  | - |
 | `uudecode` | -o | -o |  | 100% |
 | `uuencode` | -m | -m |  | 100% |
 | `uuidgen` | -r | -r |  | 100% |
 | `vi` | -c -R -H | -R -H -h -c |  | 100% |
+| `w` |  |  |  | - |
 | `wc` | -c -m -l -w -L | -c -m -l -w -L |  | 100% |
 | `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | --spider --no-check-certificate -c -q -S --continue --quiet --server-response -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent --header -U --post-data --post-file -P -t -T -O -o -Y --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries |  | 100% |
 | `which` | -a | -a |  | 100% |
+| `who` | -a -H | -a -H |  | 100% |
 | `whoami` |  |  |  | - |
 | `whois` | -i -h -p | -i -h -p |  | 100% |
 | `xargs` | -0 -a -E -I -n -p -r -s -t -x | -0 -r -t -x -a -E -I -n -s | -p | 90% |
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 
-**Total: 593 of 607 busybox options accepted (97%).**
+**Total: 595 of 609 busybox options accepted (97%).**

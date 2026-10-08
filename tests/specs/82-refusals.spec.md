@@ -2772,6 +2772,102 @@ Print the groups USER is in
 status 1
 ```
 
+### who -~
+
+```cu
+(run (list "who" "-~") "")
+```
+---
+```output
+stderr:
+who: unrecognized option: ~
+Usage: who [-aH]
+
+Show who is logged on
+
+	-a	Show all
+	-H	Print column headers
+status 1
+```
+
+### who --nope
+
+```cu
+(run (list "who" "--nope") "")
+```
+---
+```output
+stderr:
+who: unrecognized option: nope
+Usage: who [-aH]
+
+Show who is logged on
+
+	-a	Show all
+	-H	Print column headers
+status 1
+```
+
+### w -~
+
+```cu
+(run (list "w" "-~") "")
+```
+---
+```output
+stderr:
+w: unrecognized option: ~
+Usage: w
+
+Show who is logged on
+status 1
+```
+
+### w --nope
+
+```cu
+(run (list "w" "--nope") "")
+```
+---
+```output
+stderr:
+w: unrecognized option: nope
+Usage: w
+
+Show who is logged on
+status 1
+```
+
+### users -~
+
+```cu
+(run (list "users" "-~") "")
+```
+---
+```output
+stderr:
+users: unrecognized option: ~
+Usage: users
+
+Print the users currently logged on
+status 1
+```
+
+### users --nope
+
+```cu
+(run (list "users" "--nope") "")
+```
+---
+```output
+stderr:
+users: unrecognized option: nope
+Usage: users
+
+Print the users currently logged on
+status 1
+```
+
 ### uname -~
 
 ```cu
