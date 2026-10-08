@@ -1021,10 +1021,11 @@
 
 ; the peer of FD as -v names it, and as A:/D: lines match it.  busybox's
 ; listener takes IPv6 and IPv4 alike, so it names an IPv4 peer as the IPv6
-; address that maps it, [::ffff:IP]:PORT; LISTENER? names one so
+; address that maps it, [::ffff:IP]:PORT; LISTENER? names one so.  A nil FD
+; is no socket, and no peer
 (def %hd-peer!
   (fn (_ fd listener?)
-    (let ((p (guard (_ ()) (net-peer fd))))
+    (let ((p (if (null? fd) () (guard (_ ()) (net-peer fd)))))
       (if (null? p)
         (do (set! %hd-remote-ip 0) (set! %hd-rmt ()) (set! %hd-name "httpd"))
         (do (set! %hd-remote-ip (let ((r (%hd-scan-ip (first p) 0))) (if (null? r) 0 (first r))))
@@ -1088,7 +1089,7 @@
     (%hd-parse-conf "/etc" #t)
     (sys-signal 13 cu-sig-ign)
     (if inetd?
-      (do (%hd-peer! 0 #f)
+      (do (%hd-peer! (net-stdin-socket) #f)
           (%hd-serve (fn (_) (let ((p (stdin-thunk (lit chunk))))
                                (let ((r (if (pair? p) p (pair p (byte-len p)))))
                                  (if (= (rest r) 0) () r))))))
