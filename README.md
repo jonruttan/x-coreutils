@@ -7,15 +7,15 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and thirty-eight applets: parity with busybox's `coreutils`
+**A hundred and thirty-nine applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget` (http, https and ftp), `whois`, `nc`,
-`nslookup`, `tftp`, `ftpget`, `ftpput` and `httpd`, its `uptime`, `free`,
-`ps`, `pidof`, `pgrep` and `pkill`, its `who`, `w` and `users`, its
+`nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput` and `httpd`, its `uptime`,
+`free`, `ps`, `pidof`, `pgrep` and `pkill`, its `who`, `w` and `users`, its
 `tar`, and its `gzip`, `gunzip` and `zcat`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
@@ -26,10 +26,10 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`,
     nologin nproc nslookup od paste pgrep pidof pipe_progress pkill
     printenv printf ps pwd readlink realpath reset rev rm rmdir run-parts
     seq setsid sha1sum sha256sum sha512sum shred shuf sleep sort split
-    stat strings sum sync tac tail tar tee test tftp time timeout touch tr
-    tree true truncate tsort tty ttysize unexpand uniq unix2dos unlink
-    uname uptime users uudecode uuencode uuidgen usleep vi w wc wget which
-    who whois whoami xargs xxd yes zcat
+    stat strings sum sync tac tail tar tee test tftp tftpd time timeout
+    touch tr tree true truncate tsort tty ttysize unexpand uniq unix2dos
+    unlink uname uptime users uudecode uuencode uuidgen usleep vi w wc
+    wget which who whois whoami xargs xxd yes zcat
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -201,7 +201,7 @@ parsed by x-lang's `Opts`.
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/nc.x           nc: busybox's netcat 1.10, the copy waiting on the platform's poll
     cu/dns.x          nslookup: busybox's DNS client, its queries and replies in x
-    cu/tftp.x         tftp: busybox's client, blocks and options over UDP datagrams
+    cu/tftp.x         tftp and tftpd: busybox's client and server, blocks and options over UDP
     cu/ftp.x          ftpget, ftpput and wget's ftp:// urls: busybox's FTP over a passive data connection
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
