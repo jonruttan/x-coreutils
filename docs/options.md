@@ -58,6 +58,7 @@ the work.  Applet parity is the other axis: see the README.
 | `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -r -h -c -e -d | -m -u | 84% |
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
+| `ipcalc` | -b -n -m -p -h -s | -b -n -m -p -h -s --broadcast --network --netmask --prefix --hostname --silent |  | 100% |
 | `join` | _not a busybox applet_ | -t | | - |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
@@ -147,4 +148,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 605 of 618 busybox options accepted (97%).**
+**Total: 611 of 624 busybox options accepted (97%).**
