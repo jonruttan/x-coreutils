@@ -632,14 +632,15 @@ status 1
 ## https
 
 `openssl s_server` relays a canned response from its standard input over
-a certificate made for the run.  A server's certificate is checked, as
+a certificate made for the run, and is killed when the run ends: macOS's
+/usr/bin/openssl is LibreSSL, whose s_server has no -naccept.  A server's certificate is checked, as
 busybox's openssl helper checks it: one that does not verify is
 "error getting response", and --no-check-certificate skips the check.
 
 ### --no-check-certificate reads from a self-signed server; without it the run fails
 
 ```cu
-(do (def wgs (fn (_ args) (do (def p (Socket tcp-listen 0)) (def port (%cu-int->str (Socket local-port p))) (Socket close p) (proc-run (list "/bin/sh" "-c" (string-concat (list "mkdir -p /tmp/x-cu-net.tls && cd /tmp/x-cu-net.tls && { [ -f cert.pem ] || openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 1 -subj /CN=localhost >/dev/null 2>&1; } && printf 'HTTP/1.1 200 OK\\r\\nContent-Length: 4\\r\\n\\r\\ntls\\n' > resp && { openssl s_server -quiet -naccept 1 -accept " port " -cert cert.pem -key key.pem < resp >/dev/null 2>&1 & echo $! > pid; } && sleep 1")))) (sys-dup2 1 9) (sys-dup2 2 8) (def oo (file-open-write "/tmp/x-cu-net.tls/out")) (def ee (file-open-write "/tmp/x-cu-net.tls/err")) (sys-dup2 oo 1) (sys-dup2 ee 2) (def wg-clock date-now-unix) (def wg-now (date-now-unix)) (set! date-now-unix (fn (_) wg-now)) (def st (guard (e -1) (cu-run (pair "wget" (append args (list (string-concat (list "https://127.0.0.1:" port "/x"))))) ""))) (set! date-now-unix wg-clock) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (proc-run (list "/bin/sh" "-c" "kill $(cat /tmp/x-cu-net.tls/pid) 2>/dev/null; true")) (display (Str8 replace (string-append ":" port) ":PORT" (string-concat (list (file-read-all "/tmp/x-cu-net.tls/out") "stderr:\n" (file-read-all "/tmp/x-cu-net.tls/err") "status " (%cu-int->str st) "\n"))))))) (wgs (list "--no-check-certificate" "-O" "-")) (wgs (list "-O" "-")))
+(do (def wgs (fn (_ args) (do (def p (Socket tcp-listen 0)) (def port (%cu-int->str (Socket local-port p))) (Socket close p) (proc-run (list "/bin/sh" "-c" (string-concat (list "mkdir -p /tmp/x-cu-net.tls && cd /tmp/x-cu-net.tls && { [ -f cert.pem ] || openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 1 -subj /CN=localhost >/dev/null 2>&1; } && printf 'HTTP/1.1 200 OK\\r\\nContent-Length: 4\\r\\n\\r\\ntls\\n' > resp && { openssl s_server -quiet -accept " port " -cert cert.pem -key key.pem < resp >/dev/null 2>&1 & echo $! > pid; } && sleep 1")))) (sys-dup2 1 9) (sys-dup2 2 8) (def oo (file-open-write "/tmp/x-cu-net.tls/out")) (def ee (file-open-write "/tmp/x-cu-net.tls/err")) (sys-dup2 oo 1) (sys-dup2 ee 2) (def wg-clock date-now-unix) (def wg-now (date-now-unix)) (set! date-now-unix (fn (_) wg-now)) (def st (guard (e -1) (cu-run (pair "wget" (append args (list (string-concat (list "https://127.0.0.1:" port "/x"))))) ""))) (set! date-now-unix wg-clock) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (proc-run (list "/bin/sh" "-c" "kill $(cat /tmp/x-cu-net.tls/pid) 2>/dev/null; true")) (display (Str8 replace (string-append ":" port) ":PORT" (string-concat (list (file-read-all "/tmp/x-cu-net.tls/out") "stderr:\n" (file-read-all "/tmp/x-cu-net.tls/err") "status " (%cu-int->str st) "\n"))))))) (wgs (list "--no-check-certificate" "-O" "-")) (wgs (list "-O" "-")))
 ```
 ---
 ```output
