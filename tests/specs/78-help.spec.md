@@ -2007,6 +2007,27 @@ stderr:
 status 0
 ```
 
+### ipcalc
+
+```cu
+(run (list "ipcalc" "--help") "")
+```
+---
+```output
+Usage: ipcalc [-bnmphs] ADDRESS[/PREFIX] [NETMASK]|
+|
+Calculate and display network settings from IP address|
+|
+	-b	Broadcast address|
+	-n	Network address|
+	-m	Default netmask for IP|
+	-p	Prefix for IP/NETMASK|
+	-h	Resolved host name|
+	-s	No error messages|
+stderr:
+status 0
+```
+
 ### xargs
 
 ```cu
