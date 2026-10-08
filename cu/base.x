@@ -72,5 +72,6 @@
 (include-once "./tar.x")
 (include-once "./gzip.x")
 (include-once "./procps.x")
+(include-once "./top.x")
 (include-once "./options.x")
 (include-once "./cli.x")

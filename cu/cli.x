@@ -152,6 +152,7 @@
     (pair "pidof" %cu-pidof)
     (pair "pgrep" %cu-pgrep)
     (pair "pkill" %cu-pkill)
+    (pair "top" %cu-top)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 

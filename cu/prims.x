@@ -52,6 +52,7 @@
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   host-boot-time load-centi host-load-centi host-memory host-users
   host-processes host-args host-process host-exe sys-signals sys-getpid re-compile re-search
+  host-load-fixed host-tasks host-cpu host-cpus host-threads host-maps
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
   net-base64 net-connect net-send net-recv-run net-close
@@ -389,6 +390,14 @@
 (def host-args (fn (_ pid) (Host args pid)))
 (def host-process (fn (_ pid) (Host process pid)))
 (def host-exe (fn (_ pid) (Host exe pid)))
+; the load averages as the kernel keeps them, fixed point over 2048 (FSHIFT
+; 11, Linux's and Darwin's both): a Host float times 2048 is exact
+(def host-load-fixed (fn (_) (map (fn (_ l) (Float ->int (Float * l 2048))) (Host load))))
+(def host-tasks (fn (_) (Host tasks)))
+(def host-cpu (fn (_) (Host cpu)))
+(def host-cpus (fn (_) (Host cpus)))
+(def host-threads (fn (_ pid) (Host threads pid)))
+(def host-maps (fn (_ pid) (Host maps pid)))
 (def sys-signals (fn (_) (Sys signals)))
 (def sys-getpid (fn (_) (Sys getpid)))
 ; a POSIX extended expression as x/type/regex reads one, and where it first
