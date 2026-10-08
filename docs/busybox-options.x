@@ -154,6 +154,7 @@
     (list "ftpput" (%letters "cvupP"))
     (list "httpd" (%letters "cdhermupMKifv"))
     (list "ftpd" (%letters "wAavStT"))
+    (list "ipcalc" (%letters "bnmphs"))
     (list "which" (%letters "a"))
     (list "who" (%letters "aH"))
     (list "whois" (%letters "ihp"))

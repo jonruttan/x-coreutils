@@ -67,6 +67,7 @@
 (include-once "./session.x")
 (include-once "./httpd.x")
 (include-once "./ftpd.x")
+(include-once "./ipcalc.x")
 (include-once "./getopt.x")
 (include-once "./runparts.x")
 (include-once "./tar.x")
