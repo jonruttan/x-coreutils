@@ -649,6 +649,23 @@
         (Opts declare "groups" "[USER]"
           "Print the groups USER is in"
           (list))))
+    (pair "who"
+      (list
+        (Opts declare "who" "[-aH]"
+          "Show who is logged on"
+          (list
+            (Opts flag "-a" "Show all")
+            (Opts flag "-H" "Print column headers")))))
+    (pair "w"
+      (list
+        (Opts declare "w" ""
+          "Show who is logged on"
+          (list))))
+    (pair "users"
+      (list
+        (Opts declare "users" ""
+          "Print the users currently logged on"
+          (list))))
     (pair "uname"
       (list
         (Opts declare "uname" "[-amnrspvio]"
