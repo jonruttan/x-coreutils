@@ -143,6 +143,7 @@
     (list "uniq" (%letters "cduifsw"))
     (list "unix2dos" (%letters "ud"))
     (list "unlink" ())
+    (list "unzip" (%letters "lnojptqKxd"))
     (list "uptime" (%letters "s"))
     (list "users" ())
     (list "usleep" ())

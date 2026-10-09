@@ -1562,6 +1562,32 @@
             (Opts hidden (Opts flag "--force" ""))
             (Opts hidden (Opts flag "--test" ""))
             (Opts hidden (Opts flag "--no-name" ""))))))
+    (pair "unzip"
+      (list
+        (Opts declare "unzip" "[-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]"
+          "Extract FILEs from ZIP archive"
+          (list
+            (Opts text "\t-l\tList contents (with -q for short form)")
+            (Opts text "\t-n\tNever overwrite files (default: ask)")
+            (Opts text "\t-o\tOverwrite")
+            (Opts text "\t-j\tDo not restore paths")
+            (Opts text "\t-p\tWrite to stdout")
+            (Opts text "\t-t\tTest")
+            (Opts text "\t-q\tQuiet")
+            (Opts text "\t-K\tDo not clear SUID bit")
+            (Opts text "\t-x FILE\tExclude FILEs")
+            (Opts text "\t-d DIR\tExtract into DIR")
+            (Opts hidden (Opts flag "-l" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-o" ""))
+            (Opts hidden (Opts flag "-j" ""))
+            (Opts hidden (Opts flag "-p" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-K" ""))
+            (Opts hidden (Opts flag "-x" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts arg "-d" "DIR" ""))))))
     (pair "sha384sum"
       (list
         (Opts declare "sha384sum" "[-c[sw]] [FILE]..."

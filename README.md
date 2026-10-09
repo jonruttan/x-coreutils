@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and fifty applets: parity with busybox's `coreutils`
+**A hundred and fifty-one applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -16,9 +16,9 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 its network tools, `wget` (http, https and ftp), `whois`, `nc`,
 `nslookup`, `tftp`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `ipcalc`, `tcpsvd`
 and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep` and `pkill`, its
-`who`, `w` and `users`, its `tar`, its `gzip`, `gunzip` and `zcat`, and its
-`hostname`, `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts` and
-`sha384sum`.**
+`who`, `w` and `users`, its `tar` and `unzip`, its `gzip`, `gunzip` and
+`zcat`, and its `hostname`, `hostid`, `mountpoint`, `mknod`, `mesg`,
+`renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
@@ -31,8 +31,9 @@ and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep` and `pkill`, its
     seq setsid sha1sum sha256sum sha384sum sha512sum shred shuf sleep sort
     split stat strings sum sync tac tail tar tcpsvd tee test tftp time
     timeout touch tr tree true truncate ts tsort tty ttysize udpsvd
-    unexpand uniq unix2dos unlink uname uptime users uudecode uuencode
-    uuidgen usleep vi w wc wget which who whois whoami xargs xxd yes zcat
+    unexpand uniq unix2dos unlink unzip uname uptime users uudecode
+    uuencode uuidgen usleep vi w wc wget which who whois whoami xargs xxd
+    yes zcat
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -221,6 +222,7 @@ parsed by x-lang's `Opts`.
     cu/runparts.x     run-parts: a directory's scripts, in order
     cu/tar.x          tar: ustar archives listed, extracted and made, z through gzip
     cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
+    cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/sysinfo.x      hostname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
     cu/procps.x       uptime, free, ps, pidof, pgrep and pkill, over the Host
     cu/options.x      each applet's option declaration and help text

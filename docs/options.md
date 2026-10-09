@@ -140,6 +140,7 @@ the work.  Applet parity is the other axis: see the README.
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
+| `unzip` | -l -n -o -j -p -t -q -K -x -d | -l -n -o -j -p -t -q -K -x -v -d |  | 100% |
 | `uptime` | -s | -s |  | 100% |
 | `users` |  |  |  | - |
 | `usleep` |  |  |  | - |
@@ -159,4 +160,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 651 of 664 busybox options accepted (98%).**
+**Total: 661 of 674 busybox options accepted (98%).**

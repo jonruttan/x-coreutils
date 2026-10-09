@@ -158,12 +158,9 @@
       (if (= (byte-at h 257) 0)
         (if (= (byte-at h 258) 0) (if (= (byte-at h 259) 0) (= (byte-at h 260) 0) #f) #f) #f))))
 
-; NAME with busybox's skip_unsafe_prefix taken off: leading slashes and ../,
-; and everything up to the last /../; a trailing /.. leaves nothing.  The
-; first time a run takes something off, it says so.
-(def %tar-warned #f)
-
-(def %tar-safe
+; How much of NAME busybox's skip_unsafe_prefix takes off: leading slashes
+; and ../, and everything up to the last /../; a trailing /.. leaves nothing.
+(def %cu-unsafe-prefix
   (fn (_ name)
     (def n (byte-len name))
     (def find-dotdot
@@ -189,13 +186,21 @@
                   ((eq? d (lit tail)) n)
                   ((< d 0) cp)
                   (#t (self d))))))))
-    (def cut (go 0))
+    (go 0)))
+
+; NAME with that prefix taken off.  The first time a run takes something
+; off, it says so.
+(def %tar-warned #f)
+
+(def %tar-safe
+  (fn (_ name)
+    (def cut (%cu-unsafe-prefix name))
     (do (if (if (> cut 0) (not %tar-warned) #f)
           (do (set! %tar-warned #t)
               (%tar-say (string-concat (list "removing leading '" (substring name 0 cut)
                                              "' from member names"))))
           ())
-        (substring name cut n))))
+        (substring name cut (byte-len name)))))
 
 ; S with each byte that will not print shown as ?, as busybox's
 ; printable_string does without Unicode
