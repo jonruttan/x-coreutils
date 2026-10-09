@@ -77,9 +77,6 @@ Self-contained: no `(requires-lang ...)`.
   - **`tty` answers isatty**, not a terminal name: there is no ttyname
     door, so it prints `/dev/tty` or `not a tty`.
   - **`which` tests existence**, not the execute bit.
-  - **`who -a` shows the same sessions as `who`**: the platform reports the
-    utmpx entries of type USER_PROCESS, so the login, boot and run-level
-    entries busybox adds under -a are not there.
   - **Text, not binary.** An applet holds what it reads as a string,
     and a string's length stops at its first NUL byte, so `cat`, `od`,
     `wc`, `cmp`, `dd`, the digests and the other readers see a file or
