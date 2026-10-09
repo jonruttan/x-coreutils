@@ -162,6 +162,7 @@
     (list "ftpput" (%letters "cvupP"))
     (list "httpd" (%letters "cdhermupMKifv"))
     (list "dnsd" (%letters "dvsctpi"))
+    (list "ftpd" (%letters "wAavStT"))
     (list "ipcalc" (%letters "bnmphs"))
     (list "which" (%letters "a"))
     (list "who" (%letters "aH"))

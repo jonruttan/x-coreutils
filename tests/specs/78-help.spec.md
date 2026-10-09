@@ -1983,27 +1983,27 @@ stderr:
 status 0
 ```
 
-### dnsd
+### ftpd
 
 ```cu
-(run (list "dnsd" "--help") "")
+(run (list "ftpd" "--help") "")
 ```
 ---
 ```output
-Usage: dnsd [-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]|
+Usage: ftpd [-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]|
 |
-Small static DNS server daemon|
+FTP server. Chroots to DIR, if this fails (run by non-root), cds to it.|
+It is an inetd service, inetd.conf line:|
+	21 stream tcp nowait root ftpd ftpd /files/to/serve|
+Can be run from tcpsvd:|
+	tcpsvd -vE 0.0.0.0 21 ftpd /files/to/serve|
 |
-	-c FILE	Config file|
-	-t SEC	TTL|
-	-p PORT	Listen on PORT|
-	-i ADDR	Listen on ADDR|
-	-d	Daemonize|
-	-v	Verbose|
-	-s	Send successful replies only. Use this if you want|
-		to use /etc/resolv.conf with two nameserver lines:|
-			nameserver DNSD_SERVER|
-			nameserver NORMAL_DNS_SERVER|
+	-w	Allow upload|
+	-A	No login required, client access occurs under ftpd's UID|
+	-a USER	Enable 'anonymous' login and map it to USER|
+	-v	Log errors to stderr. -vv: verbose log|
+	-S	Log errors to syslog. -SS: verbose log|
+	-t,-T N	Idle and absolute timeout|
 stderr:
 status 0
 ```
@@ -2025,6 +2025,31 @@ Calculate and display network settings from IP address|
 	-p	Prefix for IP/NETMASK|
 	-h	Resolved host name|
 	-s	No error messages|
+stderr:
+status 0
+```
+
+### dnsd
+
+```cu
+(run (list "dnsd" "--help") "")
+```
+---
+```output
+Usage: dnsd [-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]|
+|
+Small static DNS server daemon|
+|
+	-c FILE	Config file|
+	-t SEC	TTL|
+	-p PORT	Listen on PORT|
+	-i ADDR	Listen on ADDR|
+	-d	Daemonize|
+	-v	Verbose|
+	-s	Send successful replies only. Use this if you want|
+		to use /etc/resolv.conf with two nameserver lines:|
+			nameserver DNSD_SERVER|
+			nameserver NORMAL_DNS_SERVER|
 stderr:
 status 0
 ```
