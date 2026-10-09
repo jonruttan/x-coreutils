@@ -34,6 +34,7 @@
     (list "cmp" (%letters "lsn"))
     (list "comm" (%letters "123"))
     (list "cp" (%letters "arRPLHpfilsTu"))
+    (list "cpio" (append (%letters "tiopHdmvuFRL0") (list "--ignore-devno" "--renumber-inodes")))
     (list "crc32" ())
     (list "cut" (%letters "bcfdsn"))
     (list "date" (append (%letters "udDsrRI") (list "+FMT")))
