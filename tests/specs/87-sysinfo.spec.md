@@ -296,6 +296,14 @@ status 0
 ---
     (#t #t 9 #t)
 
+### dnsdomainname is hostname -d, whatever option or operand it is given
+
+```cu
+(do (si-case #t "-" "@" "@" "-" (list "hostname" "-d")) (def si-a (file-read-all (si-f "o"))) (si-case #t "-" "@" "@" "-" (list "dnsdomainname")) (def si-b (file-read-all (si-f "o"))) (si-case #t "-" "@" "@" "-" (list "dnsdomainname" "-f")) (def si-c (file-read-all (si-f "o"))) (si-case #t "-" "@" "@" "-" (list "dnsdomainname" "newname")) (def si-d (file-read-all (si-f "o"))) (display (list (string=? si-a si-b) (string=? si-a si-c) (string=? si-a si-d))))
+```
+---
+    (#t #t #t)
+
 ### ts's default stamp is the local month, day and time; %.S adds microseconds
 
 ```cu
