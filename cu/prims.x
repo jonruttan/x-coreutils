@@ -59,7 +59,8 @@
   net-listen net-listen-on net-accept net-local-port net-peer net-shutdown sys-poll
   net-udp-connect sys-time-ms
   net-udp-bind net-send-to-run net-recv-from-run
-  net-sock-addr net-stdin-socket)
+  net-sock-addr net-stdin-socket net-aton net-sockaddr net-sockaddr-read net-udp-open
+  net-send-run)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -1023,22 +1024,101 @@
 (def net-udp-bind (fn (_ port) (Socket udp-bind port)))
 (def net-send-to-run (fn (_ fd run ip port) (Socket send-to-run fd run ip port)))
 (def net-recv-from-run (fn (_ fd n) (Socket recv-from-run fd n)))
+; a run sent on a connected socket, NULs and all
+(def net-send-run (fn (_ fd run) (Socket send-run fd (first run) (rest run))))
+
+; musl's inet_aton: one to four dotted parts, each decimal, 0x hex or 0 octal,
+; the last filling the bytes left; the address's four bytes, most significant
+; first, or nil
+(def net-aton
+  (fn (_ s)
+    (def parts
+      (let go ((i 0) (acc ()))
+        (if (if (>= i (byte-len s)) #t (not (if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f))) ()
+          (let ((r (%net-strtoul s i)))
+            (match ((null? (first r)) ())
+                   ((= (rest r) (byte-len s)) (reverse (pair (first r) acc)))
+                   ((not (= (byte-at s (rest r)) #\.)) ())
+                   ((>= (length acc) 3) ())
+                   (#t (go (+ (rest r) 1) (pair (first r) acc))))))))
+    (def split (fn (self v k acc) (if (= k 1) (pair v acc) (self (/ (- v (% v 256)) 256) (- k 1) (pair (% v 256) acc)))))
+    (def n (length parts))
+    (def bytes
+      (match ((= n 0) ())
+             ((= n 1) (split (first parts) 4 ()))
+             ((= n 2) (pair (first parts) (split (%cu-nth 1 parts) 3 ())))
+             ((= n 3) (pair (first parts) (pair (%cu-nth 1 parts) (split (%cu-nth 2 parts) 2 ()))))
+             (#t parts)))
+    (if (if (null? bytes) #t (List any? (fn (_ b) (> b 255)) bytes)) () bytes)))
+
+; strtoul with base 0 at I of S: (VALUE . END), VALUE nil when no digit is
+; read; "0x" with no hex digit after it reads as the 0 alone, as strtoul does
+(def %net-strtoul
+  (fn (_ s i)
+    (def n (byte-len s))
+    (def hex? (if (< (+ i 1) n) (if (= (byte-at s i) #\0) (if (= (byte-at s (+ i 1)) #\x) #t (= (byte-at s (+ i 1)) #\X)) #f) #f))
+    (def base (match (hex? 16) ((if (< i n) (= (byte-at s i) #\0) #f) 8) (#t 10)))
+    (def start (if hex? (+ i 2) i))
+    (def digit (fn (_ c)
+      (match ((if (>= c #\0) (<= c #\9) #f) (- c #\0))
+             ((if (>= c #\a) (<= c #\f) #f) (+ 10 (- c #\a)))
+             ((if (>= c #\A) (<= c #\F) #f) (+ 10 (- c #\A)))
+             (#t 99))))
+    (let go ((j start) (v 0))
+      (if (if (< j n) (< (digit (byte-at s j)) base) #f)
+        (go (+ j 1) (+ (* v base) (digit (byte-at s j))))
+        (match ((> j start) (pair v j))
+               (hex? (pair 0 (+ i 1)))
+               (#t (pair () j)))))))
+
+; a zeroed sockaddr_in for QUAD:PORT -- Darwin leads with its length byte and a
+; one-byte family, Linux with a two-byte family; the port and address are in
+; network order on both
+(def net-sockaddr
+  (fn (_ quad port)
+    (def s (%str-make-raw 16))
+    (def p (%cu-str->ptr s))
+    (let go ((i 0)) (when (< i 16) (do (%cu-ptr-set! p i 0 1) (go (+ i 1)))))
+    (if os-darwin? (do (%cu-ptr-set! p 0 16 1) (%cu-ptr-set! p 1 2 1)) (%cu-ptr-set! p 0 2 1))
+    (%cu-ptr-set! p 2 (/ (- port (% port 256)) 256) 1)
+    (%cu-ptr-set! p 3 (% port 256) 1)
+    (let go ((i 0) (bs (net-aton quad)))
+      (unless (null? bs) (do (%cu-ptr-set! p (+ 4 i) (first bs) 1) (go (+ i 1) (rest bs)))))
+    s))
+
+; a sockaddr_in's (QUAD . PORT)
+(def net-sockaddr-read
+  (fn (_ s)
+    (pair (string-concat (list (%cu-int->str (byte-at s 4)) "." (%cu-int->str (byte-at s 5)) "."
+                               (%cu-int->str (byte-at s 6)) "." (%cu-int->str (byte-at s 7))))
+          (+ (* (byte-at s 2) 256) (byte-at s 3)))))
 
 ; the address FD is bound to, (QUAD . PORT), or nil when FD is not an IPv4
 ; socket: getsockname, through the FFI, read from a sockaddr_in whose family
 ; is byte 1 on Darwin (after its length) and byte 0 on Linux
 (def net-sock-addr
   (fn (_ fd)
-    (def sa (%str-make-raw 16))
+    (def sa (net-sockaddr "0.0.0.0" 0))
     (def len (%str-make-raw 4))
-    (let go ((i 0)) (when (< i 16) (do (%cu-ptr-set! (%cu-str->ptr sa) i 0 1) (go (+ i 1)))))
     (%cu-ptr-set! (%cu-str->ptr len) 0 16 4)
     (def r (Sys %sign-fold (%cu-ptr-call (%cu-dlsym (%cu-dlopen () 1) "getsockname")
                                           fd (%cu-str->ptr sa) (%cu-str->ptr len))))
-    (if (if (< r 0) #t (not (= (byte-at sa (if os-darwin? 1 0)) 2))) ()
-      (pair (string-concat (list (%cu-int->str (byte-at sa 4)) "." (%cu-int->str (byte-at sa 5)) "."
-                                 (%cu-int->str (byte-at sa 6)) "." (%cu-int->str (byte-at sa 7))))
-            (+ (* (byte-at sa 2) 256) (byte-at sa 3))))))
+    (if (if (< r 0) #t (not (= (byte-at sa (if os-darwin? 1 0)) 2))) () (net-sockaddr-read sa))))
+
+; a UDP socket bound to QUAD:PORT, or the io Err the bind failed with.  With
+; REUSE?, SO_REUSEADDR -- and on Darwin SO_REUSEPORT too -- so it can share the
+; address with a socket that holds it, as udpsvd's and tftpd's do
+(def net-udp-open
+  (fn (_ quad port reuse?)
+    (def c (fn (_ name) (%cu-dlsym (%cu-dlopen () 1) name)))
+    (def fd (Sys %sign-fold (%cu-ptr-call (c "socket") 2 2 0)))
+    (when reuse?
+      (let ((one (%str-make-raw 4)) (sol (if os-darwin? 65535 1)))
+        (do (%cu-ptr-set! (%cu-str->ptr one) 0 1 4)
+            (%cu-ptr-call (c "setsockopt") fd sol (if os-darwin? 4 2) (%cu-str->ptr one) 4)
+            (when os-darwin? (%cu-ptr-call (c "setsockopt") fd sol 512 (%cu-str->ptr one) 4)))))
+    (def r (Sys %sign-fold (%cu-ptr-call (c "bind") fd (%cu-str->ptr (net-sockaddr quad port)) 16)))
+    (if (< r 0) (Err from-errno (Err errno-of r) (lit bind) ()) fd)))
 
 ; an inetd service's socket: fd 0 when a caller put it there, else fd 3, where
 ; the platform keeps the stdin x started with (fd 0 then carries x's own

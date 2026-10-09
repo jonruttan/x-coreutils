@@ -20,61 +20,12 @@
 
 (def %dn-verbose? #f)
 (def %dn-quiet? #f)            ; -d: what busybox sends to syslog is not said
-(def %dn-libc ())
-
-(def %dn-c
-  (fn (_ name)
-    (when (null? %dn-libc) (set! %dn-libc (%cu-dlopen () 1)))
-    (%cu-dlsym %dn-libc name)))
-
 (def %dn-say
   (fn (_ msg) (unless %dn-quiet? (file-write 2 (string-concat (list "dnsd: " msg "\n"))))))
 
 (def %dn-die (fn (_ msg) (Err raise (lit net) msg ())))
 
 ; --- addresses ------------------------------------------------------------------
-
-; strtoul with base 0 at I of S: (VALUE . END), VALUE nil when no digit is read
-(def %dn-strtoul
-  (fn (_ s i)
-    (def n (byte-len s))
-    (def hex? (if (< (+ i 1) n) (if (= (byte-at s i) #\0) (%wget-memv (byte-at s (+ i 1)) (list #\x #\X)) #f) #f))
-    (def base (match (hex? 16) ((if (< i n) (= (byte-at s i) #\0) #f) 8) (#t 10)))
-    (def start (if hex? (+ i 2) i))
-    (def digit (fn (_ c)
-      (match ((if (>= c #\0) (<= c #\9) #f) (- c #\0))
-             ((if (>= c #\a) (<= c #\f) #f) (+ 10 (- c #\a)))
-             ((if (>= c #\A) (<= c #\F) #f) (+ 10 (- c #\A)))
-             (#t 99))))
-    (let go ((j start) (v 0))
-      (if (if (< j n) (< (digit (byte-at s j)) base) #f)
-        (go (+ j 1) (+ (* v base) (digit (byte-at s j))))
-        (match ((> j start) (pair v j))
-               (hex? (pair 0 (+ i 1)))
-               (#t (pair () j)))))))
-
-; musl's inet_aton: one to four dotted parts, the last filling the bytes left;
-; the four bytes, most significant first, or nil
-(def %dn-aton
-  (fn (_ s)
-    (def parts
-      (let go ((i 0) (acc ()))
-        (if (if (>= i (byte-len s)) #t (not (if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f))) ()
-          (let ((r (%dn-strtoul s i)))
-            (match ((null? (first r)) ())
-                   ((= (rest r) (byte-len s)) (reverse (pair (first r) acc)))
-                   ((not (= (byte-at s (rest r)) #\.)) ())
-                   ((>= (length acc) 3) ())
-                   (#t (go (+ (rest r) 1) (pair (first r) acc))))))))
-    (def split (fn (self v k acc) (if (= k 1) (pair v acc) (self (%wget-div v 256) (- k 1) (pair (% v 256) acc)))))
-    (def n (length parts))
-    (def bytes
-      (match ((= n 0) ())
-             ((= n 1) (split (first parts) 4 ()))
-             ((= n 2) (pair (first parts) (split (%cu-nth 1 parts) 3 ())))
-             ((= n 3) (pair (first parts) (pair (%cu-nth 1 parts) (split (%cu-nth 2 parts) 2 ()))))
-             (#t parts)))
-    (if (if (null? bytes) #t (List any? (fn (_ b) (> b 255)) bytes)) () bytes)))
 
 ; undot: ".a.bc" as the bytes 1 a 2 b c -- each dot the length of what follows
 (def %dn-undot
@@ -123,7 +74,7 @@
       ((null? ts) acc)
       ((null? (rest ts))
         (do (%dn-say (string-concat (list "bad line " (%cu-int->str no) ": 1 tokens found, 2 needed"))) acc))
-      (#t (let ((ip (%dn-aton (first (rest ts)))))
+      (#t (let ((ip (net-aton (first (rest ts)))))
             (if (null? ip)
               (do (%dn-say (string-concat (list "error at line " (%cu-int->str no) ", skipping"))) acc)
               (do (when %dn-verbose? (%dn-say (string-concat (list "name:" (first ts) ", ip:" (first (rest ts))))))
@@ -241,25 +192,10 @@
              (%dn-die (string-concat (list "number " s " is not in " (%cu-int->str lo) ".." (%cu-int->str hi) " range"))))
            (#t n))))
 
-; a zeroed sockaddr_in for the address BYTES and PORT
-(def %dn-sockaddr
-  (fn (_ bytes port)
-    (def s (%str-make-raw 16))
-    (def p (%cu-str->ptr s))
-    (let go ((i 0)) (when (< i 16) (do (%cu-ptr-set! p i 0 1) (go (+ i 1)))))
-    (if os-darwin? (do (%cu-ptr-set! p 0 16 1) (%cu-ptr-set! p 1 2 1)) (%cu-ptr-set! p 0 2 1))
-    (%cu-ptr-set! p 2 (%wget-div port 256) 1)
-    (%cu-ptr-set! p 3 (% port 256) 1)
-    (let go ((i 0) (bs bytes)) (unless (null? bs) (do (%cu-ptr-set! p (+ 4 i) (first bs) 1) (go (+ i 1) (rest bs)))))
-    s))
-
 (def %dn-bind
-  (fn (_ bytes port)
-    (def fd (Sys %sign-fold (%cu-ptr-call (%dn-c "socket") 2 2 0)))
-    (def r (Sys %sign-fold (%cu-ptr-call (%dn-c "bind") fd (%cu-str->ptr (%dn-sockaddr bytes port)) 16)))
-    (when (< r 0)
-      (%dn-die (string-append "bind: " (file-err-text (Err from-errno (Err errno-of r) (lit bind) ())))))
-    fd))
+  (fn (_ addr port)
+    (let ((fd (net-udp-open addr port #f)))
+      (if (Err err? fd) (%dn-die (string-append "bind: " (file-err-text fd))) fd))))
 
 (def %cu-dnsd
   (fn (_ argv stdin-thunk)
@@ -278,9 +214,8 @@
     (when (Opts on? o "-d") (do (%hd-daemonize) (set! %dn-quiet? #t)))
     (def entries (%dn-conf (let ((c (Opts value o "-c"))) (if (null? c) "/etc/dnsd.conf" c))))
     (def addr (let ((i (Opts value o "-i"))) (if (null? i) "0.0.0.0" i)))
-    (def bytes (%dn-dotted addr))
-    (when (null? bytes) (%dn-die (string-concat (list "bad address '" addr "'"))))
-    (def fd (%dn-bind bytes port))
+    (when (null? (%dn-dotted addr)) (%dn-die (string-concat (list "bad address '" addr "'"))))
+    (def fd (%dn-bind addr port))
     (%dn-say (string-concat (list "accepting UDP packets on " addr ":" (%cu-int->str port))))
     (%dn-serve fd entries ttl)))
 

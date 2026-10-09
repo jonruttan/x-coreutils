@@ -111,7 +111,7 @@
   (fn (_ bs)
     (def run (%tftp-run bs))
     (if %tftp-connected
-      (%cu-ptr-call (%cu-dlsym (%cu-dlopen () 1) "send") %tftp-fd (%cu-str->ptr (first run)) (rest run) 0)
+      (net-send-run %tftp-fd run)
       (net-send-to-run %tftp-fd run (first %tftp-peer) (rest %tftp-peer)))))
 
 (def %tftp-progress-init!
@@ -346,33 +346,13 @@
     (when (null? %tftpd-libc) (set! %tftpd-libc (%cu-dlopen () 1)))
     (%cu-dlsym %tftpd-libc name)))
 
-; a zeroed sockaddr_in for QUAD:PORT -- Darwin leads with its length byte and a
-; one-byte family, Linux with a two-byte family
-(def %tftpd-sockaddr
-  (fn (_ quad port)
-    (def s (%str-make-raw 16))
-    (def p (%cu-str->ptr s))
-    (let go ((i 0)) (when (< i 16) (do (%cu-ptr-set! p i 0 1) (go (+ i 1)))))
-    (if os-darwin? (do (%cu-ptr-set! p 0 16 1) (%cu-ptr-set! p 1 2 1)) (%cu-ptr-set! p 0 2 1))
-    (%cu-ptr-set! p 2 (%wget-div port 256) 1)
-    (%cu-ptr-set! p 3 (% port 256) 1)
-    (let go ((i 0) (parts (Str8 split "." quad)))
-      (unless (null? parts)
-        (do (%cu-ptr-set! p (+ 4 i) (%wget-digits (first parts)) 1) (go (+ i 1) (rest parts)))))
-    s))
-
-; the answering socket: bound to OUR address, which the listener may hold too
-; (SO_REUSEADDR, and on Darwin SO_REUSEPORT), and connected to PEER
+; the answering socket: bound to OUR address, which the listener may hold too,
+; and connected to PEER -- xbind's failure the end of the run
 (def %tftpd-socket
   (fn (_ our peer)
-    (def fd (Sys %sign-fold (%cu-ptr-call (%tftpd-c "socket") 2 2 0)))
-    (def one (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr one) 0 1 4)
-    (def sol (if os-darwin? 65535 1))
-    (%cu-ptr-call (%tftpd-c "setsockopt") fd sol (if os-darwin? 4 2) (%cu-str->ptr one) 4)
-    (when os-darwin? (%cu-ptr-call (%tftpd-c "setsockopt") fd sol 512 (%cu-str->ptr one) 4))
-    (%cu-ptr-call (%tftpd-c "bind") fd (%cu-str->ptr (%tftpd-sockaddr (first our) (rest our))) 16)
-    (%cu-ptr-call (%tftpd-c "connect") fd (%cu-str->ptr (%tftpd-sockaddr (first peer) (rest peer))) 16)
+    (def fd (net-udp-open (first our) (rest our) #t))
+    (when (Err err? fd) (%tftpd-die (string-append "bind: " (file-err-text fd))))
+    (%cu-ptr-call (%tftpd-c "connect") fd (%cu-str->ptr (net-sockaddr (first peer) (rest peer))) 16)
     fd))
 
 (def %tftpd-die (fn (_ msg) (Err raise (lit net) msg ())))

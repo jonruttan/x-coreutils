@@ -69,42 +69,11 @@
           (let ((p (%cu-ptr-ref (%cu-int->ptr sv) 16 4)))
             (+ (* (% p 256) 256) (% (%wget-div p 256) 256))))))))
 
-; a zeroed sockaddr_in for QUAD:PORT -- Darwin leads with its length byte and a
-; one-byte family, Linux with a two-byte family; the port and address are in
-; network order on both
-(def %ts-sockaddr
-  (fn (_ quad port)
-    (def s (%str-make-raw 16))
-    (def p (%cu-str->ptr s))
-    (let go ((i 0)) (when (< i 16) (do (%cu-ptr-set! p i 0 1) (go (+ i 1)))))
-    (if os-darwin? (do (%cu-ptr-set! p 0 16 1) (%cu-ptr-set! p 1 2 1)) (%cu-ptr-set! p 0 2 1))
-    (%cu-ptr-set! p 2 (%wget-div port 256) 1)
-    (%cu-ptr-set! p 3 (% port 256) 1)
-    (let go ((i 0) (parts (Str8 split "." quad)))
-      (unless (null? parts)
-        (do (%cu-ptr-set! p (+ 4 i) (%wget-digits (first parts)) 1) (go (+ i 1) (rest parts)))))
-    s))
-
-; a sockaddr_in's (QUAD . PORT)
-(def %ts-sockaddr-read
-  (fn (_ s)
-    (def b (fn (_ i) (byte-at s i)))
-    (pair (string-concat (list (%cu-int->str (b 4)) "." (%cu-int->str (b 5)) "."
-                               (%cu-int->str (b 6)) "." (%cu-int->str (b 7))))
-          (+ (* (b 2) 256) (b 3)))))
-
 ; a length cell for a sockaddr, 16
 (def %ts-len16
   (fn (_)
     (let ((s (%str-make-raw 4)))
       (do (%cu-ptr-set! (%cu-str->ptr s) 0 16 4) s))))
-
-; FD's own address, through getsockname
-(def %ts-local
-  (fn (_ fd)
-    (def sa (%ts-sockaddr "0.0.0.0" 0))
-    (%cu-ptr-call (%ts-c "getsockname") fd (%cu-str->ptr sa) (%cu-str->ptr (%ts-len16)))
-    (%ts-sockaddr-read sa)))
 
 (def %ts-dotted (fn (_ a) (string-concat (list (first a) ":" (%cu-int->str (rest a))))))
 
@@ -120,30 +89,21 @@
 
 ; --- the sockets ----------------------------------------------------------------
 
-; xsocket + setsockopt_reuseaddr + xbind for UDP: Darwin lets a second socket
-; bind the same address and port only with SO_REUSEPORT as well
+; xsocket + setsockopt_reuseaddr + xbind for UDP, the address shared with the
+; socket a child holds
 (def %ts-udp-bind
   (fn (_ quad port)
-    (def fd (%ts-call (%cu-ptr-call (%ts-c "socket") 2 2 0)))
-    (when (< fd 0) (%ts-die "socket: can't create"))
-    (def one (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr one) 0 1 4)
-    (def sol (if os-darwin? 65535 1))
-    (%cu-ptr-call (%ts-c "setsockopt") fd sol (if os-darwin? 4 2) (%cu-str->ptr one) 4)
-    (when os-darwin? (%cu-ptr-call (%ts-c "setsockopt") fd sol 512 (%cu-str->ptr one) 4))
-    (def r (%ts-call (%cu-ptr-call (%ts-c "bind") fd (%cu-str->ptr (%ts-sockaddr quad port)) 16)))
-    (when (< r 0)
-      (%ts-die (string-append "bind: " (file-err-text (Err from-errno (Err errno-of r) (lit bind) ())))))
-    fd))
+    (let ((fd (net-udp-open quad port #t)))
+      (if (Err err? fd) (%ts-die (string-append "bind: " (file-err-text fd))) fd))))
 
 ; the next datagram's sender, left in the queue for the child to read
 (def %ts-udp-peek
   (fn (_ fd)
-    (def sa (%ts-sockaddr "0.0.0.0" 0))
+    (def sa (net-sockaddr "0.0.0.0" 0))
     (def buf (%str-make-raw 4))
     (def r (%ts-call (%cu-ptr-call (%ts-c "recvfrom") fd (%cu-str->ptr buf) 1 2
                                    (%cu-str->ptr sa) (%cu-str->ptr (%ts-len16)))))
-    (if (< r 0) () (%ts-sockaddr-read sa))))
+    (if (< r 0) () (net-sockaddr-read sa))))
 
 (def %ts-listen
   (fn (_ quad port backlog)
@@ -231,7 +191,7 @@
         (if (null? c) () (list c (net-peer c) lfd)))
       (let ((remote (%ts-udp-peek lfd)))
         (if (null? remote) ()
-          (do (%cu-ptr-call (%ts-c "connect") lfd (%cu-str->ptr (%ts-sockaddr (first remote) (rest remote))) 16)
+          (do (%cu-ptr-call (%ts-c "connect") lfd (%cu-str->ptr (net-sockaddr (first remote) (rest remote))) 16)
               (list lfd remote (%ts-udp-bind (first %ts-bound) (rest %ts-bound)))))))))
 
 ; ipsvd_perhost_add: how many connections REMOTE's address would have, this one
@@ -283,7 +243,7 @@
                  (let ((h (%ts-host-name (first remote))))
                    (if (null? h) (do (%ts-say (string-append "can't look up hostname for " raddr)) raddr) h))
                  ()))
-    (def local (%ts-local 0))
+    (def local (net-sock-addr 0))
     (def laddr (%ts-dotted local))
     (def lhost (if %ts-h?
                  (if (null? %ts-lname)
