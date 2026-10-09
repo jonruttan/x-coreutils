@@ -58,7 +58,8 @@
   net-base64 net-connect net-send net-recv-run net-close
   net-listen net-listen-on net-accept net-local-port net-peer net-shutdown sys-poll
   net-udp-connect sys-time-ms
-  net-udp-bind net-send-to-run net-recv-from-run)
+  net-udp-bind net-send-to-run net-recv-from-run
+  net-sock-addr net-stdin-socket)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -1021,3 +1022,28 @@
 (def net-udp-bind (fn (_ port) (Socket udp-bind port)))
 (def net-send-to-run (fn (_ fd run ip port) (Socket send-to-run fd run ip port)))
 (def net-recv-from-run (fn (_ fd n) (Socket recv-from-run fd n)))
+
+; the address FD is bound to, (QUAD . PORT), or nil when FD is not an IPv4
+; socket: getsockname, through the FFI, read from a sockaddr_in whose family
+; is byte 1 on Darwin (after its length) and byte 0 on Linux
+(def net-sock-addr
+  (fn (_ fd)
+    (def sa (%str-make-raw 16))
+    (def len (%str-make-raw 4))
+    (let go ((i 0)) (when (< i 16) (do (%cu-ptr-set! (%cu-str->ptr sa) i 0 1) (go (+ i 1)))))
+    (%cu-ptr-set! (%cu-str->ptr len) 0 16 4)
+    (def r (Sys %sign-fold (%cu-ptr-call (%cu-dlsym (%cu-dlopen () 1) "getsockname")
+                                          fd (%cu-str->ptr sa) (%cu-str->ptr len))))
+    (if (if (< r 0) #t (not (= (byte-at sa (if os-darwin? 1 0)) 2))) ()
+      (pair (string-concat (list (%cu-int->str (byte-at sa 4)) "." (%cu-int->str (byte-at sa 5)) "."
+                                 (%cu-int->str (byte-at sa 6)) "." (%cu-int->str (byte-at sa 7))))
+            (+ (* (byte-at sa 2) 256) (byte-at sa 3))))))
+
+; an inetd service's socket: fd 0 when a caller put it there, else fd 3, where
+; the platform keeps the stdin x started with (fd 0 then carries x's own
+; program text); nil when neither is an IPv4 socket
+(def net-stdin-socket
+  (fn (_)
+    (match ((not (null? (net-sock-addr 0))) 0)
+           ((not (null? (net-sock-addr 3))) 3)
+           (#t ()))))

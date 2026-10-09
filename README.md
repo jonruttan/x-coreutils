@@ -7,29 +7,32 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and forty applets: parity with busybox's `coreutils` set,
-plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
+**A hundred and fifty-one applets: parity with busybox's `coreutils`
+set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget` (http, https and ftp), `whois`, `nc`,
-`nslookup`, `tftp`, `ftpget`, `ftpput`, `httpd` and `ipcalc`, its
-`uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill` and `top`, its `who`,
-`w` and `users`, its `tar`, and its `gzip`, `gunzip` and `zcat`.**
+`nslookup`, `tftp`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `ipcalc`,
+`tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`,
+`pkill` and `top`, its `who`, `w` and `users`, its `tar`, its `gzip`,
+`gunzip` and `zcat`, and its `hostname`, `hostid`, `mountpoint`,
+`mknod`, `mesg`, `renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
-    echo env expand expr factor false find flock fold free fsync ftpget
-    ftpput getopt groups gunzip gzip hd head hexdump httpd id install
-    ipcalc join link ln logname ls md5sum mkdir mkfifo mktemp more mv nc
-    nice nl nohup nologin nproc nslookup od paste pgrep pidof
-    pipe_progress pkill printenv printf ps pwd readlink realpath reset rev
-    rm rmdir run-parts seq setsid sha1sum sha256sum sha512sum shred shuf
-    sleep sort split stat strings sum sync tac tail tar tee test tftp time
-    timeout top touch tr tree true truncate tsort tty ttysize unexpand
-    uniq unix2dos unlink uname uptime users uudecode uuencode uuidgen
-    usleep vi w wc wget which who whois whoami xargs xxd yes zcat
+    echo env expand expr factor false find flock fold free fsync ftpd
+    ftpget ftpput getopt groups gunzip gzip hd head hexdump hostid
+    hostname httpd id install ipcalc join link ln logname ls md5sum mesg
+    mkdir mkfifo mknod mktemp more mountpoint mv nc nice nl nohup nologin
+    nproc nslookup od paste pgrep pidof pipe_progress pkill printenv
+    printf ps pwd readlink realpath renice reset rev rm rmdir run-parts
+    seq setsid sha1sum sha256sum sha384sum sha512sum shred shuf sleep sort
+    split stat strings sum sync tac tail tar tcpsvd tee test tftp time
+    timeout top touch tr tree true truncate ts tsort tty ttysize udpsvd
+    unexpand uniq unix2dos unlink uname uptime users uudecode uuencode
+    uuidgen usleep vi w wc wget which who whois whoami xargs xxd yes zcat
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -187,7 +190,7 @@ parsed by x-lang's `Opts`.
     cu/find.x         find: the expression grammar, and the walk it drives
     cu/hash.x         md5sum sha1sum cksum sum
     cu/sha256.x       FIPS 180-4, in x
-    cu/sha512.x       its 64-bit sibling, addition masked in halves
+    cu/sha512.x       its 64-bit sibling, addition masked in halves, and SHA-384 from it
     cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, files
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/vi-edit.x      vi's operators over those motions, registers, marks
@@ -211,11 +214,14 @@ parsed by x-lang's `Opts`.
     cu/ascii.x        ascii, crc32 (the zlib CRC-32) and uuidgen
     cu/session.x      fsync, flock, setsid, ttysize, nologin, pipe_progress
     cu/httpd.x        httpd: busybox's web server -- files, httpd.conf, ranges, ETags, inetd mode or a listener
+    cu/tcpsvd.x       tcpsvd and udpsvd: a program run for each connection or sender
+    cu/ftpd.x         ftpd: busybox's FTP server, one connection on stdin, PASV, EPSV or PORT
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order
     cu/tar.x          tar: ustar archives listed, extracted and made, z through gzip
     cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
+    cu/sysinfo.x      hostname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
     cu/procps.x       uptime, free, ps, pidof, pgrep and pkill, over the Host
     cu/top.x          top: its screens, keys and memory view, over the Host
     cu/options.x      each applet's option declaration and help text

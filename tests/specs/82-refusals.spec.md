@@ -3660,6 +3660,330 @@ Decompress to stdout
 status 1
 ```
 
+### hostname -~
+
+```cu
+(run (list "hostname" "-~") "")
+```
+---
+```output
+stderr:
+hostname: unrecognized option: ~
+Usage: hostname [-sidf] [HOSTNAME | -F FILE]
+
+Show or set hostname or DNS domain name
+
+	-s	Short
+	-i	Addresses for the hostname
+	-d	DNS domain name
+	-f	Fully qualified domain name
+	-F FILE	Use FILE's content as hostname
+status 1
+```
+
+### hostname --nope
+
+```cu
+(run (list "hostname" "--nope") "")
+```
+---
+```output
+stderr:
+hostname: unrecognized option: nope
+Usage: hostname [-sidf] [HOSTNAME | -F FILE]
+
+Show or set hostname or DNS domain name
+
+	-s	Short
+	-i	Addresses for the hostname
+	-d	DNS domain name
+	-f	Fully qualified domain name
+	-F FILE	Use FILE's content as hostname
+status 1
+```
+
+### hostid -~
+
+```cu
+(run (list "hostid" "-~") "")
+```
+---
+```output
+stderr:
+Usage: hostid
+
+Print out a unique 32-bit identifier for the machine
+status 1
+```
+
+### hostid --nope
+
+```cu
+(run (list "hostid" "--nope") "")
+```
+---
+```output
+stderr:
+Usage: hostid
+
+Print out a unique 32-bit identifier for the machine
+status 1
+```
+
+### mountpoint -~
+
+```cu
+(run (list "mountpoint" "-~") "")
+```
+---
+```output
+stderr:
+mountpoint: unrecognized option: ~
+Usage: mountpoint [-q] { [-dn] DIR | -x DEVICE }
+
+Check if DIR is a mountpoint
+
+	-q	Quiet
+	-d	Print major:minor of the filesystem
+	-n	Print device name of the filesystem
+	-x	Print major:minor of DEVICE
+status 1
+```
+
+### mountpoint --nope
+
+```cu
+(run (list "mountpoint" "--nope") "")
+```
+---
+```output
+stderr:
+mountpoint: unrecognized option: nope
+Usage: mountpoint [-q] { [-dn] DIR | -x DEVICE }
+
+Check if DIR is a mountpoint
+
+	-q	Quiet
+	-d	Print major:minor of the filesystem
+	-n	Print device name of the filesystem
+	-x	Print major:minor of DEVICE
+status 1
+```
+
+### mknod -~
+
+```cu
+(run (list "mknod" "-~") "")
+```
+---
+```output
+stderr:
+mknod: unrecognized option: ~
+Usage: mknod [-m MODE] NAME TYPE [MAJOR MINOR]
+
+Create a special file (block, character, or pipe)
+
+	-m MODE	Creation mode (default a=rw)
+TYPE:
+	b	Block device
+	c or u	Character device
+	p	Named pipe (MAJOR MINOR must be omitted)
+status 1
+```
+
+### mknod --nope
+
+```cu
+(run (list "mknod" "--nope") "")
+```
+---
+```output
+stderr:
+mknod: unrecognized option: nope
+Usage: mknod [-m MODE] NAME TYPE [MAJOR MINOR]
+
+Create a special file (block, character, or pipe)
+
+	-m MODE	Creation mode (default a=rw)
+TYPE:
+	b	Block device
+	c or u	Character device
+	p	Named pipe (MAJOR MINOR must be omitted)
+status 1
+```
+
+### mesg -~
+
+```cu
+(run (list "mesg" "-~") "")
+```
+---
+```output
+stderr:
+Usage: mesg [y|n]
+
+Control write access to your terminal
+	y	Allow write access to your terminal
+	n	Disallow write access to your terminal
+status 1
+```
+
+### mesg --nope
+
+```cu
+(run (list "mesg" "--nope") "")
+```
+---
+```output
+stderr:
+Usage: mesg [y|n]
+
+Control write access to your terminal
+	y	Allow write access to your terminal
+	n	Disallow write access to your terminal
+status 1
+```
+
+### renice -~
+
+```cu
+(run (list "renice" "-~") "")
+```
+---
+```output
+stderr:
+renice: invalid number '~'
+status 1
+```
+
+### renice --nope
+
+```cu
+(run (list "renice" "--nope") "")
+```
+---
+```output
+stderr:
+renice: invalid number '-nope'
+status 1
+```
+
+### ts -~
+
+```cu
+(run (list "ts" "-~") "")
+```
+---
+```output
+stderr:
+ts: unrecognized option: ~
+Usage: ts [-is] [STRFTIME]
+
+Pipe stdin to stdout, add timestamp to each line
+
+	-s	Time since start
+	-i	Time since previous line
+status 1
+```
+
+### ts --nope
+
+```cu
+(run (list "ts" "--nope") "")
+```
+---
+```output
+stderr:
+ts: unrecognized option: nope
+Usage: ts [-is] [STRFTIME]
+
+Pipe stdin to stdout, add timestamp to each line
+
+	-s	Time since start
+	-i	Time since previous line
+status 1
+```
+
+### sha384sum -~
+
+```cu
+(run (list "sha384sum" "-~") "")
+```
+---
+```output
+stderr:
+sha384sum: unrecognized option: ~
+Usage: sha384sum [-c[sw]] [FILE]...
+
+Print or check SHA384 checksums
+
+	-c	Check sums against list in FILEs
+	-s	Don't output anything, status code shows success
+	-w	Warn about improperly formatted checksum lines
+status 1
+```
+
+### sha384sum --nope
+
+```cu
+(run (list "sha384sum" "--nope") "")
+```
+---
+```output
+stderr:
+sha384sum: unrecognized option: nope
+Usage: sha384sum [-c[sw]] [FILE]...
+
+Print or check SHA384 checksums
+
+	-c	Check sums against list in FILEs
+	-s	Don't output anything, status code shows success
+	-w	Warn about improperly formatted checksum lines
+status 1
+```
+
+### hostname -F
+
+```cu
+(run (list "hostname" "-F") "")
+```
+---
+```output
+stderr:
+hostname: option requires an argument: F
+Usage: hostname [-sidf] [HOSTNAME | -F FILE]
+
+Show or set hostname or DNS domain name
+
+	-s	Short
+	-i	Addresses for the hostname
+	-d	DNS domain name
+	-f	Fully qualified domain name
+	-F FILE	Use FILE's content as hostname
+status 1
+```
+
+### mknod -m
+
+```cu
+(run (list "mknod" "-m") "")
+```
+---
+```output
+stderr:
+mknod: option requires an argument: m
+Usage: mknod [-m MODE] NAME TYPE [MAJOR MINOR]
+
+Create a special file (block, character, or pipe)
+
+	-m MODE	Creation mode (default a=rw)
+TYPE:
+	b	Block device
+	c or u	Character device
+	p	Named pipe (MAJOR MINOR must be omitted)
+status 1
+```
+
 ### touch -~
 
 ```cu
@@ -5006,6 +5330,208 @@ Listen for incoming HTTP requests
 	-m STRING	MD5 crypt STRING
 	-e STRING	HTML encode STRING
 	-d STRING	URL decode STRING
+status 1
+```
+
+### ftpd -~
+
+```cu
+(run (list "ftpd" "-~") "")
+```
+---
+```output
+stderr:
+ftpd: unrecognized option: ~
+Usage: ftpd [-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]
+
+FTP server. Chroots to DIR, if this fails (run by non-root), cds to it.
+It is an inetd service, inetd.conf line:
+	21 stream tcp nowait root ftpd ftpd /files/to/serve
+Can be run from tcpsvd:
+	tcpsvd -vE 0.0.0.0 21 ftpd /files/to/serve
+
+	-w	Allow upload
+	-A	No login required, client access occurs under ftpd's UID
+	-a USER	Enable 'anonymous' login and map it to USER
+	-v	Log errors to stderr. -vv: verbose log
+	-S	Log errors to syslog. -SS: verbose log
+	-t,-T N	Idle and absolute timeout
+status 1
+```
+
+### ftpd --nope
+
+```cu
+(run (list "ftpd" "--nope") "")
+```
+---
+```output
+stderr:
+ftpd: unrecognized option: nope
+Usage: ftpd [-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]
+
+FTP server. Chroots to DIR, if this fails (run by non-root), cds to it.
+It is an inetd service, inetd.conf line:
+	21 stream tcp nowait root ftpd ftpd /files/to/serve
+Can be run from tcpsvd:
+	tcpsvd -vE 0.0.0.0 21 ftpd /files/to/serve
+
+	-w	Allow upload
+	-A	No login required, client access occurs under ftpd's UID
+	-a USER	Enable 'anonymous' login and map it to USER
+	-v	Log errors to stderr. -vv: verbose log
+	-S	Log errors to syslog. -SS: verbose log
+	-t,-T N	Idle and absolute timeout
+status 1
+```
+
+### tcpsvd -~
+
+```cu
+(run (list "tcpsvd" "-~") "")
+```
+---
+```output
+stderr:
+tcpsvd: unrecognized option: ~
+Usage: tcpsvd [-hEv] [-c N] [-C N[:MSG]] [-b N] [-u USER] [-l NAME] IP PORT PROG
+
+Create TCP socket, bind to IP:PORT and listen for incoming connections.
+Run PROG for each connection.
+
+	IP PORT		IP:PORT to listen on
+	PROG ARGS	Program to run
+	-u USER[:GRP]	Change to user/group after bind
+	-c N		Up to N connections simultaneously (default 30)
+	-b N		Allow backlog of approximately N TCP SYNs (default 20)
+	-C N[:MSG]	Allow only up to N connections from the same IP:
+			new connections from this IP address are closed
+			immediately, MSG is written to the peer before close
+	-E		Don't set up environment
+	-h		Look up peer's hostname
+	-l NAME		Local hostname (else look up local hostname in DNS)
+	-v		Verbose
+
+Environment if no -E:
+PROTO='TCP'
+TCPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)
+TCPLOCALADDR='ip:port'
+TCPORIGDSTADDR='ip:port' of destination before firewall
+	Useful for REDIRECTed-to-local connections:
+	iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8080
+TCPCONCURRENCY=num_of_connects_from_this_ip
+If -h:
+TCPLOCALHOST='hostname' (-l NAME is used if specified)
+TCPREMOTEHOST='hostname'
+status 1
+```
+
+### tcpsvd --nope
+
+```cu
+(run (list "tcpsvd" "--nope") "")
+```
+---
+```output
+stderr:
+tcpsvd: unrecognized option: nope
+Usage: tcpsvd [-hEv] [-c N] [-C N[:MSG]] [-b N] [-u USER] [-l NAME] IP PORT PROG
+
+Create TCP socket, bind to IP:PORT and listen for incoming connections.
+Run PROG for each connection.
+
+	IP PORT		IP:PORT to listen on
+	PROG ARGS	Program to run
+	-u USER[:GRP]	Change to user/group after bind
+	-c N		Up to N connections simultaneously (default 30)
+	-b N		Allow backlog of approximately N TCP SYNs (default 20)
+	-C N[:MSG]	Allow only up to N connections from the same IP:
+			new connections from this IP address are closed
+			immediately, MSG is written to the peer before close
+	-E		Don't set up environment
+	-h		Look up peer's hostname
+	-l NAME		Local hostname (else look up local hostname in DNS)
+	-v		Verbose
+
+Environment if no -E:
+PROTO='TCP'
+TCPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)
+TCPLOCALADDR='ip:port'
+TCPORIGDSTADDR='ip:port' of destination before firewall
+	Useful for REDIRECTed-to-local connections:
+	iptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8080
+TCPCONCURRENCY=num_of_connects_from_this_ip
+If -h:
+TCPLOCALHOST='hostname' (-l NAME is used if specified)
+TCPREMOTEHOST='hostname'
+status 1
+```
+
+### udpsvd -~
+
+```cu
+(run (list "udpsvd" "-~") "")
+```
+---
+```output
+stderr:
+udpsvd: unrecognized option: ~
+Usage: udpsvd [-hEv] [-c N] [-u USER] [-l NAME] IP PORT PROG
+
+Create UDP socket, bind to IP:PORT and wait for incoming packets.
+Run PROG for each packet, redirecting all further packets with same
+peer ip:port to it.
+
+	IP PORT		IP:PORT to listen on
+	PROG ARGS	Program to run
+	-u USER[:GRP]	Change to user/group after bind
+	-c N		Up to N connections simultaneously (default 30)
+	-E		Don't set up environment
+	-h		Look up peer's hostname
+	-l NAME		Local hostname (else look up local hostname in DNS)
+	-v		Verbose
+
+Environment if no -E:
+PROTO='UDP'
+UDPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)
+UDPLOCALADDR='ip:port'
+If -h:
+UDPLOCALHOST='hostname' (-l NAME is used if specified)
+UDPREMOTEHOST='hostname'
+status 1
+```
+
+### udpsvd --nope
+
+```cu
+(run (list "udpsvd" "--nope") "")
+```
+---
+```output
+stderr:
+udpsvd: unrecognized option: nope
+Usage: udpsvd [-hEv] [-c N] [-u USER] [-l NAME] IP PORT PROG
+
+Create UDP socket, bind to IP:PORT and wait for incoming packets.
+Run PROG for each packet, redirecting all further packets with same
+peer ip:port to it.
+
+	IP PORT		IP:PORT to listen on
+	PROG ARGS	Program to run
+	-u USER[:GRP]	Change to user/group after bind
+	-c N		Up to N connections simultaneously (default 30)
+	-E		Don't set up environment
+	-h		Look up peer's hostname
+	-l NAME		Local hostname (else look up local hostname in DNS)
+	-v		Verbose
+
+Environment if no -E:
+PROTO='UDP'
+UDPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)
+UDPLOCALADDR='ip:port'
+If -h:
+UDPLOCALHOST='hostname' (-l NAME is used if specified)
+UDPREMOTEHOST='hostname'
 status 1
 ```
 

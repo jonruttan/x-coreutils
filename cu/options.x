@@ -1139,6 +1139,79 @@
               (Opts text "\t-d STRING\tURL decode STRING"))
             (%cu-hidden-flags (list "-i" "-f" "-v"))
             (%cu-hidden-args (list "-p" "-M" "-K" "-u" "-r" "-h" "-c" "-m" "-e" "-d"))))))
+    ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
+    (pair "tcpsvd"
+      (list
+        (Opts declare "tcpsvd" "[-hEv] [-c N] [-C N[:MSG]] [-b N] [-u USER] [-l NAME] IP PORT PROG"
+          "Create TCP socket, bind to IP:PORT and listen for incoming connections.\nRun PROG for each connection."
+          (append
+            (list
+              (Opts text "\tIP PORT\t\tIP:PORT to listen on")
+              (Opts text "\tPROG ARGS\tProgram to run")
+              (Opts text "\t-u USER[:GRP]\tChange to user/group after bind")
+              (Opts text "\t-c N\t\tUp to N connections simultaneously (default 30)")
+              (Opts text "\t-b N\t\tAllow backlog of approximately N TCP SYNs (default 20)")
+              (Opts text "\t-C N[:MSG]\tAllow only up to N connections from the same IP:")
+              (Opts text "\t\t\tnew connections from this IP address are closed")
+              (Opts text "\t\t\timmediately, MSG is written to the peer before close")
+              (Opts text "\t-E\t\tDon't set up environment")
+              (Opts text "\t-h\t\tLook up peer's hostname")
+              (Opts text "\t-l NAME\t\tLocal hostname (else look up local hostname in DNS)")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "")
+              (Opts text "Environment if no -E:")
+              (Opts text "PROTO='TCP'")
+              (Opts text "TCPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)")
+              (Opts text "TCPLOCALADDR='ip:port'")
+              (Opts text "TCPORIGDSTADDR='ip:port' of destination before firewall")
+              (Opts text "\tUseful for REDIRECTed-to-local connections:")
+              (Opts text "\tiptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8080")
+              (Opts text "TCPCONCURRENCY=num_of_connects_from_this_ip")
+              (Opts text "If -h:")
+              (Opts text "TCPLOCALHOST='hostname' (-l NAME is used if specified)")
+              (Opts text "TCPREMOTEHOST='hostname'"))
+            (%cu-hidden-flags (list "-E" "-h" "-p" "-v"))
+            (%cu-hidden-args (list "-c" "-C" "-i" "-x" "-u" "-l" "-b" "-t"))))
+        (lit leading)))
+    (pair "udpsvd"
+      (list
+        (Opts declare "udpsvd" "[-hEv] [-c N] [-u USER] [-l NAME] IP PORT PROG"
+          "Create UDP socket, bind to IP:PORT and wait for incoming packets.\nRun PROG for each packet, redirecting all further packets with same\npeer ip:port to it."
+          (append
+            (list
+              (Opts text "\tIP PORT\t\tIP:PORT to listen on")
+              (Opts text "\tPROG ARGS\tProgram to run")
+              (Opts text "\t-u USER[:GRP]\tChange to user/group after bind")
+              (Opts text "\t-c N\t\tUp to N connections simultaneously (default 30)")
+              (Opts text "\t-E\t\tDon't set up environment")
+              (Opts text "\t-h\t\tLook up peer's hostname")
+              (Opts text "\t-l NAME\t\tLocal hostname (else look up local hostname in DNS)")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "")
+              (Opts text "Environment if no -E:")
+              (Opts text "PROTO='UDP'")
+              (Opts text "UDPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)")
+              (Opts text "UDPLOCALADDR='ip:port'")
+              (Opts text "If -h:")
+              (Opts text "UDPLOCALHOST='hostname' (-l NAME is used if specified)")
+              (Opts text "UDPREMOTEHOST='hostname'"))
+            (%cu-hidden-flags (list "-E" "-h" "-p" "-v"))
+            (%cu-hidden-args (list "-c" "-C" "-i" "-x" "-u" "-l" "-b" "-t"))))
+        (lit leading)))
+    (pair "ftpd"
+      (list
+        (Opts declare "ftpd" "[-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]"
+          "FTP server. Chroots to DIR, if this fails (run by non-root), cds to it.\nIt is an inetd service, inetd.conf line:\n\t21 stream tcp nowait root ftpd ftpd /files/to/serve\nCan be run from tcpsvd:\n\ttcpsvd -vE 0.0.0.0 21 ftpd /files/to/serve"
+          (append
+            (list
+              (Opts text "\t-w\tAllow upload")
+              (Opts text "\t-A\tNo login required, client access occurs under ftpd's UID")
+              (Opts text "\t-a USER\tEnable 'anonymous' login and map it to USER")
+              (Opts text "\t-v\tLog errors to stderr. -vv: verbose log")
+              (Opts text "\t-S\tLog errors to syslog. -SS: verbose log")
+              (Opts text "\t-t,-T N\tIdle and absolute timeout"))
+            (%cu-hidden-flags (list "-w" "-A" "-v" "-S"))
+            (%cu-hidden-args (list "-a" "-t" "-T"))))))
     (pair "ipcalc"
       (list
         (Opts declare "ipcalc" "[-bnmphs] ADDRESS[/PREFIX] [NETMASK]"
@@ -1489,6 +1562,93 @@
             (Opts hidden (Opts flag "--force" ""))
             (Opts hidden (Opts flag "--test" ""))
             (Opts hidden (Opts flag "--no-name" ""))))))
+    (pair "sha384sum"
+      (list
+        (Opts declare "sha384sum" "[-c[sw]] [FILE]..."
+          "Print or check SHA384 checksums"
+          (list
+            (Opts flag "-c" "Check sums against list in FILEs")
+            (Opts flag "-s" "Don't output anything, status code shows success")
+            (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+    (pair "hostname"
+      (list
+        (Opts declare "hostname" "[-sidf] [HOSTNAME | -F FILE]"
+          "Show or set hostname or DNS domain name"
+          (list
+            (Opts text "\t-s\tShort")
+            (Opts text "\t-i\tAddresses for the hostname")
+            (Opts text "\t-d\tDNS domain name")
+            (Opts text "\t-f\tFully qualified domain name")
+            (Opts text "\t-F FILE\tUse FILE's content as hostname")
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-i" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "--domain" ""))
+            (Opts hidden (Opts flag "--fqdn" ""))
+            (Opts hidden (Opts arg "-F" "FILE" ""))
+            (Opts hidden (Opts arg "--file" "FILE" ""))))))
+    (pair "hostid"
+      (list
+        (Opts declare "hostid" ""
+          "Print out a unique 32-bit identifier for the machine"
+          (list))
+        (lit none)))
+    (pair "mountpoint"
+      (list
+        (Opts declare "mountpoint" "[-q] { [-dn] DIR | -x DEVICE }"
+          "Check if DIR is a mountpoint"
+          (list
+            (Opts text "\t-q\tQuiet")
+            (Opts text "\t-d\tPrint major:minor of the filesystem")
+            (Opts text "\t-n\tPrint device name of the filesystem")
+            (Opts text "\t-x\tPrint major:minor of DEVICE")
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-x" ""))))))
+    (pair "mknod"
+      (list
+        (Opts declare "mknod" "[-m MODE] NAME TYPE [MAJOR MINOR]"
+          "Create a special file (block, character, or pipe)"
+          (list
+            (Opts text "\t-m MODE\tCreation mode (default a=rw)")
+            (Opts text "TYPE:")
+            (Opts text "\tb\tBlock device")
+            (Opts text "\tc or u\tCharacter device")
+            (Opts text "\tp\tNamed pipe (MAJOR MINOR must be omitted)")
+            (Opts hidden (Opts arg "-m" "MODE" ""))))))
+    (pair "mesg"
+      (list
+        (Opts declare "mesg" "[y|n]"
+          "Control write access to your terminal\n\ty\tAllow write access to your terminal\n\tn\tDisallow write access to your terminal"
+          (list))
+        (lit none)))
+    (pair "renice"
+      (list
+        (Opts declare "renice" "[-n] PRIORITY [[-p|g|u] ID...]..."
+          "Change scheduling priority of a running process"
+          (list
+            (Opts text "\t-n\tAdd PRIORITY to current nice value")
+            (Opts text "\t\tWithout -n, nice value is set to PRIORITY")
+            (Opts text "\t-p\tProcess ids (default)")
+            (Opts text "\t-g\tProcess group ids")
+            (Opts text "\t-u\tProcess user names")
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-p" ""))
+            (Opts hidden (Opts flag "-g" ""))
+            (Opts hidden (Opts flag "-u" ""))))
+        (lit none)))
+    (pair "ts"
+      (list
+        (Opts declare "ts" "[-is] [STRFTIME]"
+          "Pipe stdin to stdout, add timestamp to each line"
+          (list
+            (Opts text "\t-s\tTime since start")
+            (Opts text "\t-i\tTime since previous line")
+            (Opts hidden (Opts flag "-i" ""))
+            (Opts hidden (Opts flag "-s" ""))))))
     (pair "run-parts"
       (list
         (Opts declare "run-parts" "[-a ARG]... [-u UMASK] [--reverse] [--test] [--exit-on-error] [--list] DIRECTORY"
