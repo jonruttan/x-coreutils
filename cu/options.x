@@ -1157,6 +1157,65 @@
               (Opts text "\t\t\tnameserver NORMAL_DNS_SERVER"))
             (%cu-hidden-flags (list "-d" "-v" "-s"))
             (%cu-hidden-args (list "-c" "-t" "-p" "-i"))))))
+    ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
+    (pair "tcpsvd"
+      (list
+        (Opts declare "tcpsvd" "[-hEv] [-c N] [-C N[:MSG]] [-b N] [-u USER] [-l NAME] IP PORT PROG"
+          "Create TCP socket, bind to IP:PORT and listen for incoming connections.\nRun PROG for each connection."
+          (append
+            (list
+              (Opts text "\tIP PORT\t\tIP:PORT to listen on")
+              (Opts text "\tPROG ARGS\tProgram to run")
+              (Opts text "\t-u USER[:GRP]\tChange to user/group after bind")
+              (Opts text "\t-c N\t\tUp to N connections simultaneously (default 30)")
+              (Opts text "\t-b N\t\tAllow backlog of approximately N TCP SYNs (default 20)")
+              (Opts text "\t-C N[:MSG]\tAllow only up to N connections from the same IP:")
+              (Opts text "\t\t\tnew connections from this IP address are closed")
+              (Opts text "\t\t\timmediately, MSG is written to the peer before close")
+              (Opts text "\t-E\t\tDon't set up environment")
+              (Opts text "\t-h\t\tLook up peer's hostname")
+              (Opts text "\t-l NAME\t\tLocal hostname (else look up local hostname in DNS)")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "")
+              (Opts text "Environment if no -E:")
+              (Opts text "PROTO='TCP'")
+              (Opts text "TCPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)")
+              (Opts text "TCPLOCALADDR='ip:port'")
+              (Opts text "TCPORIGDSTADDR='ip:port' of destination before firewall")
+              (Opts text "\tUseful for REDIRECTed-to-local connections:")
+              (Opts text "\tiptables -t nat -A PREROUTING -p tcp --dport 80 -j REDIRECT --to 8080")
+              (Opts text "TCPCONCURRENCY=num_of_connects_from_this_ip")
+              (Opts text "If -h:")
+              (Opts text "TCPLOCALHOST='hostname' (-l NAME is used if specified)")
+              (Opts text "TCPREMOTEHOST='hostname'"))
+            (%cu-hidden-flags (list "-E" "-h" "-p" "-v"))
+            (%cu-hidden-args (list "-c" "-C" "-i" "-x" "-u" "-l" "-b" "-t"))))
+        (lit leading)))
+    (pair "udpsvd"
+      (list
+        (Opts declare "udpsvd" "[-hEv] [-c N] [-u USER] [-l NAME] IP PORT PROG"
+          "Create UDP socket, bind to IP:PORT and wait for incoming packets.\nRun PROG for each packet, redirecting all further packets with same\npeer ip:port to it."
+          (append
+            (list
+              (Opts text "\tIP PORT\t\tIP:PORT to listen on")
+              (Opts text "\tPROG ARGS\tProgram to run")
+              (Opts text "\t-u USER[:GRP]\tChange to user/group after bind")
+              (Opts text "\t-c N\t\tUp to N connections simultaneously (default 30)")
+              (Opts text "\t-E\t\tDon't set up environment")
+              (Opts text "\t-h\t\tLook up peer's hostname")
+              (Opts text "\t-l NAME\t\tLocal hostname (else look up local hostname in DNS)")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "")
+              (Opts text "Environment if no -E:")
+              (Opts text "PROTO='UDP'")
+              (Opts text "UDPREMOTEADDR='ip:port' ('[ip]:port' for IPv6)")
+              (Opts text "UDPLOCALADDR='ip:port'")
+              (Opts text "If -h:")
+              (Opts text "UDPLOCALHOST='hostname' (-l NAME is used if specified)")
+              (Opts text "UDPREMOTEHOST='hostname'"))
+            (%cu-hidden-flags (list "-E" "-h" "-p" "-v"))
+            (%cu-hidden-args (list "-c" "-C" "-i" "-x" "-u" "-l" "-b" "-t"))))
+        (lit leading)))
     (pair "ftpd"
       (list
         (Opts declare "ftpd" "[-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]"
