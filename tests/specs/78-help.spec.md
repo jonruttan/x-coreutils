@@ -2468,6 +2468,150 @@ stderr:
 status 0
 ```
 
+### hostname
+
+```cu
+(run (list "hostname" "--help") "")
+```
+---
+```output
+Usage: hostname [-sidf] [HOSTNAME | -F FILE]|
+|
+Show or set hostname or DNS domain name|
+|
+	-s	Short|
+	-i	Addresses for the hostname|
+	-d	DNS domain name|
+	-f	Fully qualified domain name|
+	-F FILE	Use FILE's content as hostname|
+stderr:
+status 0
+```
+
+### hostid
+
+```cu
+(run (list "hostid" "--help") "")
+```
+---
+```output
+Usage: hostid|
+|
+Print out a unique 32-bit identifier for the machine|
+stderr:
+status 0
+```
+
+### mountpoint
+
+```cu
+(run (list "mountpoint" "--help") "")
+```
+---
+```output
+Usage: mountpoint [-q] { [-dn] DIR | -x DEVICE }|
+|
+Check if DIR is a mountpoint|
+|
+	-q	Quiet|
+	-d	Print major:minor of the filesystem|
+	-n	Print device name of the filesystem|
+	-x	Print major:minor of DEVICE|
+stderr:
+status 0
+```
+
+### mknod
+
+```cu
+(run (list "mknod" "--help") "")
+```
+---
+```output
+Usage: mknod [-m MODE] NAME TYPE [MAJOR MINOR]|
+|
+Create a special file (block, character, or pipe)|
+|
+	-m MODE	Creation mode (default a=rw)|
+TYPE:|
+	b	Block device|
+	c or u	Character device|
+	p	Named pipe (MAJOR MINOR must be omitted)|
+stderr:
+status 0
+```
+
+### mesg
+
+```cu
+(run (list "mesg" "--help") "")
+```
+---
+```output
+Usage: mesg [y|n]|
+|
+Control write access to your terminal|
+	y	Allow write access to your terminal|
+	n	Disallow write access to your terminal|
+stderr:
+status 0
+```
+
+### renice
+
+```cu
+(run (list "renice" "--help") "")
+```
+---
+```output
+Usage: renice [-n] PRIORITY [[-p|g|u] ID...]...|
+|
+Change scheduling priority of a running process|
+|
+	-n	Add PRIORITY to current nice value|
+		Without -n, nice value is set to PRIORITY|
+	-p	Process ids (default)|
+	-g	Process group ids|
+	-u	Process user names|
+stderr:
+status 0
+```
+
+### ts
+
+```cu
+(run (list "ts" "--help") "")
+```
+---
+```output
+Usage: ts [-is] [STRFTIME]|
+|
+Pipe stdin to stdout, add timestamp to each line|
+|
+	-s	Time since start|
+	-i	Time since previous line|
+stderr:
+status 0
+```
+
+### sha384sum
+
+```cu
+(run (list "sha384sum" "--help") "")
+```
+---
+```output
+Usage: sha384sum [-c[sw]] [FILE]...|
+|
+Print or check SHA384 checksums|
+|
+	-c	Check sums against list in FILEs|
+	-s	Don't output anything, status code shows success|
+	-w	Warn about improperly formatted checksum lines|
+stderr:
+status 0
+```
+
 ### tree
 
 ```cu

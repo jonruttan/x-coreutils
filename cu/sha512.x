@@ -1,6 +1,6 @@
 ; # x-coreutils -- the small tools, as applets
 ;
-; ## cu/sha512.x -- SHA-512, in x
+; ## cu/sha512.x -- SHA-512 and SHA-384, in x
 ;
 ; @author [Jon Ruttan](jonruttan@gmail.com)
 ; @copyright 2026 Jon Ruttan
@@ -187,8 +187,9 @@
               acc)))))
     (go 60 ())))
 
-(def cu-sha512
-  (fn (_ text)
+; TEXT's digest from the words START, as hex: its first WORDS words
+(def %cu-sha512-hex
+  (fn (_ text start words)
     (def blocks
       (fn (self bs hs)
         (if (null? bs) hs
@@ -198,9 +199,22 @@
                                       (pair (first l) acc))))))
                         (go bs 128 ()))))
             (self (rest take) (%cu-sha512-block hs (first take)))))))
-    (def hs (blocks (%cu-sha512-pad text) %cu-sha512-h))
-    (string-concat (map (fn (_ w) (%cu-word-hex64 w)) hs))))
+    (def out (blocks (%cu-sha512-pad text) start))
+    (string-concat (map (fn (_ w) (%cu-word-hex64 w)) (%cu-take out words)))))
+
+(def cu-sha512 (fn (_ text) (%cu-sha512-hex text %cu-sha512-h 8)))
+
+; SHA-384 is SHA-512 from other starting words, cut to six of the eight
+(def %cu-sha384-h
+  (list
+        -3766243637369397544 7105036623409894663 -7973340178411365097 1526699215303891257 7436329637833083697 -8163818279084223215 -2662702644619276377 5167115440072839076))
+
+(def cu-sha384 (fn (_ text) (%cu-sha512-hex text %cu-sha384-h 6)))
 
 (def %cu-sha512sum
   (fn (_ argv stdin-thunk)
     (%cu-sum-applet "sha512sum" (fn (_ t) (cu-sha512 t)) argv stdin-thunk)))
+
+(def %cu-sha384sum
+  (fn (_ argv stdin-thunk)
+    (%cu-sum-applet "sha384sum" (fn (_ t) (cu-sha384 t)) argv stdin-thunk)))

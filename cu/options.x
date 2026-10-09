@@ -1503,6 +1503,93 @@
             (Opts hidden (Opts flag "--force" ""))
             (Opts hidden (Opts flag "--test" ""))
             (Opts hidden (Opts flag "--no-name" ""))))))
+    (pair "sha384sum"
+      (list
+        (Opts declare "sha384sum" "[-c[sw]] [FILE]..."
+          "Print or check SHA384 checksums"
+          (list
+            (Opts flag "-c" "Check sums against list in FILEs")
+            (Opts flag "-s" "Don't output anything, status code shows success")
+            (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+    (pair "hostname"
+      (list
+        (Opts declare "hostname" "[-sidf] [HOSTNAME | -F FILE]"
+          "Show or set hostname or DNS domain name"
+          (list
+            (Opts text "\t-s\tShort")
+            (Opts text "\t-i\tAddresses for the hostname")
+            (Opts text "\t-d\tDNS domain name")
+            (Opts text "\t-f\tFully qualified domain name")
+            (Opts text "\t-F FILE\tUse FILE's content as hostname")
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-i" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "--domain" ""))
+            (Opts hidden (Opts flag "--fqdn" ""))
+            (Opts hidden (Opts arg "-F" "FILE" ""))
+            (Opts hidden (Opts arg "--file" "FILE" ""))))))
+    (pair "hostid"
+      (list
+        (Opts declare "hostid" ""
+          "Print out a unique 32-bit identifier for the machine"
+          (list))
+        (lit none)))
+    (pair "mountpoint"
+      (list
+        (Opts declare "mountpoint" "[-q] { [-dn] DIR | -x DEVICE }"
+          "Check if DIR is a mountpoint"
+          (list
+            (Opts text "\t-q\tQuiet")
+            (Opts text "\t-d\tPrint major:minor of the filesystem")
+            (Opts text "\t-n\tPrint device name of the filesystem")
+            (Opts text "\t-x\tPrint major:minor of DEVICE")
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-x" ""))))))
+    (pair "mknod"
+      (list
+        (Opts declare "mknod" "[-m MODE] NAME TYPE [MAJOR MINOR]"
+          "Create a special file (block, character, or pipe)"
+          (list
+            (Opts text "\t-m MODE\tCreation mode (default a=rw)")
+            (Opts text "TYPE:")
+            (Opts text "\tb\tBlock device")
+            (Opts text "\tc or u\tCharacter device")
+            (Opts text "\tp\tNamed pipe (MAJOR MINOR must be omitted)")
+            (Opts hidden (Opts arg "-m" "MODE" ""))))))
+    (pair "mesg"
+      (list
+        (Opts declare "mesg" "[y|n]"
+          "Control write access to your terminal\n\ty\tAllow write access to your terminal\n\tn\tDisallow write access to your terminal"
+          (list))
+        (lit none)))
+    (pair "renice"
+      (list
+        (Opts declare "renice" "[-n] PRIORITY [[-p|g|u] ID...]..."
+          "Change scheduling priority of a running process"
+          (list
+            (Opts text "\t-n\tAdd PRIORITY to current nice value")
+            (Opts text "\t\tWithout -n, nice value is set to PRIORITY")
+            (Opts text "\t-p\tProcess ids (default)")
+            (Opts text "\t-g\tProcess group ids")
+            (Opts text "\t-u\tProcess user names")
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-p" ""))
+            (Opts hidden (Opts flag "-g" ""))
+            (Opts hidden (Opts flag "-u" ""))))
+        (lit none)))
+    (pair "ts"
+      (list
+        (Opts declare "ts" "[-is] [STRFTIME]"
+          "Pipe stdin to stdout, add timestamp to each line"
+          (list
+            (Opts text "\t-s\tTime since start")
+            (Opts text "\t-i\tTime since previous line")
+            (Opts hidden (Opts flag "-i" ""))
+            (Opts hidden (Opts flag "-s" ""))))))
     (pair "run-parts"
       (list
         (Opts declare "run-parts" "[-a ARG]... [-u UMASK] [--reverse] [--test] [--exit-on-error] [--list] DIRECTORY"
