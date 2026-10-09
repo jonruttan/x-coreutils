@@ -159,6 +159,7 @@
     (list "nc" (%letters "elkpswinubvoz"))
     (list "nslookup" (list "-type" "-debug"))
     (list "tftp" (%letters "lrgpb"))
+    (list "tftpd" (%letters "crlu"))
     (list "ftpget" (%letters "cvupP"))
     (list "ftpput" (%letters "cvupP"))
     (list "httpd" (%letters "cdhermupMKifv"))
