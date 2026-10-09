@@ -76,5 +76,6 @@
 (include-once "./unzip.x")
 (include-once "./sysinfo.x")
 (include-once "./procps.x")
+(include-once "./top.x")
 (include-once "./options.x")
 (include-once "./cli.x")

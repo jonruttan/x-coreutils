@@ -129,6 +129,7 @@
                        "-nt" "-ot" "-ef" "-a" "-o" "!" "(" ")"))
     (list "time" (%letters "vpafo"))
     (list "timeout" (%letters "sk"))
+    (list "top" (%letters "bndmH"))
     (list "touch" (%letters "cdtr"))
     (list "tr" (%letters "cds"))
     (list "tree" ())

@@ -125,6 +125,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
 | `time` | -v -p -a -f -o | -v -p -a -f -o |  | 100% |
 | `timeout` | -s -k | -s -k |  | 100% |
+| `top` | -b -n -d -m -H | -b -m -H -n -d |  | 100% |
 | `touch` | -c -d -t -r | -c -d -t -r |  | 100% |
 | `tr` | -c -d -s | -c -d -s |  | 100% |
 | `tree` |  |  |  | - |
@@ -160,4 +161,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 661 of 674 busybox options accepted (98%).**
+**Total: 666 of 679 busybox options accepted (98%).**
