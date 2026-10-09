@@ -26,6 +26,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cmp` | -l -s -n | -l -s -n |  | 100% |
 | `comm` | -1 -2 -3 | -1 -2 -3 |  | 100% |
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -R -r -L -H -p -f -i -l -s -T -u -P |  | 100% |
+| `cpio` | -t -i -o -p -H -d -m -v -u -F -R -L -0 --ignore-devno --renumber-inodes | -t -i -o -p -H -d -m -v -u -F -R -L -0 --extract --list --create --format --pass-through --owner --file --verbose --null --quiet --to-stdout --ignore-devno --renumber-inodes |  | 100% |
 | `crc32` |  |  |  | - |
 | `cut` | -b -c -f -d -s -n | -s -n -b -c -d -f |  | 100% |
 | `date` | -u -d -D -s -r -R -I +FMT | -u -R -I -Idate -Ihours -Iminutes -Iseconds -Ins -d -D -r +FMT | -s | 87% |
@@ -164,4 +165,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 681 of 694 busybox options accepted (98%).**
+**Total: 696 of 709 busybox options accepted (98%).**
