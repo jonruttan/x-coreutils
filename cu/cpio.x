@@ -133,7 +133,7 @@
         (pair? (filter (fn (_ p) (%cu-glob? p (%tm-name m))) pats))))))
 
 ; the links to make once the archive is read: (HARD? NAME . TARGET), newest first
-(def %cp-links ())
+(def %cp-held-links ())
 
 ; member M made, its data read from RD, as data_extract_all makes it
 (def %cp-extract!
@@ -148,7 +148,7 @@
         (if (if (vec-ref t 3) (%cp-unlink-old! dst type hard) (%cp-newer-there? m dst type))
           (%tar-skip! rd (%tm-size m))
           (if (null? hard) (%cp-make! t rd m dst type mode)
-            (set! %cp-links (pair (pair #t (pair dst hard)) %cp-links)))))))
+            (set! %cp-held-links (pair (pair #t (pair dst hard)) %cp-held-links)))))))
 
 ; -u: DST removed if it is there, a directory left; #t where nothing is to be
 ; made, a hard link to itself
@@ -196,11 +196,11 @@
         ((= type 40960)
           (let ((l (%tm-link m)))
             (if (if (= (byte-at l 0) #\/) #t (>= (%tar-find-str l "..") 0))
-              (set! %cp-links (pair (pair #f (pair dst l)) %cp-links))
+              (set! %cp-held-links (pair (pair #f (pair dst l)) %cp-held-links))
               (if (guard (e #f) (do (file-symlink l dst) #t)) ()
                 (%cp-die (string-concat (list "can't create symlink '" dst "' to '" l "': "
                                               (%tar-why (lit symlink) dst))))))))
-        ((if (= type 8192) #t (if (= type 24576) #t (if (= type 4096) #t (= type 49152))))
+        ((pair? (filter (fn (_ k) (= k type)) (list 8192 24576 4096 49152)))
           (if (< (Sys %sign-fold (%cu-ptr-call %tar-c-mknod dst mode (%tar-makedev (vec-ref m 9)))) 0)
             (%cp-say (string-concat (list "can't create node " dst ": " (%tar-why (lit mknod) dst))))
             ()))
@@ -218,7 +218,7 @@
              (if (guard (e #f) (do (if (first l) (file-link target name) (file-symlink target name)) #t)) ()
                (%cp-die (string-concat (list "can't create " (if (first l) "hard" "sym") "link '"
                                              name "' to '" target "'"))))))
-         (reverse %cp-links))))
+         (reverse %cp-held-links))))
 
 ; member M's data: made, written out, or passed over
 (def %cp-data!
@@ -477,7 +477,7 @@
     ; a bare -0 reads to Opts as a number, an operand; it is the flag
     (def nul (if (on "-0" "--null") #t (pair? (filter (fn (_ w) (string=? w "-0")) (Opts operands o)))))
     (def operands (filter (fn (_ w) (not (string=? w "-0"))) (Opts operands o)))
-    (do (set! %cp-links ())
+    (do (set! %cp-held-links ())
         (%tar-resolve!)
         (match
           ((on "-p" "--pass-through")
