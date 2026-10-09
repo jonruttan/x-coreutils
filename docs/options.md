@@ -55,6 +55,8 @@ the work.  Applet parity is the other axis: see the README.
 | `hd` |  |  |  | - |
 | `head` | -n -c -q -v | -q -v -n -c |  | 100% |
 | `hexdump` | -b -c -d -o -x -C -e -f -n -s -v | -b -c -d -o -x -C -v -e -n -s -f |  | 100% |
+| `hostid` |  |  |  | - |
+| `hostname` | -s -i -d -f -F | -s -i -d -f -v --domain --fqdn -F --file |  | 100% |
 | `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -r -h -c -e -d | -m -u | 84% |
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
@@ -65,10 +67,13 @@ the work.  Applet parity is the other axis: see the README.
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -a -A -x -d -L -H -R -p -F -l -i -n -s -h -S -X -v -t -r -c -u -C -w |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
+| `mesg` |  |  |  | - |
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
+| `mknod` | -m | -m |  | 100% |
 | `mktemp` | -d -t -p -q -u | -d -q -t -u -p |  | 100% |
 | `more` | -d -e -f -l -s -u | -d -e -f -l -s -u |  | 100% |
+| `mountpoint` | -q -d -n -x | -q -d -n -x |  | 100% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
 | `nc` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
 | `nice` | -n | -n |  | 100% |
@@ -89,6 +94,7 @@ the work.  Applet parity is the other axis: see the README.
 | `pwd` | -L -P | -L -P |  | 100% |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
 | `realpath` |  |  |  | - |
+| `renice` | -n -p -g -u | -n -p -g -u |  | 100% |
 | `reset` |  |  |  | - |
 | `rev` |  |  |  | - |
 | `rm` | -i -r -R -f -v | -i -f -R -r -v |  | 100% |
@@ -98,6 +104,7 @@ the work.  Applet parity is the other axis: see the README.
 | `setsid` | -c | -c |  | 100% |
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
+| `sha384sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha512sum` | -c -s -w | -c -s -w |  | 100% |
 | `shred` | -f -n -u -z | -f -z -u -n |  | 100% |
 | `shuf` | -e -i -n -o -z | -z -e -n -o -i |  | 100% |
@@ -121,6 +128,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tree` |  |  |  | - |
 | `true` |  |  |  | - |
 | `truncate` | -c -s | -c -s |  | 100% |
+| `ts` | -i -s | -i -s |  | 100% |
 | `tsort` |  |  |  | - |
 | `tty` | -s | -s |  | 100% |
 | `ttysize` |  |  |  | - |
@@ -148,4 +156,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 611 of 624 busybox options accepted (97%).**
+**Total: 630 of 643 busybox options accepted (97%).**
