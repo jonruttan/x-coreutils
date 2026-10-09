@@ -44,6 +44,14 @@ to standard output.
 ---
     ((0 125) (50 0) (2000 100) (15 0) (0 3))
 
+### a process's ticks since the last scan, none when they fall -- a zombie's times, which Darwin does not give -- and their total
+
+```cu
+(do (set! %top-hist (list (pair 7 31) (pair 8 10) (pair 9 0))) (def rs (%top-stats! (list (list 7 1 0 0 501 "Z  " "z" () 0) (list 8 1 0 25 501 "R  " "r" () 0) (list 9 1 0 100 501 "R  " "b" () 0)))) (set! %top-hist ()) (list (map (fn (_ e) (%cu-nth 8 e)) rs) %top-total-pcpu))
+```
+---
+    ((0 15 100) 115)
+
 ### PID PPID USER in twenty characters, a wide pid squeezing the spaces first
 
 ```cu
@@ -79,13 +87,13 @@ to standard output.
 ---
     (("" "top: invalid number 'x'\n" 1) ("" "top: invalid number 'x'\n" 1))
 
-### -bn1: the memory, CPU and load lines, the header, then a row a process (the first three checked), ending in a newline
+### -bn1: the memory, CPU and load lines, the header, then a row a process (any of the first three that misses the pattern shown), ending in a newline
 
 ```cu
-(let ((r (run (list "top" "-bn1")))) (def ls (lines (first r))) (def row-rx (re-compile "^ *[0-9]+ +[0-9]+ [^ ]+ +[A-Z ][A-Z<N ][A-Z<N ]  .....[ 0-9][ 0-9][ 0-9]\\.[0-9+]....[ 0-9][ 0-9][ 0-9]\\.[0-9] ")) (list (first (rest (rest r))) (first (rest r)) (str=? (substring (first r) (- (byte-len (first r)) 1) (byte-len (first r))) "\n") (not (null? (re-search (re-compile "^Mem: [0-9]+K used, [0-9]+K free, [0-9]+K shrd, [0-9]+K buff, [0-9]+K cached$") (first ls)))) (not (null? (re-search (re-compile "^CPU:( [ 0-9][0-9]\\.[0-9]% |  100% )usr") (first (rest ls))))) (not (null? (re-search (re-compile "^Load average: [0-9]+\\.[0-9][0-9] [0-9]+\\.[0-9][0-9] [0-9]+\\.[0-9][0-9]") (%cu-nth 2 ls)))) (%cu-nth 3 ls) (< 1 (length (%top-drop ls 4))) (null? (filter (fn (_ l) (null? (re-search row-rx l))) (%top-take (%top-drop ls 4) 3)))))
+(let ((r (run (list "top" "-bn1")))) (def ls (lines (first r))) (def row-rx (re-compile "^ *[0-9]+ +[0-9]+ [^ ]+ +[A-Z ][A-Z<N ][A-Z<N ]  .....[ 0-9][ 0-9][ 0-9]\\.[0-9+]....[ 0-9][ 0-9][ 0-9]\\.[0-9] ")) (list (first (rest (rest r))) (first (rest r)) (str=? (substring (first r) (- (byte-len (first r)) 1) (byte-len (first r))) "\n") (not (null? (re-search (re-compile "^Mem: [0-9]+K used, [0-9]+K free, [0-9]+K shrd, [0-9]+K buff, [0-9]+K cached$") (first ls)))) (not (null? (re-search (re-compile "^CPU:( [ 0-9][0-9]\\.[0-9]% |  100% )usr") (first (rest ls))))) (not (null? (re-search (re-compile "^Load average: [0-9]+\\.[0-9][0-9] [0-9]+\\.[0-9][0-9] [0-9]+\\.[0-9][0-9]") (%cu-nth 2 ls)))) (%cu-nth 3 ls) (< 1 (length (%top-drop ls 4))) (filter (fn (_ l) (null? (re-search row-rx l))) (%top-take (%top-drop ls 4) 3))))
 ```
 ---
-    (0 "" #t #t #t #t "  PID  PPID USER     STAT   RSS %RSS CPU %CPU COMMAND" #t #t)
+    (0 "" #t #t #t #t "  PID  PPID USER     STAT   RSS %RSS CPU %CPU COMMAND" #t ())
 
 ### busybox's dashless arguments: `top bn1` is `top -bn1`
 
