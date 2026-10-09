@@ -34,7 +34,7 @@ and ask it over a TCP connection.
     (def body (string-concat (filter (fn (_ l) (not (Str8 starts? "Date: " l)))
                                      (map (fn (_ l) (string-append l "\n")) (hd-lines out)))))
     (string-concat (list (Str8 replace "\r" "<CR>" body) "[status " (%cu-int->str st) "]\n" err))))
-  (def hd-case (fn (_ pre req args)
+  (def hd-run (fn (_ pre req args)
     (hd-sh pre req)
     (sys-dup2 1 9) (sys-dup2 2 8)
     (def oo (file-open-write "/tmp/x-cu-hd/out"))
@@ -44,7 +44,8 @@ and ask it over a TCP connection.
               (cu-run (append (list "httpd" "-i" "-h" hd-w) args) (file-read-all "/tmp/x-cu-hd/req"))))
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (Sys chdir hd-home)
-    (display (hd-show (file-read-all "/tmp/x-cu-hd/out") st (file-read-all "/tmp/x-cu-hd/err")))))
+    (hd-show (file-read-all "/tmp/x-cu-hd/out") st (file-read-all "/tmp/x-cu-hd/err"))))
+  (def hd-case (fn (_ pre req args) (display (hd-run pre req args))))
   (def hd-ask-port (fn (_ port req)
     (let ((c (let try ((n 0)) (let ((fd (guard (_ ()) (Socket tcp-connect "127.0.0.1" port))))
                                 (if (if (null? fd) (< n 200) #f) (do (sys-usleep 20000) (try (+ n 1))) fd)))))
@@ -1891,6 +1892,120 @@ Content-type: text/html<CR>
 <BODY><H1>404 Not Found</H1>
 The requested URL was not found
 </BODY></HTML>
+[status 0]
+```
+
+## inetd's socket
+
+httpd -i as inetd and tcpsvd run it: the request still a string, but a
+connection from 127.0.0.1 on FD, the socket whose peer httpd names.  A run of
+x leaves the stdin it started with on fd 3, and its own program text on fd 0;
+a caller may put the socket on fd 0 instead.  The connection's port shows as
+PORT.
+
+### a socket on FD for one run
+
+```cu
+(do
+  (def hd-sock (fn (_ fd pre req args)
+    (def l (Socket tcp-listen-on "127.0.0.1" 0))
+    (def c (Socket tcp-connect "127.0.0.1" (Socket local-port l)))
+    (def a (Socket accept l))
+    (Socket close l)
+    (def saved? (>= (sys-dup2 fd 7) 0))
+    (sys-dup2 a fd) (Socket close a)
+    (def shown (hd-run pre req args))
+    (if saved? (do (sys-dup2 7 fd) (file-close 7)) (sys-close fd))
+    (def port (string-concat (list "127.0.0.1:" (%cu-int->str (Socket local-port c)) ":")))
+    (Socket close c)
+    (display (Str8 replace port "127.0.0.1:PORT:" shown))))
+  (display "made"))
+```
+---
+    made
+
+### fd 3: a script's REMOTE_ADDR
+
+```cu
+(hd-sock 3 "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\nREMOTE_ADDR=%%s\\\\n\" \"$REMOTE_ADDR\"\\n' > cgi-bin/addr && chmod +x cgi-bin/addr" "GET /cgi-bin/addr HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+REMOTE_ADDR=127.0.0.1
+[status 0]
+```
+
+### fd 3: a D: line matching the peer
+
+```cu
+(hd-sock 3 "printf 'D:127.0.0.0/8\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 403 Forbidden<CR>
+Connection: close<CR>
+Content-type: text/html<CR>
+<CR>
+<HTML><HEAD><TITLE>403 Forbidden</TITLE></HEAD>
+<BODY><H1>403 Forbidden</H1>
+
+</BODY></HTML>
+[status 0]
+```
+
+### fd 3: an A: line for the peer before D:*
+
+```cu
+(hd-sock 3 "printf 'A:127.0.0.1\\nD:*\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
+### fd 3: -v names the peer
+
+```cu
+(hd-sock 3 ":" "GET /r.txt HTTP/1.0\\r\\n\\r\\n" (list "-v"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+127.0.0.1:PORT: response:200
+```
+
+### fd 0: a script's REMOTE_ADDR
+
+```cu
+(hd-sock 0 "mkdir cgi-bin && printf '#!/bin/sh\\nprintf \"Content-type: text/plain\\\\r\\\\n\\\\r\\\\nREMOTE_ADDR=%%s\\\\n\" \"$REMOTE_ADDR\"\\n' > cgi-bin/addr && chmod +x cgi-bin/addr" "GET /cgi-bin/addr HTTP/1.0\\r\\n\\r\\n" (list))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Content-type: text/plain<CR>
+<CR>
+REMOTE_ADDR=127.0.0.1
 [status 0]
 ```
 

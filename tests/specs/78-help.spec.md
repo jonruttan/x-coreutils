@@ -1983,26 +1983,27 @@ stderr:
 status 0
 ```
 
-### tftpd
+### ftpd
 
 ```cu
-(run (list "tftpd" "--help") "")
+(run (list "ftpd" "--help") "")
 ```
 ---
 ```output
-Usage: tftpd [-crl] [-u USER] [DIR]|
+Usage: ftpd [-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]|
 |
-Transfer a file on tftp client's request|
+FTP server. Chroots to DIR, if this fails (run by non-root), cds to it.|
+It is an inetd service, inetd.conf line:|
+	21 stream tcp nowait root ftpd ftpd /files/to/serve|
+Can be run from tcpsvd:|
+	tcpsvd -vE 0.0.0.0 21 ftpd /files/to/serve|
 |
-tftpd is an inetd service, inetd.conf line:|
-	69 dgram udp nowait root tftpd tftpd -l /files/to/serve|
-Can be run from udpsvd:|
-	udpsvd -vE 0.0.0.0 69 tftpd /files/to/serve|
-|
-	-r	Prohibit upload|
-	-c	Allow file creation via upload|
-	-u USER	Access files as USER|
-	-l	Log to syslog (inetd mode requires this)|
+	-w	Allow upload|
+	-A	No login required, client access occurs under ftpd's UID|
+	-a USER	Enable 'anonymous' login and map it to USER|
+	-v	Log errors to stderr. -vv: verbose log|
+	-S	Log errors to syslog. -SS: verbose log|
+	-t,-T N	Idle and absolute timeout|
 stderr:
 status 0
 ```
@@ -2024,6 +2025,30 @@ Calculate and display network settings from IP address|
 	-p	Prefix for IP/NETMASK|
 	-h	Resolved host name|
 	-s	No error messages|
+stderr:
+status 0
+```
+
+### tftpd
+
+```cu
+(run (list "tftpd" "--help") "")
+```
+---
+```output
+Usage: tftpd [-crl] [-u USER] [DIR]|
+|
+Transfer a file on tftp client's request|
+|
+tftpd is an inetd service, inetd.conf line:|
+	69 dgram udp nowait root tftpd tftpd -l /files/to/serve|
+Can be run from udpsvd:|
+	udpsvd -vE 0.0.0.0 69 tftpd /files/to/serve|
+|
+	-r	Prohibit upload|
+	-c	Allow file creation via upload|
+	-u USER	Access files as USER|
+	-l	Log to syslog (inetd mode requires this)|
 stderr:
 status 0
 ```
