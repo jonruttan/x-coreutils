@@ -209,10 +209,14 @@
 (def %top-onto (fn (self l acc) (if (null? l) acc (self (rest l) (pair (first l) acc)))))
 
 ; busybox's do_stats: this scan's ticks against the last's, process by process
-; -- both by pid, so one walk pairs them -- and the CPU times read again
+; -- both by pid, so one walk pairs them -- and the CPU times read again.
+; Fewer ticks than last time is a process whose times the kernel no longer
+; gives -- Darwin answers none for a zombie -- and counts as none used, where
+; busybox's unsigned difference would wrap to a share of millions of percent.
 (def %top-stats!
   (fn (_ rows)
     (def by-pid (%cu-msort rows (fn (_ a b) (< (first a) (first b)))))
+    (def used (fn (_ now was) (if (< now was) 0 (- now was))))
     (def walk
       (fn (self rs hist acc total)
         (match
@@ -220,7 +224,7 @@
           ((if (null? hist) #t (< (first (first rs)) (first (first hist))))
             (self (rest rs) hist (pair (first rs) acc) total))
           ((> (first (first rs)) (first (first hist))) (self rs (rest hist) acc total))
-          (#t (let ((d (%top-u32 (- (%cu-nth 3 (first rs)) (rest (first hist))))))
+          (#t (let ((d (used (%cu-nth 3 (first rs)) (rest (first hist)))))
                 (self (rest rs) (rest hist) (pair (%top-with-pcpu (first rs) d) acc) (%top-u32 (+ total d))))))))
     (%top-read-jif!)
     (def r (walk by-pid %top-hist () 0))
