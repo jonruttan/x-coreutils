@@ -1198,6 +1198,20 @@
             (%cu-hidden-flags (list "-E" "-h" "-p" "-v"))
             (%cu-hidden-args (list "-c" "-C" "-i" "-x" "-u" "-l" "-b" "-t"))))
         (lit leading)))
+    (pair "ftpd"
+      (list
+        (Opts declare "ftpd" "[-wvS] [-a USER] [-t SEC] [-T SEC] [DIR]"
+          "FTP server. Chroots to DIR, if this fails (run by non-root), cds to it.\nIt is an inetd service, inetd.conf line:\n\t21 stream tcp nowait root ftpd ftpd /files/to/serve\nCan be run from tcpsvd:\n\ttcpsvd -vE 0.0.0.0 21 ftpd /files/to/serve"
+          (append
+            (list
+              (Opts text "\t-w\tAllow upload")
+              (Opts text "\t-A\tNo login required, client access occurs under ftpd's UID")
+              (Opts text "\t-a USER\tEnable 'anonymous' login and map it to USER")
+              (Opts text "\t-v\tLog errors to stderr. -vv: verbose log")
+              (Opts text "\t-S\tLog errors to syslog. -SS: verbose log")
+              (Opts text "\t-t,-T N\tIdle and absolute timeout"))
+            (%cu-hidden-flags (list "-w" "-A" "-v" "-S"))
+            (%cu-hidden-args (list "-a" "-t" "-T"))))))
     (pair "ipcalc"
       (list
         (Opts declare "ipcalc" "[-bnmphs] ADDRESS[/PREFIX] [NETMASK]"
