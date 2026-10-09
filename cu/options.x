@@ -1153,6 +1153,24 @@
               (Opts text "\t-d STRING\tURL decode STRING"))
             (%cu-hidden-flags (list "-i" "-f" "-v"))
             (%cu-hidden-args (list "-p" "-M" "-K" "-u" "-r" "-h" "-c" "-m" "-e" "-d"))))))
+    (pair "dnsd"
+      (list
+        (Opts declare "dnsd" "[-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]"
+          "Small static DNS server daemon"
+          (append
+            (list
+              (Opts text "\t-c FILE\tConfig file")
+              (Opts text "\t-t SEC\tTTL")
+              (Opts text "\t-p PORT\tListen on PORT")
+              (Opts text "\t-i ADDR\tListen on ADDR")
+              (Opts text "\t-d\tDaemonize")
+              (Opts text "\t-v\tVerbose")
+              (Opts text "\t-s\tSend successful replies only. Use this if you want")
+              (Opts text "\t\tto use /etc/resolv.conf with two nameserver lines:")
+              (Opts text "\t\t\tnameserver DNSD_SERVER")
+              (Opts text "\t\t\tnameserver NORMAL_DNS_SERVER"))
+            (%cu-hidden-flags (list "-d" "-v" "-s"))
+            (%cu-hidden-args (list "-c" "-t" "-p" "-i"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list

@@ -5661,6 +5661,58 @@ Can be run from udpsvd:
 status 1
 ```
 
+### dnsd -~
+
+```cu
+(run (list "dnsd" "-~") "")
+```
+---
+```output
+stderr:
+dnsd: unrecognized option: ~
+Usage: dnsd [-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]
+
+Small static DNS server daemon
+
+	-c FILE	Config file
+	-t SEC	TTL
+	-p PORT	Listen on PORT
+	-i ADDR	Listen on ADDR
+	-d	Daemonize
+	-v	Verbose
+	-s	Send successful replies only. Use this if you want
+		to use /etc/resolv.conf with two nameserver lines:
+			nameserver DNSD_SERVER
+			nameserver NORMAL_DNS_SERVER
+status 1
+```
+
+### dnsd --nope
+
+```cu
+(run (list "dnsd" "--nope") "")
+```
+---
+```output
+stderr:
+dnsd: unrecognized option: nope
+Usage: dnsd [-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]
+
+Small static DNS server daemon
+
+	-c FILE	Config file
+	-t SEC	TTL
+	-p PORT	Listen on PORT
+	-i ADDR	Listen on ADDR
+	-d	Daemonize
+	-v	Verbose
+	-s	Send successful replies only. Use this if you want
+		to use /etc/resolv.conf with two nameserver lines:
+			nameserver DNSD_SERVER
+			nameserver NORMAL_DNS_SERVER
+status 1
+```
+
 ### httpd -c
 
 ```cu

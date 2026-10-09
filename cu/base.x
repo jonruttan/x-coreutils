@@ -66,6 +66,7 @@
 (include-once "./ascii.x")
 (include-once "./session.x")
 (include-once "./httpd.x")
+(include-once "./dnsd.x")
 (include-once "./tcpsvd.x")
 (include-once "./ftpd.x")
 (include-once "./ipcalc.x")
