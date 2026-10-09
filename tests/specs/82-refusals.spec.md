@@ -6887,6 +6887,93 @@ Send signal to processes selected by regex PATTERN
 status 1
 ```
 
+### top -~
+
+```cu
+(run (list "top" "-~") "")
+```
+---
+```output
+stderr:
+top: unrecognized option: ~
+Usage: top [-bmH] [-n COUNT] [-d SECONDS]
+
+Show a view of process activity in real time.
+Read the status of all processes from /proc each SECONDS
+and show a screenful of them.
+Keys:
+	N/M/P/T: show CPU usage, sort by pid/mem/cpu/time
+	S: show memory
+	R: reverse sort
+	H: toggle threads, 1: toggle SMP
+	Q,^C: exit
+Options:
+	-b	Batch mode
+	-n N	Exit after N iterations
+	-d SEC	Delay between updates
+	-m	Same as 's' key
+	-H	Show threads
+status 1
+```
+
+### top --nope
+
+```cu
+(run (list "top" "--nope") "")
+```
+---
+```output
+stderr:
+top: unrecognized option: nope
+Usage: top [-bmH] [-n COUNT] [-d SECONDS]
+
+Show a view of process activity in real time.
+Read the status of all processes from /proc each SECONDS
+and show a screenful of them.
+Keys:
+	N/M/P/T: show CPU usage, sort by pid/mem/cpu/time
+	S: show memory
+	R: reverse sort
+	H: toggle threads, 1: toggle SMP
+	Q,^C: exit
+Options:
+	-b	Batch mode
+	-n N	Exit after N iterations
+	-d SEC	Delay between updates
+	-m	Same as 's' key
+	-H	Show threads
+status 1
+```
+
+### top -n
+
+```cu
+(run (list "top" "-n") "")
+```
+---
+```output
+stderr:
+top: option requires an argument: n
+Usage: top [-bmH] [-n COUNT] [-d SECONDS]
+
+Show a view of process activity in real time.
+Read the status of all processes from /proc each SECONDS
+and show a screenful of them.
+Keys:
+	N/M/P/T: show CPU usage, sort by pid/mem/cpu/time
+	S: show memory
+	R: reverse sort
+	H: toggle threads, 1: toggle SMP
+	Q,^C: exit
+Options:
+	-b	Batch mode
+	-n N	Exit after N iterations
+	-d SEC	Delay between updates
+	-m	Same as 's' key
+	-H	Show threads
+status 1
+```
+
 ### test -~
 
 ```cu
