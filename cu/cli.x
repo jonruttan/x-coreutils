@@ -118,6 +118,8 @@
     (pair "ftpget" %cu-ftpget)
     (pair "ftpput" %cu-ftpput)
     (pair "httpd" %cu-httpd)
+    (pair "tcpsvd" %cu-tcpsvd)
+    (pair "udpsvd" %cu-udpsvd)
     (pair "ftpd" %cu-ftpd)
     (pair "ipcalc" %cu-ipcalc)
     (pair "xargs" %cu-xargs)

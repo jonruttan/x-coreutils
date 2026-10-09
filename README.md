@@ -7,18 +7,18 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and forty-nine applets: parity with busybox's `coreutils`
+**A hundred and fifty-one applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget` (http, https and ftp), `whois`, `nc`,
-`nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd` and
-`ipcalc`, its `uptime`, `free`, `ps`, `pidof`, `pgrep` and `pkill`, its
-`who`, `w` and `users`, its `tar`, its `gzip`, `gunzip` and `zcat`, and its
-`hostname`, `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts` and
-`sha384sum`.**
+`nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `ipcalc`,
+`tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep` and
+`pkill`, its `who`, `w` and `users`, its `tar`, its `gzip`, `gunzip` and
+`zcat`, and its `hostname`, `hostid`, `mountpoint`, `mknod`, `mesg`,
+`renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dos2unix du
@@ -29,10 +29,10 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`,
     nproc nslookup od paste pgrep pidof pipe_progress pkill printenv
     printf ps pwd readlink realpath renice reset rev rm rmdir run-parts
     seq setsid sha1sum sha256sum sha384sum sha512sum shred shuf sleep sort
-    split stat strings sum sync tac tail tar tee test tftp tftpd time
-    timeout touch tr tree true truncate ts tsort tty ttysize unexpand uniq
-    unix2dos unlink uname uptime users uudecode uuencode uuidgen usleep vi
-    w wc wget which who whois whoami xargs xxd yes zcat
+    split stat strings sum sync tac tail tar tcpsvd tee test tftp tftpd
+    time timeout touch tr tree true truncate ts tsort tty ttysize udpsvd
+    unexpand uniq unix2dos unlink uname uptime users uudecode uuencode
+    uuidgen usleep vi w wc wget which who whois whoami xargs xxd yes zcat
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -214,6 +214,7 @@ parsed by x-lang's `Opts`.
     cu/ascii.x        ascii, crc32 (the zlib CRC-32) and uuidgen
     cu/session.x      fsync, flock, setsid, ttysize, nologin, pipe_progress
     cu/httpd.x        httpd: busybox's web server -- files, httpd.conf, ranges, ETags, inetd mode or a listener
+    cu/tcpsvd.x       tcpsvd and udpsvd: a program run for each connection or sender
     cu/ftpd.x         ftpd: busybox's FTP server, one connection on stdin, PASV, EPSV or PORT
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
