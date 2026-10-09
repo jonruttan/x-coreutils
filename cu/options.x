@@ -12,7 +12,8 @@
 ; stops it at the first word that is not a cluster of the flags, and keeps that
 ; word, so `echo -x` and `echo -- a` print their words, as echo reads them;
 ; `none` says there are no options at all, so `printf -x` prints -x, and only a
-; first -- is dropped.
+; first -- is dropped.  `inetd` marks a service that wants a socket on stdin
+; before it reads any option: without one, its usage, as busybox's tftpd shows.
 ;
 ; The declaration is busybox's help text, row for row: what `APPLET --help`
 ; prints, less the banner line and the rows for options this bundle does not
@@ -1087,6 +1088,19 @@
             (Opts arg "-b" "SIZE" "Transfer blocks in bytes")
             (Opts hidden (Opts arg "-m" "" ""))))
         (lit none)))
+    (pair "tftpd"
+      (list
+        (Opts declare "tftpd" "[-crl] [-u USER] [DIR]"
+          "Transfer a file on tftp client's request\n\ntftpd is an inetd service, inetd.conf line:\n\t69 dgram udp nowait root tftpd tftpd -l /files/to/serve\nCan be run from udpsvd:\n\tudpsvd -vE 0.0.0.0 69 tftpd /files/to/serve"
+          (append
+            (list
+              (Opts text "\t-r\tProhibit upload")
+              (Opts text "\t-c\tAllow file creation via upload")
+              (Opts text "\t-u USER\tAccess files as USER")
+              (Opts text "\t-l\tLog to syslog (inetd mode requires this)"))
+            (%cu-hidden-flags (list "-c" "-r" "-l"))
+            (%cu-hidden-args (list "-u"))))
+        (lit inetd)))
     ; ftpget and ftpput share ftpgetput.c's options: ftpput takes -c too, and
     ; busybox's --continue takes an argument; -P's row has no text of its own
     (pair "ftpget"

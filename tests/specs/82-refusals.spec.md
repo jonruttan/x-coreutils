@@ -5613,6 +5613,54 @@ UDPREMOTEHOST='hostname'
 status 1
 ```
 
+### tftpd -~
+
+```cu
+(run (list "tftpd" "-~") "")
+```
+---
+```output
+stderr:
+Usage: tftpd [-crl] [-u USER] [DIR]
+
+Transfer a file on tftp client's request
+
+tftpd is an inetd service, inetd.conf line:
+	69 dgram udp nowait root tftpd tftpd -l /files/to/serve
+Can be run from udpsvd:
+	udpsvd -vE 0.0.0.0 69 tftpd /files/to/serve
+
+	-r	Prohibit upload
+	-c	Allow file creation via upload
+	-u USER	Access files as USER
+	-l	Log to syslog (inetd mode requires this)
+status 1
+```
+
+### tftpd --nope
+
+```cu
+(run (list "tftpd" "--nope") "")
+```
+---
+```output
+stderr:
+Usage: tftpd [-crl] [-u USER] [DIR]
+
+Transfer a file on tftp client's request
+
+tftpd is an inetd service, inetd.conf line:
+	69 dgram udp nowait root tftpd tftpd -l /files/to/serve
+Can be run from udpsvd:
+	udpsvd -vE 0.0.0.0 69 tftpd /files/to/serve
+
+	-r	Prohibit upload
+	-c	Allow file creation via upload
+	-u USER	Access files as USER
+	-l	Log to syslog (inetd mode requires this)
+status 1
+```
+
 ### httpd -c
 
 ```cu
