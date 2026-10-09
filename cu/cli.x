@@ -147,6 +147,7 @@
     (pair "gunzip" %cu-gunzip)
     (pair "zcat" %cu-zcat)
     (pair "unzip" %cu-unzip)
+    (pair "cpio" %cu-cpio)
     (pair "hostname" %cu-hostname)
     (pair "hostid" %cu-hostid)
     (pair "mountpoint" %cu-mountpoint)

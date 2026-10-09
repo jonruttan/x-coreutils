@@ -3738,6 +3738,108 @@ Extract FILEs from ZIP archive
 status 1
 ```
 
+### cpio -~
+
+```cu
+(run (list "cpio" "-~") "")
+```
+---
+```output
+stderr:
+cpio: unrecognized option: ~
+Usage: cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...
+
+Extract (-i) or list (-t) files from a cpio archive on stdin, or
+take file list from stdin and create an archive (-o) or copy files (-p)
+
+Main operation mode:
+	-t	List
+	-i	Extract EXTR_FILEs (or all)
+	-o	Create (requires -H newc)
+	-p DIR	Copy files to DIR
+Options:
+	-H newc	Archive format
+	-d	Make leading directories
+	-m	Restore mtime
+	-v	Verbose
+	-u	Overwrite
+	-F FILE	Input (-t,-i,-p) or output (-o) file
+	-R USER[:GRP]	Set owner of created files
+	-L	Dereference symlinks
+	-0	NUL terminated input
+	--ignore-devno
+	--renumber-inodes
+status 1
+```
+
+### cpio --nope
+
+```cu
+(run (list "cpio" "--nope") "")
+```
+---
+```output
+stderr:
+cpio: unrecognized option: nope
+Usage: cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...
+
+Extract (-i) or list (-t) files from a cpio archive on stdin, or
+take file list from stdin and create an archive (-o) or copy files (-p)
+
+Main operation mode:
+	-t	List
+	-i	Extract EXTR_FILEs (or all)
+	-o	Create (requires -H newc)
+	-p DIR	Copy files to DIR
+Options:
+	-H newc	Archive format
+	-d	Make leading directories
+	-m	Restore mtime
+	-v	Verbose
+	-u	Overwrite
+	-F FILE	Input (-t,-i,-p) or output (-o) file
+	-R USER[:GRP]	Set owner of created files
+	-L	Dereference symlinks
+	-0	NUL terminated input
+	--ignore-devno
+	--renumber-inodes
+status 1
+```
+
+### cpio -F
+
+```cu
+(run (list "cpio" "-F") "")
+```
+---
+```output
+stderr:
+cpio: option requires an argument: F
+Usage: cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...
+
+Extract (-i) or list (-t) files from a cpio archive on stdin, or
+take file list from stdin and create an archive (-o) or copy files (-p)
+
+Main operation mode:
+	-t	List
+	-i	Extract EXTR_FILEs (or all)
+	-o	Create (requires -H newc)
+	-p DIR	Copy files to DIR
+Options:
+	-H newc	Archive format
+	-d	Make leading directories
+	-m	Restore mtime
+	-v	Verbose
+	-u	Overwrite
+	-F FILE	Input (-t,-i,-p) or output (-o) file
+	-R USER[:GRP]	Set owner of created files
+	-L	Dereference symlinks
+	-0	NUL terminated input
+	--ignore-devno
+	--renumber-inodes
+status 1
+```
+
 ### hostname -~
 
 ```cu
