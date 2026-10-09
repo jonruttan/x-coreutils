@@ -114,6 +114,7 @@
     (pair "nc" %cu-nc)
     (pair "nslookup" %cu-nslookup)
     (pair "tftp" %cu-tftp)
+    (pair "tftpd" %cu-tftpd)
     (pair "ftpget" %cu-ftpget)
     (pair "ftpput" %cu-ftpput)
     (pair "httpd" %cu-httpd)
@@ -427,11 +428,21 @@
 (def %cu-dispatch
   (fn (_ h applet args stdin-thunk)
     (let ((help (%cu-help applet args)))
-      (if (not (null? help)) help
-        (let ((o (%cu-opts applet args)))
-          (if (null? (Opts unknown o))
-            (h (if (%cu-flagless? applet) (Opts operands o) args) stdin-thunk)
-            (%cu-refuse-option applet (Opts unknown o))))))))
+      (match
+        ((not (null? help)) help)
+        ((%cu-inetd-idle? applet) (%cu-usage applet))
+        (#t (let ((o (%cu-opts applet args)))
+              (if (null? (Opts unknown o))
+                (h (if (%cu-flagless? applet) (Opts operands o) args) stdin-thunk)
+                (%cu-refuse-option applet (Opts unknown o)))))))))
+
+; An inetd service whose row says so (`inetd`) and whose stdin is not a socket:
+; busybox's tftpd asks before it reads its options, and shows its usage
+(def %cu-inetd-idle?
+  (fn (_ applet)
+    (let ((spec (%cu-spec-of applet)))
+      (if (if (null? spec) #t (null? (rest (rest spec)))) #f
+        (if (eq? (first (rest (rest spec))) (lit inetd)) (null? (net-stdin-socket)) #f)))))
 
 (def %cu-cli-engine-flag?
   (fn (_ s)

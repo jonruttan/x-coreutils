@@ -123,6 +123,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tee` | -a -i | -a -i |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
+| `tftpd` | -c -r -l -u | -c -r -l -u |  | 100% |
 | `time` | -v -p -a -f -o | -v -p -a -f -o |  | 100% |
 | `timeout` | -s -k | -s -k |  | 100% |
 | `top` | -b -n -d -m -H | -b -m -H -n -d |  | 100% |
@@ -160,4 +161,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 656 of 669 busybox options accepted (98%).**
+**Total: 660 of 673 busybox options accepted (98%).**
