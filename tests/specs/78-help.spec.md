@@ -2590,6 +2590,31 @@ stderr:
 status 0
 ```
 
+### unzip
+
+```cu
+(run (list "unzip" "--help") "")
+```
+---
+```output
+Usage: unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]|
+|
+Extract FILEs from ZIP archive|
+|
+	-l	List contents (with -q for short form)|
+	-n	Never overwrite files (default: ask)|
+	-o	Overwrite|
+	-j	Do not restore paths|
+	-p	Write to stdout|
+	-t	Test|
+	-q	Quiet|
+	-K	Do not clear SUID bit|
+	-x FILE	Exclude FILEs|
+	-d DIR	Extract into DIR|
+stderr:
+status 0
+```
+
 ### hostname
 
 ```cu

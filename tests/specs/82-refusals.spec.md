@@ -3660,6 +3660,84 @@ Decompress to stdout
 status 1
 ```
 
+### unzip -~
+
+```cu
+(run (list "unzip" "-~") "")
+```
+---
+```output
+stderr:
+unzip: unrecognized option: ~
+Usage: unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]
+
+Extract FILEs from ZIP archive
+
+	-l	List contents (with -q for short form)
+	-n	Never overwrite files (default: ask)
+	-o	Overwrite
+	-j	Do not restore paths
+	-p	Write to stdout
+	-t	Test
+	-q	Quiet
+	-K	Do not clear SUID bit
+	-x FILE	Exclude FILEs
+	-d DIR	Extract into DIR
+status 1
+```
+
+### unzip --nope
+
+```cu
+(run (list "unzip" "--nope") "")
+```
+---
+```output
+stderr:
+unzip: unrecognized option: -
+Usage: unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]
+
+Extract FILEs from ZIP archive
+
+	-l	List contents (with -q for short form)
+	-n	Never overwrite files (default: ask)
+	-o	Overwrite
+	-j	Do not restore paths
+	-p	Write to stdout
+	-t	Test
+	-q	Quiet
+	-K	Do not clear SUID bit
+	-x FILE	Exclude FILEs
+	-d DIR	Extract into DIR
+status 1
+```
+
+### unzip -d
+
+```cu
+(run (list "unzip" "-d") "")
+```
+---
+```output
+stderr:
+unzip: option requires an argument: d
+Usage: unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]
+
+Extract FILEs from ZIP archive
+
+	-l	List contents (with -q for short form)
+	-n	Never overwrite files (default: ask)
+	-o	Overwrite
+	-j	Do not restore paths
+	-p	Write to stdout
+	-t	Test
+	-q	Quiet
+	-K	Do not clear SUID bit
+	-x FILE	Exclude FILEs
+	-d DIR	Extract into DIR
+status 1
+```
+
 ### hostname -~
 
 ```cu
