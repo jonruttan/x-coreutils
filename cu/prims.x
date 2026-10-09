@@ -50,7 +50,7 @@
   sys-user-name sys-group-name sys-user-id sys-user-group sys-group-id
   sys-user-groups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
-  host-boot-time load-centi host-load-centi host-memory host-users
+  host-boot-time load-centi host-load-centi host-memory host-users host-utmp
   host-processes host-args host-process host-exe sys-signals sys-getpid re-compile re-search
   host-load-fixed host-tasks host-cpu host-cpus host-threads host-maps
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
@@ -387,6 +387,7 @@
   (fn (_) (map load-centi (Host load))))
 (def host-memory (fn (_) (Host memory)))
 (def host-users (fn (_) (Host users)))
+(def host-utmp (fn (_) (Host utmp)))
 (def host-processes (fn (_) (Host processes)))
 (def host-args (fn (_ pid) (Host args pid)))
 (def host-process (fn (_ pid) (Host process pid)))

@@ -345,7 +345,8 @@
 
 ; busybox's coreutils/who.c: who, w and users are one applet.  The sessions are
 ; the utmpx database's (host-users, cu/prims.x): each of type USER_PROCESS
-; with a user name.  w is who with its header; users prints the names alone.
+; with a user name, and with who -a every entry with a user name, whatever
+; its type (host-utmp).  w is who with its header; users prints the names alone.
 (def %cu-who (fn (_ argv stdin-thunk) (%wh-run "who" argv)))
 (def %cu-w (fn (_ argv stdin-thunk) (%wh-run "w" argv)))
 (def %cu-users (fn (_ argv stdin-thunk) (%wh-run "users" argv)))
@@ -355,7 +356,7 @@
     (def o (%cu-opts applet argv))
     ; getopt32's "=0": an operand is busybox's usage
     (if (not (null? (Opts operands o))) (%cu-usage applet)
-      (let ((sessions (host-users)))
+      (let ((sessions (if (if (string=? applet "who") (Opts on? o "-a") #f) (host-utmp) (host-users))))
         (if (string=? applet "users")
           (display (string-append
                      (%cu-join-with (map (fn (_ u) (Assoc get (lit user) u)) sessions) " ")

@@ -5,9 +5,9 @@ reports, each a line.  The sessions are this machine's, so the cases check
 the shape of what is printed against the records themselves: a line a
 session, the columns busybox's `%-15.*s %-15.*s %-7s %-16.16s %.*s` gives,
 and the header w and who -H print.  On a machine with no session, who
-prints nothing, w its header and users an empty line.  Host reports the
-USER_PROCESS sessions, so -a, which busybox has show every utmpx entry with
-a user name, adds nothing here.  A `|` marks the end of each line written to
+prints nothing, w its header and users an empty line.  who -a shows
+every utmpx entry with a user name, whatever its type, a line each, as
+busybox does.  A `|` marks the end of each line written to
 standard output.
 
 ## the fixture
@@ -30,10 +30,10 @@ standard output.
 ---
     (#t #t "" 0)
 
-### who prints a line a session, and -H the header before them
+### who prints a line a session, -H the header before them, and -a a line an entry
 
 ```cu
-(let ((plain (out (list "who"))) (headed (out (list "who" "-H")))) (list (= (length (lines plain)) (length (host-users))) (str=? headed (string-append "USER\t\tTTY\t\tIDLE\tTIME\t\t HOST\n" plain)) (str=? (out (list "who" "-a")) plain)))
+(let ((plain (out (list "who"))) (headed (out (list "who" "-H")))) (list (= (length (lines plain)) (length (host-users))) (str=? headed (string-append "USER\t\tTTY\t\tIDLE\tTIME\t\t HOST\n" plain)) (= (length (lines (out (list "who" "-a")))) (length (host-utmp)))))
 ```
 ---
     (#t #t #t)
