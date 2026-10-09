@@ -3660,6 +3660,330 @@ Decompress to stdout
 status 1
 ```
 
+### hostname -~
+
+```cu
+(run (list "hostname" "-~") "")
+```
+---
+```output
+stderr:
+hostname: unrecognized option: ~
+Usage: hostname [-sidf] [HOSTNAME | -F FILE]
+
+Show or set hostname or DNS domain name
+
+	-s	Short
+	-i	Addresses for the hostname
+	-d	DNS domain name
+	-f	Fully qualified domain name
+	-F FILE	Use FILE's content as hostname
+status 1
+```
+
+### hostname --nope
+
+```cu
+(run (list "hostname" "--nope") "")
+```
+---
+```output
+stderr:
+hostname: unrecognized option: nope
+Usage: hostname [-sidf] [HOSTNAME | -F FILE]
+
+Show or set hostname or DNS domain name
+
+	-s	Short
+	-i	Addresses for the hostname
+	-d	DNS domain name
+	-f	Fully qualified domain name
+	-F FILE	Use FILE's content as hostname
+status 1
+```
+
+### hostid -~
+
+```cu
+(run (list "hostid" "-~") "")
+```
+---
+```output
+stderr:
+Usage: hostid
+
+Print out a unique 32-bit identifier for the machine
+status 1
+```
+
+### hostid --nope
+
+```cu
+(run (list "hostid" "--nope") "")
+```
+---
+```output
+stderr:
+Usage: hostid
+
+Print out a unique 32-bit identifier for the machine
+status 1
+```
+
+### mountpoint -~
+
+```cu
+(run (list "mountpoint" "-~") "")
+```
+---
+```output
+stderr:
+mountpoint: unrecognized option: ~
+Usage: mountpoint [-q] { [-dn] DIR | -x DEVICE }
+
+Check if DIR is a mountpoint
+
+	-q	Quiet
+	-d	Print major:minor of the filesystem
+	-n	Print device name of the filesystem
+	-x	Print major:minor of DEVICE
+status 1
+```
+
+### mountpoint --nope
+
+```cu
+(run (list "mountpoint" "--nope") "")
+```
+---
+```output
+stderr:
+mountpoint: unrecognized option: nope
+Usage: mountpoint [-q] { [-dn] DIR | -x DEVICE }
+
+Check if DIR is a mountpoint
+
+	-q	Quiet
+	-d	Print major:minor of the filesystem
+	-n	Print device name of the filesystem
+	-x	Print major:minor of DEVICE
+status 1
+```
+
+### mknod -~
+
+```cu
+(run (list "mknod" "-~") "")
+```
+---
+```output
+stderr:
+mknod: unrecognized option: ~
+Usage: mknod [-m MODE] NAME TYPE [MAJOR MINOR]
+
+Create a special file (block, character, or pipe)
+
+	-m MODE	Creation mode (default a=rw)
+TYPE:
+	b	Block device
+	c or u	Character device
+	p	Named pipe (MAJOR MINOR must be omitted)
+status 1
+```
+
+### mknod --nope
+
+```cu
+(run (list "mknod" "--nope") "")
+```
+---
+```output
+stderr:
+mknod: unrecognized option: nope
+Usage: mknod [-m MODE] NAME TYPE [MAJOR MINOR]
+
+Create a special file (block, character, or pipe)
+
+	-m MODE	Creation mode (default a=rw)
+TYPE:
+	b	Block device
+	c or u	Character device
+	p	Named pipe (MAJOR MINOR must be omitted)
+status 1
+```
+
+### mesg -~
+
+```cu
+(run (list "mesg" "-~") "")
+```
+---
+```output
+stderr:
+Usage: mesg [y|n]
+
+Control write access to your terminal
+	y	Allow write access to your terminal
+	n	Disallow write access to your terminal
+status 1
+```
+
+### mesg --nope
+
+```cu
+(run (list "mesg" "--nope") "")
+```
+---
+```output
+stderr:
+Usage: mesg [y|n]
+
+Control write access to your terminal
+	y	Allow write access to your terminal
+	n	Disallow write access to your terminal
+status 1
+```
+
+### renice -~
+
+```cu
+(run (list "renice" "-~") "")
+```
+---
+```output
+stderr:
+renice: invalid number '~'
+status 1
+```
+
+### renice --nope
+
+```cu
+(run (list "renice" "--nope") "")
+```
+---
+```output
+stderr:
+renice: invalid number '-nope'
+status 1
+```
+
+### ts -~
+
+```cu
+(run (list "ts" "-~") "")
+```
+---
+```output
+stderr:
+ts: unrecognized option: ~
+Usage: ts [-is] [STRFTIME]
+
+Pipe stdin to stdout, add timestamp to each line
+
+	-s	Time since start
+	-i	Time since previous line
+status 1
+```
+
+### ts --nope
+
+```cu
+(run (list "ts" "--nope") "")
+```
+---
+```output
+stderr:
+ts: unrecognized option: nope
+Usage: ts [-is] [STRFTIME]
+
+Pipe stdin to stdout, add timestamp to each line
+
+	-s	Time since start
+	-i	Time since previous line
+status 1
+```
+
+### sha384sum -~
+
+```cu
+(run (list "sha384sum" "-~") "")
+```
+---
+```output
+stderr:
+sha384sum: unrecognized option: ~
+Usage: sha384sum [-c[sw]] [FILE]...
+
+Print or check SHA384 checksums
+
+	-c	Check sums against list in FILEs
+	-s	Don't output anything, status code shows success
+	-w	Warn about improperly formatted checksum lines
+status 1
+```
+
+### sha384sum --nope
+
+```cu
+(run (list "sha384sum" "--nope") "")
+```
+---
+```output
+stderr:
+sha384sum: unrecognized option: nope
+Usage: sha384sum [-c[sw]] [FILE]...
+
+Print or check SHA384 checksums
+
+	-c	Check sums against list in FILEs
+	-s	Don't output anything, status code shows success
+	-w	Warn about improperly formatted checksum lines
+status 1
+```
+
+### hostname -F
+
+```cu
+(run (list "hostname" "-F") "")
+```
+---
+```output
+stderr:
+hostname: option requires an argument: F
+Usage: hostname [-sidf] [HOSTNAME | -F FILE]
+
+Show or set hostname or DNS domain name
+
+	-s	Short
+	-i	Addresses for the hostname
+	-d	DNS domain name
+	-f	Fully qualified domain name
+	-F FILE	Use FILE's content as hostname
+status 1
+```
+
+### mknod -m
+
+```cu
+(run (list "mknod" "-m") "")
+```
+---
+```output
+stderr:
+mknod: option requires an argument: m
+Usage: mknod [-m MODE] NAME TYPE [MAJOR MINOR]
+
+Create a special file (block, character, or pipe)
+
+	-m MODE	Creation mode (default a=rw)
+TYPE:
+	b	Block device
+	c or u	Character device
+	p	Named pipe (MAJOR MINOR must be omitted)
+status 1
+```
+
 ### touch -~
 
 ```cu

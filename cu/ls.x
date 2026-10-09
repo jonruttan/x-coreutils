@@ -203,17 +203,16 @@
     (if (%ls-flag? o "-h") (%ls-human (%ls-get e (lit size)))
       (%cu-int->str (%ls-get e (lit size))))))
 
-; An owner or group as a long line shows it, (NAME? . TEXT): under -l the
-; system's name, or the id where the system has none; under -n the id.  A
-; name is left-aligned in its column and an id right-aligned, as ls lays them
-; out.  Each id is looked up once in a run -- a listing's entries share few.
+; An owner or group as a long line shows it: under -l the system's name, or
+; the id where the system has none; under -n the id.  Each id is looked up
+; once in a run -- a listing's entries share few.
 (def %ls-user-cell (list ()))
 (def %ls-group-cell (list ()))
 
 (def %ls-id-text
   (fn (_ id numeric? cell look)
     (let ((n (if numeric? () (%ls-memo-name cell id look))))
-      (if (null? n) (pair #f (%cu-int->str id)) (pair #t n)))))
+      (if (null? n) (%cu-int->str id) n))))
 
 (def %ls-memo-name
   (fn (_ cell id look)
@@ -237,49 +236,40 @@
   (fn (_ e numeric?)
     (%ls-id-text (%ls-get e (lit gid)) numeric? %ls-group-cell sys-group-name)))
 
-(def %ls-id-column
-  (fn (_ t w) (if (first t) (%cu-pad-right (rest t) w) (%cu-pad-left (rest t) w))))
+; a device's major and minor where a size would be, as `%4u, %3u`
+(def %ls-size-cell
+  (fn (_ e o)
+    (def k (%ls-get e (lit file-type)))
+    (if (if (eq? k (lit char)) #t (eq? k (lit block)))
+      (let ((dev (%ls-get e (lit rdev))))
+        (string-concat
+          (list (%cu-pad-left (%cu-int->str (%cu-dev-major dev)) 4) ", "
+                (%cu-pad-left (%cu-int->str (%cu-dev-minor dev)) 3))))
+      (%cu-pad-left (%ls-size-str e o) (if (%ls-flag? o "-h") 7 9)))))
 
-; the widths a listing's long lines share, so the columns line up, and whether
-; the owner and group are shown as ids (-n); the owner and group are looked up
-; only for a long listing
-(def %ls-widths
-  (fn (_ es o)
-    (def w (fn (_ f) (let ((go (fn (self xs m)
-                                 (if (null? xs) m
-                                   (let ((n (byte-len (f (first xs)))))
-                                     (self (rest xs) (if (> n m) n m)))))))
-                       (go es 0))))
+; one entry as it is listed, without its newline: the cell a column layout
+; arranges, or the line the plain listing prints.  The columns are busybox's
+; fixed widths -- inode 7, blocks 6, links 4, owner and group 8 left-aligned,
+; size 9 (7 under -h) -- and a wider value pushes the rest of its line over.
+(def %ls-cell
+  (fn (_ e o now)
     (def numeric? (%ls-flag? o "-n"))
     (def long? (if numeric? #t (%ls-flag? o "-l")))
-    (list (w (fn (_ e) (%cu-int->str (%ls-get e (lit nlink)))))
-          (if long? (w (fn (_ e) (rest (%ls-owner e numeric?)))) 0)
-          (if long? (w (fn (_ e) (rest (%ls-group e numeric?)))) 0)
-          (w (fn (_ e) (%ls-size-str e o)))
-          (w (fn (_ e) (%cu-int->str (%ls-get e (lit ino)))))
-          (w (fn (_ e) (%cu-int->str (%cu-du-blocks (%ls-st e)))))
-          numeric?)))
-
-; one entry as it is listed, without its newline: the cell a column
-; layout arranges, or the line the plain listing prints
-(def %ls-cell
-  (fn (_ e o ws now)
-    (def long? (if (%ls-flag? o "-l") #t (%ls-flag? o "-n")))
     (def st (%ls-st e))
     (def name (string-append (%ls-name e) (%ls-suffix e o)))
     (string-concat
       (list
         (if (%ls-flag? o "-i")
-          (string-append (%cu-pad-left (%cu-int->str (%ls-get e (lit ino))) (%cu-nth 4 ws)) " ") "")
+          (string-append (%cu-pad-left (%cu-int->str (%ls-get e (lit ino))) 7) " ") "")
         (if (%ls-flag? o "-s")
-          (string-append (%cu-pad-left (%cu-int->str (%cu-du-blocks st)) (%cu-nth 5 ws)) " ") "")
+          (string-append (%cu-pad-left (%cu-int->str (%cu-du-blocks st)) 6) " ") "")
         (if (not long?) name
           (string-concat
             (list (%cu-perm-string (%ls-get e (lit file-type)) (%ls-get e (lit mode))) " "
-                  (%cu-pad-left (%cu-int->str (%ls-get e (lit nlink))) (%cu-nth 0 ws)) " "
-                  (%ls-id-column (%ls-owner e (%cu-nth 6 ws)) (%cu-nth 1 ws)) " "
-                  (%ls-id-column (%ls-group e (%cu-nth 6 ws)) (%cu-nth 2 ws)) " "
-                  (%cu-pad-left (%ls-size-str e o) (%cu-nth 3 ws)) " "
+                  (%cu-pad-left (%cu-int->str (%ls-get e (lit nlink))) 4) " "
+                  (%cu-pad-right (%ls-owner e numeric?) 8) " "
+                  (%cu-pad-right (%ls-group e numeric?) 8) " "
+                  (%ls-size-cell e o) " "
                   (%ls-date (%ls-get e (%ls-time-key o)) now) " "
                   name
                   (if (eq? (%ls-get e (lit file-type)) (lit link))
@@ -287,7 +277,7 @@
                     ""))))))))
 
 (def %ls-line
-  (fn (_ e o ws now) (string-append (%ls-cell e o ws now) "\n")))
+  (fn (_ e o now) (string-append (%ls-cell e o now) "\n")))
 
 ; --- columns: -C down, -x across, -w the width --------------------------------
 ;
@@ -411,7 +401,6 @@
 (def %ls-print
   (fn (_ es o now dir?)
     (def ordered (%ls-order es o))
-    (def ws (%ls-widths ordered o))
     (def long? (if (%ls-flag? o "-l") #t (%ls-flag? o "-n")))
     (def blocks
       (let ((go (fn (self xs acc)
@@ -424,11 +413,11 @@
           ())
         (if (if (%ls-columns? o) (not long?) #f)
           (display
-            (%ls-layout (map (fn (_ e) (%ls-cell e o ws now)) ordered)
+            (%ls-layout (map (fn (_ e) (%ls-cell e o now)) ordered)
               (%ls-width o) (%ls-flag? o "-x")))
           (let ((go (fn (self xs)
                       (if (null? xs) ()
-                        (do (display (%ls-line (first xs) o ws now))
+                        (do (display (%ls-line (first xs) o now))
                             (self (rest xs)))))))
             (go ordered)))
         ordered)))
