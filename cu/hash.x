@@ -429,14 +429,17 @@
         (if (if (= total 0) #t (> failed 0)) 1 0))))
 
 ; -s and -w shape only what -c says: without it busybox refuses them with its
-; usage text.  No operand is stdin.
+; usage text.  No operand is stdin.  -b writes `DIGEST *NAME`, the mark of a
+; binary read, and -t takes it back: the later of the two wins.  busybox's
+; help lists neither.
 (def %cu-sum-applet
   (fn (_ name digest argv stdin-thunk)
     (def o (%cu-opts name argv))
     (def ops (if (null? (Opts operands o)) (list "-") (Opts operands o)))
+    (def sep (if (equal? (%cu-last-given o (list "-b" "-t")) "-b") " *" "  "))
     (def one
       (fn (_ path text)
-        (display (string-concat (list (digest text) "  " path "\n")))))
+        (display (string-concat (list (digest text) sep path "\n")))))
     (match
       ((Opts on? o "-c")
         (%cu-sum-check-lists name digest ops stdin-thunk

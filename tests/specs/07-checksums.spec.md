@@ -166,6 +166,48 @@ busybox's does.
 0
 ```
 
+## -b and -t
+
+### -b marks the name with a star, -t takes it back, and the later one wins
+
+busybox's help lists neither.  The expectations are busybox's.
+
+```cu
+(do (display (cu-run (list "md5sum" "-b") "abc\n"))
+    (display (cu-run (list "md5sum" "-t") "abc\n"))
+    (display (cu-run (list "md5sum" "-bt") "abc\n"))
+    (display (cu-run (list "md5sum" "-tb") "abc\n"))
+    (display (cu-run (list "md5sum" "-b" "-t") "abc\n"))
+    (display (cu-run (list "md5sum" "-t" "-b") "abc\n")))
+```
+---
+```output
+0bee89b07a248e27c83fc3d5951213c1 *-
+00bee89b07a248e27c83fc3d5951213c1  -
+00bee89b07a248e27c83fc3d5951213c1  -
+00bee89b07a248e27c83fc3d5951213c1 *-
+00bee89b07a248e27c83fc3d5951213c1  -
+00bee89b07a248e27c83fc3d5951213c1 *-
+0
+```
+
+### every digest takes -b
+
+```cu
+(do (display (cu-run (list "sha1sum" "-b") "abc\n"))
+    (display (cu-run (list "sha256sum" "-b") "abc\n"))
+    (display (cu-run (list "sha384sum" "-b") "abc\n"))
+    (display (cu-run (list "sha512sum" "-b") "abc\n")))
+```
+---
+```output
+03cfd743661f07975fa2f1220c5194cbaff48451 *-
+0edeaaff3f1774ad2888673770c6d64097e391bc362d7d6fb34982ddf0efd18cb *-
+0e8d1420b4ff41c3f12186d894a99e1c4aa681da79c47007e9dadecd9ecb0482ee1e224510e7484078c0289f34396b9c3 *-
+04f285d0c0cc77286d8731798b7aae2639e28270d4166f40d769cbbdca5230714d848483d364e2f39fe6cb9083c15229b39a33615ebc6d57605f7c43f6906739d *-
+0
+```
+
 ### cleanup
 
 ```cu

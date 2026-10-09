@@ -211,7 +211,9 @@
           (list
             (Opts flag "-c" "Check sums against list in FILEs")
             (Opts flag "-s" "Don't output anything, status code shows success")
-            (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+            (Opts flag "-w" "Warn about improperly formatted checksum lines")
+            (Opts hidden (Opts flag "-b" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
     ; md5sum, sha1sum, sha256sum and sha512sum share one driver, so they share one
     ; option set.
     (pair "md5sum"
@@ -221,7 +223,9 @@
           (list
             (Opts flag "-c" "Check sums against list in FILEs")
             (Opts flag "-s" "Don't output anything, status code shows success")
-            (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+            (Opts flag "-w" "Warn about improperly formatted checksum lines")
+            (Opts hidden (Opts flag "-b" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
     (pair "sha1sum"
       (list
         (Opts declare "sha1sum" "[-c[sw]] [FILE]..."
@@ -229,7 +233,9 @@
           (list
             (Opts flag "-c" "Check sums against list in FILEs")
             (Opts flag "-s" "Don't output anything, status code shows success")
-            (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+            (Opts flag "-w" "Warn about improperly formatted checksum lines")
+            (Opts hidden (Opts flag "-b" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
     (pair "sha512sum"
       (list
         (Opts declare "sha512sum" "[-c[sw]] [FILE]..."
@@ -237,7 +243,9 @@
           (list
             (Opts flag "-c" "Check sums against list in FILEs")
             (Opts flag "-s" "Don't output anything, status code shows success")
-            (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+            (Opts flag "-w" "Warn about improperly formatted checksum lines")
+            (Opts hidden (Opts flag "-b" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
     (pair "cksum"
       (list
         (Opts declare "cksum" "FILE..."
@@ -1569,7 +1577,9 @@
           (list
             (Opts flag "-c" "Check sums against list in FILEs")
             (Opts flag "-s" "Don't output anything, status code shows success")
-            (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+            (Opts flag "-w" "Warn about improperly formatted checksum lines")
+            (Opts hidden (Opts flag "-b" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
     (pair "hostname"
       (list
         (Opts declare "hostname" "[-sidf] [HOSTNAME | -F FILE]"
