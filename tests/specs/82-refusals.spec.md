@@ -5713,6 +5713,50 @@ Small static DNS server daemon
 status 1
 ```
 
+### inetd -~
+
+```cu
+(run (list "inetd" "-~") "")
+```
+---
+```output
+stderr:
+inetd: unrecognized option: ~
+Usage: inetd [-fe] [-q N] [-R N] [CONFFILE]
+
+Listen for network connections and launch programs
+
+	-f	Run in foreground
+	-e	Log to stderr
+	-q N	Socket listen queue (default 128)
+	-R N	Pause services after N connects/min
+		(default 0 - disabled)
+	Default CONFFILE is /etc/inetd.conf
+status 1
+```
+
+### inetd --nope
+
+```cu
+(run (list "inetd" "--nope") "")
+```
+---
+```output
+stderr:
+inetd: unrecognized option: nope
+Usage: inetd [-fe] [-q N] [-R N] [CONFFILE]
+
+Listen for network connections and launch programs
+
+	-f	Run in foreground
+	-e	Log to stderr
+	-q N	Socket listen queue (default 128)
+	-R N	Pause services after N connects/min
+		(default 0 - disabled)
+	Default CONFFILE is /etc/inetd.conf
+status 1
+```
+
 ### httpd -c
 
 ```cu

@@ -119,6 +119,7 @@
     (pair "ftpput" %cu-ftpput)
     (pair "httpd" %cu-httpd)
     (pair "dnsd" %cu-dnsd)
+    (pair "inetd" %cu-inetd)
     (pair "tcpsvd" %cu-tcpsvd)
     (pair "udpsvd" %cu-udpsvd)
     (pair "ftpd" %cu-ftpd)

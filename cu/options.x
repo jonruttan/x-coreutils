@@ -1171,6 +1171,20 @@
               (Opts text "\t\t\tnameserver NORMAL_DNS_SERVER"))
             (%cu-hidden-flags (list "-d" "-v" "-s"))
             (%cu-hidden-args (list "-c" "-t" "-p" "-i"))))))
+    (pair "inetd"
+      (list
+        (Opts declare "inetd" "[-fe] [-q N] [-R N] [CONFFILE]"
+          "Listen for network connections and launch programs"
+          (append
+            (list
+              (Opts text "\t-f\tRun in foreground")
+              (Opts text "\t-e\tLog to stderr")
+              (Opts text "\t-q N\tSocket listen queue (default 128)")
+              (Opts text "\t-R N\tPause services after N connects/min")
+              (Opts text "\t\t(default 0 - disabled)")
+              (Opts text "\tDefault CONFFILE is /etc/inetd.conf"))
+            (%cu-hidden-flags (list "-f" "-e"))
+            (%cu-hidden-args (list "-q" "-R"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list

@@ -2151,6 +2151,27 @@ stderr:
 status 0
 ```
 
+### inetd
+
+```cu
+(run (list "inetd" "--help") "")
+```
+---
+```output
+Usage: inetd [-fe] [-q N] [-R N] [CONFFILE]|
+|
+Listen for network connections and launch programs|
+|
+	-f	Run in foreground|
+	-e	Log to stderr|
+	-q N	Socket listen queue (default 128)|
+	-R N	Pause services after N connects/min|
+		(default 0 - disabled)|
+	Default CONFFILE is /etc/inetd.conf|
+stderr:
+status 0
+```
+
 ### xargs
 
 ```cu
