@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and forty applets: parity with busybox's `coreutils`
+**A hundred and forty-eight applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -16,18 +16,20 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 its network tools, `wget` (http, https and ftp), `whois`, `nc`,
 `nslookup`, `tftp`, `ftpget`, `ftpput`, `httpd`, `dnsd` and `ipcalc`, its
 `uptime`, `free`, `ps`, `pidof`, `pgrep` and `pkill`, its `who`, `w` and
-`users`, its `tar`, and its `gzip`, `gunzip` and `zcat`.**
+`users`, its `tar`, its `gzip`, `gunzip` and `zcat`, and its `hostname`,
+`hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp crc32 cut date dd df diff dirname dnsd
     dos2unix du echo env expand expr factor false find flock fold free
-    fsync ftpget ftpput getopt groups gunzip gzip hd head hexdump httpd id
-    install ipcalc join link ln logname ls md5sum mkdir mkfifo mktemp more
-    mv nc nice nl nohup nologin nproc nslookup od paste pgrep pidof
-    pipe_progress pkill printenv printf ps pwd readlink realpath reset rev
-    rm rmdir run-parts seq setsid sha1sum sha256sum sha512sum shred shuf
-    sleep sort split stat strings sum sync tac tail tar tee test tftp time
-    timeout touch tr tree true truncate tsort tty ttysize unexpand uniq
+    fsync ftpget ftpput getopt groups gunzip gzip hd head hexdump hostid
+    hostname httpd id install ipcalc join link ln logname ls md5sum mesg
+    mkdir mkfifo mknod mktemp more mountpoint mv nc nice nl nohup nologin
+    nproc nslookup od paste pgrep pidof pipe_progress pkill printenv
+    printf ps pwd readlink realpath renice reset rev rm rmdir run-parts
+    seq setsid sha1sum sha256sum sha384sum sha512sum shred shuf sleep sort
+    split stat strings sum sync tac tail tar tee test tftp time timeout
+    touch tr tree true truncate ts tsort tty ttysize unexpand uniq
     unix2dos unlink uname uptime users uudecode uuencode uuidgen usleep vi
     w wc wget which who whois whoami xargs xxd yes zcat
     [ [[
@@ -129,7 +131,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.26.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.27.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -187,7 +189,7 @@ parsed by x-lang's `Opts`.
     cu/find.x         find: the expression grammar, and the walk it drives
     cu/hash.x         md5sum sha1sum cksum sum
     cu/sha256.x       FIPS 180-4, in x
-    cu/sha512.x       its 64-bit sibling, addition masked in halves
+    cu/sha512.x       its 64-bit sibling, addition masked in halves, and SHA-384 from it
     cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, files
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/vi-edit.x      vi's operators over those motions, registers, marks
@@ -217,6 +219,7 @@ parsed by x-lang's `Opts`.
     cu/runparts.x     run-parts: a directory's scripts, in order
     cu/tar.x          tar: ustar archives listed, extracted and made, z through gzip
     cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
+    cu/sysinfo.x      hostname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
     cu/procps.x       uptime, free, ps, pidof, pgrep and pkill, over the Host
     cu/options.x      each applet's option declaration and help text
     cu/cli.x          the applet table, the option parse, cu-run, cu-main
