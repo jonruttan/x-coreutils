@@ -161,6 +161,8 @@
     (list "ftpget" (%letters "cvupP"))
     (list "ftpput" (%letters "cvupP"))
     (list "httpd" (%letters "cdhermupMKifv"))
+    (list "tcpsvd" (%letters "hEvcCbul"))
+    (list "udpsvd" (%letters "hEvcul"))
     (list "ftpd" (%letters "wAavStT"))
     (list "ipcalc" (%letters "bnmphs"))
     (list "which" (%letters "a"))
