@@ -68,9 +68,3 @@
 (requires-release "v0.27.0")
 
 (entry "run.x")
-
-; The systems the suite is held to (x-lang docs/lang-contract.md, "The
-; declaration").  The applets answer as macOS's tools do, and the specs are
-; written against them: on Linux the process, mount-table, link-walking and
-; encoder specs fail.  linux joins this row when the suite passes there.
-(os darwin)
