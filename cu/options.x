@@ -1792,6 +1792,19 @@
             (Opts flag "-e" "Display name and PID of the process being killed")
             (Opts hidden (Opts flag "-a" ""))))
         (lit signal)))
+    ; busybox's top help runs its keys and options on from the description
+    ; with no blank line between, so it is all description and the options
+    ; are declared hidden
+    (pair "top"
+      (list
+        (Opts declare "top" "[-bmH] [-n COUNT] [-d SECONDS]"
+          "Show a view of process activity in real time.\nRead the status of all processes from /proc each SECONDS\nand show a screenful of them.\nKeys:\n\tN/M/P/T: show CPU usage, sort by pid/mem/cpu/time\n\tS: show memory\n\tR: reverse sort\n\tH: toggle threads, 1: toggle SMP\n\tQ,^C: exit\nOptions:\n\t-b\tBatch mode\n\t-n N\tExit after N iterations\n\t-d SEC\tDelay between updates\n\t-m\tSame as 's' key\n\t-H\tShow threads"
+          (list
+            (Opts hidden (Opts flag "-b" ""))
+            (Opts hidden (Opts arg "-n" "" ""))
+            (Opts hidden (Opts arg "-d" "" ""))
+            (Opts hidden (Opts flag "-m" ""))
+            (Opts hidden (Opts flag "-H" ""))))))
     ; test and its spellings are an EXPRESSION, not an option list: the operators
     ; are declared so the parse knows them, and the applet parses the expression
     ; itself.  --help is an operand, as POSIX has it.
