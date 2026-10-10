@@ -87,6 +87,11 @@
 
 (def %cu-hostname (fn (_ argv stdin-thunk) (%si-hostname-run "hostname" argv)))
 
+; dnsdomainname: hostname's options taken, and -d whatever they are -- the
+; domain of the host's full name, nothing when it has none
+(def %cu-dnsdomainname
+  (fn (_ argv stdin-thunk) (%si-host-show "dnsdomainname" (%si-hostname) #t #f #f)))
+
 (def %si-hostname-run
   (fn (_ applet argv)
     (def o (%cu-opts applet argv))

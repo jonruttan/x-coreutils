@@ -68,7 +68,7 @@
   (fn (_)
     (do (file-write 2
           (string-concat
-            (list "Usage: nc [OPTIONS] HOST PORT  - connect\n"
+            (list "Usage: " %nc-name " [OPTIONS] HOST PORT  - connect\n"
                   "nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen\n\n"
                   "\t-e PROG\tRun PROG after connect (must be last)\n"
                   "\t-l\tListen mode, for inbound connects\n"
@@ -92,6 +92,7 @@
 ; --- the run's state -----------------------------------------------------------
 
 (def %nc-verbose 0)
+(def %nc-name "nc")            ; the name run as: nc, or netcat, busybox's other name for it
 (def %nc-hex-fd -1)       ; -o's file, -1 when none
 (def %nc-wrote-net 0)     ; bytes sent, for -o's offsets and -vv
 (def %nc-wrote-out 0)     ; bytes written to stdout
@@ -201,7 +202,7 @@
     (do (sys-dup2 net 0)
         (sys-dup2 0 1)
         (sys-exec (first prog) (rest prog))
-        (file-write 2 (string-concat (list "nc: can't execute '" (first prog) "'\n")))
+        (file-write 2 (string-concat (list %nc-name ": can't execute '" (first prog) "'\n")))
         (sys-exit 1))))
 
 ; --- the applet ----------------------------------------------------------------
@@ -211,7 +212,7 @@
     (guard (e (do (when (if (> %nc-verbose 1) #t
                           (if (> %nc-verbose 0) (not (eq? (file-err-sym e) (lit econnrefused))) #f))
                     (file-write 2 (string-concat
-                      (list "nc: " host " (" ip ":" (%cu-int->str port) "): " (%wget-err-text e) "\n"))))
+                      (list %nc-name ": " host " (" ip ":" (%cu-int->str port) "): " (%wget-err-text e) "\n"))))
                   ()))
       (net-connect ip port))))
 
@@ -257,17 +258,21 @@
     (unless (< %nc-hex-fd 0) (do (file-close %nc-hex-fd) (set! %nc-hex-fd -1)))
     st))
 
-(def %cu-nc
-  (fn (_ argv stdin-thunk)
+(def %cu-nc (fn (_ argv stdin-thunk) (%nc-main "nc" argv)))
+(def %cu-netcat (fn (_ argv stdin-thunk) (%nc-main "netcat" argv)))
+
+(def %nc-main
+  (fn (_ name argv)
+    (set! %nc-name name)
     (def split (%nc-split-exec argv))
     (def o (Opts parse %nc-flags %nc-values (first split)))
     (def ops (Opts operands o))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option "nc" (Opts unknown o)))
+      ((not (null? (Opts unknown o))) (%cu-refuse-option name (Opts unknown o)))
       ((if (null? ops) (not (Opts on? o "-l")) #f) (%nc-usage))
       ((> (length ops) 2) (%nc-usage))
       (#t
         (guard (e (if (eq? (Err label e) (lit net))
-                    (do (file-write 2 (string-concat (list "nc: " (e msg) "\n"))) 1)
+                    (do (file-write 2 (string-concat (list name ": " (e msg) "\n"))) 1)
                     (error e)))
           (%nc-run o ops (rest split)))))))

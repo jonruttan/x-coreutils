@@ -35,6 +35,7 @@ the work.  Applet parity is the other axis: see the README.
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -a -b -B -d -i -N -q -r -T -s -t -w -U -L -S |  | 100% |
 | `dirname` |  |  |  | - |
 | `dnsd` | -d -v -s -c -t -p -i | -d -v -s -c -t -p -i |  | 100% |
+| `dnsdomainname` |  | -s -i -d -f -v --domain --fqdn -F --file |  | - |
 | `dos2unix` | -u -d | -u -d |  | 100% |
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -a -L -H -c -l -s -x -h -m -k -P -d |  | 100% |
 | `echo` | -n -e -E | -n -e -E |  | 100% |
@@ -79,6 +80,7 @@ the work.  Applet parity is the other axis: see the README.
 | `mountpoint` | -q -d -n -x | -q -d -n -x |  | 100% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
 | `nc` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
+| `netcat` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -i -s -v -w -n |  | 100% |
 | `nohup` |  |  |  | - |
@@ -164,4 +166,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 692 of 705 busybox options accepted (98%).**
+**Total: 702 of 718 busybox options accepted (97%).**

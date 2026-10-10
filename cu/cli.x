@@ -112,6 +112,7 @@
     (pair "wget" %cu-wget)
     (pair "whois" %cu-whois)
     (pair "nc" %cu-nc)
+    (pair "netcat" %cu-netcat)
     (pair "nslookup" %cu-nslookup)
     (pair "tftp" %cu-tftp)
     (pair "tftpd" %cu-tftpd)
@@ -149,6 +150,7 @@
     (pair "unzip" %cu-unzip)
     (pair "cpio" %cu-cpio)
     (pair "hostname" %cu-hostname)
+    (pair "dnsdomainname" %cu-dnsdomainname)
     (pair "hostid" %cu-hostid)
     (pair "mountpoint" %cu-mountpoint)
     (pair "mknod" %cu-mknod)
@@ -217,7 +219,7 @@
         (#t ())))))
 
 ; The applets busybox prints no help text for.
-(def %cu-no-help (list "ascii" "tree" "pipe_progress"))
+(def %cu-no-help (list "ascii" "tree" "pipe_progress" "dnsdomainname"))
 
 ; An applet's usage text, for the refusals that print it: busybox's, to
 ; standard error, and 1.
@@ -317,7 +319,9 @@
                   (if (string=? applet "chmod")
                     (not (if (> (byte-len tok) 1) (= (byte-at tok 1) #\-) #f)) #f))
           (file-write 2 (string-concat (list applet ": " (%cu-refusal applet tok) "\n"))))
-        (file-write 2 (Opts usage (first (%cu-row-of applet))))
+        ; an applet busybox has no usage text for says so instead
+        (file-write 2 (if (%cu-member-s? applet %cu-no-help) "No help available\n"
+                        (Opts usage (first (%cu-row-of applet)))))
         (if (%cu-member-s? applet (list "sort" "tty")) 2 1))))
 
 ; The applets busybox reads without getopt, refusing what they do not take with
