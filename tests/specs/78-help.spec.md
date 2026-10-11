@@ -2687,6 +2687,18 @@ stderr:
 status 0
 ```
 
+### ed
+
+```cu
+(run (list "ed" "--help") "")
+```
+---
+```output
+Usage: ed [-p PROMPT] [-s] [FILE]|
+stderr:
+status 0
+```
+
 ### hostname
 
 ```cu

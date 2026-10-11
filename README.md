@@ -7,9 +7,9 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and fifty-seven applets: parity with busybox's `coreutils`
-set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
-tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
+**A hundred and fifty-eight applets: parity with busybox's `coreutils`
+set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
+terminal tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
@@ -23,7 +23,7 @@ and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cut date dd df diff dirname dnsd
-    dnsdomainname dos2unix du echo env expand expr factor false find flock
+    dnsdomainname dos2unix du ed echo env expand expr factor false find flock
     fold free fsync ftpd ftpget ftpput getopt groups gunzip gzip hd head
     hexdump hostid hostname httpd id install ipcalc join link ln logname
     ls md5sum mesg mkdir mkfifo mknod mktemp more mountpoint mv nc netcat
@@ -223,6 +223,7 @@ parsed by x-lang's `Opts`.
     cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/cpio.x         cpio: newc archives listed, extracted, made and copied through
+    cu/ed.x           ed: busybox's line editor, its commands read from standard input
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
     cu/procps.x       uptime, free, ps, pidof, pgrep and pkill, over the Host
     cu/top.x          top: its screens, keys and memory view, over the Host

@@ -1674,6 +1674,12 @@
             (Opts hidden (Opts flag "--to-stdout" ""))
             (Opts hidden (Opts flag "--ignore-devno" ""))
             (Opts hidden (Opts flag "--renumber-inodes" ""))))))
+    (pair "ed"
+      (list
+        (Opts declare "ed" "[-p PROMPT] [-s] [FILE]" ()
+          (list
+            (Opts hidden (Opts arg "-p" "PROMPT" ""))
+            (Opts hidden (Opts flag "-s" ""))))))
     (pair "sha384sum"
       (list
         (Opts declare "sha384sum" "[-c[sw]] [FILE]..."

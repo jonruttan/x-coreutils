@@ -3840,6 +3840,45 @@ Options:
 status 1
 ```
 
+### ed -~
+
+```cu
+(run (list "ed" "-~") "")
+```
+---
+```output
+stderr:
+ed: unrecognized option: ~
+Usage: ed [-p PROMPT] [-s] [FILE]
+status 1
+```
+
+### ed --nope
+
+```cu
+(run (list "ed" "--nope") "")
+```
+---
+```output
+stderr:
+ed: unrecognized option: nope
+Usage: ed [-p PROMPT] [-s] [FILE]
+status 1
+```
+
+### ed -p
+
+```cu
+(run (list "ed" "-p") "")
+```
+---
+```output
+stderr:
+ed: option requires an argument: p
+Usage: ed [-p PROMPT] [-s] [FILE]
+status 1
+```
+
 ### hostname -~
 
 ```cu

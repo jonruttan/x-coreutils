@@ -38,6 +38,7 @@ the work.  Applet parity is the other axis: see the README.
 | `dnsdomainname` |  | -s -i -d -f -v --domain --fqdn -F --file |  | - |
 | `dos2unix` | -u -d | -u -d |  | 100% |
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -a -L -H -c -l -s -x -h -m -k -P -d |  | 100% |
+| `ed` | -p -s | -p -s |  | 100% |
 | `echo` | -n -e -E | -n -e -E |  | 100% |
 | `env` | -i -u -0 | -0 -i -u |  | 100% |
 | `expand` | -i -t | -i -t |  | 100% |
@@ -166,4 +167,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 702 of 718 busybox options accepted (97%).**
+**Total: 704 of 720 busybox options accepted (97%).**
