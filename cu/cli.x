@@ -121,6 +121,7 @@
     (pair "httpd" %cu-httpd)
     (pair "dnsd" %cu-dnsd)
     (pair "inetd" %cu-inetd)
+    (pair "fakeidentd" %cu-fakeidentd)
     (pair "tcpsvd" %cu-tcpsvd)
     (pair "udpsvd" %cu-udpsvd)
     (pair "ftpd" %cu-ftpd)

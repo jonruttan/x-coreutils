@@ -43,6 +43,7 @@ the work.  Applet parity is the other axis: see the README.
 | `expand` | -i -t | -i -t |  | 100% |
 | `expr` |  |  |  | - |
 | `factor` |  | -h |  | - |
+| `fakeidentd` | -f -i -w -b | -f -i -w -b |  | 100% |
 | `false` |  |  |  | - |
 | `find` | _not a busybox applet_ | -empty -print -print0 -name -iname -path -type -size -newer -maxdepth -mindepth -exec -true -false -not -a -and -o -or ! ( ) | | - |
 | `flock` | -s -x -u -n | -s -x -u -n --shared --exclusive --unlock --nonblock |  | 100% |
@@ -167,4 +168,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 706 of 722 busybox options accepted (97%).**
+**Total: 710 of 726 busybox options accepted (97%).**

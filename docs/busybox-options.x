@@ -169,6 +169,7 @@
     (list "httpd" (%letters "cdhermupMKifv"))
     (list "dnsd" (%letters "dvsctpi"))
     (list "inetd" (%letters "feqR"))
+    (list "fakeidentd" (%letters "fiwb"))
     (list "tcpsvd" (%letters "hEvcCbul"))
     (list "udpsvd" (%letters "hEvcul"))
     (list "ftpd" (%letters "wAavStT"))
