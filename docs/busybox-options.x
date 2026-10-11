@@ -38,6 +38,7 @@
     (list "crc32" ())
     (list "cut" (%letters "bcfdsn"))
     (list "date" (append (%letters "udDsrRI") (list "+FMT")))
+    (list "dc" (%letters "xef"))
     (list "dd" (list "if=" "of=" "bs=" "ibs=" "obs=" "count=" "skip=" "seek="
                      "conv=" "status=" "iflag=" "oflag="))
     (list "df" (%letters "PkmhTaiB"))

@@ -3840,6 +3840,81 @@ Options:
 status 1
 ```
 
+### dc -~
+
+```cu
+(run (list "dc" "-~") "")
+```
+---
+```output
+stderr:
+dc: unrecognized option: ~
+Usage: dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...
+
+Tiny RPN calculator. Operations:
+Arithmetic: + - * / % ^
+~ - divide with remainder
+| - modular exponentiation
+v - square root
+p - print top of the stack without popping
+f - print entire stack
+k - pop the value and set precision
+i - pop the value and set input radix
+o - pop the value and set output radix
+Examples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16
+status 1
+```
+
+### dc --nope
+
+```cu
+(run (list "dc" "--nope") "")
+```
+---
+```output
+stderr:
+dc: unrecognized option: -
+Usage: dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...
+
+Tiny RPN calculator. Operations:
+Arithmetic: + - * / % ^
+~ - divide with remainder
+| - modular exponentiation
+v - square root
+p - print top of the stack without popping
+f - print entire stack
+k - pop the value and set precision
+i - pop the value and set input radix
+o - pop the value and set output radix
+Examples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16
+status 1
+```
+
+### dc -e
+
+```cu
+(run (list "dc" "-e") "")
+```
+---
+```output
+stderr:
+dc: option requires an argument: e
+Usage: dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...
+
+Tiny RPN calculator. Operations:
+Arithmetic: + - * / % ^
+~ - divide with remainder
+| - modular exponentiation
+v - square root
+p - print top of the stack without popping
+f - print entire stack
+k - pop the value and set precision
+i - pop the value and set input radix
+o - pop the value and set output radix
+Examples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16
+status 1
+```
+
 ### hostname -~
 
 ```cu

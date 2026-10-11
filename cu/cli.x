@@ -149,6 +149,7 @@
     (pair "zcat" %cu-zcat)
     (pair "unzip" %cu-unzip)
     (pair "cpio" %cu-cpio)
+    (pair "dc" %cu-dc)
     (pair "hostname" %cu-hostname)
     (pair "dnsdomainname" %cu-dnsdomainname)
     (pair "hostid" %cu-hostid)
@@ -330,7 +331,7 @@
 
 ; The applets busybox reads with getopt and no long options: `--NAME` is the
 ; option `-`, refused as that.
-(def %cu-short-only (list "head" "hexdump" "hd" "unzip"))
+(def %cu-short-only (list "head" "hexdump" "hd" "unzip" "dc"))
 
 ; What is wrong with TOK, in musl getopt's words, which busybox's are.  A value
 ; option with nothing after it is `option requires an argument: C`; in a short
