@@ -64,7 +64,7 @@
 ; field 39 (x-lang#961), so 85-pidof-pgrep-pkill's fixture /proc writes the
 ; 50 fields a kernel writes after the comm.
 ;
-; v0.27.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.27.0")
+; v0.28.0 is the release the suite and its sweep bounds are measured on.
+(requires-release "v0.28.0")
 
 (entry "run.x")
