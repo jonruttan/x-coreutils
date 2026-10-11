@@ -65,6 +65,7 @@ the work.  Applet parity is the other axis: see the README.
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
 | `inetd` | -f -e -q -R | -f -e -q -R |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
+| `iostat` | -c -d -t -z -k -m | -c -d -t -z -k -m |  | 100% |
 | `ipcalc` | -b -n -m -p -h -s | -b -n -m -p -h -s --broadcast --network --netmask --prefix --hostname --silent |  | 100% |
 | `join` | _not a busybox applet_ | -t | | - |
 | `link` |  |  |  | - |
@@ -79,11 +80,13 @@ the work.  Applet parity is the other axis: see the README.
 | `mktemp` | -d -t -p -q -u | -d -q -t -u -p |  | 100% |
 | `more` | -d -e -f -l -s -u | -d -e -f -l -s -u |  | 100% |
 | `mountpoint` | -q -d -n -x | -q -d -n -x |  | 100% |
+| `mpstat` | -A -I -u -P | -A -u -I -P |  | 100% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
 | `nc` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
 | `netcat` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -i -s -v -w -n |  | 100% |
+| `nmeter` | -d | -d |  | 100% |
 | `nohup` |  |  |  | - |
 | `nologin` |  |  |  | - |
 | `nproc` | --all --ignore=N | --all --ignore |  | 100% |
@@ -155,6 +158,7 @@ the work.  Applet parity is the other axis: see the README.
 | `uuencode` | -m | -m |  | 100% |
 | `uuidgen` | -r | -r |  | 100% |
 | `vi` | -c -R -H | -R -H -h -c |  | 100% |
+| `vmstat` | -n | -n |  | 100% |
 | `w` |  |  |  | - |
 | `wc` | -c -m -l -w -L | -c -m -l -w -L |  | 100% |
 | `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | --spider --no-check-certificate -c -q -S --continue --quiet --server-response -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent --header -U --post-data --post-file -P -t -T -O -o -Y --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries |  | 100% |
@@ -167,4 +171,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 706 of 722 busybox options accepted (97%).**
+**Total: 718 of 734 busybox options accepted (97%).**

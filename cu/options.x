@@ -1925,6 +1925,40 @@
             (Opts hidden (Opts arg "-d" "" ""))
             (Opts hidden (Opts flag "-m" ""))
             (Opts hidden (Opts flag "-H" ""))))))
+    (pair "vmstat"
+      (list
+        (Opts declare "vmstat" "[-n] [INTERVAL [COUNT]]"
+          "Show virtual memory statistics"
+          (list
+            (Opts flag "-n" "Show header once")))))
+    (pair "iostat"
+      (list
+        (Opts declare "iostat" "[-c] [-d] [-t] [-z] [-k|-m] [ALL|BLOCKDEV...] [INTERVAL [COUNT]]"
+          "Report CPU and I/O statistics"
+          (list
+            (Opts flag "-c" "Show CPU utilization")
+            (Opts flag "-d" "Show device utilization")
+            (Opts flag "-t" "Print current time")
+            (Opts flag "-z" "Omit devices with no activity")
+            (Opts flag "-k" "Use kb/s")
+            (Opts flag "-m" "Use Mb/s")))))
+    ; mpstat's and nmeter's help line their options up with tabs of their own,
+    ; so it is all description and the options are declared hidden
+    (pair "mpstat"
+      (list
+        (Opts declare "mpstat" "[-A] [-I SUM|CPU|ALL|SCPU] [-u] [-P num|ALL] [INTERVAL [COUNT]]"
+          "Per-processor statistics\n\n\t-A\t\t\tSame as -I ALL -u -P ALL\n\t-I SUM|CPU|ALL|SCPU\tReport interrupt statistics\n\t-P num|ALL\t\tProcessor to monitor\n\t-u\t\t\tReport CPU utilization"
+          (list
+            (Opts hidden (Opts flag "-A" ""))
+            (Opts hidden (Opts arg "-I" "" ""))
+            (Opts hidden (Opts arg "-P" "" ""))
+            (Opts hidden (Opts flag "-u" ""))))))
+    (pair "nmeter"
+      (list
+        (Opts declare "nmeter" "[-d MSEC] FORMAT_STRING"
+          "Monitor system in real time\n\n -d MSEC\tMilliseconds between updates, default:1000, none:-1\n\nFormat specifiers:\n %Nc or %[cN]\tCPU. N - bar size (default 10)\n\t\t(displays: S:system U:user N:niced D:iowait I:irq i:softirq)\n %[nINTERFACE]\tNetwork INTERFACE\n %m\t\tAllocated memory\n %[md]\t\tDirty file-backed memory\n %[mw]\t\tMemory being written to storage\n %[mf]\t\tFree memory\n %[mt]\t\tTotal memory\n %s\t\tAllocated swap\n %f\t\tNumber of used file descriptors\n %Ni\t\tTotal/specific IRQ rate\n %x\t\tContext switch rate\n %p\t\tForks\n %[pn]\t\t# of processes\n %b\t\tBlock io\n %Nt\t\tTime (with N decimal points)\n %NT\t\tZero-based timestamp (with N decimal points)\n %r\t\tPrint <cr> instead of <lf> at EOL"
+          (list
+            (Opts hidden (Opts arg "-d" "" ""))))))
     ; test and its spellings are an EXPRESSION, not an option list: the operators
     ; are declared so the parse knows them, and the applet parses the expression
     ; itself.  --help is an operand, as POSIX has it.

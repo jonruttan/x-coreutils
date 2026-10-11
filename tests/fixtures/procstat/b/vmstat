@@ -1,0 +1,6 @@
+pgpgin 1150000
+pgpgout 2004096
+pswpin 12445
+pswpout 203
+pgfault 5001234
+pgmajfault 3001
