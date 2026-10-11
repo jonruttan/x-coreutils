@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and fifty-nine applets: parity with busybox's `coreutils`
+**A hundred and sixty applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -18,8 +18,8 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `inetd`, `fakeidentd`, `ipcalc`, `tcpsvd` and `udpsvd`, its `uptime`,
 `free`, `ps`, `pidof`, `pgrep`, `pkill` and `top`, its `who`, `w` and
 `users`, its `tar`, `unzip` and `cpio`, its `gzip`, `gunzip` and `zcat`,
-and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`, `mknod`,
-`mesg`, `renice`, `ts` and `sha384sum`.**
+its `patch`, and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`,
+`mknod`, `mesg`, `renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cut date dd df diff dirname dnsd
@@ -28,7 +28,7 @@ and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`, `mknod`,
     gzip hd head hexdump hostid hostname httpd id inetd install ipcalc
     join link ln logname ls md5sum mesg mkdir mkfifo mknod mktemp more
     mountpoint mv nc netcat nice nl nohup nologin nproc nslookup od paste
-    pgrep pidof pipe_progress pkill printenv printf ps pwd readlink
+    patch pgrep pidof pipe_progress pkill printenv printf ps pwd readlink
     realpath renice reset rev rm rmdir run-parts seq setsid sha1sum
     sha256sum sha384sum sha512sum shred shuf sleep sort split stat strings
     sum sync tac tail tar tcpsvd tee test tftp tftpd time timeout top
@@ -225,6 +225,7 @@ parsed by x-lang's `Opts`.
     cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/cpio.x         cpio: newc archives listed, extracted, made and copied through
+    cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
     cu/procps.x       uptime, free, ps, pidof, pgrep and pkill, over the Host
     cu/top.x          top: its screens, keys and memory view, over the Host

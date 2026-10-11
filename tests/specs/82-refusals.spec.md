@@ -3840,6 +3840,66 @@ Options:
 status 1
 ```
 
+### patch -~
+
+```cu
+(run (list "patch" "-~") "")
+```
+---
+```output
+stderr:
+patch: unrecognized option: ~
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
+### patch --nope
+
+```cu
+(run (list "patch" "--nope") "")
+```
+---
+```output
+stderr:
+patch: unrecognized option: nope
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
+### patch -p
+
+```cu
+(run (list "patch" "-p") "")
+```
+---
+```output
+stderr:
+patch: option requires an argument: p
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
 ### hostname -~
 
 ```cu
