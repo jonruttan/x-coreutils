@@ -5919,6 +5919,48 @@ Listen for network connections and launch programs
 status 1
 ```
 
+### fakeidentd -~
+
+```cu
+(run (list "fakeidentd" "-~") "")
+```
+---
+```output
+stderr:
+fakeidentd: unrecognized option: ~
+Usage: fakeidentd [-fiw] [-b ADDR] [STRING]
+
+Provide fake ident (auth) service
+
+	-f	Run in foreground
+	-i	Inetd mode
+	-w	Inetd 'wait' mode
+	-b ADDR	Bind to specified address
+	STRING	Ident answer string (default: nobody)
+status 1
+```
+
+### fakeidentd --nope
+
+```cu
+(run (list "fakeidentd" "--nope") "")
+```
+---
+```output
+stderr:
+fakeidentd: unrecognized option: nope
+Usage: fakeidentd [-fiw] [-b ADDR] [STRING]
+
+Provide fake ident (auth) service
+
+	-f	Run in foreground
+	-i	Inetd mode
+	-w	Inetd 'wait' mode
+	-b ADDR	Bind to specified address
+	STRING	Ident answer string (default: nobody)
+status 1
+```
+
 ### httpd -c
 
 ```cu

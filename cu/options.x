@@ -1191,6 +1191,19 @@
               (Opts text "\tDefault CONFFILE is /etc/inetd.conf"))
             (%cu-hidden-flags (list "-f" "-e"))
             (%cu-hidden-args (list "-q" "-R"))))))
+    (pair "fakeidentd"
+      (list
+        (Opts declare "fakeidentd" "[-fiw] [-b ADDR] [STRING]"
+          "Provide fake ident (auth) service"
+          (append
+            (list
+              (Opts text "\t-f\tRun in foreground")
+              (Opts text "\t-i\tInetd mode")
+              (Opts text "\t-w\tInetd 'wait' mode")
+              (Opts text "\t-b ADDR\tBind to specified address")
+              (Opts text "\tSTRING\tIdent answer string (default: nobody)"))
+            (%cu-hidden-flags (list "-f" "-i" "-w"))
+            (%cu-hidden-args (list "-b"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list
