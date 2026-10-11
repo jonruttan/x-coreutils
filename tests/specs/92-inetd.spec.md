@@ -1,7 +1,7 @@
 # @weight 4
 
 inetd as busybox's.  Each case writes CONF (as printf's %b reads it) to
-/tmp/x-cu-in/conf and SCRIPT to /tmp/x-cu-in/s, runs inetd in a child with
+/tmp/x-cu-inetd/conf and SCRIPT to /tmp/x-cu-inetd/s, runs inetd in a child with
 ARGS split as sh splits them -- in CONF, CONF2 and ARGS, @P is a free port of
 127.0.0.1, @Q that port + 50, @U the user the spec runs as and @C the config's
 path -- and makes one exchange with it.  t: one TCP connection, sent REQ and
@@ -12,7 +12,7 @@ with hi; w: two seconds' wait; n: none.  Then it sends SIGTERM.  The services
 table names echo, discard, chargen, daytime, time and myserv as @P, for TCP
 and UDP alike.  Every expectation is busybox's own output for the same case,
 run as an unprivileged user: === before each reply, the status, then
-stderr, and what the case's SCRIPT left in /tmp/x-cu-in/got -- the port
+stderr, and what the case's SCRIPT left in /tmp/x-cu-inetd/got -- the port
 shown as LPORT, @Q's as QPORT.
 
 ## the fixture
@@ -21,8 +21,8 @@ shown as LPORT, @Q's as QPORT.
 
 ```cu
 (do (import x/sys/socket)
-  (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-in && mkdir -p /tmp/x-cu-in"))
-  (def in-f (fn (_ n) (string-append "/tmp/x-cu-in/" n)))
+  (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-inetd && mkdir -p /tmp/x-cu-inetd"))
+  (def in-f (fn (_ n) (string-append "/tmp/x-cu-inetd/" n)))
   (def in-lines (fn (_ s)
     (let go ((i 0) (acc ()))
       (let ((nl (%wget-index s #\newline i)))
@@ -34,7 +34,7 @@ shown as LPORT, @Q's as QPORT.
     (sys-setenv "IN_ARGS" args) (sys-setenv "IN_CONF" conf) (sys-setenv "IN_SCRIPT" script)
     (sys-setenv "IN_REQ" req) (sys-setenv "IN_PORT" (%cu-int->str port))
     (proc-run (list "/bin/sh" "-c" (string-concat (list
-      "d=/tmp/x-cu-in; p=$IN_PORT; u=$(id -un); rm -f $d/got $d/log; "
+      "d=/tmp/x-cu-inetd; p=$IN_PORT; u=$(id -un); rm -f $d/got $d/log; "
       "sub() { sed -e \"s/@P/$p/g\" -e \"s/@Q/$((p+50))/g\" -e \"s/@U/$u/g\" -e \"s#@C#$d/conf#g\"; }; "
       "for s in echo discard chargen daytime time myserv; do printf '%s %s/tcp\\n%s %s/udp\\n' $s $p $s $p; done > $d/services; "
       "printf '%b' \"$IN_CONF\" | sub > $d/conf; printf '%b' \"$IN_SCRIPT\" > $d/s; "
@@ -100,7 +100,7 @@ shown as LPORT, @Q's as QPORT.
     (let ((fd (file-open-write (in-f "raw"))))
       (do (file-write fd (string-concat (list out "[status " (%cu-int->str st) "]\n" (file-read-all (in-f "log")) got)))
           (file-close fd)))
-    (proc-run (list "/bin/sh" "-c" "q=$((IN_PORT+50)); sed -E -e \"s/(^|[^0-9])$IN_PORT([^0-9]|\\$)/\\1LPORT\\2/g\" -e \"s/(^|[^0-9])$q([^0-9]|\\$)/\\1QPORT\\2/g\" -e 's/Address already in use/Address in use/' /tmp/x-cu-in/raw > /tmp/x-cu-in/norm"))
+    (proc-run (list "/bin/sh" "-c" "q=$((IN_PORT+50)); sed -E -e \"s/(^|[^0-9])$IN_PORT([^0-9]|\\$)/\\1LPORT\\2/g\" -e \"s/(^|[^0-9])$q([^0-9]|\\$)/\\1QPORT\\2/g\" -e 's/Address already in use/Address in use/' /tmp/x-cu-inetd/raw > /tmp/x-cu-inetd/norm"))
     (display (file-read-all (in-f "norm")))))
   (display "made"))
 ```
@@ -274,7 +274,7 @@ abc[status 0]
 ### a program, its stdin the connection
 
 ```cu
-(in-run "-f -e @C" "@P stream tcp nowait @U /bin/sh sh /tmp/x-cu-in/s\\n" "read l; echo \"got $l\"" "t" "hello\\n")
+(in-run "-f -e @C" "@P stream tcp nowait @U /bin/sh sh /tmp/x-cu-inetd/s\\n" "read l; echo \"got $l\"" "t" "hello\\n")
 ```
 ---
 ```output
@@ -286,7 +286,7 @@ got hello
 ### a nowait program's stderr is the connection too
 
 ```cu
-(in-run "-f -e @C" "@P stream tcp nowait @U /bin/sh sh /tmp/x-cu-in/s\\n" "echo out; echo err >&2" "t" "")
+(in-run "-f -e @C" "@P stream tcp nowait @U /bin/sh sh /tmp/x-cu-inetd/s\\n" "echo out; echo err >&2" "t" "")
 ```
 ---
 ```output
@@ -299,7 +299,7 @@ err
 ### a program named by its service
 
 ```cu
-(in-run "-f -e @C" "myserv stream tcp nowait @U /bin/sh sh /tmp/x-cu-in/s\\n" "echo served" "t" "")
+(in-run "-f -e @C" "myserv stream tcp nowait @U /bin/sh sh /tmp/x-cu-inetd/s\\n" "echo served" "t" "")
 ```
 ---
 ```output
@@ -335,7 +335,7 @@ a b c
 ### a datagram program, nowait: connected to its sender
 
 ```cu
-(in-run "-f -e @C" "@P dgram udp nowait @U /bin/sh sh /tmp/x-cu-in/s\\n" "dd bs=64 count=1 2>/dev/null" "u" "ping")
+(in-run "-f -e @C" "@P dgram udp nowait @U /bin/sh sh /tmp/x-cu-inetd/s\\n" "dd bs=64 count=1 2>/dev/null" "u" "ping")
 ```
 ---
 ```output
@@ -346,7 +346,7 @@ ping[status 0]
 ### a wait program's exit status
 
 ```cu
-(in-run "-f -e @C" "@P dgram udp wait @U /bin/sh sh /tmp/x-cu-in/s\\n" "dd bs=64 count=1 of=/tmp/x-cu-in/got 2>/dev/null; exit 3" "u" "data")
+(in-run "-f -e @C" "@P dgram udp wait @U /bin/sh sh /tmp/x-cu-inetd/s\\n" "dd bs=64 count=1 of=/tmp/x-cu-inetd/got 2>/dev/null; exit 3" "u" "data")
 ```
 ---
 ```output
@@ -360,7 +360,7 @@ data
 ### a wait program killed
 
 ```cu
-(in-run "-f -e @C" "@P dgram udp wait @U /bin/sh sh /tmp/x-cu-in/s\\n" "dd bs=64 count=1 of=/tmp/x-cu-in/got 2>/dev/null; kill -9 $$" "u" "data")
+(in-run "-f -e @C" "@P dgram udp wait @U /bin/sh sh /tmp/x-cu-inetd/s\\n" "dd bs=64 count=1 of=/tmp/x-cu-inetd/got 2>/dev/null; kill -9 $$" "u" "data")
 ```
 ---
 ```output
@@ -374,7 +374,7 @@ data
 ### a wait program served again once it ends
 
 ```cu
-(in-run "-f -e @C" "@P dgram udp wait @U /bin/sh sh /tmp/x-cu-in/s\\n" "dd bs=64 count=1 2>/dev/null >> /tmp/x-cu-in/got" "u" "one")
+(in-run "-f -e @C" "@P dgram udp wait @U /bin/sh sh /tmp/x-cu-inetd/s\\n" "dd bs=64 count=1 2>/dev/null >> /tmp/x-cu-inetd/got" "u" "one")
 ```
 ---
 ```output
