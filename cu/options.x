@@ -1674,6 +1674,35 @@
             (Opts hidden (Opts flag "--to-stdout" ""))
             (Opts hidden (Opts flag "--ignore-devno" ""))
             (Opts hidden (Opts flag "--renumber-inodes" ""))))))
+    (pair "patch"
+      (list
+        (Opts declare "patch" "[-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]" ()
+          (list
+            (Opts text "\t-p N\tStrip N leading components from file names")
+            (Opts text "\t-i DIFF\tRead DIFF instead of stdin")
+            (Opts text "\t-R\tReverse patch")
+            (Opts text "\t-N\tIgnore already applied patches")
+            (Opts text "\t-E\tRemove output files if they become empty")
+            (Opts text "\t--dry-run\tDon't actually change files")
+            (Opts hidden (Opts flag "-R" ""))
+            (Opts hidden (Opts flag "-u" ""))
+            (Opts hidden (Opts arg "-p" "N" ""))
+            (Opts hidden (Opts arg "-i" "DIFF" ""))
+            (Opts hidden (Opts flag "-N" ""))
+            (Opts hidden (Opts flag "-E" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts arg "-g" "ARG" ""))
+            (Opts hidden (Opts flag "--reverse" ""))
+            (Opts hidden (Opts flag "--unified" ""))
+            (Opts hidden (Opts arg "--strip" "" ""))
+            (Opts hidden (Opts arg "--input" "" ""))
+            (Opts hidden (Opts flag "--forward" ""))
+            (Opts hidden (Opts flag "--remove-empty-files" ""))
+            (Opts hidden (Opts flag "--force" ""))
+            (Opts hidden (Opts arg "--get" "" ""))
+            (Opts hidden (Opts flag "--dry-run" ""))
+            (Opts hidden (Opts flag "--backup-if-mismatch" ""))
+            (Opts hidden (Opts flag "--no-backup-if-mismatch" ""))))))
     (pair "sha384sum"
       (list
         (Opts declare "sha384sum" "[-c[sw]] [FILE]..."

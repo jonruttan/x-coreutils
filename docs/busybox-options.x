@@ -87,6 +87,7 @@
     (list "nproc" (list "--all" "--ignore=N"))
     (list "od" (%letters "AjNtvbcdox"))
     (list "paste" (%letters "ds"))
+    (list "patch" (append (%letters "piRNE") (list "--dry-run")))
     (list "pgrep" (%letters "lafnovxsP"))
     (list "pidof" (%letters "so"))
     (list "printenv" ())

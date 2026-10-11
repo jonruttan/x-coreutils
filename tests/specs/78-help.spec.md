@@ -2687,6 +2687,25 @@ stderr:
 status 0
 ```
 
+### patch
+
+```cu
+(run (list "patch" "--help") "")
+```
+---
+```output
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]|
+|
+	-p N	Strip N leading components from file names|
+	-i DIFF	Read DIFF instead of stdin|
+	-R	Reverse patch|
+	-N	Ignore already applied patches|
+	-E	Remove output files if they become empty|
+	--dry-run	Don't actually change files|
+stderr:
+status 0
+```
+
 ### hostname
 
 ```cu
