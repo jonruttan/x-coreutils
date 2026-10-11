@@ -5989,6 +5989,101 @@ nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen
 status 1
 ```
 
+### netcat -~
+
+```cu
+(run (list "netcat" "-~") "")
+```
+---
+```output
+stderr:
+netcat: unrecognized option: ~
+Usage: netcat [OPTIONS] HOST PORT  - connect
+nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen
+
+	-e PROG	Run PROG after connect (must be last)
+	-l	Listen mode, for inbound connects
+	-lk	With -e, provides persistent server
+	-p PORT	Local port
+	-s ADDR	Local address
+	-w SEC	Timeout for connects and final net reads
+	-i SEC	Delay interval for lines sent
+	-n	Don't do DNS resolution
+	-u	UDP mode
+	-b	Allow broadcasts
+	-v	Verbose
+	-o FILE	Hex dump traffic
+	-z	Zero-I/O mode (scanning)
+status 1
+```
+
+### netcat --nope
+
+```cu
+(run (list "netcat" "--nope") "")
+```
+---
+```output
+stderr:
+netcat: unrecognized option: nope
+Usage: netcat [OPTIONS] HOST PORT  - connect
+nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen
+
+	-e PROG	Run PROG after connect (must be last)
+	-l	Listen mode, for inbound connects
+	-lk	With -e, provides persistent server
+	-p PORT	Local port
+	-s ADDR	Local address
+	-w SEC	Timeout for connects and final net reads
+	-i SEC	Delay interval for lines sent
+	-n	Don't do DNS resolution
+	-u	UDP mode
+	-b	Allow broadcasts
+	-v	Verbose
+	-o FILE	Hex dump traffic
+	-z	Zero-I/O mode (scanning)
+status 1
+```
+
+### dnsdomainname -~
+
+```cu
+(run (list "dnsdomainname" "-~") "")
+```
+---
+```output
+stderr:
+dnsdomainname: unrecognized option: ~
+No help available
+status 1
+```
+
+### dnsdomainname --nope
+
+```cu
+(run (list "dnsdomainname" "--nope") "")
+```
+---
+```output
+stderr:
+dnsdomainname: unrecognized option: nope
+No help available
+status 1
+```
+
+### dnsdomainname -F
+
+```cu
+(run (list "dnsdomainname" "-F") "")
+```
+---
+```output
+stderr:
+dnsdomainname: option requires an argument: F
+No help available
+status 1
+```
+
 ### xargs -~
 
 ```cu

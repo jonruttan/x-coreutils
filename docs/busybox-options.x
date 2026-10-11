@@ -63,6 +63,7 @@
     (list "head" (%letters "ncqv"))
     (list "hostid" ())
     (list "hostname" (%letters "sidfF"))
+    (list "dnsdomainname" ())
     (list "hexdump" (%letters "bcdoxCefnsv"))
     (list "id" (%letters "ugGnr"))
     (list "install" (%letters "cdDspogmt"))
@@ -159,6 +160,7 @@
                          (list "--spider" "--header" "--post-data" "--post-file"
                                "--no-check-certificate")))
     (list "nc" (%letters "elkpswinubvoz"))
+    (list "netcat" (%letters "elkpswinubvoz"))
     (list "nslookup" (list "-type" "-debug"))
     (list "tftp" (%letters "lrgpb"))
     (list "tftpd" (%letters "crlu"))

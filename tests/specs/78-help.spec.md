@@ -2172,6 +2172,45 @@ stderr:
 status 0
 ```
 
+### netcat
+
+```cu
+(run (list "netcat" "--help") "")
+```
+---
+```output
+Usage: netcat [OPTIONS] HOST PORT  - connect|
+nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen|
+|
+	-e PROG	Run PROG after connect (must be last)|
+	-l	Listen mode, for inbound connects|
+	-lk	With -e, provides persistent server|
+	-p PORT	Local port|
+	-s ADDR	Local address|
+	-w SEC	Timeout for connects and final net reads|
+	-i SEC	Delay interval for lines sent|
+	-n	Don't do DNS resolution|
+	-u	UDP mode|
+	-b	Allow broadcasts|
+	-v	Verbose|
+	-o FILE	Hex dump traffic|
+	-z	Zero-I/O mode (scanning)|
+stderr:
+status 0
+```
+
+### dnsdomainname
+
+```cu
+(run (list "dnsdomainname" "--help") "")
+```
+---
+```output
+No help available|
+stderr:
+status 0
+```
+
 ### xargs
 
 ```cu

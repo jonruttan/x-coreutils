@@ -46,6 +46,17 @@
 (def %cu-hidden-args
   (fn (_ opts) (map (fn (_ o) (Opts hidden (Opts arg o "" ""))) opts)))
 
+; nc's row, under NAME: netcat is the same applet, its usage text nc's
+(def %cu-nc-row
+  (fn (_ name)
+    (list
+      (Opts declare name "[OPTIONS] HOST PORT  - connect\nnc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen"
+        "\t-e PROG\tRun PROG after connect (must be last)\n\t-l\tListen mode, for inbound connects\n\t-lk\tWith -e, provides persistent server\n\t-p PORT\tLocal port\n\t-s ADDR\tLocal address\n\t-w SEC\tTimeout for connects and final net reads\n\t-i SEC\tDelay interval for lines sent\n\t-n\tDon't do DNS resolution\n\t-u\tUDP mode\n\t-b\tAllow broadcasts\n\t-v\tVerbose\n\t-o FILE\tHex dump traffic\n\t-z\tZero-I/O mode (scanning)"
+        (append (list)
+          (%cu-hidden-flags %nc-flags)
+          (%cu-hidden-args %nc-values)))
+      (lit none))))
+
 (def %cu-option-spec
   (list
     (pair "cat"
@@ -1057,14 +1068,9 @@
             (Opts hidden (Opts arg "-p" "" ""))))))
     ; nc parses its own line -- -e takes the rest of it, the program's flags too
     ; -- so none: cu/nc.x's own lists say what it accepts
-    (pair "nc"
-      (list
-        (Opts declare "nc" "[OPTIONS] HOST PORT  - connect\nnc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen"
-          "\t-e PROG\tRun PROG after connect (must be last)\n\t-l\tListen mode, for inbound connects\n\t-lk\tWith -e, provides persistent server\n\t-p PORT\tLocal port\n\t-s ADDR\tLocal address\n\t-w SEC\tTimeout for connects and final net reads\n\t-i SEC\tDelay interval for lines sent\n\t-n\tDon't do DNS resolution\n\t-u\tUDP mode\n\t-b\tAllow broadcasts\n\t-v\tVerbose\n\t-o FILE\tHex dump traffic\n\t-z\tZero-I/O mode (scanning)"
-          (append (list)
-            (%cu-hidden-flags %nc-flags)
-            (%cu-hidden-args %nc-values)))
-        (lit none)))
+    (pair "nc" (%cu-nc-row "nc"))
+    ; busybox's other name for nc, its usage text nc's
+    (pair "netcat" (%cu-nc-row "netcat"))
     ; nslookup reads its own -NAME=VALUE options, so none
     (pair "nslookup"
       (list
@@ -1709,6 +1715,14 @@
             (Opts hidden (Opts flag "--fqdn" ""))
             (Opts hidden (Opts arg "-F" "FILE" ""))
             (Opts hidden (Opts arg "--file" "FILE" ""))))))
+    ; hostname run as dnsdomainname: its options, and no usage text of its own
+    (pair "dnsdomainname"
+      (list
+        (Opts declare "dnsdomainname" "" ()
+          (append
+            (%cu-hidden-flags (list "-s" "-i" "-d" "-f" "-v" "--domain" "--fqdn"))
+            (%cu-hidden-args (list "-F" "--file")))
+          (pair (lit help) #f))))
     (pair "hostid"
       (list
         (Opts declare "hostid" ""
