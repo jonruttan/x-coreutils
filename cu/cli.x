@@ -151,6 +151,7 @@
     (pair "unzip" %cu-unzip)
     (pair "cpio" %cu-cpio)
     (pair "ed" %cu-ed)
+    (pair "patch" %cu-patch)
     (pair "hostname" %cu-hostname)
     (pair "dnsdomainname" %cu-dnsdomainname)
     (pair "hostid" %cu-hostid)

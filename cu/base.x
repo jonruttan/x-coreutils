@@ -78,6 +78,7 @@
 (include-once "./unzip.x")
 (include-once "./cpio.x")
 (include-once "./ed.x")
+(include-once "./patch.x")
 (include-once "./sysinfo.x")
 (include-once "./procps.x")
 (include-once "./top.x")
