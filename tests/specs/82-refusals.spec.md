@@ -3840,6 +3840,66 @@ Options:
 status 1
 ```
 
+### patch -~
+
+```cu
+(run (list "patch" "-~") "")
+```
+---
+```output
+stderr:
+patch: unrecognized option: ~
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
+### patch --nope
+
+```cu
+(run (list "patch" "--nope") "")
+```
+---
+```output
+stderr:
+patch: unrecognized option: nope
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
+### patch -p
+
+```cu
+(run (list "patch" "-p") "")
+```
+---
+```output
+stderr:
+patch: option requires an argument: p
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
 ### hostname -~
 
 ```cu
@@ -5856,6 +5916,48 @@ Listen for network connections and launch programs
 	-R N	Pause services after N connects/min
 		(default 0 - disabled)
 	Default CONFFILE is /etc/inetd.conf
+status 1
+```
+
+### fakeidentd -~
+
+```cu
+(run (list "fakeidentd" "-~") "")
+```
+---
+```output
+stderr:
+fakeidentd: unrecognized option: ~
+Usage: fakeidentd [-fiw] [-b ADDR] [STRING]
+
+Provide fake ident (auth) service
+
+	-f	Run in foreground
+	-i	Inetd mode
+	-w	Inetd 'wait' mode
+	-b ADDR	Bind to specified address
+	STRING	Ident answer string (default: nobody)
+status 1
+```
+
+### fakeidentd --nope
+
+```cu
+(run (list "fakeidentd" "--nope") "")
+```
+---
+```output
+stderr:
+fakeidentd: unrecognized option: nope
+Usage: fakeidentd [-fiw] [-b ADDR] [STRING]
+
+Provide fake ident (auth) service
+
+	-f	Run in foreground
+	-i	Inetd mode
+	-w	Inetd 'wait' mode
+	-b ADDR	Bind to specified address
+	STRING	Ident answer string (default: nobody)
 status 1
 ```
 

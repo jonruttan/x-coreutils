@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and sixty-two applets: parity with busybox's `coreutils`
+**A hundred and sixty-four applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editor, `vi`, its pager and terminal
 tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -15,25 +15,25 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
-`inetd`, `ipcalc`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`,
-`pidof`, `pgrep`, `pkill` and `top`, its `vmstat`, `iostat`, `mpstat`
-and `nmeter`, its `who`, `w` and `users`, its
-`tar`, `unzip` and `cpio`, its `gzip`, `gunzip` and `zcat`, and its
-`hostname`, `dnsdomainname`, `hostid`, `mountpoint`, `mknod`, `mesg`,
-`renice`, `ts` and `sha384sum`.**
+`inetd`, `fakeidentd`, `ipcalc`, `tcpsvd` and `udpsvd`, its `uptime`,
+`free`, `ps`, `pidof`, `pgrep`, `pkill` and `top`, its `vmstat`,
+`iostat`, `mpstat` and `nmeter`, its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`, `gunzip` and `zcat`,
+its `patch`, and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`,
+`mknod`, `mesg`, `renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cut date dd df diff dirname dnsd
-    dnsdomainname dos2unix du echo env expand expr factor false find flock
-    fold free fsync ftpd ftpget ftpput getopt groups gunzip gzip hd head
-    hexdump hostid hostname httpd id inetd install iostat ipcalc join link
-    ln logname ls md5sum mesg mkdir mkfifo mknod mktemp more mountpoint
-    mpstat mv nc netcat nice nl nmeter nohup nologin nproc nslookup od
-    paste pgrep pidof pipe_progress pkill printenv printf ps pwd readlink
+    dnsdomainname dos2unix du echo env expand expr factor fakeidentd false
+    find flock fold free fsync ftpd ftpget ftpput getopt groups gunzip
+    gzip hd head hexdump hostid hostname httpd id inetd install iostat
+    ipcalc join link ln logname ls md5sum mesg mkdir mkfifo mknod mktemp
+    more mountpoint mpstat mv nc netcat nice nl nmeter nohup nologin nproc
+    nslookup od paste patch pgrep pidof pipe_progress pkill printenv
+    printf ps pwd readlink
     realpath renice reset rev rm rmdir run-parts seq setsid sha1sum
     sha256sum sha384sum sha512sum shred shuf sleep sort split stat strings
-    sum sync tac tail tar tcpsvd tee test tftp tftpd time timeout top touch
-    tr tree true truncate ts tsort tty ttysize udpsvd unexpand uniq
+    sum sync tac tail tar tcpsvd tee test tftp tftpd time timeout top
+    touch tr tree true truncate ts tsort tty ttysize udpsvd unexpand uniq
     unix2dos unlink unzip uname uptime users uudecode uuencode uuidgen
     usleep vi vmstat w wc wget which who whois whoami xargs xxd yes zcat
     [ [[
@@ -218,6 +218,7 @@ parsed by x-lang's `Opts`.
     cu/ftpd.x         ftpd: busybox's FTP server, one connection on stdin, PASV, EPSV or PORT
     cu/dnsd.x         dnsd: busybox's small static DNS server, A and PTR from a config file
     cu/inetd.x        inetd: one listener for many services, a program or a builtin for each
+    cu/fakeidentd.x   fakeidentd: the same ident answer for every query, -i, -w or a listener
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order
@@ -225,6 +226,7 @@ parsed by x-lang's `Opts`.
     cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/cpio.x         cpio: newc archives listed, extracted, made and copied through
+    cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
     cu/procps.x       uptime, free, ps, pidof, pgrep and pkill, over the Host
     cu/top.x          top: its screens, keys and memory view, over the Host
