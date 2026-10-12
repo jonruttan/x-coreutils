@@ -172,6 +172,7 @@
     (list "dnsd" (%letters "dvsctpi"))
     (list "inetd" (%letters "feqR"))
     (list "fakeidentd" (%letters "fiwb"))
+    (list "telnet" (%letters "al"))
     (list "tcpsvd" (%letters "hEvcCbul"))
     (list "udpsvd" (%letters "hEvcul"))
     (list "ftpd" (%letters "wAavStT"))

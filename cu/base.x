@@ -69,6 +69,7 @@
 (include-once "./dnsd.x")
 (include-once "./inetd.x")
 (include-once "./fakeidentd.x")
+(include-once "./telnet.x")
 (include-once "./tcpsvd.x")
 (include-once "./ftpd.x")
 (include-once "./ipcalc.x")
