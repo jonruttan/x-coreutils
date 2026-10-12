@@ -2172,6 +2172,26 @@ stderr:
 status 0
 ```
 
+### fakeidentd
+
+```cu
+(run (list "fakeidentd" "--help") "")
+```
+---
+```output
+Usage: fakeidentd [-fiw] [-b ADDR] [STRING]|
+|
+Provide fake ident (auth) service|
+|
+	-f	Run in foreground|
+	-i	Inetd mode|
+	-w	Inetd 'wait' mode|
+	-b ADDR	Bind to specified address|
+	STRING	Ident answer string (default: nobody)|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu
