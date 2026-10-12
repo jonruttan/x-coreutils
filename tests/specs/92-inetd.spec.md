@@ -64,7 +64,16 @@ shown as LPORT, @Q's as QPORT.
   (def in-tcp (fn (_ c req limit)
     (if (null? c) ""
       (do (when (> (byte-len req) 0) (Socket send c req)) (Socket shutdown c) (in-recv c limit)))))
+  ; a datagram sent before inetd has bound its port is lost, where a TCP
+  ; connect can be tried again: wait, up to 3 s, until binding the port
+  ; ourselves fails, so inetd holds it.  Each probe holds the port for
+  ; microseconds, once each 50 ms.
+  (def in-udp-held (fn (_ port)
+    (let wait ((n 0))
+      (unless (if (>= n 60) #t (guard (_ #t) (do (Socket close (Socket udp-bind port)) #f)))
+        (do (sys-usleep 50000) (wait (+ n 1)))))))
   (def in-udp (fn (_ port req)
+    (in-udp-held port)
     (let ((fd (Socket udp-connect "127.0.0.1" port)))
       (do (Socket send fd req)
           (let go ((acc ""))
