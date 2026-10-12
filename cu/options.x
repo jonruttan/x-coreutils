@@ -1730,6 +1730,12 @@
             (Opts hidden (Opts flag "--dry-run" ""))
             (Opts hidden (Opts flag "--backup-if-mismatch" ""))
             (Opts hidden (Opts flag "--no-backup-if-mismatch" ""))))))
+    (pair "ed"
+      (list
+        (Opts declare "ed" "[-p PROMPT] [-s] [FILE]" ()
+          (list
+            (Opts hidden (Opts arg "-p" "PROMPT" ""))
+            (Opts hidden (Opts flag "-s" ""))))))
     (pair "sha384sum"
       (list
         (Opts declare "sha384sum" "[-c[sw]] [FILE]..."
