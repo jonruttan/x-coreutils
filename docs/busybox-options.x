@@ -45,6 +45,7 @@
     (list "dirname" ())
     (list "dos2unix" (%letters "ud"))
     (list "du" (%letters "aHLdclsxhmk"))
+    (list "ed" (%letters "ps"))
     (list "echo" (%letters "neE"))
     (list "env" (%letters "iu0"))
     (list "expand" (%letters "it"))
