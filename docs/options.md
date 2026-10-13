@@ -135,6 +135,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tcpsvd` | -h -E -v -c -C -b -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `tee` | -a -i | -a -i |  | 100% |
 | `telnet` | -a -l | -a -l |  | 100% |
+| `telnetd` | -f -l -K -i -p -b -F -S -w -v | -K -i -F -S -v -l -f -p -b -w |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
 | `tftpd` | -c -r -l -u | -c -r -l -u |  | 100% |
@@ -177,4 +178,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 735 of 751 busybox options accepted (97%).**
+**Total: 745 of 761 busybox options accepted (97%).**

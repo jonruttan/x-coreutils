@@ -200,13 +200,7 @@
     (%cu-ptr-call %vi-c-memmove (%vi+ %vi-taddr (%vi+ p size)) (%vi+ %vi-taddr p)
       (%vi- %vi-end p))
     (set! %vi-end new-end)
-    (%vi-fill! p size 32)))
-
-(def %vi-fill!
-  (fn (self p n b)
-    (if (%vi< 0 n)
-      (do (%vi-ptr-set! %vi-tptr p b 1) (self (%vi+ p 1) (%vi- n 1) b))
-      ())))
+    (%cu-ptr-call %vi-c-memset (%vi+ %vi-taddr p) 32 size)))
 
 ; one byte of the text replaced, the newline count kept
 (def %vi-byte-set!
