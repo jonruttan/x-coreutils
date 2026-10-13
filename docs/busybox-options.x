@@ -162,6 +162,7 @@
     (list "vi" (%letters "cRH"))
     (list "vmstat" (%letters "n"))
     (list "w" ())
+    (list "watch" (%letters "ntx"))
     (list "wc" (%letters "cmlwL"))
     (list "wget" (append (%letters "cqSOoPYUTt")
                          (list "--spider" "--header" "--post-data" "--post-file"
