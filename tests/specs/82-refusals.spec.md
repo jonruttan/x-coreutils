@@ -7989,6 +7989,63 @@ Format specifiers:
 status 1
 ```
 
+### watch -~
+
+```cu
+(run (list "watch" "-~") "")
+```
+---
+```output
+stderr:
+watch: unrecognized option: ~
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
+status 1
+```
+
+### watch --nope
+
+```cu
+(run (list "watch" "--nope") "")
+```
+---
+```output
+stderr:
+watch: unrecognized option: nope
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
+status 1
+```
+
+### watch -n
+
+```cu
+(run (list "watch" "-n") "")
+```
+---
+```output
+stderr:
+watch: option requires an argument: n
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
+status 1
+```
+
 ### test -~
 
 ```cu
