@@ -236,10 +236,6 @@
             (%cu-to64 (+ (bit-shl (b 4) 16) (bit-shl (b 10) 8) (b 5)) 4)
             (%cu-to64 (b 11) 2)))))
 
-; the first N of L
-(def %cu-take
-  (fn (self l n) (if (if (= n 0) #t (null? l)) () (pair (first l) (self (rest l) (- n 1))))))
-
 ; --- SHA-1 --------------------------------------------------------------------
 
 (def %cu-sha1-schedule

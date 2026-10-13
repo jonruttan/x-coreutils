@@ -3173,6 +3173,22 @@ stderr:
 status 0
 ```
 
+### kill
+
+```cu
+(run (list "kill" "--help") "")
+```
+---
+```output
+Usage: kill [-l] [-SIG] PID...|
+|
+Send a signal (default: TERM) to given PIDs|
+|
+	-l	List all signal names and numbers|
+stderr:
+status 0
+```
+
 ### top
 
 ```cu
