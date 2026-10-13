@@ -2209,6 +2209,33 @@ stderr:
 status 0
 ```
 
+### telnetd
+
+```cu
+(run (list "telnetd" "--help") "")
+```
+---
+```output
+Usage: telnetd [OPTIONS]|
+|
+Handle incoming telnet connections|
+|
+	-l LOGIN	Exec LOGIN on connect (default /bin/login)|
+	-f ISSUE_FILE	Display ISSUE_FILE instead of /etc/issue.net|
+	-K		Close connection as soon as login exits|
+			(normally wait until all programs close slave pty)|
+	-p PORT		Port to listen on. Default 23|
+	-b ADDR[:PORT]	Address to bind to|
+	-F		Run in foreground|
+	-i		Inetd mode|
+	-w SEC		Inetd 'wait' mode, linger time SEC|
+		inetd.conf line: 23 stream tcp wait root telnetd telnetd -w10|
+	-S		Log to syslog (implied by -i or without -F and -w)|
+	-v		Verbose|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu

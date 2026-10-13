@@ -1214,6 +1214,26 @@
               (Opts text "\t-l USER\tAutomatic login as USER"))
             (%cu-hidden-flags (list "-a"))
             (%cu-hidden-args (list "-l"))))))
+    (pair "telnetd"
+      (list
+        (Opts declare "telnetd" "[OPTIONS]"
+          "Handle incoming telnet connections"
+          (append
+            (list
+              (Opts text "\t-l LOGIN\tExec LOGIN on connect (default /bin/login)")
+              (Opts text "\t-f ISSUE_FILE\tDisplay ISSUE_FILE instead of /etc/issue.net")
+              (Opts text "\t-K\t\tClose connection as soon as login exits")
+              (Opts text "\t\t\t(normally wait until all programs close slave pty)")
+              (Opts text "\t-p PORT\t\tPort to listen on. Default 23")
+              (Opts text "\t-b ADDR[:PORT]\tAddress to bind to")
+              (Opts text "\t-F\t\tRun in foreground")
+              (Opts text "\t-i\t\tInetd mode")
+              (Opts text "\t-w SEC\t\tInetd 'wait' mode, linger time SEC")
+              (Opts text "\t\tinetd.conf line: 23 stream tcp wait root telnetd telnetd -w10")
+              (Opts text "\t-S\t\tLog to syslog (implied by -i or without -F and -w)")
+              (Opts text "\t-v\t\tVerbose"))
+            (%cu-hidden-flags (list "-K" "-i" "-F" "-S" "-v"))
+            (%cu-hidden-args (list "-l" "-f" "-p" "-b" "-w"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list
