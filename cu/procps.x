@@ -471,19 +471,113 @@
           (do (display (string-append (%cu-join-with (map %cu-int->str all) " ") "\n")) 0))))))
 
 
-; busybox's get_signum: a number below the kernel's 32, or a name in any case,
-; with or without SIG -- EXIT is 0.  nil for neither.
+; --- signals ------------------------------------------------------------------
+;
+; busybox's libbb/u_signal_names.c, for kill and pkill: the names are the
+; kernel's, from (Sys signals), and the real-time range is libc's, as busybox
+; reads it with FEATURE_RTMINMAX_USE_LIBC_DEFINITIONS.
+
+(def %pg-alnum?
+  (fn (_ c)
+    (match
+      ((if (>= c #\0) (<= c #\9) #f) #t)
+      ((if (>= c #\A) (<= c #\Z) #f) #t)
+      (#t (if (>= c #\a) (<= c #\z) #f)))))
+
+; busybox's bb_strtou and bb_strtoi, base 10, from I of S (bb_strtonum.c):
+; (N . END), END where the digits stop.  N is nil where busybox answers
+; ERANGE: no digit to read (a - first only where LO is below 0), a digit or
+; letter straight after the digits, or outside LO..HI.  Digits that stop at
+; anything else are busybox's EINVAL, the value kept; the caller reads END.
+(def %pg-strto
+  (fn (_ s i lo hi)
+    (def len (byte-len s))
+    (def neg (if (< lo 0) (if (< i len) (= (byte-at s i) #\-) #f) #f))
+    (def j (if neg (+ i 1) i))
+    (def r (%hx-strtoul s j 10 (if neg (- 0 lo) hi)))
+    (def k (rest r))
+    (match
+      ((= k j) (pair () k))
+      ((if (< k len) (%pg-alnum? (byte-at s k)) #f) (pair () k))
+      ((null? (first r)) (pair () k))
+      (#t (pair (if neg (- 0 (first r)) (first r)) k)))))
+
+; libc's real-time signals, (MIN . MAX), or nil where libc has none (Darwin).
+; glibc and musl both answer them by function, as SIGRTMIN and SIGRTMAX do.
+(def %pg-rt-cell (list ()))
+(def %pg-rt
+  (fn (_)
+    (do (if (null? (first %pg-rt-cell))
+          (let ((lib (%cu-dlopen () 1)))
+            (let ((lo (%cu-dlsym lib "__libc_current_sigrtmin"))
+                  (hi (%cu-dlsym lib "__libc_current_sigrtmax")))
+              (set-first! %pg-rt-cell
+                (list (if (if (null? lo) #t (null? hi)) ()
+                        (pair (Sys %sign-fold (%cu-ptr-call lo))
+                              (Sys %sign-fold (%cu-ptr-call hi))))))))
+          ())
+        (first (first %pg-rt-cell)))))
+
+; NSIG, one past the last signal: past RTMAX where there is one, else past
+; the kernel's named signals -- 65 on Linux, 32 on Darwin
+(def %pg-nsig
+  (fn (_)
+    (let ((rt (%pg-rt)))
+      (if (null? rt) (+ (length (sys-signals)) 1) (+ (rest rt) 1)))))
+
+; the number of the kernel's signal NAME, or nil
+(def %pg-named
+  (fn (_ name)
+    (let ((hit (List find (fn (_ e) (str=? (first e) name)) (sys-signals))))
+      (if (null? hit) () (rest hit)))))
+
+; busybox's get_signum: a number below NSIG, as bb_strtou reads it (digits a
+; blank or a comma ends are read); or a name in any case, with or without SIG
+; -- EXIT is 0, IO is POLL where the kernel calls it that (Linux), IOT is
+; ABRT; or RTMIN, RTMIN+N, RTMAX, RTMAX-N inside libc's range.  nil for none.
 (def %pg-signum
   (fn (_ s)
+    (def n (first (%pg-strto s 0 0 4294967295)))
     (def up (Str8 upcase s))
     (def bare (if (Str8 starts? "SIG" up) (substring up 3 (byte-len up)) up))
-    (def n (if (if (> (byte-len s) 0) (if (>= (byte-at s 0) #\0) (<= (byte-at s 0) #\9) #f) #f)
-             (%cu-num-prefix s) ()))
+    (def rt (%pg-rt))
+    ; RTMIN+N and RTMAX-N: N no further from the end than the range is long
+    (def rt-off
+      (fn (_ sign)
+        (if (if (> (byte-len bare) 5) (= (byte-at bare 5) sign) #f)
+          (let ((i (first (%pg-strto bare 6 0 4294967295))))
+            (if (if (null? i) #f (<= i (- (rest rt) (first rt)))) i ()))
+          ())))
     (match
-      ((not (null? n)) (if (if (str=? (%cu-int->str n) s) (< n 32) #f) n ()))
+      ((if (null? n) #f (< n (%pg-nsig))) n)
       ((str=? bare "EXIT") 0)
-      (#t (let ((hit (List find (fn (_ e) (str=? (first e) bare)) (sys-signals))))
-            (if (null? hit) () (rest hit)))))))
+      ((not (null? (%pg-named bare))) (%pg-named bare))
+      ((str=? bare "IO") (%pg-named "POLL"))
+      ((str=? bare "IOT") (%pg-named "ABRT"))
+      ((null? rt) ())
+      ((str=? bare "RTMIN") (first rt))
+      ((str=? bare "RTMAX") (rest rt))
+      ((Str8 starts? "RTMIN" bare) (let ((i (rt-off #\+))) (if (null? i) () (+ (first rt) i))))
+      ((Str8 starts? "RTMAX" bare) (let ((i (rt-off #\-))) (if (null? i) () (- (rest rt) i))))
+      (#t ()))))
+
+; busybox's get_signame: the kernel's name for N, EXIT for 0, else N itself
+(def %pg-signame
+  (fn (_ n)
+    (if (= n 0) "EXIT"
+      (let ((hit (List find (fn (_ e) (= (rest e) n)) (sys-signals))))
+        (if (null? hit) (%cu-int->str n) (first hit))))))
+
+; busybox's print_signames: each signal as " 9) KILL", then libc's RTMIN and
+; RTMAX where it has them
+(def %pg-print-signames
+  (fn (_)
+    (def rt (%pg-rt))
+    (def line (fn (_ n name) (display (string-concat (list (%cu-pad-left (%cu-int->str n) 2) ") " name "\n")))))
+    (do (map (fn (_ e) (line (rest e) (first e))) (sys-signals))
+        (if (null? rt) ()
+          (do (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))
+        0)))
 
 (def %cu-pgrep (fn (_ argv stdin-thunk) (%pg-run "pgrep" argv)))
 
@@ -499,6 +593,76 @@
     (def sig (%pg-signal-word argv))
     (%pg-run-with "pkill" argv (if (null? sig) cu-sigterm sig))))
 
+; --- kill -----------------------------------------------------------------------
+;
+; busybox's procps/kill.c, as kill_main reads its words itself: -l, -SIG or
+; -s SIG, or -- in the first word only, then the pids.  Each status is the
+; count of what failed.  A pid word is read as the shell's kill reads it,
+; several pids apart by single blanks, so " -12" names a process group and an
+; empty word names none.
+
+(def %kl-say
+  (fn (_ s) (do (file-write 2 (string-concat (list "kill: " s "\n"))) 1)))
+
+(def %cu-kill
+  (fn (_ argv stdin-thunk)
+    (def a (if (null? argv) "" (first argv)))
+    (match
+      ((if (null? argv) #t (if (= (byte-len a) 0) #t (not (= (byte-at a 0) #\-))))
+        (%kl-pids argv cu-sigterm))
+      ((str=? a "-l")
+        (if (null? (rest argv)) (%pg-print-signames) (%kl-list %kl-say (rest argv))))
+      ((str=? a "--") (%kl-pids (rest argv) cu-sigterm))
+      ; -s SIG takes the next word, where there is one; -s alone is a name
+      ((if (str=? a "-s") (not (null? (rest argv))) #f)
+        (%kl-signalled (first (rest argv)) (rest (rest argv))))
+      (#t (%kl-signalled (substring a 1 (byte-len a)) (rest argv))))))
+
+(def %kl-signalled
+  (fn (_ name pids)
+    (let ((n (%pg-signum name)))
+      (if (null? n) (%kl-say (string-concat (list "bad signal name '" name "'")))
+        (%kl-pids pids n)))))
+
+; kill -l WORD... and killall's: a number's name -- its low 7 bits, as a
+; shell's status above 128 is a signal -- or a name's number; the first word
+; that is neither is told to SAY, which answers 1
+(def %kl-list
+  (fn (self say words)
+    (if (null? words) 0
+      (let ((w (first words)))
+        (def digit (if (> (byte-len w) 0) (if (>= (byte-at w 0) #\0) (<= (byte-at w 0) #\9) #f) #f))
+        (def r (%pg-strto w 0 0 4294967295))
+        (def n (if digit (if (= (rest r) (byte-len w)) (first r) ()) (%pg-signum w)))
+        (if (null? n) (say (string-concat (list "unknown signal '" w "'")))
+          (do (display (string-append (if digit (%pg-signame (& n 127)) (%cu-int->str n)) "\n"))
+              (self say (rest words))))))))
+
+(def %kl-pids
+  (fn (_ words signo)
+    (if (null? words) (%kl-say "you need to specify whom to kill")
+      (List fold (fn (_ errs w) (+ errs (%kl-word w 0 signo))) 0 words))))
+
+; the pids in W from I, each signalled: the count that failed.  One blank
+; before a pid is passed over; a word that does not read as a number is said
+; from where it went wrong, and ends this word.
+(def %kl-word
+  (fn (self w i signo)
+    (def len (byte-len w))
+    (def j (if (if (< i len) (= (byte-at w i) #\space) #f) (+ i 1) i))
+    (def r (%pg-strto w j -2147483648 2147483647))
+    (def pid (first r))
+    (def end (rest r))
+    (match
+      ((>= i len) 0)
+      ((if (null? pid) #t (if (< end len) (not (= (byte-at w end) #\space)) #f))
+        (%kl-say (string-concat (list "invalid number '" (substring w j len) "'"))))
+      ; errno is read straight after the refusal
+      (#t (let ((err (if (< (sys-kill pid signo) 0) (Err from-errno (Err errno-of (- 0 1)) (lit kill) ()) ())))
+            (+ (if (null? err) 0
+                 (%kl-say (string-concat (list "can't kill pid " (%cu-int->str pid) ": " (file-err-text err)))))
+               (self w end signo)))))))
+
 (def %pg-run (fn (_ applet argv) (%pg-run-with applet argv cu-sigterm)))
 
 (def %pg-run-with
@@ -512,11 +676,7 @@
     (def me (sys-getpid))
     (match
       ((if (null? sid-asked) #t (null? ppid)) 1)
-      ((if (str=? applet "pkill") (on "-l") #f)
-        ; busybox's print_signames
-        (do (map (fn (_ e) (display (string-concat (list (%cu-pad-left (%cu-int->str (rest e)) 2) ") " (first e) "\n"))))
-                 (sys-signals))
-            0))
+      ((if (str=? applet "pkill") (on "-l") #f) (%pg-print-signames))
       ((if (< sid-asked 0) (if (< ppid 0) (if (null? ops) #t (not (null? (rest ops)))) #f) #f)
         (%cu-usage applet))
       (#t (%pg-scan applet o ops
@@ -597,7 +757,8 @@
     (def dash? (fn (_ w) (if (> (byte-len w) 0) (= (byte-at w 0) #\-) #f)))
     (match
       ((if (null? argv) #t (not (dash? (first argv)))) (%ka-kill argv cu-sigterm #f))
-      ((str=? (first argv) "-l") (%ka-list (rest argv)))
+      ((str=? (first argv) "-l")
+        (if (null? (rest argv)) (%pg-print-signames) (%kl-list %ka-say (rest argv))))
       ((str=? (first argv) "-q")
         (match
           ((null? (rest argv)) (%cu-usage "killall"))
@@ -605,7 +766,8 @@
           (#t (%ka-kill (rest argv) cu-sigterm #t))))
       (#t (%ka-signal argv #f)))))
 
-(def %ka-say (fn (_ s) (file-write 2 (string-concat (list "killall: " s "\n")))))
+(def %ka-say
+  (fn (_ s) (do (file-write 2 (string-concat (list "killall: " s "\n"))) 1)))
 
 ; ARGV's first word is --, -s SIG with a word after it, or -SIG; the names
 ; follow it
@@ -618,48 +780,15 @@
     (def names (if by-s (rest (rest argv)) (rest argv)))
     (match
       ((str=? w "-") (%ka-kill names cu-sigterm quiet))
-      ((null? signo) (do (%ka-say (string-concat (list "bad signal name '" word "'"))) 1))
+      ((null? signo) (%ka-say (string-concat (list "bad signal name '" word "'"))))
       (#t (%ka-kill names signo quiet)))))
-
-; -l: every signal as busybox's print_signames lists them, or each word's
-; translation -- a number to its name, by its low seven bits as an exit
-; status carries it, and a name to its number -- up to the first that is
-; neither
-(def %ka-list
-  (fn (_ words)
-    (def name-of
-      (fn (_ n)
-        (if (= n 0) "EXIT"
-          (let ((hit (List find (fn (_ e) (= (rest e) n)) (sys-signals))))
-            (if (null? hit) (%cu-int->str n) (first hit))))))
-    ; bb_strtou's: digits alone, below 2^32
-    (def number
-      (fn (_ w)
-        (if (if (= (%cu-digits-end w 0) (byte-len w)) (<= (byte-len w) 18) #f)
-          (let ((n (%cu-num-prefix w))) (if (> n 4294967295) () n))
-          ())))
-    (def each
-      (fn (self ws)
-        (if (null? ws) 0
-          (let ((w (first ws)))
-            (def digit (if (>= (byte-at w 0) #\0) (<= (byte-at w 0) #\9) #f))
-            (def n (if digit (number w) (%pg-signum w)))
-            (if (null? n)
-              (do (%ka-say (string-concat (list "unknown signal '" w "'"))) 1)
-              (do (display (string-append (if digit (name-of (& n 127)) (%cu-int->str n)) "\n"))
-                  (self (rest ws))))))))
-    (if (null? words)
-      (do (map (fn (_ e) (display (string-concat (list (%cu-pad-left (%cu-int->str (rest e)) 2) ") " (first e) "\n"))))
-               (sys-signals))
-          0)
-      (each words))))
 
 ; SIGNO to every process each of NAMES names, this one aside; a name with no
 ; process, and a signal refused, each count one
 (def %ka-kill
   (fn (_ names signo quiet)
     (if (null? names)
-      (do (%ka-say "you need to specify whom to kill") 1)
+      (%ka-say "you need to specify whom to kill")
       (%ka-kill-each names signo quiet))))
 
 (def %ka-kill-each

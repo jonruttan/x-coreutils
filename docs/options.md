@@ -70,6 +70,7 @@ the work.  Applet parity is the other axis: see the README.
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
 | `iostat` | -c -d -t -z -k -m | -c -d -t -z -k -m |  | 100% |
 | `ipcalc` | -b -n -m -p -h -s | -b -n -m -p -h -s --broadcast --network --netmask --prefix --hostname --silent |  | 100% |
+| `kill` | -l -s | -l -s |  | 100% |
 | `join` | _not a busybox applet_ | -t | | - |
 | `killall` | -l -q -s | -l -q -s |  | 100% |
 | `link` |  |  |  | - |
@@ -179,4 +180,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 751 of 767 busybox options accepted (97%).**
+**Total: 753 of 769 busybox options accepted (97%).**

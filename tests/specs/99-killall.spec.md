@@ -199,10 +199,10 @@ status 1
 
 ## -l
 
-### alone, this kernel's signals, as busybox's print_signames lists them
+### alone, this kernel's signals, then libc's RTMIN and RTMAX where it has them, as busybox's print_signames lists them
 
 ```cu
-(let ((sg (sys-signals))) (do (sys-dup2 1 9) (def oo (file-open-write (nf ".out"))) (sys-dup2 oo 1) (def st (cu-run (list "killall" "-l") "")) (sys-dup2 9 1) (file-close oo) (list st (str=? (file-read-all (nf ".out")) (string-concat (map (fn (_ e) (string-concat (list (%cu-pad-left (%cu-int->str (rest e)) 2) ") " (first e) "\n"))) sg))))))
+(let ((rt (%pg-rt)) (line (fn (_ n name) (string-concat (list (%cu-pad-left (%cu-int->str n) 2) ") " name "\n"))))) (do (sys-dup2 1 9) (def oo (file-open-write (nf ".out"))) (sys-dup2 oo 1) (def st (cu-run (list "killall" "-l") "")) (sys-dup2 9 1) (file-close oo) (list st (str=? (file-read-all (nf ".out")) (string-concat (append (map (fn (_ e) (line (rest e) (first e))) (sys-signals)) (if (null? rt) () (list (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))))))))
 ```
 ---
     (0 #t)
