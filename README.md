@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and seventy applets: parity with busybox's `coreutils`
+**A hundred and seventy-one applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -17,9 +17,9 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ipcalc`, `tcpsvd` and
 `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill` and `top`,
-its `vmstat`, `iostat`, `mpstat` and `nmeter`, its `who`, `w` and `users`,
-its `tar`, `unzip` and `cpio`, its `gzip`, `gunzip` and `zcat`, its
-`patch`, its `makemime` and `reformime`, and its `hostname`,
+its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`, its `who`, `w` and
+`users`, its `tar`, `unzip` and `cpio`, its `gzip`, `gunzip` and `zcat`,
+its `patch`, its `makemime` and `reformime`, and its `hostname`,
 `dnsdomainname`, `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`
 and `sha384sum`.**
 
@@ -37,7 +37,7 @@ and `sha384sum`.**
     telnet telnetd test tftp tftpd time timeout top touch tr tree true
     truncate ts tsort tty ttysize udpsvd unexpand uniq unix2dos unlink
     unzip uname uptime users uudecode uuencode uuidgen usleep vi vmstat w
-    wc wget which who whois whoami xargs xxd yes zcat
+    watch wc wget which who whois whoami xargs xxd yes zcat
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -241,6 +241,7 @@ parsed by x-lang's `Opts`.
     cu/iostat.x       iostat: the CPU's shares and each disk's transfers, over the Host
     cu/mpstat.x       mpstat: each processor's shares and interrupt rates, over the Host
     cu/nmeter.x       nmeter: a line of readings laid out by a format string, over the Host
+    cu/watch.x        watch: a command run every period under a header, through sh -c or exec
     cu/options.x      each applet's option declaration and help text
     cu/cli.x          the applet table, the option parse, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere

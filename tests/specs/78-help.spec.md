@@ -3335,6 +3335,24 @@ stderr:
 status 0
 ```
 
+### watch
+
+```cu
+(run (list "watch" "--help") "")
+```
+---
+```output
+Usage: watch [-n SEC] [-tx] PROG ARGS|
+|
+Run PROG periodically|
+|
+	-n SEC	Period (default 2)|
+	-t	Don't print header|
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'|
+stderr:
+status 0
+```
+
 ### test
 
 ```cu

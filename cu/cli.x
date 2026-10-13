@@ -183,6 +183,7 @@
     (pair "iostat" %cu-iostat)
     (pair "mpstat" %cu-mpstat)
     (pair "nmeter" %cu-nmeter)
+    (pair "watch" %cu-watch)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 

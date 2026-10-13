@@ -168,6 +168,7 @@ the work.  Applet parity is the other axis: see the README.
 | `vi` | -c -R -H | -R -H -h -c |  | 100% |
 | `vmstat` | -n | -n |  | 100% |
 | `w` |  |  |  | - |
+| `watch` | -n -t -x | -t -x -d -n |  | 100% |
 | `wc` | -c -m -l -w -L | -c -m -l -w -L |  | 100% |
 | `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | --spider --no-check-certificate -c -q -S --continue --quiet --server-response -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent --header -U --post-data --post-file -P -t -T -O -o -Y --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries |  | 100% |
 | `which` | -a | -a |  | 100% |
@@ -179,4 +180,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 763 of 779 busybox options accepted (97%).**
+**Total: 766 of 782 busybox options accepted (97%).**
