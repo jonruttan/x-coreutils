@@ -79,6 +79,7 @@
 (include-once "./gzip.x")
 (include-once "./unzip.x")
 (include-once "./cpio.x")
+(include-once "./dc.x")
 (include-once "./ed.x")
 (include-once "./patch.x")
 (include-once "./sysinfo.x")
