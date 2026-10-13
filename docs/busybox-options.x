@@ -98,6 +98,7 @@
     (list "printenv" ())
     (list "pipe_progress" ())
     (list "pkill" (%letters "lxfsPvnoe"))
+    (list "kill" (%letters "ls"))
     (list "printf" ())
     (list "ps" (%letters "oT"))
     (list "pwd" (%letters "LP"))
