@@ -2192,6 +2192,23 @@ stderr:
 status 0
 ```
 
+### telnet
+
+```cu
+(run (list "telnet" "--help") "")
+```
+---
+```output
+Usage: telnet [-a] [-l USER] HOST [PORT]|
+|
+Connect to telnet server|
+|
+	-a	Automatic login with $USER envvar|
+	-l USER	Automatic login as USER|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu

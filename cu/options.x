@@ -1204,6 +1204,16 @@
               (Opts text "\tSTRING\tIdent answer string (default: nobody)"))
             (%cu-hidden-flags (list "-f" "-i" "-w"))
             (%cu-hidden-args (list "-b"))))))
+    (pair "telnet"
+      (list
+        (Opts declare "telnet" "[-a] [-l USER] HOST [PORT]"
+          "Connect to telnet server"
+          (append
+            (list
+              (Opts text "\t-a\tAutomatic login with $USER envvar")
+              (Opts text "\t-l USER\tAutomatic login as USER"))
+            (%cu-hidden-flags (list "-a"))
+            (%cu-hidden-args (list "-l"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list

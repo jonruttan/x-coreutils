@@ -251,28 +251,61 @@
 ; --- /etc/services --------------------------------------------------------------------
 
 ; bb_get_servport_by_name: NAME's port for PROTO, from a line SERVNAME
-; NUM/PROTO [ALIAS...] on which NAME is SERVNAME or an alias; nil when none
+; NUM/PROTO [ALIAS...] on which NAME is SERVNAME or an alias; nil when none.
+; Found as busybox finds it, a search for NAME through the whole file and a
+; look at the line each hit is on: a services file runs to thousands of lines.
 (def %in-servport
   (fn (_ name proto)
     (def text (guard (_ ()) (file-read-all %in-services-file)))
     (if (if (null? text) #t (= (byte-len name) 0)) ()
-      (let go ((lines (Str8 split "\n" text)))
-        (if (null? lines) ()
-          (let ((p (%in-servline (first lines) name proto)))
-            (if (null? p) (go (rest lines)) p)))))))
+      (let go ((from 0))
+        (let ((at (Str8 %find-bytes name from text)))
+          (if (null? at) ()
+            (let ((n (%in-servhit text at (byte-len name) proto)))
+              (if (null? n) (go (+ at (byte-len name))) n))))))))
 
-(def %in-servline
-  (fn (_ line name proto)
-    (def hash (%in-first-index line #\#))
-    (def words (filter (fn (_ w) (> (byte-len w) 0))
-                       (Str8 split " " (Str8 replace "\t" " " (if (null? hash) line (substring line 0 hash))))))
-    (if (< (length words) 2) ()
-      (let ((np (%cu-nth 1 words)))
-        (def slash (%in-first-index np #\/))
-        (def n (if (null? slash) () (%in-strtou (substring np 0 slash))))
-        (if (if (null? n) #t (if (> n 65535) #t
-              (not (string=? (substring np (+ slash 1) (byte-len np)) proto)))) ()
-          (if (List any? (fn (_ w) (string=? w name)) (pair (first words) (rest (rest words)))) n ()))))))
+; isspace
+(def %in-space?
+  (fn (_ c)
+    (match ((= c #\space) #t) ((= c #\tab) #t) ((= c #\newline) #t) ((= c #\return) #t)
+           ((= c 11) #t) (#t (= c 12)))))
+
+; the byte at I of TEXT answers PRED, I inside TEXT
+(def %in-byte? (fn (_ text i pred) (match ((< i 0) #f) ((>= i (byte-len text)) #f) (#t (pred (byte-at text i))))))
+
+; I ends a word in a services line: the end of TEXT, a space or a #
+(def %in-word-end? (fn (_ text i) (not (%in-byte? text i (fn (_ c) (not (if (%in-space? c) #t (= c #\#))))))))
+
+(def %in-blank-in-line? (fn (_ c) (if (%in-space? c) (not (= c #\newline)) #f)))
+(def %in-digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
+
+; the first I from FROM whose byte does not answer PRED
+(def %in-skip (fn (self text i pred) (if (%in-byte? text i pred) (self text (+ i 1) pred) i)))
+
+; the hit of NAME at AT in TEXT: the port when it is a word of its line, ahead
+; of any # and not the NUM/PROTO word itself, and the line's protocol is PROTO
+(def %in-servhit
+  (fn (_ text at len proto)
+    (def after (+ at len))
+    (def line-start (let back ((i at)) (if (%in-byte? text (- i 1) (fn (_ c) (not (= c #\newline)))) (back (- i 1)) i)))
+    (def ls (%in-skip text line-start %in-blank-in-line?))
+    (def hash? (let look ((i ls)) (match ((>= i after) #f) ((= (byte-at text i) #\#) #t) (#t (look (+ i 1))))))
+    (def pnstr (%in-skip text (%in-skip text ls (fn (_ c) (not (%in-space? c)))) %in-blank-in-line?))
+    (def digits-end (%in-skip text pnstr %in-digit?))
+    (def port (if (> digits-end pnstr) (%in-strtou (substring text pnstr digits-end)) ()))
+    (def pe (+ digits-end 1 (byte-len proto)))
+    (match
+      ((%in-byte? text (- at 1) (fn (_ c) (not (%in-space? c)))) ())
+      ((not (%in-word-end? text after)) ())
+      (hash? ())
+      ((= at pnstr) ())
+      ((null? port) ())
+      ((> port 65535) ())
+      ((not (%in-byte? text digits-end (fn (_ c) (= c #\/)))) ())
+      ((> pe (byte-len text)) ())
+      ((not (string=? (substring text (+ digits-end 1) pe) proto)) ())
+      ((not (%in-word-end? text pe)) ())
+      (#t port))))
 
 ; --- addresses ----------------------------------------------------------------------------
 
