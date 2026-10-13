@@ -134,6 +134,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -z --gzip -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -J -j --lzma --to-command | 84% |
 | `tcpsvd` | -h -E -v -c -C -b -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `tee` | -a -i | -a -i |  | 100% |
+| `telnet` | -a -l | -a -l |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
 | `tftpd` | -c -r -l -u | -c -r -l -u |  | 100% |
@@ -176,4 +177,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 735 of 751 busybox options accepted (97%).**
+**Total: 737 of 753 busybox options accepted (97%).**
