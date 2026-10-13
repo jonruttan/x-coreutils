@@ -40,6 +40,9 @@
 ; token's text once it is cut, and no x code runs inside the base.
 
 (import x/reader/lexer)
+; the module a first make imports, here so the state image carries it: read
+; from source at the make it costs ~0.9 s
+(import x/tool/asm-cache)
 
 (def %cu-fl-flag-byte?
   (fn (_ c)

@@ -122,6 +122,9 @@
 ; its states.  The end text is a newline, which no address reads and an
 ; input line never holds, so the addresses end on it.
 (import x/reader/lexer)
+; the module a first make imports, here so the state image carries it: read
+; from source at the make it costs ~0.9 s
+(import x/tool/asm-cache)
 
 (def %vi-ex-lexer-cell (pair () ()))
 (def %vi-ex-lexer
