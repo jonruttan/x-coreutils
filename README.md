@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and sixty-seven applets: parity with busybox's `coreutils`
+**A hundred and sixty-eight applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -15,12 +15,12 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
-`inetd`, `fakeidentd`, `ipcalc`, `tcpsvd` and `udpsvd`, its `uptime`,
-`free`, `ps`, `pidof`, `pgrep`, `pkill`, `killall` and `top`, its `vmstat`,
-`iostat`, `mpstat` and `nmeter`, its `who`, `w` and
-`users`, its `tar`, `unzip` and `cpio`, its `gzip`, `gunzip` and `zcat`,
-its `patch`, and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`,
-`mknod`, `mesg`, `renice`, `ts` and `sha384sum`.**
+`inetd`, `fakeidentd`, `telnet`, `ipcalc`, `tcpsvd` and `udpsvd`, its
+`uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`, `killall` and `top`, its
+`vmstat`, `iostat`, `mpstat` and `nmeter`, its `who`, `w` and `users`, its
+`tar`, `unzip` and `cpio`, its `gzip`, `gunzip` and `zcat`, its `patch`, and
+its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`, `mknod`, `mesg`,
+`renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cut date dc dd df diff dirname dnsd
@@ -33,10 +33,11 @@ its `patch`, and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`,
     printf ps pwd readlink
     realpath renice reset rev rm rmdir run-parts seq setsid sha1sum
     sha256sum sha384sum sha512sum shred shuf sleep sort split stat strings
-    sum sync tac tail tar tcpsvd tee test tftp tftpd time timeout top
-    touch tr tree true truncate ts tsort tty ttysize udpsvd unexpand uniq
-    unix2dos unlink unzip uname uptime users uudecode uuencode uuidgen
-    usleep vi vmstat w wc wget which who whois whoami xargs xxd yes zcat
+    sum sync tac tail tar tcpsvd tee telnet test tftp tftpd time timeout
+    top touch tr tree true truncate ts tsort tty ttysize udpsvd unexpand
+    uniq unix2dos unlink unzip uname uptime users uudecode uuencode
+    uuidgen usleep vi vmstat w wc wget which who whois whoami xargs xxd
+    yes zcat
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -220,6 +221,7 @@ parsed by x-lang's `Opts`.
     cu/dnsd.x         dnsd: busybox's small static DNS server, A and PTR from a config file
     cu/inetd.x        inetd: one listener for many services, a program or a builtin for each
     cu/fakeidentd.x   fakeidentd: the same ident answer for every query, -i, -w or a listener
+    cu/telnet.x       telnet: a terminal on a TELNET connection, its options and escape menu
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order
