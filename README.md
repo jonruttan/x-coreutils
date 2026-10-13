@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and sixty-six applets: parity with busybox's `coreutils`
+**A hundred and sixty-seven applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -16,7 +16,7 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `ipcalc`, `tcpsvd` and `udpsvd`, its `uptime`,
-`free`, `ps`, `pidof`, `pgrep`, `pkill` and `top`, its `vmstat`,
+`free`, `ps`, `pidof`, `pgrep`, `pkill`, `killall` and `top`, its `vmstat`,
 `iostat`, `mpstat` and `nmeter`, its `who`, `w` and
 `users`, its `tar`, `unzip` and `cpio`, its `gzip`, `gunzip` and `zcat`,
 its `patch`, and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`,
@@ -27,7 +27,7 @@ its `patch`, and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`,
     dnsdomainname dos2unix du ed echo env expand expr factor fakeidentd false
     find flock fold free fsync ftpd ftpget ftpput getopt groups gunzip
     gzip hd head hexdump hostid hostname httpd id inetd install iostat
-    ipcalc join link ln logname ls md5sum mesg mkdir mkfifo mknod mktemp
+    ipcalc join killall link ln logname ls md5sum mesg mkdir mkfifo mknod mktemp
     more mountpoint mpstat mv nc netcat nice nl nmeter nohup nologin nproc
     nslookup od paste patch pgrep pidof pipe_progress pkill printenv
     printf ps pwd readlink
@@ -231,7 +231,7 @@ parsed by x-lang's `Opts`.
     cu/ed.x           ed: busybox's line editor, its commands read from standard input
     cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
-    cu/procps.x       uptime, free, ps, pidof, pgrep and pkill, over the Host
+    cu/procps.x       uptime, free, ps, pidof, pgrep, pkill and killall, over the Host
     cu/top.x          top: its screens, keys and memory view, over the Host
     cu/vmstat.x       vmstat, and the compact numbers and %.2f the counter applets share
     cu/iostat.x       iostat: the CPU's shares and each disk's transfers, over the Host
