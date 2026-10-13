@@ -5,10 +5,11 @@ that sends SERVER (as printf's %b reads it) to the client that connects and
 then keeps what the client sends until it closes its side; a SERVER of - is
 no server.  telnet runs in a child with ENV set (COLUMNS, LINES, USER and
 TERM unset first), ARGS split as sh splits them with P the port, and INPUT
-on its stdin 0.3 s after it starts -- a | in INPUT a further 0.3 s pause.
+on its stdin 1 s after it connects (0.3 s with no server) -- a | in INPUT a
+further 0.3 s pause.
 Every expectation is busybox's own output for the same case: telnet's
-stdout through cat -v, its status, its stderr, and what the server got, in
-hex.
+stdout through cat -v, its status, its stderr likewise, and what the server
+got, in hex.
 
 ## the fixture
 
@@ -58,10 +59,10 @@ hex.
   (def tn-serve (fn (_ l in-write)
     (def got (file-open-write (tn-f "got")))
     (def c (if (null? l) ()
-             (if (null? (sys-poll (list (pair l (list (lit in)))) 3000)) () (Socket accept l))))
+             (if (null? (sys-poll (list (pair l (list (lit in)))) 30000)) () (Socket accept l))))
     (unless (null? c)
       (map (fn (_ r) (net-send-run c r)) (tn-read-run (tn-f "sbytes"))))
-    (let go ((pieces (tn-pieces)) (at (+ (tn-now) 300)) (open? (not (null? c))) (writing? #t))
+    (let go ((pieces (tn-pieces)) (at (+ (tn-now) (if (null? c) 300 1000))) (open? (not (null? c))) (writing? #t))
       (def now (tn-now))
       (match
         ((if writing? (>= now at) #f)
@@ -92,7 +93,7 @@ hex.
     (unless (null? l) (Socket close l))
     (def st (sys-wait pid))
     (tn-sh (string-concat (list
-      "d=/tmp/x-cu-telnet; { cat -v $d/out; echo \"[status " (%cu-int->str st) "]\"; cat $d/err; "
+      "d=/tmp/x-cu-telnet; { cat -v $d/out; echo \"[status " (%cu-int->str st) "]\"; cat -v $d/err; "
       (if (null? l) ""
         "echo '--- server got'; od -An -tx1 -v $d/got | tr -s ' \\n' ' ' | sed 's/^ //; s/ $//'; echo; ")
       "} > $d/report")))
