@@ -101,6 +101,7 @@
     (list "printf" ())
     (list "ps" (%letters "oT"))
     (list "pwd" (%letters "LP"))
+    (list "pwdx" ())
     (list "readlink" (%letters "fnv"))
     (list "realpath" ())
     (list "renice" (%letters "npgu"))

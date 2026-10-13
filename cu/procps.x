@@ -583,3 +583,56 @@
         (if (>= i end) (bytes->str (reverse acc))
           (let ((b (byte-at s i))) (self (+ i 1) (pair (if (< b 32) #\space b) acc))))))
     (if (= (%cu-ptr-call %ps-c-strcspn s %ps-controls) end) s (go 0 ()))))
+
+; --- pwdx -------------------------------------------------------------------
+
+; busybox's procps/pwdx.c: each PID's current directory, or why the kernel
+; will not say.  A PID is NUM or /proc/NUM, and the line names it as it was
+; given.  An operand that is not a pid ends the run, status 1, after the
+; lines before it.
+(def %cu-pwdx
+  (fn (_ argv stdin-thunk)
+    (def ops (Opts operands (%cu-opts "pwdx" argv)))
+    ; getopt reads -5 as the option 5, before any pid
+    (def dash (%vm-dash-number ops))
+    (match
+      ((not (null? dash)) (%cu-refuse-option "pwdx" dash))
+      ((null? ops) (%cu-usage "pwdx"))
+      (#t (%pw-each ops)))))
+
+(def %pw-each
+  (fn (self ops)
+    (if (null? ops) 0
+      (let ((arg (first ops)))
+        (def s (if (Str8 starts? "/proc/" arg) (substring arg 6 (byte-len arg)) arg))
+        (def pid (%pw-pid s))
+        (if (null? pid)
+          (do (file-write 2 (string-concat (list "pwdx: invalid process id: '" s "'\n"))) 1)
+          (do (display (string-concat (list arg ": " (%pw-cwd pid) "\n")))
+              (self (rest ops))))))))
+
+; S as busybox's bb_strtou reads it: decimal digits only, at least one, up to
+; 4294967295.  nil for anything else.
+(def %pw-pid
+  (fn (_ s)
+    (def end (byte-len s))
+    (def go
+      (fn (self i n)
+        (match
+          ((> n 4294967295) ())
+          ((>= i end) n)
+          ((if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f)
+            (self (+ i 1) (+ (* n 10) (- (byte-at s i) #\0))))
+          (#t ()))))
+    (if (= end 0) () (go 0 0))))
+
+; busybox prints readlink's errno: ENOENT, read as ESRCH, for a process gone
+; or a zombie, whose cwd link is gone; otherwise EACCES, a process this user
+; may not read.  Host reports no errno, so the process record tells them apart.
+(def %pw-cwd
+  (fn (_ pid)
+    (def d (host-cwd pid))
+    (if (not (null? d)) d
+      (let ((p (host-process pid)))
+        (if (if (null? p) #t (equal? (Assoc get (lit state) p) "Z"))
+          "No such process" "Permission denied")))))
