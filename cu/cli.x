@@ -175,6 +175,7 @@
     (pair "pgrep" %cu-pgrep)
     (pair "pkill" %cu-pkill)
     (pair "top" %cu-top)
+    (pair "lsof" %cu-lsof)
     (pair "vmstat" %cu-vmstat)
     (pair "iostat" %cu-iostat)
     (pair "mpstat" %cu-mpstat)

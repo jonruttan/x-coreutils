@@ -51,7 +51,7 @@
   sys-user-groups
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   host-boot-time load-centi host-load-centi host-memory host-users host-utmp
-  host-processes host-args host-process host-exe sys-signals sys-getpid re-compile re-search
+  host-processes host-args host-process host-exe host-files sys-signals sys-getpid re-compile re-search
   host-load-fixed host-tasks host-cpu host-cpus host-threads host-maps
   host-counters host-disks host-interfaces host-interrupts
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
@@ -394,6 +394,8 @@
 (def host-args (fn (_ pid) (Host args pid)))
 (def host-process (fn (_ pid) (Host process pid)))
 (def host-exe (fn (_ pid) (Host exe pid)))
+; a process's open descriptors, as lsof lists them
+(def host-files (fn (_ pid) (Host files pid (lit fd))))
 ; the load averages as the kernel keeps them, fixed point over 2048 (FSHIFT
 ; 11, Linux's and Darwin's both): a Host float times 2048 is exact
 (def host-load-fixed (fn (_) (map (fn (_ l) (Float ->int (Float * l 2048))) (Host load))))
