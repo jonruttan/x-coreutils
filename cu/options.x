@@ -2026,6 +2026,16 @@
             (Opts flag "-e" "Display name and PID of the process being killed")
             (Opts hidden (Opts flag "-a" ""))))
         (lit signal)))
+    ; kill reads its own words, as busybox's kill_main does: the parse takes
+    ; none of them, so -9, -s SIG and a negative pid reach the applet
+    (pair "kill"
+      (list
+        (Opts declare "kill" "[-l] [-SIG] PID..."
+          "Send a signal (default: TERM) to given PIDs"
+          (list
+            (Opts flag "-l" "List all signal names and numbers")
+            (Opts hidden (Opts arg "-s" "" ""))))
+        (lit none)))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden

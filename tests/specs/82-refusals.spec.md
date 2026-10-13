@@ -7702,6 +7702,45 @@ Send signal to processes selected by regex PATTERN
 status 1
 ```
 
+### kill -~
+
+kill reads its own words: a first word with a dash is a signal, so busybox
+names the signal it could not read.
+
+```cu
+(run (list "kill" "-~") "")
+```
+---
+```output
+stderr:
+kill: bad signal name '~'
+status 1
+```
+
+### kill --nope
+
+```cu
+(run (list "kill" "--nope") "")
+```
+---
+```output
+stderr:
+kill: bad signal name '-nope'
+status 1
+```
+
+### kill -s
+
+```cu
+(run (list "kill" "-s") "")
+```
+---
+```output
+stderr:
+kill: bad signal name 's'
+status 1
+```
+
 ### top -~
 
 ```cu
