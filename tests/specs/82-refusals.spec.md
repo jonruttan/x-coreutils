@@ -6167,6 +6167,94 @@ Handle incoming telnet connections
 status 1
 ```
 
+### makemime -~
+
+```cu
+(run (list "makemime" "-~") "")
+```
+---
+```output
+stderr:
+makemime: unrecognized option: ~
+Usage: makemime [OPTIONS] [FILE]...
+
+Create multipart MIME-encoded message from FILEs
+
+	-o FILE	Output. Default: stdout
+	-a HDR	Add header(s). Examples:
+		"From: user@host.org", "Date: `date -R`"
+	-c CT	Content type. Default: application/octet-stream
+	-C CS	Charset. Default: us-ascii
+
+Other options are silently ignored
+status 1
+```
+
+### makemime --nope
+
+```cu
+(run (list "makemime" "--nope") "")
+```
+---
+```output
+stderr:
+makemime: unrecognized option: nope
+Usage: makemime [OPTIONS] [FILE]...
+
+Create multipart MIME-encoded message from FILEs
+
+	-o FILE	Output. Default: stdout
+	-a HDR	Add header(s). Examples:
+		"From: user@host.org", "Date: `date -R`"
+	-c CT	Content type. Default: application/octet-stream
+	-C CS	Charset. Default: us-ascii
+
+Other options are silently ignored
+status 1
+```
+
+### reformime -~
+
+```cu
+(run (list "reformime" "-~") "")
+```
+---
+```output
+stderr:
+reformime: unrecognized option: ~
+Usage: reformime [OPTIONS]
+
+Parse MIME-encoded message on stdin
+
+	-x PREFIX	Extract content of MIME sections to files
+	-X PROG ARGS	Filter content of MIME sections through PROG
+			Must be the last option
+
+Other options are silently ignored
+status 1
+```
+
+### reformime --nope
+
+```cu
+(run (list "reformime" "--nope") "")
+```
+---
+```output
+stderr:
+reformime: unrecognized option: nope
+Usage: reformime [OPTIONS]
+
+Parse MIME-encoded message on stdin
+
+	-x PREFIX	Extract content of MIME sections to files
+	-X PROG ARGS	Filter content of MIME sections through PROG
+			Must be the last option
+
+Other options are silently ignored
+status 1
+```
+
 ### httpd -c
 
 ```cu
