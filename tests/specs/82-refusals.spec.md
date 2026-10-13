@@ -6075,6 +6075,42 @@ Provide fake ident (auth) service
 status 1
 ```
 
+### telnet -~
+
+```cu
+(run (list "telnet" "-~") "")
+```
+---
+```output
+stderr:
+telnet: unrecognized option: ~
+Usage: telnet [-a] [-l USER] HOST [PORT]
+
+Connect to telnet server
+
+	-a	Automatic login with $USER envvar
+	-l USER	Automatic login as USER
+status 1
+```
+
+### telnet --nope
+
+```cu
+(run (list "telnet" "--nope") "")
+```
+---
+```output
+stderr:
+telnet: unrecognized option: nope
+Usage: telnet [-a] [-l USER] HOST [PORT]
+
+Connect to telnet server
+
+	-a	Automatic login with $USER envvar
+	-l USER	Automatic login as USER
+status 1
+```
+
 ### httpd -c
 
 ```cu
