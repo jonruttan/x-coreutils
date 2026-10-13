@@ -41,6 +41,9 @@
 ; x code runs inside the tokenizer base.
 
 (import x/reader/lexer)
+; the module a first make imports, here so the state image carries it: read
+; from source at the make it costs ~0.9 s
+(import x/tool/asm-cache)
 
 (def %cu-dl-lexer-cell (pair () ()))
 (def %cu-dl-lexer
