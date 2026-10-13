@@ -175,6 +175,10 @@
     (pair "pgrep" %cu-pgrep)
     (pair "pkill" %cu-pkill)
     (pair "top" %cu-top)
+    (pair "vmstat" %cu-vmstat)
+    (pair "iostat" %cu-iostat)
+    (pair "mpstat" %cu-mpstat)
+    (pair "nmeter" %cu-nmeter)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 

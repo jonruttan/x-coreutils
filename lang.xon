@@ -64,6 +64,10 @@
 ; field 39 (x-lang#961), so 85-pidof-pgrep-pkill's fixture /proc writes the
 ; 50 fields a kernel writes after the comm.
 ;
+; v0.28.0: (Host counters), (Host disks), (Host interfaces), (Host interrupts)
+; and cpu's guest times (x-lang#982), which vmstat, iostat, mpstat and nmeter
+; read (cu/vmstat.x, cu/iostat.x, cu/mpstat.x, cu/nmeter.x).
+;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
 (requires-release "v0.28.0")
 

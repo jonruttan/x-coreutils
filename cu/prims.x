@@ -53,6 +53,7 @@
   host-boot-time load-centi host-load-centi host-memory host-users host-utmp
   host-processes host-args host-process host-exe sys-signals sys-getpid re-compile re-search
   host-load-fixed host-tasks host-cpu host-cpus host-threads host-maps
+  host-counters host-disks host-interfaces host-interrupts
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
   net-base64 net-connect net-send net-recv-run net-close
@@ -401,6 +402,12 @@
 (def host-cpus (fn (_) (Host cpus)))
 (def host-threads (fn (_ pid) (Host threads pid)))
 (def host-maps (fn (_ pid) (Host maps pid)))
+; the kernel's totals since boot: event counts, and a record a disk, a
+; network interface and an interrupt source
+(def host-counters (fn (_) (Host counters)))
+(def host-disks (fn (_) (Host disks)))
+(def host-interfaces (fn (_) (Host interfaces)))
+(def host-interrupts (fn (_) (Host interrupts)))
 (def sys-signals (fn (_) (Sys signals)))
 (def sys-getpid (fn (_) (Sys getpid)))
 ; a POSIX extended expression as x/type/regex reads one, and where it first

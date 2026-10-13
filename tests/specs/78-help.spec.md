@@ -3157,6 +3157,98 @@ stderr:
 status 0
 ```
 
+### vmstat
+
+```cu
+(run (list "vmstat" "--help") "")
+```
+---
+```output
+Usage: vmstat [-n] [INTERVAL [COUNT]]|
+|
+Show virtual memory statistics|
+|
+	-n	Show header once|
+stderr:
+status 0
+```
+
+### iostat
+
+```cu
+(run (list "iostat" "--help") "")
+```
+---
+```output
+Usage: iostat [-c] [-d] [-t] [-z] [-k|-m] [ALL|BLOCKDEV...] [INTERVAL [COUNT]]|
+|
+Report CPU and I/O statistics|
+|
+	-c	Show CPU utilization|
+	-d	Show device utilization|
+	-t	Print current time|
+	-z	Omit devices with no activity|
+	-k	Use kb/s|
+	-m	Use Mb/s|
+stderr:
+status 0
+```
+
+### mpstat
+
+```cu
+(run (list "mpstat" "--help") "")
+```
+---
+```output
+Usage: mpstat [-A] [-I SUM|CPU|ALL|SCPU] [-u] [-P num|ALL] [INTERVAL [COUNT]]|
+|
+Per-processor statistics|
+|
+	-A			Same as -I ALL -u -P ALL|
+	-I SUM|CPU|ALL|SCPU	Report interrupt statistics|
+	-P num|ALL		Processor to monitor|
+	-u			Report CPU utilization|
+stderr:
+status 0
+```
+
+### nmeter
+
+```cu
+(run (list "nmeter" "--help") "")
+```
+---
+```output
+Usage: nmeter [-d MSEC] FORMAT_STRING|
+|
+Monitor system in real time|
+|
+ -d MSEC	Milliseconds between updates, default:1000, none:-1|
+|
+Format specifiers:|
+ %Nc or %[cN]	CPU. N - bar size (default 10)|
+		(displays: S:system U:user N:niced D:iowait I:irq i:softirq)|
+ %[nINTERFACE]	Network INTERFACE|
+ %m		Allocated memory|
+ %[md]		Dirty file-backed memory|
+ %[mw]		Memory being written to storage|
+ %[mf]		Free memory|
+ %[mt]		Total memory|
+ %s		Allocated swap|
+ %f		Number of used file descriptors|
+ %Ni		Total/specific IRQ rate|
+ %x		Context switch rate|
+ %p		Forks|
+ %[pn]		# of processes|
+ %b		Block io|
+ %Nt		Time (with N decimal points)|
+ %NT		Zero-based timestamp (with N decimal points)|
+ %r		Print <cr> instead of <lf> at EOL|
+stderr:
+status 0
+```
+
 ### test
 
 ```cu
