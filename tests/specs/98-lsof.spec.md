@@ -75,12 +75,14 @@ Darwin names only a file; a socket or pipe has the kernel's handle for it.
 
 ### a file a process this spec started holds open is listed, and lsof leaves itself out
 
-The child holds the file on descriptor 7 and sleeps; lsof's line for it ends
-with the file's path, which Darwin gives through /private/tmp.  A machine's
-listing runs to thousands of lines, so grep picks out the two processes' own.
+The child holds the file on descriptor 7 and sleeps until it is killed,
+past the whole walk, which takes half a minute on a busy machine; lsof's
+line for it ends with the file's path, which Darwin gives through
+/private/tmp.  A machine's listing runs to thousands of lines, so grep picks
+out the two processes' own.
 
 ```cu
-(do (def me (sys-getpid)) (proc-run (list "/bin/sh" "-c" ": > /tmp/x-cu-lsof/held")) (def kid (sys-fork)) (if (= kid 0) (do (sys-exec "/bin/sh" (list "-c" "exec 7</tmp/x-cu-lsof/held; exec sleep 30")) (sys-exit 127)) ()) (def holds? (fn (_) (List any? (fn (_ f) (= 7 (Assoc get 'fd f))) (host-files kid)))) (def open-wait (fn (self n) (if (if (> n 0) (not (holds?)) #f) (do (sys-usleep 20000) (self (- n 1))) ()))) (open-wait 250) (sys-dup2 1 9) (def oo (file-open-write (nf ".out"))) (sys-dup2 oo 1) (def st (cu-run (list "lsof") "")) (sys-dup2 9 1) (file-close oo) (sys-kill kid 15) (sys-wait kid) (def lines-of (fn (_ pid) (do (proc-run (list "/bin/sh" "-c" (string-concat (list "grep '^" (%cu-int->str pid) "\t' /tmp/x-cu-lsof/.out > /tmp/x-cu-lsof/.sel; :")))) (List reject (fn (_ l) (str=? l "")) (Str8 split "\n" (file-read-all (nf ".sel"))))))) (list st (List any? (fn (_ l) (if (Str8 ends? "/tmp/x-cu-lsof/held" l) (not (null? (Str8 index-of "\t7\t/" l))) #f)) (lines-of kid)) (lines-of me)))
+(do (def me (sys-getpid)) (proc-run (list "/bin/sh" "-c" ": > /tmp/x-cu-lsof/held")) (def kid (sys-fork)) (if (= kid 0) (do (sys-exec "/bin/sh" (list "-c" "exec 7</tmp/x-cu-lsof/held; exec sleep 600")) (sys-exit 127)) ()) (def holds? (fn (_) (List any? (fn (_ f) (= 7 (Assoc get 'fd f))) (host-files kid)))) (def open-wait (fn (self n) (if (if (> n 0) (not (holds?)) #f) (do (sys-usleep 20000) (self (- n 1))) ()))) (open-wait 250) (sys-dup2 1 9) (def oo (file-open-write (nf ".out"))) (sys-dup2 oo 1) (def st (cu-run (list "lsof") "")) (sys-dup2 9 1) (file-close oo) (sys-kill kid 15) (sys-wait kid) (def lines-of (fn (_ pid) (do (proc-run (list "/bin/sh" "-c" (string-concat (list "grep '^" (%cu-int->str pid) "\t' /tmp/x-cu-lsof/.out > /tmp/x-cu-lsof/.sel; :")))) (List reject (fn (_ l) (str=? l "")) (Str8 split "\n" (file-read-all (nf ".sel"))))))) (list st (List any? (fn (_ l) (if (Str8 ends? "/tmp/x-cu-lsof/held" l) (not (null? (Str8 index-of "\t7\t/" l))) #f)) (lines-of kid)) (lines-of me)))
 ```
 ---
     (0 #t ())
