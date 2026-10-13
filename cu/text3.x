@@ -476,6 +476,7 @@
                   (self (- i 1))))))))
     (go (- n 1))))
 
+; the first K of L; none when K is 0 or less
 (def %cu-take
   (fn (self l k)
     (if (if (<= k 0) #t (null? l)) ()
