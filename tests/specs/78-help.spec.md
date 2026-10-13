@@ -2759,6 +2759,30 @@ stderr:
 status 0
 ```
 
+### dc
+
+```cu
+(run (list "dc" "--help") "")
+```
+---
+```output
+Usage: dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...|
+|
+Tiny RPN calculator. Operations:|
+Arithmetic: + - * / % ^|
+~ - divide with remainder|
+| - modular exponentiation|
+v - square root|
+p - print top of the stack without popping|
+f - print entire stack|
+k - pop the value and set precision|
+i - pop the value and set input radix|
+o - pop the value and set output radix|
+Examples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16|
+stderr:
+status 0
+```
+
 ### hostname
 
 ```cu

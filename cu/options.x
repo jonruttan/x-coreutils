@@ -1736,6 +1736,14 @@
           (list
             (Opts hidden (Opts arg "-p" "PROMPT" ""))
             (Opts hidden (Opts flag "-s" ""))))))
+    (pair "dc"
+      (list
+        (Opts declare "dc" "[-x] [-eSCRIPT]... [-fFILE]... [FILE]..."
+          "Tiny RPN calculator. Operations:\nArithmetic: + - * / % ^\n~ - divide with remainder\n| - modular exponentiation\nv - square root\np - print top of the stack without popping\nf - print entire stack\nk - pop the value and set precision\ni - pop the value and set input radix\no - pop the value and set output radix\nExamples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16"
+          (list
+            (Opts hidden (Opts flag "-x" ""))
+            (Opts hidden (Opts arg "-e" "SCRIPT" ""))
+            (Opts hidden (Opts arg "-f" "FILE" ""))))))
     (pair "sha384sum"
       (list
         (Opts declare "sha384sum" "[-c[sw]] [FILE]..."

@@ -7,9 +7,9 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and sixty-five applets: parity with busybox's `coreutils`
+**A hundred and sixty-six applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
-terminal tools, `more`, `clear` and `reset`, `strings`, `tsort` and `cal`, its
+terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `uuidgen`, its `tree` and `time`, its `fsync`, `flock`, `setsid`,
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
@@ -23,7 +23,7 @@ its `patch`, and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`,
 `mknod`, `mesg`, `renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
-    cksum clear cmp comm cp cpio crc32 cut date dd df diff dirname dnsd
+    cksum clear cmp comm cp cpio crc32 cut date dc dd df diff dirname dnsd
     dnsdomainname dos2unix du ed echo env expand expr factor fakeidentd false
     find flock fold free fsync ftpd ftpget ftpput getopt groups gunzip
     gzip hd head hexdump hostid hostname httpd id inetd install iostat
@@ -227,6 +227,7 @@ parsed by x-lang's `Opts`.
     cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/cpio.x         cpio: newc archives listed, extracted, made and copied through
+    cu/dc.x           dc: the arbitrary-precision stack calculator, on bc's numbers
     cu/ed.x           ed: busybox's line editor, its commands read from standard input
     cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
