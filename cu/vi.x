@@ -265,9 +265,11 @@
 
 ; the newlines in [A, B)
 (def %vi-newlines-in
-  (fn (self a b)
+  (fn (_ a b) (%vi-newlines-from a b 0)))
+(def %vi-newlines-from
+  (fn (self a b n)
     (def at (%vi-find-nl a b))
-    (if (= at -1) 0 (%vi+ 1 (self (%vi+ at 1) b)))))
+    (if (= at -1) n (self (%vi+ at 1) b (%vi+ n 1)))))
 
 ; the last newline in [LO, HI), or FOUND
 (def %vi-last-nl-in
@@ -1212,10 +1214,12 @@
     (%vi- col (if (= m 0) %vi-tabstop m))))
 
 (def %vi-indent-len
-  (fn (self p)
+  (fn (_ p) (%vi-indent-end p p)))
+(def %vi-indent-end
+  (fn (self from p)
     (if (if (%vi< p (%vi- %vi-end 1)) (%vi-blank? (byte-at %vi-text p)) #f)
-      (%vi+ 1 (self (%vi+ p 1)))
-      0)))
+      (self from (%vi+ p 1))
+      (%vi- p from))))
 
 ; the registers: a to z, 26 the one d and y use when none is named, 27 the
 ; line U puts back; each the text it holds and its type, busybox's -- 0 part
