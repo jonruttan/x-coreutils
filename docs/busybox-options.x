@@ -178,6 +178,7 @@
     (list "inetd" (%letters "feqR"))
     (list "fakeidentd" (%letters "fiwb"))
     (list "telnet" (%letters "al"))
+    (list "telnetd" (%letters "flKipbFSwv"))
     (list "tcpsvd" (%letters "hEvcCbul"))
     (list "udpsvd" (%letters "hEvcul"))
     (list "ftpd" (%letters "wAavStT"))
