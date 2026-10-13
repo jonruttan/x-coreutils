@@ -98,6 +98,7 @@
     (list "printenv" ())
     (list "pipe_progress" ())
     (list "pkill" (%letters "lxfsPvnoe"))
+    (list "kill" (%letters "ls"))
     (list "printf" ())
     (list "ps" (%letters "oT"))
     (list "pwd" (%letters "LP"))
@@ -163,6 +164,7 @@
     (list "vi" (%letters "cRH"))
     (list "vmstat" (%letters "n"))
     (list "w" ())
+    (list "watch" (%letters "ntx"))
     (list "wc" (%letters "cmlwL"))
     (list "wget" (append (%letters "cqSOoPYUTt")
                          (list "--spider" "--header" "--post-data" "--post-file"

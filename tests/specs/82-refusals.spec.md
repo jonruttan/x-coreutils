@@ -7614,6 +7614,45 @@ Send signal to processes selected by regex PATTERN
 status 1
 ```
 
+### kill -~
+
+kill reads its own words: a first word with a dash is a signal, so busybox
+names the signal it could not read.
+
+```cu
+(run (list "kill" "-~") "")
+```
+---
+```output
+stderr:
+kill: bad signal name '~'
+status 1
+```
+
+### kill --nope
+
+```cu
+(run (list "kill" "--nope") "")
+```
+---
+```output
+stderr:
+kill: bad signal name '-nope'
+status 1
+```
+
+### kill -s
+
+```cu
+(run (list "kill" "-s") "")
+```
+---
+```output
+stderr:
+kill: bad signal name 's'
+status 1
+```
+
 ### pwdx -~
 
 ```cu
@@ -7977,6 +8016,63 @@ Format specifiers:
  %Nt		Time (with N decimal points)
  %NT		Zero-based timestamp (with N decimal points)
  %r		Print <cr> instead of <lf> at EOL
+status 1
+```
+
+### watch -~
+
+```cu
+(run (list "watch" "-~") "")
+```
+---
+```output
+stderr:
+watch: unrecognized option: ~
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
+status 1
+```
+
+### watch --nope
+
+```cu
+(run (list "watch" "--nope") "")
+```
+---
+```output
+stderr:
+watch: unrecognized option: nope
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
+status 1
+```
+
+### watch -n
+
+```cu
+(run (list "watch" "-n") "")
+```
+---
+```output
+stderr:
+watch: option requires an argument: n
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
 status 1
 ```
 

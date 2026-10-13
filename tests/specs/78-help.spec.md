@@ -3173,6 +3173,22 @@ stderr:
 status 0
 ```
 
+### kill
+
+```cu
+(run (list "kill" "--help") "")
+```
+---
+```output
+Usage: kill [-l] [-SIG] PID...|
+|
+Send a signal (default: TERM) to given PIDs|
+|
+	-l	List all signal names and numbers|
+stderr:
+status 0
+```
+
 ### pwdx
 
 ```cu
@@ -3303,6 +3319,24 @@ Format specifiers:|
  %Nt		Time (with N decimal points)|
  %NT		Zero-based timestamp (with N decimal points)|
  %r		Print <cr> instead of <lf> at EOL|
+stderr:
+status 0
+```
+
+### watch
+
+```cu
+(run (list "watch" "--help") "")
+```
+---
+```output
+Usage: watch [-n SEC] [-tx] PROG ARGS|
+|
+Run PROG periodically|
+|
+	-n SEC	Period (default 2)|
+	-t	Don't print header|
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'|
 stderr:
 status 0
 ```

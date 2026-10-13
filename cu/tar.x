@@ -381,10 +381,10 @@
 ; The run's settings, in a vector: the action (list, extract or stdout), how
 ; verbose, the names to take and to leave, the components to strip, -k,
 ; --overwrite, -o, --numeric-owner, whether permissions are restored, -m.
-(def %ts-action (fn (_ t) (vec-ref t 0)))
-(def %ts-verbose (fn (_ t) (vec-ref t 1)))
-(def %ts-accept (fn (_ t) (vec-ref t 2)))
-(def %ts-reject (fn (_ t) (vec-ref t 3)))
+(def %tar-action (fn (_ t) (vec-ref t 0)))
+(def %tar-verbose (fn (_ t) (vec-ref t 1)))
+(def %tar-accept (fn (_ t) (vec-ref t 2)))
+(def %tar-reject (fn (_ t) (vec-ref t 3)))
 
 ; busybox's find_list_entry2: a glob against as many of NAME's leading parts
 ; as the glob has
@@ -417,9 +417,9 @@
 (def %tar-wanted?
   (fn (_ t m)
     (match
-      ((%tar-list-match? (%ts-reject t) (%tm-name m)) #f)
-      ((null? (%ts-accept t)) #t)
-      (#t (%tar-list-match? (%ts-accept t) (%tm-name m))))))
+      ((%tar-list-match? (%tar-reject t) (%tm-name m)) #f)
+      ((null? (%tar-accept t)) #t)
+      (#t (%tar-list-match? (%tar-accept t) (%tm-name m))))))
 
 ; NAME with N leading components gone, as --strip-components takes them; nil
 ; where it has no more
@@ -547,7 +547,7 @@
 (def %tar-read-all
   (fn (_ t rd)
     (def st (vec-build 3 (fn (_ i) (if (= i 2) #f ()))))
-    (def listing (if (eq? (%ts-action t) (lit stdout)) 2 1))
+    (def listing (if (eq? (%tar-action t) (lit stdout)) 2 1))
     (def go
       (fn (self passed seen)
         (let ((m (%tar-header rd st)))
@@ -558,13 +558,13 @@
               (do (%tar-skip! rd (%tm-size m)) (self passed #t)))
             (#t
               (do (match
-                    ((= (%ts-verbose t) 1) (file-write listing (string-append (%tar-printable (%tm-name m)) "\n")))
-                    ((> (%ts-verbose t) 1) (file-write listing (%tar-verbose-line m)))
+                    ((= (%tar-verbose t) 1) (file-write listing (string-append (%tar-printable (%tm-name m)) "\n")))
+                    ((> (%tar-verbose t) 1) (file-write listing (%tar-verbose-line m)))
                     (#t ()))
                   (let ((m2 (%tar-trim m)))
                     (do (match
-                          ((eq? (%ts-action t) (lit extract)) (%tar-extract! t rd m2))
-                          ((eq? (%ts-action t) (lit stdout))
+                          ((eq? (%tar-action t) (lit extract)) (%tar-extract! t rd m2))
+                          ((eq? (%tar-action t) (lit stdout))
                             (if (= (& (%tm-mode m2) 61440) 32768) (%tar-copy-out! rd 1 (%tm-size m2))
                               (%tar-skip! rd (%tm-size m2))))
                           (#t (%tar-skip! rd (%tm-size m2))))

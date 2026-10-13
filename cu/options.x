@@ -1998,6 +1998,16 @@
             (Opts flag "-e" "Display name and PID of the process being killed")
             (Opts hidden (Opts flag "-a" ""))))
         (lit signal)))
+    ; kill reads its own words, as busybox's kill_main does: the parse takes
+    ; none of them, so -9, -s SIG and a negative pid reach the applet
+    (pair "kill"
+      (list
+        (Opts declare "kill" "[-l] [-SIG] PID..."
+          "Send a signal (default: TERM) to given PIDs"
+          (list
+            (Opts flag "-l" "List all signal names and numbers")
+            (Opts hidden (Opts arg "-s" "" ""))))
+        (lit none)))
     (pair "pwdx"
       (list
         (Opts declare "pwdx" "PID..."
@@ -2050,6 +2060,18 @@
           "Monitor system in real time\n\n -d MSEC\tMilliseconds between updates, default:1000, none:-1\n\nFormat specifiers:\n %Nc or %[cN]\tCPU. N - bar size (default 10)\n\t\t(displays: S:system U:user N:niced D:iowait I:irq i:softirq)\n %[nINTERFACE]\tNetwork INTERFACE\n %m\t\tAllocated memory\n %[md]\t\tDirty file-backed memory\n %[mw]\t\tMemory being written to storage\n %[mf]\t\tFree memory\n %[mt]\t\tTotal memory\n %s\t\tAllocated swap\n %f\t\tNumber of used file descriptors\n %Ni\t\tTotal/specific IRQ rate\n %x\t\tContext switch rate\n %p\t\tForks\n %[pn]\t\t# of processes\n %b\t\tBlock io\n %Nt\t\tTime (with N decimal points)\n %NT\t\tZero-based timestamp (with N decimal points)\n %r\t\tPrint <cr> instead of <lf> at EOL"
           (list
             (Opts hidden (Opts arg "-d" "" ""))))))
+    ; the command watch runs takes its own flags; -d is busybox's, taken and
+    ; unused
+    (pair "watch"
+      (list
+        (Opts declare "watch" "[-n SEC] [-tx] PROG ARGS"
+          "Run PROG periodically"
+          (list
+            (Opts arg "-n" "SEC" "Period (default 2)")
+            (Opts flag "-t" "Don't print header")
+            (Opts flag "-x" "exec(PROG,ARGS) instead of sh -c 'PROG ARGS'")
+            (Opts hidden (Opts flag "-d" ""))))
+        (lit leading)))
     ; test and its spellings are an EXPRESSION, not an option list: the operators
     ; are declared so the parse knows them, and the applet parses the expression
     ; itself.  --help is an operand, as POSIX has it.

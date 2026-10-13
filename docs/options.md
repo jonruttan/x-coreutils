@@ -70,6 +70,7 @@ the work.  Applet parity is the other axis: see the README.
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
 | `iostat` | -c -d -t -z -k -m | -c -d -t -z -k -m |  | 100% |
 | `ipcalc` | -b -n -m -p -h -s | -b -n -m -p -h -s --broadcast --network --netmask --prefix --hostname --silent |  | 100% |
+| `kill` | -l -s | -l -s |  | 100% |
 | `join` | _not a busybox applet_ | -t | | - |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
@@ -167,6 +168,7 @@ the work.  Applet parity is the other axis: see the README.
 | `vi` | -c -R -H | -R -H -h -c |  | 100% |
 | `vmstat` | -n | -n |  | 100% |
 | `w` |  |  |  | - |
+| `watch` | -n -t -x | -t -x -d -n |  | 100% |
 | `wc` | -c -m -l -w -L | -c -m -l -w -L |  | 100% |
 | `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | --spider --no-check-certificate -c -q -S --continue --quiet --server-response -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent --header -U --post-data --post-file -P -t -T -O -o -Y --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries |  | 100% |
 | `which` | -a | -a |  | 100% |
@@ -178,4 +180,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 745 of 761 busybox options accepted (97%).**
+**Total: 750 of 766 busybox options accepted (97%).**

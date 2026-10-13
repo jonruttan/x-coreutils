@@ -90,5 +90,6 @@
 (include-once "./iostat.x")
 (include-once "./mpstat.x")
 (include-once "./nmeter.x")
+(include-once "./watch.x")
 (include-once "./options.x")
 (include-once "./cli.x")
