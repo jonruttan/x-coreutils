@@ -1204,6 +1204,36 @@
               (Opts text "\tSTRING\tIdent answer string (default: nobody)"))
             (%cu-hidden-flags (list "-f" "-i" "-w"))
             (%cu-hidden-args (list "-b"))))))
+    (pair "telnet"
+      (list
+        (Opts declare "telnet" "[-a] [-l USER] HOST [PORT]"
+          "Connect to telnet server"
+          (append
+            (list
+              (Opts text "\t-a\tAutomatic login with $USER envvar")
+              (Opts text "\t-l USER\tAutomatic login as USER"))
+            (%cu-hidden-flags (list "-a"))
+            (%cu-hidden-args (list "-l"))))))
+    (pair "telnetd"
+      (list
+        (Opts declare "telnetd" "[OPTIONS]"
+          "Handle incoming telnet connections"
+          (append
+            (list
+              (Opts text "\t-l LOGIN\tExec LOGIN on connect (default /bin/login)")
+              (Opts text "\t-f ISSUE_FILE\tDisplay ISSUE_FILE instead of /etc/issue.net")
+              (Opts text "\t-K\t\tClose connection as soon as login exits")
+              (Opts text "\t\t\t(normally wait until all programs close slave pty)")
+              (Opts text "\t-p PORT\t\tPort to listen on. Default 23")
+              (Opts text "\t-b ADDR[:PORT]\tAddress to bind to")
+              (Opts text "\t-F\t\tRun in foreground")
+              (Opts text "\t-i\t\tInetd mode")
+              (Opts text "\t-w SEC\t\tInetd 'wait' mode, linger time SEC")
+              (Opts text "\t\tinetd.conf line: 23 stream tcp wait root telnetd telnetd -w10")
+              (Opts text "\t-S\t\tLog to syslog (implied by -i or without -F and -w)")
+              (Opts text "\t-v\t\tVerbose"))
+            (%cu-hidden-flags (list "-K" "-i" "-F" "-S" "-v"))
+            (%cu-hidden-args (list "-l" "-f" "-p" "-b" "-w"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list
@@ -2023,6 +2053,18 @@
           "Monitor system in real time\n\n -d MSEC\tMilliseconds between updates, default:1000, none:-1\n\nFormat specifiers:\n %Nc or %[cN]\tCPU. N - bar size (default 10)\n\t\t(displays: S:system U:user N:niced D:iowait I:irq i:softirq)\n %[nINTERFACE]\tNetwork INTERFACE\n %m\t\tAllocated memory\n %[md]\t\tDirty file-backed memory\n %[mw]\t\tMemory being written to storage\n %[mf]\t\tFree memory\n %[mt]\t\tTotal memory\n %s\t\tAllocated swap\n %f\t\tNumber of used file descriptors\n %Ni\t\tTotal/specific IRQ rate\n %x\t\tContext switch rate\n %p\t\tForks\n %[pn]\t\t# of processes\n %b\t\tBlock io\n %Nt\t\tTime (with N decimal points)\n %NT\t\tZero-based timestamp (with N decimal points)\n %r\t\tPrint <cr> instead of <lf> at EOL"
           (list
             (Opts hidden (Opts arg "-d" "" ""))))))
+    ; the command watch runs takes its own flags; -d is busybox's, taken and
+    ; unused
+    (pair "watch"
+      (list
+        (Opts declare "watch" "[-n SEC] [-tx] PROG ARGS"
+          "Run PROG periodically"
+          (list
+            (Opts arg "-n" "SEC" "Period (default 2)")
+            (Opts flag "-t" "Don't print header")
+            (Opts flag "-x" "exec(PROG,ARGS) instead of sh -c 'PROG ARGS'")
+            (Opts hidden (Opts flag "-d" ""))))
+        (lit leading)))
     ; test and its spellings are an EXPRESSION, not an option list: the operators
     ; are declared so the parse knows them, and the applet parses the expression
     ; itself.  --help is an operand, as POSIX has it.

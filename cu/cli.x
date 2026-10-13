@@ -122,6 +122,8 @@
     (pair "dnsd" %cu-dnsd)
     (pair "inetd" %cu-inetd)
     (pair "fakeidentd" %cu-fakeidentd)
+    (pair "telnet" %cu-telnet)
+    (pair "telnetd" %cu-telnetd)
     (pair "tcpsvd" %cu-tcpsvd)
     (pair "udpsvd" %cu-udpsvd)
     (pair "ftpd" %cu-ftpd)
@@ -180,6 +182,7 @@
     (pair "iostat" %cu-iostat)
     (pair "mpstat" %cu-mpstat)
     (pair "nmeter" %cu-nmeter)
+    (pair "watch" %cu-watch)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 

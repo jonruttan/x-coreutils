@@ -163,6 +163,7 @@
     (list "vi" (%letters "cRH"))
     (list "vmstat" (%letters "n"))
     (list "w" ())
+    (list "watch" (%letters "ntx"))
     (list "wc" (%letters "cmlwL"))
     (list "wget" (append (%letters "cqSOoPYUTt")
                          (list "--spider" "--header" "--post-data" "--post-file"
@@ -178,6 +179,8 @@
     (list "dnsd" (%letters "dvsctpi"))
     (list "inetd" (%letters "feqR"))
     (list "fakeidentd" (%letters "fiwb"))
+    (list "telnet" (%letters "al"))
+    (list "telnetd" (%letters "flKipbFSwv"))
     (list "tcpsvd" (%letters "hEvcCbul"))
     (list "udpsvd" (%letters "hEvcul"))
     (list "ftpd" (%letters "wAavStT"))

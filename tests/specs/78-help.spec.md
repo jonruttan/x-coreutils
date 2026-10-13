@@ -2192,6 +2192,50 @@ stderr:
 status 0
 ```
 
+### telnet
+
+```cu
+(run (list "telnet" "--help") "")
+```
+---
+```output
+Usage: telnet [-a] [-l USER] HOST [PORT]|
+|
+Connect to telnet server|
+|
+	-a	Automatic login with $USER envvar|
+	-l USER	Automatic login as USER|
+stderr:
+status 0
+```
+
+### telnetd
+
+```cu
+(run (list "telnetd" "--help") "")
+```
+---
+```output
+Usage: telnetd [OPTIONS]|
+|
+Handle incoming telnet connections|
+|
+	-l LOGIN	Exec LOGIN on connect (default /bin/login)|
+	-f ISSUE_FILE	Display ISSUE_FILE instead of /etc/issue.net|
+	-K		Close connection as soon as login exits|
+			(normally wait until all programs close slave pty)|
+	-p PORT		Port to listen on. Default 23|
+	-b ADDR[:PORT]	Address to bind to|
+	-F		Run in foreground|
+	-i		Inetd mode|
+	-w SEC		Inetd 'wait' mode, linger time SEC|
+		inetd.conf line: 23 stream tcp wait root telnetd telnetd -w10|
+	-S		Log to syslog (implied by -i or without -F and -w)|
+	-v		Verbose|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu
@@ -3259,6 +3303,24 @@ Format specifiers:|
  %Nt		Time (with N decimal points)|
  %NT		Zero-based timestamp (with N decimal points)|
  %r		Print <cr> instead of <lf> at EOL|
+stderr:
+status 0
+```
+
+### watch
+
+```cu
+(run (list "watch" "--help") "")
+```
+---
+```output
+Usage: watch [-n SEC] [-tx] PROG ARGS|
+|
+Run PROG periodically|
+|
+	-n SEC	Period (default 2)|
+	-t	Don't print header|
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'|
 stderr:
 status 0
 ```

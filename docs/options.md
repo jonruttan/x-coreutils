@@ -134,6 +134,8 @@ the work.  Applet parity is the other axis: see the README.
 | `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -z --gzip -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -J -j --lzma --to-command | 84% |
 | `tcpsvd` | -h -E -v -c -C -b -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `tee` | -a -i | -a -i |  | 100% |
+| `telnet` | -a -l | -a -l |  | 100% |
+| `telnetd` | -f -l -K -i -p -b -F -S -w -v | -K -i -F -S -v -l -f -p -b -w |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
 | `tftpd` | -c -r -l -u | -c -r -l -u |  | 100% |
@@ -165,6 +167,7 @@ the work.  Applet parity is the other axis: see the README.
 | `vi` | -c -R -H | -R -H -h -c |  | 100% |
 | `vmstat` | -n | -n |  | 100% |
 | `w` |  |  |  | - |
+| `watch` | -n -t -x | -t -x -d -n |  | 100% |
 | `wc` | -c -m -l -w -L | -c -m -l -w -L |  | 100% |
 | `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | --spider --no-check-certificate -c -q -S --continue --quiet --server-response -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent --header -U --post-data --post-file -P -t -T -O -o -Y --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries |  | 100% |
 | `which` | -a | -a |  | 100% |
@@ -176,4 +179,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 733 of 749 busybox options accepted (97%).**
+**Total: 748 of 764 busybox options accepted (97%).**
