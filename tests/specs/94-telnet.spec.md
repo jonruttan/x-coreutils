@@ -93,7 +93,7 @@ got, in hex.
     (unless (null? l) (Socket close l))
     (def st (sys-wait pid))
     (tn-sh (string-concat (list
-      "d=/tmp/x-cu-telnet; { cat -v $d/out; echo \"[status " (%cu-int->str st) "]\"; cat -v $d/err; "
+      "d=/tmp/x-cu-telnet; { LC_ALL=C cat -v $d/out; echo \"[status " (%cu-int->str st) "]\"; LC_ALL=C cat -v $d/err; "
       (if (null? l) ""
         "echo '--- server got'; od -An -tx1 -v $d/got | tr -s ' \\n' ' ' | sed 's/^ //; s/ $//'; echo; ")
       "} > $d/report")))
