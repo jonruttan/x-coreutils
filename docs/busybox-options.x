@@ -70,6 +70,7 @@
     (list "id" (%letters "ugGnr"))
     (list "install" (%letters "cdDspogmt"))
     (list "iostat" (%letters "cdtzkm"))
+    (list "killall" (%letters "lqs"))
     (list "link" ())
     (list "ln" (%letters "sfnbtv"))
     (list "logname" ())
