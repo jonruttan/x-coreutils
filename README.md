@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and seventy-three applets: parity with busybox's `coreutils`
+**A hundred and seventy-four applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -17,7 +17,7 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ipcalc`, `tcpsvd` and
 `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`, `kill`,
-`killall` and `top`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`killall`, `top` and `fuser`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime` and `reformime`, and its
 `hostname`, `dnsdomainname`, `hostid`, `mountpoint`, `mknod`, `mesg`,
@@ -26,7 +26,7 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cut date dc dd df diff dirname dnsd
     dnsdomainname dos2unix du ed echo env expand expr factor fakeidentd false
-    find flock fold free fsync ftpd ftpget ftpput getopt groups gunzip
+    find flock fold free fsync ftpd ftpget ftpput fuser getopt groups gunzip
     gzip hd head hexdump hostid hostname httpd id inetd install iostat
     ipcalc join kill killall link ln logname ls makemime md5sum mesg mkdir
     mkfifo mknod mktemp more mountpoint mpstat mv nc netcat nice nl nmeter
@@ -243,6 +243,7 @@ parsed by x-lang's `Opts`.
     cu/mpstat.x       mpstat: each processor's shares and interrupt rates, over the Host
     cu/nmeter.x       nmeter: a line of readings laid out by a format string, over the Host
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
+    cu/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
     cu/options.x      each applet's option declaration and help text
     cu/cli.x          the applet table, the option parse, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere

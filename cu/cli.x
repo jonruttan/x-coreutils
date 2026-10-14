@@ -186,6 +186,7 @@
     (pair "mpstat" %cu-mpstat)
     (pair "nmeter" %cu-nmeter)
     (pair "watch" %cu-watch)
+    (pair "fuser" %cu-fuser)
     (pair "test" %cu-test)
     (pair "[" %cu-bracket)))
 
@@ -258,6 +259,10 @@
       ; as busybox's pkill reads it
       ((eq? label (lit signal))
         (Opts parse flags values (if (null? (%pg-signal-word argv)) argv (rest argv))))
+      ; the first -SIGNAL before a --, wherever it stands, and -4 and -6, as
+      ; busybox's fuser reads them
+      ((eq? label (lit signal-any))
+        (Opts parse flags values (first (rest (rest (%fu-args argv))))))
       ; options up to the first word that is not a cluster of the flags; each
       ; letter reaches the parse as a word of its own, so the flags are listed
       ; in the order given (the parse reverses a cluster's), and the rest come
