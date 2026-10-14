@@ -1295,6 +1295,25 @@
               (Opts text "Use makemime to create emails with attachments."))
             (%cu-hidden-flags (list "-t" "-i" "-v"))
             (%cu-hidden-args (list "-f" "-o" "-w" "-H" "-S" "-a"))))))
+    (pair "popmaildir"
+      (list
+        (Opts declare "popmaildir" "[OPTIONS] MAILDIR [CONN_HELPER ARGS]"
+          "Fetch content of remote mailbox to local maildir"
+          (append
+            (list
+              (Opts text "\t-s\t\tSkip authorization")
+              (Opts text "\t-T\t\tGet messages with TOP instead of RETR")
+              (Opts text "\t-k\t\tKeep retrieved messages on the server")
+              (Opts text "\t-t SEC\t\tNetwork timeout")
+              (Opts text "\t-F 'PROG ARGS'\tFilter program (may be repeated)")
+              (Opts text "\t-M 'PROG ARGS'\tDelivery program")
+              (Opts text "")
+              (Opts text "Fetch from plain POP3 server:")
+              (Opts text "popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt")
+              (Opts text "Fetch from SSLed POP3 server and delete fetched emails:")
+              (Opts text "popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt"))
+            (%cu-hidden-flags (list "-b" "-d" "-m" "-V" "-c" "-a" "-s" "-T" "-k"))
+            (%cu-hidden-args (list "-t" "-R" "-Z" "-L" "-H" "-M" "-F"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list

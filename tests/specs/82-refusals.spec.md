@@ -6339,6 +6339,60 @@ Use makemime to create emails with attachments.
 status 1
 ```
 
+### popmaildir -~
+
+```cu
+(run (list "popmaildir" "-~") "")
+```
+---
+```output
+stderr:
+popmaildir: unrecognized option: ~
+Usage: popmaildir [OPTIONS] MAILDIR [CONN_HELPER ARGS]
+
+Fetch content of remote mailbox to local maildir
+
+	-s		Skip authorization
+	-T		Get messages with TOP instead of RETR
+	-k		Keep retrieved messages on the server
+	-t SEC		Network timeout
+	-F 'PROG ARGS'	Filter program (may be repeated)
+	-M 'PROG ARGS'	Delivery program
+
+Fetch from plain POP3 server:
+popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt
+Fetch from SSLed POP3 server and delete fetched emails:
+popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt
+status 1
+```
+
+### popmaildir --nope
+
+```cu
+(run (list "popmaildir" "--nope") "")
+```
+---
+```output
+stderr:
+popmaildir: unrecognized option: nope
+Usage: popmaildir [OPTIONS] MAILDIR [CONN_HELPER ARGS]
+
+Fetch content of remote mailbox to local maildir
+
+	-s		Skip authorization
+	-T		Get messages with TOP instead of RETR
+	-k		Keep retrieved messages on the server
+	-t SEC		Network timeout
+	-F 'PROG ARGS'	Filter program (may be repeated)
+	-M 'PROG ARGS'	Delivery program
+
+Fetch from plain POP3 server:
+popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt
+Fetch from SSLed POP3 server and delete fetched emails:
+popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt
+status 1
+```
+
 ### httpd -c
 
 ```cu
