@@ -72,6 +72,7 @@ the work.  Applet parity is the other axis: see the README.
 | `ipcalc` | -b -n -m -p -h -s | -b -n -m -p -h -s --broadcast --network --netmask --prefix --hostname --silent |  | 100% |
 | `kill` | -l -s | -l -s |  | 100% |
 | `join` | _not a busybox applet_ | -t | | - |
+| `killall` | -l -q -s | -l -q -s |  | 100% |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
@@ -179,4 +180,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 750 of 766 busybox options accepted (97%).**
+**Total: 753 of 769 busybox options accepted (97%).**

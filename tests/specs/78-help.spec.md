@@ -3189,6 +3189,23 @@ stderr:
 status 0
 ```
 
+### killall
+
+```cu
+(run (list "killall" "--help") "")
+```
+---
+```output
+Usage: killall [-lq] [-SIG] PROCESS_NAME...|
+|
+Send a signal (default: TERM) to given processes|
+|
+	-l	List all signal names and numbers|
+	-q	Don't complain if no processes were killed|
+stderr:
+status 0
+```
+
 ### top
 
 ```cu
