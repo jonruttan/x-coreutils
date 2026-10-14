@@ -183,6 +183,8 @@
     (list "fakeidentd" (%letters "fiwb"))
     (list "telnet" (%letters "al"))
     (list "telnetd" (%letters "flKipbFSwv"))
+    (list "makemime" (%letters "ceoCNa"))
+    (list "reformime" (%letters "xXdeisrcmhoO"))
     (list "tcpsvd" (%letters "hEvcCbul"))
     (list "udpsvd" (%letters "hEvcul"))
     (list "ftpd" (%letters "wAavStT"))

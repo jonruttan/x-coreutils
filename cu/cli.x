@@ -124,6 +124,8 @@
     (pair "fakeidentd" %cu-fakeidentd)
     (pair "telnet" %cu-telnet)
     (pair "telnetd" %cu-telnetd)
+    (pair "makemime" %cu-makemime)
+    (pair "reformime" %cu-reformime)
     (pair "tcpsvd" %cu-tcpsvd)
     (pair "udpsvd" %cu-udpsvd)
     (pair "ftpd" %cu-ftpd)

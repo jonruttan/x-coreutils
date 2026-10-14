@@ -78,6 +78,7 @@ the work.  Applet parity is the other axis: see the README.
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -a -A -x -d -L -H -R -p -F -l -i -n -s -h -S -X -v -t -r -c -u -C -w |  | 100% |
 | `lsof` |  |  |  | - |
+| `makemime` | -c -e -o -C -N -a | -c -e -o -C -N -a |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mesg` |  |  |  | - |
 | `mkdir` | -m -p | -p -m |  | 100% |
@@ -110,6 +111,7 @@ the work.  Applet parity is the other axis: see the README.
 | `pwd` | -L -P | -L -P |  | 100% |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
 | `realpath` |  |  |  | - |
+| `reformime` | -x -X -d -e -i -s -r -c -m -h -o -O | -X -d -e -i -x -s -r -c -m -h -o -O |  | 100% |
 | `renice` | -n -p -g -u | -n -p -g -u |  | 100% |
 | `reset` |  |  |  | - |
 | `rev` |  |  |  | - |
@@ -181,4 +183,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 753 of 769 busybox options accepted (97%).**
+**Total: 771 of 787 busybox options accepted (97%).**

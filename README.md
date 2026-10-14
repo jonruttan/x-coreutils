@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and seventy-two applets: parity with busybox's `coreutils`
+**A hundred and seventy-four applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -17,28 +17,28 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ipcalc`, `tcpsvd` and
 `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`, `kill`,
-`killall`, `top` and `lsof`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and
-`watch`, its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its
-`gzip`, `gunzip` and `zcat`, its `patch`, and its `hostname`, `dnsdomainname`, `hostid`, `mountpoint`,
-`mknod`, `mesg`, `renice`, `ts` and `sha384sum`.**
+`killall`, `top` and `lsof`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
+`gunzip` and `zcat`, its `patch`, its `makemime` and `reformime`, and its
+`hostname`, `dnsdomainname`, `hostid`, `mountpoint`, `mknod`, `mesg`,
+`renice`, `ts` and `sha384sum`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cut date dc dd df diff dirname dnsd
     dnsdomainname dos2unix du ed echo env expand expr factor fakeidentd false
     find flock fold free fsync ftpd ftpget ftpput getopt groups gunzip
     gzip hd head hexdump hostid hostname httpd id inetd install iostat
-    ipcalc join kill killall link ln logname ls lsof md5sum mesg mkdir mkfifo
-    mknod mktemp
-    more mountpoint mpstat mv nc netcat nice nl nmeter nohup nologin nproc
-    nslookup od paste patch pgrep pidof pipe_progress pkill printenv
-    printf ps pwd readlink
-    realpath renice reset rev rm rmdir run-parts seq setsid sha1sum
-    sha256sum sha384sum sha512sum shred shuf sleep sort split stat strings
-    sum sync tac tail tar tcpsvd tee telnet telnetd test tftp tftpd time
-    timeout top touch tr tree true truncate ts tsort tty ttysize udpsvd
-    unexpand uniq unix2dos unlink unzip uname uptime users uudecode
-    uuencode uuidgen usleep vi vmstat w watch wc wget which who whois
-    whoami xargs xxd yes zcat
+    ipcalc join kill killall link ln logname ls lsof makemime md5sum mesg
+    mkdir mkfifo mknod mktemp more mountpoint mpstat mv nc netcat nice nl nmeter
+    nohup nologin nproc nslookup od paste patch pgrep pidof pipe_progress
+    pkill printenv printf ps pwd readlink realpath reformime renice reset
+    rev rm rmdir run-parts seq setsid sha1sum sha256sum sha384sum
+    sha512sum shred shuf sleep sort split stat strings sum sync tac tail
+    tar tcpsvd tee telnet telnetd test tftp tftpd time timeout top touch
+    tr tree true truncate ts tsort tty ttysize udpsvd unexpand uniq
+    unix2dos unlink unzip uname uptime users uudecode uuencode uuidgen
+    usleep vi vmstat w watch wc wget which who whois whoami xargs xxd yes
+    zcat
     [ [[
 
 Highlights: **every digest is byte-identical with the system tool** on
@@ -224,6 +224,7 @@ parsed by x-lang's `Opts`.
     cu/fakeidentd.x   fakeidentd: the same ident answer for every query, -i, -w or a listener
     cu/telnet.x       telnet: a terminal on a TELNET connection, its options and escape menu
     cu/telnetd.x      telnetd: a login on a pseudo-terminal for each connection, -i, -w or a listener
+    cu/mime.x         makemime and reformime: MIME messages made, and taken apart to files or a program
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order
