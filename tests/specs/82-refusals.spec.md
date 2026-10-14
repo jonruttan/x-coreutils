@@ -7777,6 +7777,36 @@ killall: bad signal name 's'
 status 1
 ```
 
+### pwdx -~
+
+```cu
+(run (list "pwdx" "-~") "")
+```
+---
+```output
+stderr:
+pwdx: unrecognized option: ~
+Usage: pwdx PID...
+
+Show current directory for PIDs
+status 1
+```
+
+### pwdx --nope
+
+```cu
+(run (list "pwdx" "--nope") "")
+```
+---
+```output
+stderr:
+pwdx: unrecognized option: nope
+Usage: pwdx PID...
+
+Show current directory for PIDs
+status 1
+```
+
 ### top -~
 
 ```cu

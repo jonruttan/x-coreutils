@@ -108,6 +108,7 @@ the work.  Applet parity is the other axis: see the README.
 | `printf` |  |  |  | - |
 | `ps` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
 | `pwd` | -L -P | -L -P |  | 100% |
+| `pwdx` |  |  |  | - |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
 | `realpath` |  |  |  | - |
 | `reformime` | -x -X -d -e -i -s -r -c -m -h -o -O | -X -d -e -i -x -s -r -c -m -h -o -O |  | 100% |

@@ -2047,6 +2047,11 @@
             (Opts flag "-q" "Don't complain if no processes were killed")
             (Opts hidden (Opts arg "-s" "" ""))))
         (lit none)))
+    (pair "pwdx"
+      (list
+        (Opts declare "pwdx" "PID..."
+          "Show current directory for PIDs"
+          (list))))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden

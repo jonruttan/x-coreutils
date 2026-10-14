@@ -3248,6 +3248,20 @@ stderr:
 status 0
 ```
 
+### pwdx
+
+```cu
+(run (list "pwdx" "--help") "")
+```
+---
+```output
+Usage: pwdx PID...|
+|
+Show current directory for PIDs|
+stderr:
+status 0
+```
+
 ### top
 
 ```cu
