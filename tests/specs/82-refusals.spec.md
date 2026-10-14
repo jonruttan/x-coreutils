@@ -8338,6 +8338,42 @@ Run PROG periodically
 status 1
 ```
 
+### pmap -~
+
+```cu
+(run (list "pmap" "-~") "")
+```
+---
+```output
+stderr:
+pmap: unrecognized option: ~
+Usage: pmap [-xq] PID...
+
+Display process memory usage
+
+	-x	Show details
+	-q	Quiet
+status 1
+```
+
+### pmap --nope
+
+```cu
+(run (list "pmap" "--nope") "")
+```
+---
+```output
+stderr:
+pmap: unrecognized option: nope
+Usage: pmap [-xq] PID...
+
+Display process memory usage
+
+	-x	Show details
+	-q	Quiet
+status 1
+```
+
 ### test -~
 
 ```cu

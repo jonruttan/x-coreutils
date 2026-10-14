@@ -105,6 +105,7 @@ the work.  Applet parity is the other axis: see the README.
 | `pidof` | -s -o | -s -o |  | 100% |
 | `pipe_progress` |  |  |  | - |
 | `pkill` | -l -x -f -s -P -v -n -o -e | -l -x -f -v -n -o -e -a -s -P |  | 100% |
+| `pmap` | -x -q | -x -q |  | 100% |
 | `popmaildir` | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F |  | 100% |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
@@ -186,4 +187,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 796 of 812 busybox options accepted (98%).**
+**Total: 798 of 814 busybox options accepted (98%).**

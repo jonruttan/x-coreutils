@@ -3481,6 +3481,23 @@ stderr:
 status 0
 ```
 
+### pmap
+
+```cu
+(run (list "pmap" "--help") "")
+```
+---
+```output
+Usage: pmap [-xq] PID...|
+|
+Display process memory usage|
+|
+	-x	Show details|
+	-q	Quiet|
+stderr:
+status 0
+```
+
 ### test
 
 ```cu
