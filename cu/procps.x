@@ -611,7 +611,7 @@
       ((if (null? argv) #t (if (= (byte-len a) 0) #t (not (= (byte-at a 0) #\-))))
         (%kl-pids argv cu-sigterm))
       ((str=? a "-l")
-        (if (null? (rest argv)) (%pg-print-signames) (%kl-list (rest argv))))
+        (if (null? (rest argv)) (%pg-print-signames) (%kl-list %kl-say (rest argv))))
       ((str=? a "--") (%kl-pids (rest argv) cu-sigterm))
       ; -s SIG takes the next word, where there is one; -s alone is a name
       ((if (str=? a "-s") (not (null? (rest argv))) #f)
@@ -624,19 +624,19 @@
       (if (null? n) (%kl-say (string-concat (list "bad signal name '" name "'")))
         (%kl-pids pids n)))))
 
-; kill -l WORD...: a number's name -- its low 7 bits, as a shell's status
-; above 128 is a signal -- or a name's number; the first word that is neither
-; ends it, with 1
+; kill -l WORD... and killall's: a number's name -- its low 7 bits, as a
+; shell's status above 128 is a signal -- or a name's number; the first word
+; that is neither is told to SAY, which answers 1
 (def %kl-list
-  (fn (self words)
+  (fn (self say words)
     (if (null? words) 0
       (let ((w (first words)))
         (def digit (if (> (byte-len w) 0) (if (>= (byte-at w 0) #\0) (<= (byte-at w 0) #\9) #f) #f))
         (def r (%pg-strto w 0 0 4294967295))
         (def n (if digit (if (= (rest r) (byte-len w)) (first r) ()) (%pg-signum w)))
-        (if (null? n) (%kl-say (string-concat (list "unknown signal '" w "'")))
+        (if (null? n) (say (string-concat (list "unknown signal '" w "'")))
           (do (display (string-append (if digit (%pg-signame (& n 127)) (%cu-int->str n)) "\n"))
-              (self (rest words))))))))
+              (self say (rest words))))))))
 
 (def %kl-pids
   (fn (_ words signo)
@@ -796,3 +796,73 @@
       (let ((p (host-process pid)))
         (if (if (null? p) #t (equal? (Assoc get (lit state) p) "Z"))
           "No such process" "Permission denied")))))
+
+; --- killall ----------------------------------------------------------------
+;
+; busybox's kill_main as killall (procps/kill.c).  Its words are read by
+; hand, not by getopt: -l, or -q, then one -SIG, -s SIG or --, then the
+; names.  Each name is find_pid_by_name's, as pidof reads it, and every
+; process it names but this one is signalled.  The status counts the names
+; nothing answered and the signals that failed.
+
+(def %cu-killall
+  (fn (_ argv stdin-thunk)
+    (def dash? (fn (_ w) (if (> (byte-len w) 0) (= (byte-at w 0) #\-) #f)))
+    (match
+      ((if (null? argv) #t (not (dash? (first argv)))) (%ka-kill argv cu-sigterm #f))
+      ((str=? (first argv) "-l")
+        (if (null? (rest argv)) (%pg-print-signames) (%kl-list %ka-say (rest argv))))
+      ((str=? (first argv) "-q")
+        (match
+          ((null? (rest argv)) (%cu-usage "killall"))
+          ((dash? (first (rest argv))) (%ka-signal (rest argv) #t))
+          (#t (%ka-kill (rest argv) cu-sigterm #t))))
+      (#t (%ka-signal argv #f)))))
+
+(def %ka-say
+  (fn (_ s) (do (file-write 2 (string-concat (list "killall: " s "\n"))) 1)))
+
+; ARGV's first word is --, -s SIG with a word after it, or -SIG; the names
+; follow it
+(def %ka-signal
+  (fn (_ argv quiet)
+    (def w (substring (first argv) 1 (byte-len (first argv))))
+    (def by-s (if (str=? w "s") (not (null? (rest argv))) #f))
+    (def word (if by-s (first (rest argv)) w))
+    (def signo (%pg-signum word))
+    (def names (if by-s (rest (rest argv)) (rest argv)))
+    (match
+      ((str=? w "-") (%ka-kill names cu-sigterm quiet))
+      ((null? signo) (%ka-say (string-concat (list "bad signal name '" word "'"))))
+      (#t (%ka-kill names signo quiet)))))
+
+; SIGNO to every process each of NAMES names, this one aside; a name with no
+; process, and a signal refused, each count one
+(def %ka-kill
+  (fn (_ names signo quiet)
+    (if (null? names)
+      (%ka-say "you need to specify whom to kill")
+      (%ka-kill-each names signo quiet))))
+
+(def %ka-kill-each
+  (fn (_ names signo quiet)
+    (def procs (%ps-sorted (host-processes)))
+    (def me (sys-getpid))
+    (def send
+      (fn (_ pid)
+        (if (= pid me) 0
+          (let ((r (sys-kill pid signo)))
+            (if (< r 0)
+              (do (if quiet ()
+                    (%ka-say (string-concat (list "can't kill pid " (%cu-int->str pid) ": "
+                               (file-err-text (Err from-errno (Err errno-of r) (lit kill) ()))))))
+                  1)
+              0)))))
+    (def one
+      (fn (_ name)
+        (def hits (list ()))
+        (%pg-each procs (fn (_ p) (if (%pg-named? p name) (set-first! hits (pair (Assoc get (lit pid) p) (first hits))) ())))
+        (if (null? (first hits))
+          (do (if quiet () (%ka-say (string-append name ": no process killed"))) 1)
+          (List fold (fn (_ acc pid) (+ acc (send pid))) 0 (reverse (first hits))))))
+    (& (List fold (fn (_ acc name) (+ acc (one name))) 0 names) 255)))

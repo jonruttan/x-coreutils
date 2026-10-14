@@ -7653,6 +7653,42 @@ kill: bad signal name 's'
 status 1
 ```
 
+### killall -~
+
+```cu
+(run (list "killall" "-~") "")
+```
+---
+```output
+stderr:
+killall: bad signal name '~'
+status 1
+```
+
+### killall --nope
+
+```cu
+(run (list "killall" "--nope") "")
+```
+---
+```output
+stderr:
+killall: bad signal name '-nope'
+status 1
+```
+
+### killall -s
+
+```cu
+(run (list "killall" "-s") "")
+```
+---
+```output
+stderr:
+killall: bad signal name 's'
+status 1
+```
+
 ### pwdx -~
 
 ```cu

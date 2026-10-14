@@ -177,6 +177,7 @@
     (pair "pgrep" %cu-pgrep)
     (pair "pkill" %cu-pkill)
     (pair "kill" %cu-kill)
+    (pair "killall" %cu-killall)
     (pair "pwdx" %cu-pwdx)
     (pair "top" %cu-top)
     (pair "vmstat" %cu-vmstat)
