@@ -184,6 +184,7 @@
     (pair "killall" %cu-killall)
     (pair "pwdx" %cu-pwdx)
     (pair "top" %cu-top)
+    (pair "lsof" %cu-lsof)
     (pair "vmstat" %cu-vmstat)
     (pair "iostat" %cu-iostat)
     (pair "mpstat" %cu-mpstat)

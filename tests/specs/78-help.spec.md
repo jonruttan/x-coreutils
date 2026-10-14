@@ -3357,6 +3357,20 @@ stderr:
 status 0
 ```
 
+### lsof
+
+```cu
+(run (list "lsof" "--help") "")
+```
+---
+```output
+Usage: lsof|
+|
+Show all open files|
+stderr:
+status 0
+```
+
 ### vmstat
 
 ```cu
