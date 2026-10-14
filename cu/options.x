@@ -2036,6 +2036,17 @@
             (Opts flag "-l" "List all signal names and numbers")
             (Opts hidden (Opts arg "-s" "" ""))))
         (lit none)))
+    ; killall reads its own words, as busybox's kill_main does: -l, -q,
+    ; then -SIG or -s SIG (the -s busybox's help leaves out)
+    (pair "killall"
+      (list
+        (Opts declare "killall" "[-lq] [-SIG] PROCESS_NAME..."
+          "Send a signal (default: TERM) to given processes"
+          (list
+            (Opts flag "-l" "List all signal names and numbers")
+            (Opts flag "-q" "Don't complain if no processes were killed")
+            (Opts hidden (Opts arg "-s" "" ""))))
+        (lit none)))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden
