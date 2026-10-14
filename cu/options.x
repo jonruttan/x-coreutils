@@ -1234,6 +1234,34 @@
               (Opts text "\t-v\t\tVerbose"))
             (%cu-hidden-flags (list "-K" "-i" "-F" "-S" "-v"))
             (%cu-hidden-args (list "-l" "-f" "-p" "-b" "-w"))))))
+    (pair "makemime"
+      (list
+        (Opts declare "makemime" "[OPTIONS] [FILE]..."
+          "Create multipart MIME-encoded message from FILEs"
+          (append
+            (list
+              (Opts text "\t-o FILE\tOutput. Default: stdout")
+              (Opts text "\t-a HDR\tAdd header(s). Examples:")
+              (Opts text "\t\t\"From: user@host.org\", \"Date: `date -R`\"")
+              (Opts text "\t-c CT\tContent type. Default: application/octet-stream")
+              (Opts text "\t-C CS\tCharset. Default: us-ascii")
+              (Opts text "")
+              (Opts text "Other options are silently ignored"))
+            (%cu-hidden-args (list "-c" "-e" "-o" "-C" "-N" "-a"))))))
+    ; -X takes no argument: what follows the options is PROG and its ARGS
+    (pair "reformime"
+      (list
+        (Opts declare "reformime" "[OPTIONS]"
+          "Parse MIME-encoded message on stdin"
+          (append
+            (list
+              (Opts text "\t-x PREFIX\tExtract content of MIME sections to files")
+              (Opts text "\t-X PROG ARGS\tFilter content of MIME sections through PROG")
+              (Opts text "\t\t\tMust be the last option")
+              (Opts text "")
+              (Opts text "Other options are silently ignored"))
+            (%cu-hidden-flags (list "-X" "-d" "-e" "-i"))
+            (%cu-hidden-args (list "-x" "-s" "-r" "-c" "-m" "-h" "-o" "-O"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list

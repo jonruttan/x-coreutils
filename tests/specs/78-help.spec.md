@@ -2236,6 +2236,48 @@ stderr:
 status 0
 ```
 
+### makemime
+
+```cu
+(run (list "makemime" "--help") "")
+```
+---
+```output
+Usage: makemime [OPTIONS] [FILE]...|
+|
+Create multipart MIME-encoded message from FILEs|
+|
+	-o FILE	Output. Default: stdout|
+	-a HDR	Add header(s). Examples:|
+		"From: user@host.org", "Date: `date -R`"|
+	-c CT	Content type. Default: application/octet-stream|
+	-C CS	Charset. Default: us-ascii|
+|
+Other options are silently ignored|
+stderr:
+status 0
+```
+
+### reformime
+
+```cu
+(run (list "reformime" "--help") "")
+```
+---
+```output
+Usage: reformime [OPTIONS]|
+|
+Parse MIME-encoded message on stdin|
+|
+	-x PREFIX	Extract content of MIME sections to files|
+	-X PROG ARGS	Filter content of MIME sections through PROG|
+			Must be the last option|
+|
+Other options are silently ignored|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu
