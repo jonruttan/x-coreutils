@@ -2135,6 +2135,14 @@
             (Opts hidden (Opts arg "-d" "" ""))
             (Opts hidden (Opts flag "-m" ""))
             (Opts hidden (Opts flag "-H" ""))))))
+    ; busybox's lsof reads no options and no operands; only a first --help
+    ; is its own
+    (pair "lsof"
+      (list
+        (Opts declare "lsof" ""
+          "Show all open files"
+          (list))
+        (lit none)))
     (pair "vmstat"
       (list
         (Opts declare "vmstat" "[-n] [INTERVAL [COUNT]]"
