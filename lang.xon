@@ -68,7 +68,10 @@
 ; and cpu's guest times (x-lang#982), which vmstat, iostat, mpstat and nmeter
 ; read (cu/vmstat.x, cu/iostat.x, cu/mpstat.x, cu/nmeter.x).
 ;
+; v0.29.0: (Host files pid) (x-lang#1001), whose cwd record pwdx reads
+; (cu/procps.x).
+;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.28.0")
+(requires-release "v0.29.0")
 
 (entry "run.x")
