@@ -72,6 +72,7 @@
 (include-once "./telnet.x")
 (include-once "./telnetd.x")
 (include-once "./mime.x")
+(include-once "./sendmail.x")
 (include-once "./tcpsvd.x")
 (include-once "./ftpd.x")
 (include-once "./ipcalc.x")

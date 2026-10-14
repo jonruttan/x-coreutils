@@ -126,6 +126,7 @@
     (pair "telnetd" %cu-telnetd)
     (pair "makemime" %cu-makemime)
     (pair "reformime" %cu-reformime)
+    (pair "sendmail" %cu-sendmail)
     (pair "tcpsvd" %cu-tcpsvd)
     (pair "udpsvd" %cu-udpsvd)
     (pair "ftpd" %cu-ftpd)
