@@ -105,10 +105,12 @@ the work.  Applet parity is the other axis: see the README.
 | `pidof` | -s -o | -s -o |  | 100% |
 | `pipe_progress` |  |  |  | - |
 | `pkill` | -l -x -f -s -P -v -n -o -e | -l -x -f -v -n -o -e -a -s -P |  | 100% |
+| `popmaildir` | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F |  | 100% |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
 | `ps` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
 | `pwd` | -L -P | -L -P |  | 100% |
+| `pwdx` |  |  |  | - |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
 | `realpath` |  |  |  | - |
 | `reformime` | -x -X -d -e -i -s -r -c -m -h -o -O | -X -d -e -i -x -s -r -c -m -h -o -O |  | 100% |
@@ -118,6 +120,7 @@ the work.  Applet parity is the other axis: see the README.
 | `rm` | -i -r -R -f -v | -i -f -R -r -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
 | `run-parts` | -a -u --reverse --test --exit-on-error --list | --reverse --test --exit-on-error --list -a -u --arg --umask |  | 100% |
+| `sendmail` | -t -f -o -i -w -H -S -a -v | -t -i -v -f -o -w -H -S -a |  | 100% |
 | `seq` | -w -s | -w -s |  | 100% |
 | `setsid` | -c | -c |  | 100% |
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
@@ -183,4 +186,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 776 of 792 busybox options accepted (97%).**
+**Total: 801 of 817 busybox options accepted (98%).**

@@ -2278,6 +2278,73 @@ stderr:
 status 0
 ```
 
+### sendmail
+
+```cu
+(run (list "sendmail" "--help") "")
+```
+---
+```output
+Usage: sendmail [-tv] [-f SENDER] [-amLOGIN 4<user_pass.txt | -auUSER -apPASS]|
+		[-w SECS] [-H 'PROG ARGS' | -S HOST] [RECIPIENT_EMAIL]...|
+|
+Read email from stdin and send it|
+|
+Standard options:|
+	-t		Read additional recipients from message body|
+	-f SENDER	For use in MAIL FROM:<sender>. Can be empty string|
+			Default: -auUSER, or username of current UID|
+	-o OPTIONS	Various options. -oi implied, others are ignored|
+	-i		-oi synonym, implied and ignored|
+|
+Busybox specific options:|
+	-v		Verbose|
+	-w SECS		Network timeout|
+	-H 'PROG ARGS'	Run connection helper. Examples:|
+		openssl s_client -quiet -tls1 -starttls smtp -connect smtp.gmail.com:25|
+		openssl s_client -quiet -tls1 -connect smtp.gmail.com:465|
+			$SMTP_ANTISPAM_DELAY: seconds to wait after helper connect|
+	-S HOST[:PORT]	Server (default $SMTPHOST or 127.0.0.1)|
+	-amLOGIN	Log in using AUTH LOGIN|
+	-amPLAIN	or AUTH PLAIN|
+			(-amCRAM-MD5 not supported)|
+	-auUSER		Username for AUTH|
+	-apPASS 	Password for AUTH|
+|
+If no -a options are given, authentication is not done.|
+If -amLOGIN is given but no -au/-ap, user/password is read from fd #4.|
+Other options are silently ignored; -oi is implied.|
+Use makemime to create emails with attachments.|
+stderr:
+status 0
+```
+
+### popmaildir
+
+```cu
+(run (list "popmaildir" "--help") "")
+```
+---
+```output
+Usage: popmaildir [OPTIONS] MAILDIR [CONN_HELPER ARGS]|
+|
+Fetch content of remote mailbox to local maildir|
+|
+	-s		Skip authorization|
+	-T		Get messages with TOP instead of RETR|
+	-k		Keep retrieved messages on the server|
+	-t SEC		Network timeout|
+	-F 'PROG ARGS'	Filter program (may be repeated)|
+	-M 'PROG ARGS'	Delivery program|
+|
+Fetch from plain POP3 server:|
+popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt|
+Fetch from SSLed POP3 server and delete fetched emails:|
+popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu
@@ -3244,6 +3311,20 @@ Send a signal (default: TERM) to given processes|
 |
 	-l	List all signal names and numbers|
 	-q	Don't complain if no processes were killed|
+stderr:
+status 0
+```
+
+### pwdx
+
+```cu
+(run (list "pwdx" "--help") "")
+```
+---
+```output
+Usage: pwdx PID...|
+|
+Show current directory for PIDs|
 stderr:
 status 0
 ```

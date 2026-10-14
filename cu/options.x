@@ -1262,6 +1262,58 @@
               (Opts text "Other options are silently ignored"))
             (%cu-hidden-flags (list "-X" "-d" "-e" "-i"))
             (%cu-hidden-args (list "-x" "-s" "-r" "-c" "-m" "-h" "-o" "-O"))))))
+    (pair "sendmail"
+      (list
+        (Opts declare "sendmail" "[-tv] [-f SENDER] [-amLOGIN 4<user_pass.txt | -auUSER -apPASS]\n\t\t[-w SECS] [-H 'PROG ARGS' | -S HOST] [RECIPIENT_EMAIL]..."
+          "Read email from stdin and send it"
+          (append
+            (list
+              (Opts text "Standard options:")
+              (Opts text "\t-t\t\tRead additional recipients from message body")
+              (Opts text "\t-f SENDER\tFor use in MAIL FROM:<sender>. Can be empty string")
+              (Opts text "\t\t\tDefault: -auUSER, or username of current UID")
+              (Opts text "\t-o OPTIONS\tVarious options. -oi implied, others are ignored")
+              (Opts text "\t-i\t\t-oi synonym, implied and ignored")
+              (Opts text "")
+              (Opts text "Busybox specific options:")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "\t-w SECS\t\tNetwork timeout")
+              (Opts text "\t-H 'PROG ARGS'\tRun connection helper. Examples:")
+              (Opts text "\t\topenssl s_client -quiet -tls1 -starttls smtp -connect smtp.gmail.com:25")
+              (Opts text "\t\topenssl s_client -quiet -tls1 -connect smtp.gmail.com:465")
+              (Opts text "\t\t\t$SMTP_ANTISPAM_DELAY: seconds to wait after helper connect")
+              (Opts text "\t-S HOST[:PORT]\tServer (default $SMTPHOST or 127.0.0.1)")
+              (Opts text "\t-amLOGIN\tLog in using AUTH LOGIN")
+              (Opts text "\t-amPLAIN\tor AUTH PLAIN")
+              (Opts text "\t\t\t(-amCRAM-MD5 not supported)")
+              (Opts text "\t-auUSER\t\tUsername for AUTH")
+              (Opts text "\t-apPASS \tPassword for AUTH")
+              (Opts text "")
+              (Opts text "If no -a options are given, authentication is not done.")
+              (Opts text "If -amLOGIN is given but no -au/-ap, user/password is read from fd #4.")
+              (Opts text "Other options are silently ignored; -oi is implied.")
+              (Opts text "Use makemime to create emails with attachments."))
+            (%cu-hidden-flags (list "-t" "-i" "-v"))
+            (%cu-hidden-args (list "-f" "-o" "-w" "-H" "-S" "-a"))))))
+    (pair "popmaildir"
+      (list
+        (Opts declare "popmaildir" "[OPTIONS] MAILDIR [CONN_HELPER ARGS]"
+          "Fetch content of remote mailbox to local maildir"
+          (append
+            (list
+              (Opts text "\t-s\t\tSkip authorization")
+              (Opts text "\t-T\t\tGet messages with TOP instead of RETR")
+              (Opts text "\t-k\t\tKeep retrieved messages on the server")
+              (Opts text "\t-t SEC\t\tNetwork timeout")
+              (Opts text "\t-F 'PROG ARGS'\tFilter program (may be repeated)")
+              (Opts text "\t-M 'PROG ARGS'\tDelivery program")
+              (Opts text "")
+              (Opts text "Fetch from plain POP3 server:")
+              (Opts text "popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt")
+              (Opts text "Fetch from SSLed POP3 server and delete fetched emails:")
+              (Opts text "popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt"))
+            (%cu-hidden-flags (list "-b" "-d" "-m" "-V" "-c" "-a" "-s" "-T" "-k"))
+            (%cu-hidden-args (list "-t" "-R" "-Z" "-L" "-H" "-M" "-F"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list
@@ -2065,6 +2117,11 @@
             (Opts flag "-q" "Don't complain if no processes were killed")
             (Opts hidden (Opts arg "-s" "" ""))))
         (lit none)))
+    (pair "pwdx"
+      (list
+        (Opts declare "pwdx" "PID..."
+          "Show current directory for PIDs"
+          (list))))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden
