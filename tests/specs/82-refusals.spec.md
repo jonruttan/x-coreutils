@@ -4296,6 +4296,122 @@ Print or check SHA384 checksums
 status 1
 ```
 
+### sha3sum -~
+
+```cu
+(run (list "sha3sum" "-~") "")
+```
+---
+```output
+stderr:
+sha3sum: unrecognized option: ~
+Usage: sha3sum [-c[sw]] [-a BITS] [FILE]...
+
+Print or check SHA3 checksums
+
+	-c	Check sums against list in FILEs
+	-s	Don't output anything, status code shows success
+	-w	Warn about improperly formatted checksum lines
+	-a BITS	224 (default), 256, 384, 512
+status 1
+```
+
+### sha3sum --nope
+
+```cu
+(run (list "sha3sum" "--nope") "")
+```
+---
+```output
+stderr:
+sha3sum: unrecognized option: nope
+Usage: sha3sum [-c[sw]] [-a BITS] [FILE]...
+
+Print or check SHA3 checksums
+
+	-c	Check sums against list in FILEs
+	-s	Don't output anything, status code shows success
+	-w	Warn about improperly formatted checksum lines
+	-a BITS	224 (default), 256, 384, 512
+status 1
+```
+
+### cryptpw -~
+
+```cu
+(run (list "cryptpw" "-~") "")
+```
+---
+```output
+stderr:
+cryptpw: unrecognized option: ~
+Usage: cryptpw [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]
+
+Print crypt(3) hashed PASSWORD
+
+	-P N	Read password from fd N
+	-m TYPE	des,md5,sha256/512 (default sha512)
+	-S SALT
+status 1
+```
+
+### cryptpw --nope
+
+```cu
+(run (list "cryptpw" "--nope") "")
+```
+---
+```output
+stderr:
+cryptpw: unrecognized option: nope
+Usage: cryptpw [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]
+
+Print crypt(3) hashed PASSWORD
+
+	-P N	Read password from fd N
+	-m TYPE	des,md5,sha256/512 (default sha512)
+	-S SALT
+status 1
+```
+
+### mkpasswd -~
+
+```cu
+(run (list "mkpasswd" "-~") "")
+```
+---
+```output
+stderr:
+mkpasswd: unrecognized option: ~
+Usage: mkpasswd [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]
+
+Print crypt(3) hashed PASSWORD
+
+	-P N	Read password from fd N
+	-m TYPE	des,md5,sha256/512 (default sha512)
+	-S SALT
+status 1
+```
+
+### mkpasswd --nope
+
+```cu
+(run (list "mkpasswd" "--nope") "")
+```
+---
+```output
+stderr:
+mkpasswd: unrecognized option: nope
+Usage: mkpasswd [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]
+
+Print crypt(3) hashed PASSWORD
+
+	-P N	Read password from fd N
+	-m TYPE	des,md5,sha256/512 (default sha512)
+	-S SALT
+status 1
+```
+
 ### hostname -F
 
 ```cu
