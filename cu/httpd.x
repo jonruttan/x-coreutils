@@ -475,7 +475,7 @@
 ; check_user_passwd: UP (user:pass) against the /path: lines whose path is a
 ; prefix of PATH at a slash.  Once one matches, only lines of the same path are
 ; asked.  A user of * matches anyone; a password of * is the user's in
-; /etc/passwd or /etc/shadow; one starting $1$ is compared as md5-crypt, any
+; /etc/passwd or /etc/shadow; one starting $ is hashed with itself as the salt, any
 ; other as plain text.  #t when one agrees -- the user then named -- or when no
 ; line's path matches at all
 (def %hd-check-auth
@@ -520,13 +520,12 @@
         (%hd-crypt-equal? given stored))
       (#t (string=? given stored)))))
 
-; pw_encrypt GIVEN with STORED's salt, compared: $1$ is md5-crypt; the other
-; hashes busybox reads ($5$, $6$, $y$, DES) never agree here
+; pw_encrypt GIVEN with STORED as the salt, compared: STORED's prefix names
+; the method, as busybox's does.  A hash that failed, "*", agrees with
+; nothing, so a locked account's "*" is never a match.
 (def %hd-crypt-equal?
   (fn (_ given stored)
-    (if (Str8 starts? "$1$" stored)
-      (string=? (%cu-md5-crypt given (substring stored 3 (byte-len stored))) stored)
-      #f)))
+    (let ((h (%cu-pw-encrypt given stored))) (if (string=? h "*") #f (string=? h stored)))))
 
 ; USER's password field from /etc/passwd, or /etc/shadow's when that is x or *
 (def %hd-system-password
@@ -1064,7 +1063,7 @@
             (do (file-write 1 (let ((z (%wget-index s 0 0))) (if (null? z) s (substring s 0 z)))) 0)))
         ((not (null? (Opts value o "-e"))) (do (file-write 1 (%hd-encode (Opts value o "-e"))) 0))
         ((not (null? (Opts value o "-m")))
-          (do (file-write 1 (string-append (%cu-md5-crypt (Opts value o "-m") (%hd-salt 8)) "\n")) 0))
+          (do (file-write 1 (string-append (Crypt md5 (Opts value o "-m") (%hd-salt 8)) "\n")) 0))
         (#t (%hd-run o stdin-thunk))))))
 
 (def %hd-run

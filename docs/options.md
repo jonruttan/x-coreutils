@@ -28,6 +28,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -R -r -L -H -p -f -i -l -s -T -u -P |  | 100% |
 | `cpio` | -t -i -o -p -H -d -m -v -u -F -R -L -0 --ignore-devno --renumber-inodes | -t -i -o -p -H -d -m -v -u -F -R -L -0 --extract --list --create --format --pass-through --owner --file --verbose --null --quiet --to-stdout --ignore-devno --renumber-inodes |  | 100% |
 | `crc32` |  |  |  | - |
+| `cryptpw` | -P -m -S | -s --stdin -P -m -a -S --password-fd --salt --method |  | 100% |
 | `cut` | -b -c -f -d -s -n | -s -n -b -c -d -f |  | 100% |
 | `date` | -u -d -D -s -r -R -I +FMT | -u -R -I -Idate -Ihours -Iminutes -Iseconds -Ins -d -D -r +FMT | -s | 87% |
 | `dc` | -x -e -f | -x -e -f |  | 100% |
@@ -83,6 +84,7 @@ the work.  Applet parity is the other axis: see the README.
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
 | `mknod` | -m | -m |  | 100% |
+| `mkpasswd` | -P -m -S | -s --stdin -P -m -a -S --password-fd --salt --method |  | 100% |
 | `mktemp` | -d -t -p -q -u | -d -q -t -u -p |  | 100% |
 | `more` | -d -e -f -l -s -u | -d -e -f -l -s -u |  | 100% |
 | `mountpoint` | -q -d -n -x | -q -d -n -x |  | 100% |
@@ -125,6 +127,7 @@ the work.  Applet parity is the other axis: see the README.
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha384sum` | -c -s -w | -c -s -w |  | 100% |
+| `sha3sum` | -c -s -w -a | -c -s -w -a |  | 100% |
 | `sha512sum` | -c -s -w | -c -s -w |  | 100% |
 | `shred` | -f -n -u -z | -f -z -u -n |  | 100% |
 | `shuf` | -e -i -n -o -z | -z -e -n -o -i |  | 100% |
@@ -185,4 +188,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 796 of 812 busybox options accepted (98%).**
+**Total: 806 of 822 busybox options accepted (98%).**

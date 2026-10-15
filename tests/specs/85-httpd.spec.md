@@ -1416,6 +1416,25 @@ abcdefghij
 [status 0]
 ```
 
+### a sha512-crypt password, right: any $ hash pw_encrypt knows
+
+```cu
+(hd-case "printf '/:bob:$6$saltsalt$TVLlQcbpFVof5W3Yz4DTP6gRstiNuHwwTt6GLc1E5n0U0aDehy0S5knV8wiOQSpT0Y77vwPZN.Pq.H91p5hVO1\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\nAuthorization: Basic Ym9iOnNlY3JldA==\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
 ### an md5-crypt password, wrong
 
 ```cu
@@ -1571,18 +1590,26 @@ bob Basic
     (sys-dup2 9 1) (file-close hm-o)
     (def hm (file-read-all "/tmp/x-cu-hd/out"))
     (list hm-st (byte-len hm) (substring hm 0 3) (substring hm 11 12) (substring hm 34 35)
-          (string=? (%cu-md5-crypt "pass" (substring hm 3 11)) (substring hm 0 34))))
+          (string=? (%cu-pw-encrypt "pass" (substring hm 0 11)) (substring hm 0 34))))
 ```
 ---
     (0 35 "$1$" "$" "\n" #t)
 
-### md5-crypt as busybox's cryptpw -m md5 writes it
+### pw_encrypt with a $1$ salt is md5-crypt, as busybox's cryptpw -m md5 writes it
 
 ```cu
-(list (%cu-md5-crypt "secret" "saltsalt") (%cu-md5-crypt "x" "ab") (%cu-md5-crypt "a-much-longer-password-than-16-bytes" "12345678") (%cu-md5-crypt "" "xyz"))
+(list (%cu-pw-encrypt "secret" "$1$saltsalt") (%cu-pw-encrypt "x" "$1$ab") (%cu-pw-encrypt "a-much-longer-password-than-16-bytes" "$1$12345678") (%cu-pw-encrypt "" "$1$xyz"))
 ```
 ---
     ("$1$saltsalt$9xy1btjgzLYfb7hivXtC//" "$1$ab$e2KlfqG5YBMTjSz7XF.Eu1" "$1$12345678$Wdd9w490ag62uQQwem2Yr0" "$1$xyz$kjXWClpYD0.j9bPLUk/Ii.")
+
+### a hash that failed is "*", and agrees with nothing, a locked account's "*" too
+
+```cu
+(list (%cu-pw-encrypt "pw" "a") (%hd-crypt-equal? "pw" "*") (%hd-crypt-equal? "secret" "$1$saltsalt$9xy1btjgzLYfb7hivXtC//"))
+```
+---
+    ("*" #f #t)
 
 ## gzip and -u
 
