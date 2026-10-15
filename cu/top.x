@@ -122,7 +122,10 @@
     (set! %top-cpu-jif ())
     (set! %top-cpu-prev ())
     (set! %top-names ())
-    ; raw keys, ^C a byte like any other; nil when stdin is no terminal
+    ; the keys come from the caller's stdin, which the platform keeps on fd 3
+    ; while fd 0 carries x's program text; raw, ^C a byte like any other; nil
+    ; when stdin is no terminal
+    (if batch () (cu-stdin-to-command!))
     (def saved (if batch () (Term raw! 0)))
     (def r (%top-cycle iterations interval))
     (if batch () (file-write 1 "\n"))

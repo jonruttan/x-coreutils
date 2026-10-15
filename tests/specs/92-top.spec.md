@@ -111,6 +111,14 @@ to standard output.
 ---
     (0 #t #t "  PID^^^VSZ^VSZRW   RSS (SHR) DIRTY (SHR) STACK COMMAND" #t)
 
+### interactive, its keys from the caller's stdin on fd 3, not x's program text on fd 0: a q there ends it after one screen of two
+
+```cu
+(do (file-write-all (nf "keys") "q") (sys-dup2 0 7) (def k (file-open-read (nf "keys"))) (if (= k 3) () (do (sys-dup2 k 3) (file-close k))) (set-first! %cu-stdin-moved #f) (def r (run (list "top" "-n" "2" "-d" "1"))) (sys-dup2 7 0) (sys-close 7) (list (first (rest (rest r))) (length (filter (fn (_ l) (not (null? (re-search (re-compile "Load average") l)))) (lines (first r))))))
+```
+---
+    (0 1)
+
 ## cleanup
 
 ### the scratch directory goes
