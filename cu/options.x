@@ -1314,6 +1314,19 @@
               (Opts text "popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt"))
             (%cu-hidden-flags (list "-b" "-d" "-m" "-V" "-c" "-a" "-s" "-T" "-k"))
             (%cu-hidden-args (list "-t" "-R" "-Z" "-L" "-H" "-M" "-F"))))))
+    (pair "dumpleases"
+      (list
+        (Opts declare "dumpleases" "[-r|-a] [-d] [-f LEASEFILE]"
+          "Display DHCP leases granted by udhcpd"
+          (list
+            (Opts text "\t-f FILE\tLease file")
+            (Opts text "\t-r\tShow remaining time")
+            (Opts text "\t-a\tShow expiration time")
+            (Opts text "\t-d\tShow time in seconds")
+            (Opts hidden (Opts flag "-a" "--absolute" ""))
+            (Opts hidden (Opts flag "-r" "--remaining" ""))
+            (Opts hidden (Opts arg "-f" "--file" "FILE" ""))
+            (Opts hidden (Opts flag "-d" "--decimal" ""))))))
     (pair "ntpd"
       (list
         (Opts declare "ntpd" "[-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]..."
