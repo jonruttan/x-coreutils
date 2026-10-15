@@ -1,10 +1,11 @@
 # @weight 3
 
-busybox's sha3sum (coreutils/md5_sha1_sum.c) and cryptpw, which is
-mkpasswd too (loginutils/cryptpw.c).  Every expectation is busybox
-1.36.1's own output, in alpine, run as an ordinary user; its cryptpw
-hashes through musl's crypt, sha512 when -m does not say.  A `|` marks
-the end of each line written to standard output.
+busybox's sha3sum, its other digests on a file holding a NUL
+(coreutils/md5_sha1_sum.c), and cryptpw, which is mkpasswd too
+(loginutils/cryptpw.c).  Every expectation is busybox 1.36.1's own
+output, in alpine, run as an ordinary user; its cryptpw hashes through
+musl's crypt, sha512 when -m does not say.  A `|` marks the end of each
+line written to standard output.
 
 ## the fixtures
 
@@ -25,7 +26,7 @@ the shell.
 
 ## sha3sum
 
-### each file's SHA3, 224 bits unless -a says otherwise, - standard input, a file past one block; a file holding a NUL is not digested whole, as no digest here reads one
+### each file's SHA3, 224 bits unless -a says otherwise, - standard input, a file past one block
 
 ```cu
 (do (cr-case #t "-" "@" "@" "-" (list "sha3sum" "abc" "empty")) (cr-case #t "abc" "@" "@" "-" (list "sha3sum" "-a" "256" "-" "long")) (cr-case #t "-" "@" "@" "-" (list "sha3sum" "-a" "384" "abc" "long")) (cr-case #t "-" "@" "@" "-" (list "sha3sum" "-a" "512" "abc" "long")))
@@ -112,6 +113,55 @@ e642824c3f8cf24ad09234ee7d3c766fc9a3a5168d0c94ad73b46fdf  abc|
 stderr:
 sha3sum: can't open 'nope': No such file or directory
 status 1
+```
+
+### a NUL is a byte like any other: each digest reads all of a file, and of standard input
+
+```cu
+(do (cr-case #t "-" "@" "@" "-" (list "md5sum" "nul")) (cr-case #t "-" "@" "@" "-" (list "sha1sum" "nul")) (cr-case #t "-" "@" "@" "-" (list "sha256sum" "nul")) (cr-case #t "-" "@" "@" "-" (list "sha512sum" "nul")) (cr-case #t "-" "@" "@" "-" (list "sha3sum" "nul")) (cr-case #t "nul" "@" "@" "-" (list "sha3sum" "-a" "512" "-")) (cr-case #t "nul" "@" "@" "-" (list "md5sum")) (cr-case #t "nul" "@" "@" "-" (list "sha256sum" "-" "abc")))
+```
+---
+```output
+bf1c3774ed6b5d71aece781645b59cf9  nul|
+stderr:
+status 0
+222e2ff1aaf0bb1d01774e1b55a499bc92711f6b  nul|
+stderr:
+status 0
+4cfb928f5024810421513bbac6fd995f470cd7f19e84a7df7cc135327c293055  nul|
+stderr:
+status 0
+546b56d07a4a3db77bce9c6ed7200bad2051e9ba8e66ca101032fdfdc90402dff0a288fc22279210a88e56d234ae41d133c29f435c1c22e229a9527889c08bb8  nul|
+stderr:
+status 0
+895e72be55b784a17351aa63348dac5a64da8f08bf6dacb97676902b  nul|
+stderr:
+status 0
+601bf5004f9b07e0961c3a7a8e2f50a436f22cb5e0bebb0af9dd09cdeaaaf4c78c749d103ffe57738217559a01b597aec33b9b003679589f4d430aed8abec230  -|
+stderr:
+status 0
+bf1c3774ed6b5d71aece781645b59cf9  -|
+stderr:
+status 0
+4cfb928f5024810421513bbac6fd995f470cd7f19e84a7df7cc135327c293055  -|
+ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad  abc|
+stderr:
+status 0
+```
+
+### -c reads all of each file it checks
+
+```cu
+(do (cr-case #t "-" "printf 'bf1c3774ed6b5d71aece781645b59cf9  nul\\n' > sums" "@" "-" (list "md5sum" "-c" "sums")) (cr-case #t "-" "printf '4cfb928f5024810421513bbac6fd995f470cd7f19e84a7df7cc135327c293055  nul\\n' > sums" "@" "-" (list "sha256sum" "-c" "sums")))
+```
+---
+```output
+nul: OK|
+stderr:
+status 0
+nul: OK|
+stderr:
+status 0
 ```
 
 ## cryptpw

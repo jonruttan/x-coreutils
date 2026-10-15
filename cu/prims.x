@@ -22,6 +22,7 @@
 (import x/sys/host)
 (import x/type/regex)
 (import x/num/float)
+(import x/num/bigint)
 
 (provide cu/prims
   char->integer integer->char byte-at byte-len
@@ -662,6 +663,20 @@
 (def %cu-run-of (fn (_ s) (pair s (byte-len s))))
 
 (def %cu-run-bytes (fn (_ bs n) (pair (bytes->str bs) n)))
+
+; TEXT as a run: a run as it is, a string packed
+(def %cu-as-run (fn (_ t) (if (pair? t) t (%cu-run-of t))))
+
+; run R's bytes onto the list ACC, in order.  The walk never sweeps: its list
+; may hold a whole input, and a collect with a list that long live overflows
+; the C stack marking it.
+(def %cu-run-list
+  (fn (_ r acc)
+    (def t (first r))
+    (def go
+      (fn (self k acc)
+        (if (< k 0) acc (self (- k 1) (pair (byte-at t k) acc)))))
+    (go (- (rest r) 1) acc)))
 
 (def file-write-run (fn (_ fd r) (File write fd (first r) (rest r))))
 
