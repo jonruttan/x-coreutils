@@ -6453,6 +6453,46 @@ NTP client/server
 status 1
 ```
 
+### dumpleases -~
+
+```cu
+(run (list "dumpleases" "-~") "")
+```
+---
+```output
+stderr:
+dumpleases: unrecognized option: ~
+Usage: dumpleases [-r|-a] [-d] [-f LEASEFILE]
+
+Display DHCP leases granted by udhcpd
+
+	-f FILE	Lease file
+	-r	Show remaining time
+	-a	Show expiration time
+	-d	Show time in seconds
+status 1
+```
+
+### dumpleases --nope
+
+```cu
+(run (list "dumpleases" "--nope") "")
+```
+---
+```output
+stderr:
+dumpleases: unrecognized option: nope
+Usage: dumpleases [-r|-a] [-d] [-f LEASEFILE]
+
+Display DHCP leases granted by udhcpd
+
+	-f FILE	Lease file
+	-r	Show remaining time
+	-a	Show expiration time
+	-d	Show time in seconds
+status 1
+```
+
 ### httpd -c
 
 ```cu
