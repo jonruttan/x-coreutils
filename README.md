@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and seventy-eight applets: parity with busybox's `coreutils`
+**A hundred and seventy-nine applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -17,7 +17,7 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `ipcalc`,
 `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
-`kill`, `killall`, `pwdx`, `top` and `lsof`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`kill`, `killall`, `pwdx`, `pmap`, `top` and `lsof`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
@@ -31,7 +31,7 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     install iostat ipcalc join kill killall link ln logname ls lsof
     makemime md5sum mesg mkdir mkfifo mknod mktemp more mountpoint mpstat
     mv nc netcat nice nl nmeter nohup nologin nproc nslookup ntpd od paste
-    patch pgrep pidof pipe_progress pkill popmaildir printenv printf ps
+    patch pgrep pidof pipe_progress pkill pmap popmaildir printenv printf ps
     pwd readlink realpath reformime renice reset rev rm rmdir run-parts
     sendmail seq setsid sha1sum sha256sum sha384sum sha512sum shred shuf
     sleep sort split stat strings sum sync tac tail tar tcpsvd tee telnet
@@ -134,7 +134,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.29.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.30.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -245,6 +245,7 @@ parsed by x-lang's `Opts`.
     cu/iostat.x       iostat: the CPU's shares and each disk's transfers, over the Host
     cu/mpstat.x       mpstat: each processor's shares and interrupt rates, over the Host
     cu/nmeter.x       nmeter: a line of readings laid out by a format string, over the Host
+    cu/pmap.x         pmap: a process's memory regions, over the Host
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
     cu/options.x      each applet's option declaration and help text
     cu/cli.x          the applet table, the option parse, cu-run, cu-main
