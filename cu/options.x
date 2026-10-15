@@ -1361,6 +1361,28 @@
               (Opts text "popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt"))
             (%cu-hidden-flags (list "-b" "-d" "-m" "-V" "-c" "-a" "-s" "-T" "-k"))
             (%cu-hidden-args (list "-t" "-R" "-Z" "-L" "-H" "-M" "-F"))))))
+    (pair "ntpd"
+      (list
+        (Opts declare "ntpd" "[-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]..."
+          "NTP client/server"
+          (append
+            (list
+              (Opts text "\t-d[d]\tVerbose")
+              (Opts text "\t-n\tRun in foreground")
+              (Opts text "\t-q\tQuit after clock is set")
+              (Opts text "\t-N\tRun at high priority")
+              (Opts text "\t-w\tDo not set time (only query peers), implies -n")
+              (Opts text "\t-S PROG\tRun PROG after stepping time, stratum change, and every 11 min")
+              (Opts text "\t-k FILE\tKey file (ntp.keys compatible)")
+              (Opts text "\t-p [keyno:NUM:]PEER")
+              (Opts text "\t\tObtain time from PEER (may be repeated)")
+              (Opts text "\t\tUse key NUM for authentication")
+              (Opts text "\t\tIf -p is not given, 'server HOST' lines")
+              (Opts text "\t\tfrom /etc/ntp.conf are used")
+              (Opts text "\t-l\tAlso run as server on port 123")
+              (Opts text "\t-I IFACE Bind server to IFACE, implies -l"))
+            (%cu-hidden-flags (list "-n" "-q" "-N" "-x" "-w" "-l" "-d" "-4" "-6" "-a" "-A" "-b" "-g" "-L"))
+            (%cu-hidden-args (list "-k" "-p" "-S" "-I"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list

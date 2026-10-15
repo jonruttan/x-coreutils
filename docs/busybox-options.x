@@ -191,6 +191,7 @@
     (list "reformime" (%letters "xXdeisrcmhoO"))
     (list "sendmail" (%letters "tfoiwHSav"))
     (list "popmaildir" (%letters "bdmVcasTktRZLHMF"))
+    (list "ntpd" (%letters "nqNxkwpSlId46aAbgL"))
     (list "tcpsvd" (%letters "hEvcCbul"))
     (list "udpsvd" (%letters "hEvcul"))
     (list "ftpd" (%letters "wAavStT"))

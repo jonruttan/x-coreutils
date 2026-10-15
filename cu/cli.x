@@ -131,6 +131,7 @@
     (pair "reformime" %cu-reformime)
     (pair "sendmail" %cu-sendmail)
     (pair "popmaildir" %cu-popmaildir)
+    (pair "ntpd" %cu-ntpd)
     (pair "tcpsvd" %cu-tcpsvd)
     (pair "udpsvd" %cu-udpsvd)
     (pair "ftpd" %cu-ftpd)
