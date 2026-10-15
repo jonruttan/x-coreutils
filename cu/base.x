@@ -74,6 +74,7 @@
 (include-once "./mime.x")
 (include-once "./sendmail.x")
 (include-once "./popmaildir.x")
+(include-once "./ntpd.x")
 (include-once "./tcpsvd.x")
 (include-once "./ftpd.x")
 (include-once "./ipcalc.x")

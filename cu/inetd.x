@@ -138,10 +138,12 @@
 
 (def %in-blank? (fn (_ c) (if (= c #\space) #t (= c #\tab))))
 
-; config_read with "# \t" and PARSE_NORMAL: the tokens of LINE, at most 26,
+; config_read with "# \t" and PARSE_NORMAL: the tokens of LINE, at most MOST,
 ; the last taking the rest of the line; nil for a blank or comment line
-(def %in-tokens
-  (fn (_ line)
+(def %in-tokens (fn (_ line) (%in-tokens-max line 26)))
+
+(def %in-tokens-max
+  (fn (_ line most)
     (def n (byte-len line))
     (def skip (fn (self i) (if (if (< i n) (%in-blank? (byte-at line i)) #f) (self (+ i 1)) i)))
     (def stop? (fn (_ i) (if (>= i n) #t (= (byte-at line i) #\#))))
@@ -152,8 +154,8 @@
           (let back ((e e)) (if (if (> e i) (%in-blank? (byte-at line (- e 1))) #f) (back (- e 1)) e)))))
     (let go ((i (skip 0)) (t 0) (acc ()))
       (if (stop? i) (reverse acc)
-        (let ((e (if (= t 25) (rest-end i) (word-end i))))
-          (go (if (= t 25) n (skip e)) (+ t 1) (pair (substring line i e) acc)))))))
+        (let ((e (if (= t (- most 1)) (rest-end i) (word-end i))))
+          (go (if (= t (- most 1)) n (skip e)) (+ t 1) (pair (substring line i e) acc)))))))
 
 (def %in-index-of
   (fn (_ s c)

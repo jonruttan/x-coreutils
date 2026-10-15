@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and seventy-five applets: parity with busybox's `coreutils`
+**A hundred and seventy-six applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -15,9 +15,9 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 `ttysize`, `nologin` and `pipe_progress`, its `getopt` and `run-parts`,
 its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
-`inetd`, `fakeidentd`, `telnet`, `telnetd`, `ipcalc`, `tcpsvd` and
-`udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`, `kill`,
-`killall`, `pwdx` and `top`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `ipcalc`, `tcpsvd`
+and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
+`kill`, `killall`, `pwdx` and `top`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
@@ -30,8 +30,8 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     gunzip gzip hd head hexdump hostid hostname httpd id inetd install
     iostat ipcalc join kill killall link ln logname ls makemime md5sum
     mesg mkdir mkfifo mknod mktemp more mountpoint mpstat mv nc netcat
-    nice nl nmeter nohup nologin nproc nslookup od paste patch pgrep pidof
-    pipe_progress pkill popmaildir printenv printf ps pwd readlink
+    nice nl nmeter nohup nologin nproc nslookup ntpd od paste patch pgrep
+    pidof pipe_progress pkill popmaildir printenv printf ps pwd readlink
     realpath reformime renice reset rev rm rmdir run-parts sendmail seq
     setsid sha1sum sha256sum sha384sum sha512sum shred shuf sleep sort
     split stat strings sum sync tac tail tar tcpsvd tee telnet telnetd
@@ -226,6 +226,7 @@ parsed by x-lang's `Opts`.
     cu/mime.x         makemime and reformime: MIME messages made, and taken apart to files or a program
     cu/sendmail.x     sendmail: a message on stdin sent by SMTP, -S or a -H helper, AUTH LOGIN or PLAIN
     cu/popmaildir.x   popmaildir: a POP3 mailbox fetched into a maildir, by a connection helper or stdin
+    cu/ntpd.x         ntpd: an NTP client and server, its clock filter, selection and discipline, -k keys
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order
