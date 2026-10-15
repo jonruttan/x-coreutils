@@ -2374,6 +2374,25 @@ stderr:
 status 0
 ```
 
+### dumpleases
+
+```cu
+(run (list "dumpleases" "--help") "")
+```
+---
+```output
+Usage: dumpleases [-r|-a] [-d] [-f LEASEFILE]|
+|
+Display DHCP leases granted by udhcpd|
+|
+	-f FILE	Lease file|
+	-r	Show remaining time|
+	-a	Show expiration time|
+	-d	Show time in seconds|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu
