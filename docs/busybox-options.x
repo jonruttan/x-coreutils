@@ -76,6 +76,7 @@
     (list "ln" (%letters "sfnbtv"))
     (list "logname" ())
     (list "ls" (%letters "1AaCxdLHRFplinshrSXvctuw"))
+    (list "lsof" ())
     (list "md5sum" (%letters "csw"))
     (list "mkdir" (%letters "mp"))
     (list "mesg" ())

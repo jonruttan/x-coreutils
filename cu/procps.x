@@ -1,6 +1,6 @@
 ; # x-coreutils -- the small tools, as applets
 ;
-; ## cu/procps.x -- uptime, free
+; ## cu/procps.x -- uptime, free, ps, pidof, pgrep, pkill, lsof
 ;
 ; @author [Jon Ruttan](jonruttan@gmail.com)
 ; @copyright 2026 Jon Ruttan
@@ -743,6 +743,50 @@
         (if (>= i end) (bytes->str (reverse acc))
           (let ((b (byte-at s i))) (self (+ i 1) (pair (if (< b 32) #\space b) acc))))))
     (if (= (%cu-ptr-call %ps-c-strcspn s %ps-controls) end) s (go 0 ()))))
+
+; --- lsof -------------------------------------------------------------------
+;
+; busybox's procps/lsof.c: every process's open descriptors but lsof's own, a
+; line each -- pid, executable, descriptor, and what it holds -- tab-separated.
+; busybox reads no options and no operands.  Only the processes this user may
+; look into are listed; another's answers no descriptors, as busybox's opendir
+; of its /proc/PID/fd fails.  A process whose executable the kernel will not
+; name prints (null), as musl's printf does busybox's NULL.  Linux names what
+; a descriptor holds by its /proc/PID/fd link; Darwin names a file by its
+; path, and anything else by its type and the kernel's number for it, as
+; Linux spells a socket's or pipe's link.
+
+; what descriptor record F holds, as a /proc/PID/fd link reads
+(def %lsof-target
+  (fn (_ f)
+    (def name (Assoc get (lit name) f))
+    (def type (Assoc get (lit type) f))
+    (def id (Assoc get (lit id) f))
+    (def kind (if (null? type) "?" (symbol->str type)))
+    (match
+      ((not (null? name)) name)
+      ((null? id) kind)
+      (#t (string-concat (list kind ":[" (%cu-int->str id) "]"))))))
+
+(def %cu-lsof
+  (fn (_ argv stdin-thunk)
+    (def me (sys-getpid))
+    (%pg-each (%ps-sorted (host-processes))
+      (fn (_ p)
+        (def pid (Assoc get (lit pid) p))
+        (def fs (if (= pid me) () (host-files pid)))
+        (if (null? fs) ()
+          (let ((head (string-concat (list (%cu-int->str pid) "\t"
+                                           (let ((e (host-exe pid))) (if (null? e) "(null)" e)) "\t"))))
+            ((fn (self l)
+               (if (null? l) ()
+                 (do (display (string-concat (list head (%cu-int->str (Assoc get (lit fd) (first l))) "\t"
+                                                   (%lsof-target (first l)) "\n")))
+                     ; a process can hold thousands of descriptors
+                     (%cu-sweep-tick! %cu-sweep-lines)
+                     (self (rest l)))))
+             fs)))))
+    0))
 
 ; --- pwdx -------------------------------------------------------------------
 

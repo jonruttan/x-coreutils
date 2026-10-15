@@ -78,6 +78,7 @@ the work.  Applet parity is the other axis: see the README.
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -a -A -x -d -L -H -R -p -F -l -i -n -s -h -S -X -v -t -r -c -u -C -w |  | 100% |
+| `lsof` |  |  |  | - |
 | `makemime` | -c -e -o -C -N -a | -c -e -o -C -N -a |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mesg` |  |  |  | - |
