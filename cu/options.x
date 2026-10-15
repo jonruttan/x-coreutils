@@ -2224,6 +2224,13 @@
             (Opts flag "-x" "exec(PROG,ARGS) instead of sh -c 'PROG ARGS'")
             (Opts hidden (Opts flag "-d" ""))))
         (lit leading)))
+    (pair "pmap"
+      (list
+        (Opts declare "pmap" "[-xq] PID..."
+          "Display process memory usage"
+          (list
+            (Opts flag "-x" "Show details")
+            (Opts flag "-q" "Quiet")))))
     ; test and its spellings are an EXPRESSION, not an option list: the operators
     ; are declared so the parse knows them, and the applet parses the expression
     ; itself.  --help is an operand, as POSIX has it.
