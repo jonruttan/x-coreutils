@@ -21,7 +21,8 @@ REF="$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' "$BUNDLE/lang.xon")"
 TAG="x-coreutils-linux:$REF"
 
 "$ENGINE" image inspect "$TAG" >/dev/null 2>&1 ||
-	"$ENGINE" build --build-arg X_LANG_REF="$REF" -t "$TAG" "$BUNDLE/tests/linux"
+	"$ENGINE" build -f "$BUNDLE/tests/linux/Containerfile" --build-arg X_LANG_REF="$REF" \
+		-t "$TAG" "$BUNDLE/tests/linux"
 
 exec "$ENGINE" run --rm --privileged -v "$BUNDLE:/x-coreutils" \
 	-e SPEC_PATH=/x-coreutils/tests/linux/specs "$TAG" \
