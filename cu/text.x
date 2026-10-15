@@ -528,6 +528,26 @@
     (let ((text (file-or-err (fn (_) (file-read-all name)))))
       (if (Err err? text) (do (%cu-say says name text) text) text))))
 
+; One operand read whole as a run, every byte kept, `-` standard input -- or,
+; once SAYS has said on stderr why it could not be, the io Err it failed with
+(def %cu-read-run-said
+  (fn (_ says name stdin-thunk)
+    (let ((g (%cu-fold-one name stdin-thunk (fn (_ p acc) (pair p acc)) ())))
+      (if (null? (rest g)) (%cu-runs-join (first g))
+        (do (%cu-say says name (rest g)) (rest g))))))
+
+; the runs RS, last first, joined into one run: their texts concatenated where
+; none holds a NUL, and otherwise their bytes gathered into one buffer
+(def %cu-runs-join
+  (fn (_ rs)
+    (if (null? (filter %cu-run-nul? rs))
+      (%cu-run-of (string-concat (reverse (map %cu-run-text rs))))
+      (let ((go (fn (self rs acc n)
+                  (if (null? rs) (%cu-run-bytes acc n)
+                    (self (rest rs) (%cu-run-list (first rs) acc)
+                      (+ n (rest (first rs))))))))
+        (go rs () 0)))))
+
 ; the line SAYS gives for NAME and its io Err, on stderr -- or nothing, where
 ; SAYS answers nil, as cmp -s does
 (def %cu-say
@@ -573,6 +593,17 @@
         (if (Err err? text)
           (self (rest ops) stdin-thunk says one 1)
           (do (one (first ops) text)
+              (self (rest ops) stdin-thunk says one st)))))))
+
+; %cu-each-said with each operand read as a run, so a NUL and the bytes after
+; it reach ONE
+(def %cu-each-run-said
+  (fn (self ops stdin-thunk says one st)
+    (if (null? ops) st
+      (let ((r (%cu-read-run-said says (first ops) stdin-thunk)))
+        (if (Err err? r)
+          (self (rest ops) stdin-thunk says one 1)
+          (do (one (first ops) r)
               (self (rest ops) stdin-thunk says one st)))))))
 
 ; the words most applets say it in, whichever way the file failed:

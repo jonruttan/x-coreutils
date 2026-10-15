@@ -81,12 +81,9 @@
 ; zero for any message x can hold.
 (def %cu-sha512-pad
   (fn (_ text)
-    (def len (byte-len text))
-    (def bytes
-      (let ((go (fn (self i acc)
-                  (if (< i 0) acc
-                    (self (- i 1) (pair (byte-at text i) acc))))))
-        (go (- len 1) ())))
+    (def run (%cu-as-run text))
+    (def len (rest run))
+    (def bytes (%cu-run-list run ()))
     (def zeros
       (let ((k (% (- 239 (% len 128)) 128)))
         (let ((go (fn (self n acc)

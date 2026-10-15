@@ -42,10 +42,10 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     users uudecode uuencode uuidgen usleep vi vmstat w watch wc wget
     which who whois whoami xargs xxd yes zcat [ [[
 
-Highlights: **every digest is byte-identical with the system tool** on
-input with no NUL byte -- `md5sum`, `sha1sum`, `sha256sum` and
-`sha512sum` are the FIPS/RFC algorithms in x, and `cksum` is the POSIX
-CRC-32 with its length fold; `sort` is a merge sort with busybox's whole
+Highlights: **every digest is byte-identical with the system tool** --
+`md5sum`, `sha1sum`, `sha256sum` and `sha512sum` are the FIPS/RFC
+algorithms in x, reading every byte, a NUL too, and `cksum` is the
+POSIX CRC-32 with its length fold, on input with no NUL byte; `sort` is a merge sort with busybox's whole
 option set, keys (`-k`, `-t`) included; `expr` is a recursive-descent
 parser over the argument list with its own anchored BRE matcher,
 `\(...\)` capture and all; `chmod` reads an octal mode and the whole
@@ -85,12 +85,13 @@ Self-contained: no `(requires-lang ...)`.
   - **`which` tests existence**, not the execute bit.
   - **Text, not binary.** An applet holds what it reads as a string,
     and a string's length stops at its first NUL byte, so `cat`, `od`,
-    `wc`, `cmp`, `dd`, the digests and the other readers see a file or
-    a stream only up to its first NUL -- `cmp` can call two different
+    `wc`, `cmp`, `dd`, `cksum`, `sum` and the other readers see a file
+    or a stream only up to its first NUL -- `cmp` can call two different
     files the same.  What a tool *writes* carries its own count, so an
     escape that names NUL writes the byte: `printf '\0'`, `echo -e
     '\0'` and `tr a '\0'` all do.  `cp`, `mv` and `install`
-    copy every byte; `sort -z`, `shuf -z` and `xargs -0` read NUL as a
+    copy every byte, and the digests (`md5sum` to `sha3sum`, `-c` too)
+    read every byte; `sort -z`, `shuf -z` and `xargs -0` read NUL as a
     separator, and `env -0` writes it.
   - **`expr`'s regular expressions are its own grammar**: literals,
     `.`, `*`, bracket expressions with ranges and negation, `$`, and

@@ -25,15 +25,13 @@
   (fn (_ x) (bit-xor x %cu-m32)))
 
 ; the message as bytes: the raw bytes, then 0x80, zeros to 56 mod 64,
-; and eight bytes of bit length -- LOW byte first for MD5.
+; and eight bytes of bit length -- LOW byte first for MD5.  TEXT is a string
+; or a run, so a NUL in it is a byte like any other.
 (def %cu-md5-pad
   (fn (_ text)
-    (def len (byte-len text))
-    (def bytes
-      (let ((go (fn (self i acc)
-                  (if (< i 0) acc
-                    (self (- i 1) (pair (byte-at text i) acc))))))
-        (go (- len 1) ())))
+    (def run (%cu-as-run text))
+    (def len (rest run))
+    (def bytes (%cu-run-list run ()))
     (def zeros
       (let ((k (% (- 119 (% len 64)) 64)))
         (let ((go (fn (self n acc)
@@ -360,8 +358,7 @@
             (if (null? row)
               (do (if warn? (file-write 2 (string-append name ": invalid format\n")) ())
                   (self (rest ls) (+ total 1) (+ failed 1)))
-              (let ((text (if (string=? (rest row) "-") (stdin-thunk)
-                            (%cu-read-said says (rest row)))))
+              (let ((text (%cu-read-run-said says (rest row) stdin-thunk)))
                 (if (if (Err err? text) #f (%cu-hex=? (digest text) (first row)))
                   (do (say (string-append (rest row) ": OK"))
                       (self (rest ls) (+ total 1) failed))
@@ -394,7 +391,7 @@
         (%cu-sum-check-lists name digest ops stdin-thunk
           (Opts on? o "-s") (Opts on? o "-w") 0))
       ((if (Opts on? o "-s") #t (Opts on? o "-w")) (%cu-usage name))
-      (#t (%cu-each-said ops stdin-thunk (%cu-sum-says name) one 0)))))
+      (#t (%cu-each-run-said ops stdin-thunk (%cu-sum-says name) one 0)))))
 
 (def %cu-md5sum
   (fn (_ argv stdin-thunk)
