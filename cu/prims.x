@@ -22,6 +22,7 @@
 (import x/sys/host)
 (import x/type/regex)
 (import x/num/float)
+(import x/num/bigint)
 
 (provide cu/prims
   char->integer integer->char byte-at byte-len
