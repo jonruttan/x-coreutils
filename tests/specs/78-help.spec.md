@@ -2345,6 +2345,35 @@ stderr:
 status 0
 ```
 
+### ntpd
+
+```cu
+(run (list "ntpd" "--help") "")
+```
+---
+```output
+Usage: ntpd [-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]...|
+|
+NTP client/server|
+|
+	-d[d]	Verbose|
+	-n	Run in foreground|
+	-q	Quit after clock is set|
+	-N	Run at high priority|
+	-w	Do not set time (only query peers), implies -n|
+	-S PROG	Run PROG after stepping time, stratum change, and every 11 min|
+	-k FILE	Key file (ntp.keys compatible)|
+	-p [keyno:NUM:]PEER|
+		Obtain time from PEER (may be repeated)|
+		Use key NUM for authentication|
+		If -p is not given, 'server HOST' lines|
+		from /etc/ntp.conf are used|
+	-l	Also run as server on port 123|
+	-I IFACE Bind server to IFACE, implies -l|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu
