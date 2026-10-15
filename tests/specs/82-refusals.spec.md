@@ -8161,6 +8161,50 @@ Show current directory for PIDs
 status 1
 ```
 
+### sysctl -~
+
+```cu
+(run (list "sysctl" "-~") "")
+```
+---
+```output
+stderr:
+sysctl: unrecognized option: ~
+Usage: sysctl [-enq] { -a | -p [FILE]... | [-w] [KEY[=VALUE]]... }
+
+Show/set kernel parameters
+
+	-e	Don't warn about unknown keys
+	-n	Don't show key names
+	-q      Quiet
+	-a	Show all values
+	-p	Set values from FILEs (default /etc/sysctl.conf)
+	-w	Set values
+status 1
+```
+
+### sysctl --nope
+
+```cu
+(run (list "sysctl" "--nope") "")
+```
+---
+```output
+stderr:
+sysctl: unrecognized option: nope
+Usage: sysctl [-enq] { -a | -p [FILE]... | [-w] [KEY[=VALUE]]... }
+
+Show/set kernel parameters
+
+	-e	Don't warn about unknown keys
+	-n	Don't show key names
+	-q      Quiet
+	-a	Show all values
+	-p	Set values from FILEs (default /etc/sysctl.conf)
+	-w	Set values
+status 1
+```
+
 ### top -~
 
 ```cu

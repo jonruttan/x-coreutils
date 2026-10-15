@@ -492,6 +492,28 @@
     (do (cu-stdin-to-command!)
         (file-read-run 0 %cu-piece-bytes))))
 
+; FD's bytes to the end, or the io Err its read answered.  A file under /proc
+; or /sys has no size for stat to give, so it is read until a read answers 0.
+(def file-read-to-end
+  (fn (_ fd path)
+    (let go ((acc ()))
+      (let ((buf (%str-make-raw 4096)))
+        (let ((r (File read fd buf 4096)))
+          (match
+            ((not (number? r)) (string-concat (reverse acc)))
+            ((< r 0) (Err from-errno (Err errno-of r) (lit read) path))
+            ((= r 0) (string-concat (reverse acc)))
+            (#t (go (pair (substring buf 0 r) acc)))))))))
+
+; PATH whole, read to its end, as file-read-all reads a file stat sizes;
+; raises the io Err an open or a read answered
+(def file-read-unsized
+  (fn (_ path)
+    (let ((fd (file-open-or-err file-open-read path)))
+      (if (Err err? fd) (error fd)
+        (let ((text (file-read-to-end fd path)))
+          (do (file-close fd) (if (Err err? text) (error text) text)))))))
+
 ; Up to N bytes of FD as a run, (BUFFER . COUNT): a buffer of their own, which
 ; holds every byte read, a NUL too -- or ("" . 0) at the end or where the read
 ; fails

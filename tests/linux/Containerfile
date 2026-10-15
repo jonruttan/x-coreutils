@@ -1,0 +1,20 @@
+# The Linux leg: x built at the release lang.xon declares, beside busybox, in
+# a container the specs under tests/linux/specs run in as root.  Those are the
+# applets whose work is the kernel's -- dmesg, sysctl, mount, ifconfig and the
+# rest -- which the macOS suite cannot exercise.
+#
+# Alpine, so the engine links against musl and busybox is the oracle's own.
+FROM alpine:3.20
+RUN apk add --no-cache build-base git curl
+# The platform's tools call `shasum`; Alpine has the digests under their own
+# names.
+COPY shasum /usr/local/bin/shasum
+ARG X_LANG_REF
+RUN test -n "$X_LANG_REF" \
+ && git clone --depth 1 --branch "$X_LANG_REF" https://github.com/jonruttan/x-lang.git /x-lang
+WORKDIR /x-lang
+# The engine is built from source: the published linux artifact is glibc, and
+# there is none for arm64.
+RUN make engine-source && make && make boot
+ENV X=/x-lang/x.sh
+WORKDIR /x-coreutils

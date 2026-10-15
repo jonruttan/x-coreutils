@@ -77,6 +77,7 @@
     (list "ln" (%letters "sfnbtv"))
     (list "logname" ())
     (list "ls" (%letters "1AaCxdLHRFplinshrSXvctuw"))
+    (list "lsmod" ())
     (list "lsof" ())
     (list "md5sum" (%letters "csw"))
     (list "mkdir" (%letters "mp"))
@@ -133,6 +134,7 @@
     (list "strings" (%letters "afont"))
     (list "sum" (%letters "rs"))
     (list "sync" (%letters "df"))
+    (list "sysctl" (%letters "enqapw"))
     (list "tac" ())
     (list "tail" (%letters "cfnqsv"))
     (list "tar" (list "-c" "-x" "-t" "-z" "-J" "-j" "-a" "-h" "-m" "-v" "-o" "-k" "-O" "-f" "-C"
