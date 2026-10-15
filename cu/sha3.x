@@ -12,12 +12,13 @@
 
 (import x/codec/sha3)
 
-; TEXT's digest at WIDTH bits, as hex: TEXT a string, or a run of standard
-; input, digested by its count.  Past 512 bits busybox writes only the
-; state's first 64 bytes and zeros after them, as its sha3_end copies 64.
+; TEXT's digest at WIDTH bits, as hex: TEXT a string, or a run, digested by
+; its count.  Past 512 bits busybox writes only the state's first 64 bytes
+; and zeros after them, as its sha3_end copies 64.
 (def %cu-sha3-hex
   (fn (_ width text)
-    (def hex (if (pair? text) (Sha3 hex-n width (first text) (rest text)) (Sha3 hex-n width text (byte-len text))))
+    (def run (%cu-as-run text))
+    (def hex (Sha3 hex-n width (first run) (rest run)))
     (if (<= width 512) hex
       (string-append (substring hex 0 128) (Str pad-left (- (%cal/ width 4) 128) #\0 "")))))
 

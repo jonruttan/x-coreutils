@@ -54,12 +54,9 @@
 ; big-endian bit length
 (def %cu-sha-pad
   (fn (_ text)
-    (def len (byte-len text))
-    (def bytes
-      (let ((go (fn (self i acc)
-                  (if (< i 0) acc
-                    (self (- i 1) (pair (byte-at text i) acc))))))
-        (go (- len 1) ())))
+    (def run (%cu-as-run text))
+    (def len (rest run))
+    (def bytes (%cu-run-list run ()))
     (def zeros
       (let ((k (% (- 119 (% len 64)) 64)))
         (let ((go (fn (self n acc)
