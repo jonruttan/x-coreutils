@@ -18,14 +18,15 @@
 ; the headers are read one after another from where the search left the file
 ; -- its end, so the read comes up short.  Standard input will not seek here,
 ; so `-` is always read that way, from its start, as busybox reads a pipe.
-; Members are stored or deflated: deflate goes through Zlib's streams (as
+; Members are stored or deflated: deflate goes through the Inflate stream (as
 ; gzip's does, cu/gzip.x), and a busybox built without bzip2, lzma and xz
 ; refuses the rest as an unsupported method.
 ;
 ; The archive is read a piece at a time through tar's reader (cu/tar.x),
 ; which a seek starts afresh.
 
-(import x/codec/zlib)
+(import x/codec/inflate)
+(import x/codec/crc32)
 
 (def %uz-room 32768)
 
@@ -282,7 +283,7 @@
 (def %uz-inflate!
   (fn (_ u z fd)
     (def rd (%uz-rd u))
-    (def s (Zlib inflater (lit raw)))
+    (def s (Inflate stream))
     (def out (%str-make-raw %uz-room))
     ; the CRC, the length, how much of OUT is filled, the input left
     (def st (vec-build 4 (fn (_ i) (if (= i 3) (%uz-csize z) 0))))
@@ -290,32 +291,33 @@
       (fn (_)
         (let ((n (vec-ref st 2)))
           (do (if (> n 0) (File write fd out n) ())
-              (vec-set! st 0 (Zlib crc32 (vec-ref st 0) out n))
+              (vec-set! st 0 (Crc32 update (vec-ref st 0) out 0 n))
               (vec-set! st 1 (+ (vec-ref st 1) n))
               (vec-set! st 2 0)))))
-    (def bad
-      (fn (_ msg) (do (Zlib end s) (%uz-say msg) (%uz-die "inflate error"))))
-    ; with the input used up, inflate is called with none, for what it holds
+    ; N bytes of R from AT into OUT, written out each time it fills
+    (def take!
+      (fn (self r at n)
+        (unless (= n 0)
+          (let ((k (%tar-min (- %uz-room (vec-ref st 2)) n)))
+            (do (%gz-copy (%gz-at (%cu-str->ptr out) (vec-ref st 2)) (%gz-at (%cu-str->ptr r) at) k)
+                (vec-set! st 2 (+ (vec-ref st 2) k))
+                (when (= (vec-ref st 2) %uz-room) (emit!))
+                (self r (+ at k) (- n k)))))))
+    (def bad (fn (_ msg) (do (%uz-say msg) (%uz-die "inflate error"))))
     (def go
       (fn (self)
         (let ((p (if (> (vec-ref st 3) 0) (%uz-piece rd) ())))
-          (let ((at (if (null? p) 0 (vec-ref rd 2))) (filled (vec-ref st 2)))
-            (let ((r (guard (e (if (eq? (%cu-err-label e) (lit value)) (bad "corrupted data") (error e)))
-                       (Zlib step s (if (null? p) "" (first p)) at
-                         (if (null? p) 0 (%tar-min (- (rest p) at) (vec-ref st 3)))
-                         out filled (- %uz-room filled) #f))))
-              (do (if (null? p) ()
-                    (do (vec-set! rd 2 (+ at (first r)))
-                        (vec-set! rd 3 (+ (vec-ref rd 3) (first r)))
-                        (vec-set! st 3 (- (vec-ref st 3) (first r)))))
-                  (vec-set! st 2 (+ filled (first (rest r))))
-                  (match
-                    ((eq? (first (rest (rest r))) (lit end)) (emit!))
-                    ((= (vec-ref st 2) %uz-room) (do (emit!) (self)))
-                    ((if (null? p) (= (first (rest r)) 0) #f) (bad "unexpected end of file"))
-                    (#t (self)))))))))
+          (if (null? p) (bad "unexpected end of file")
+            (let ((at (vec-ref rd 2)))
+              (let ((n (%tar-min (- (rest p) at) (vec-ref st 3))))
+                (let ((r (guard (e (if (eq? (%cu-err-label e) (lit value)) (bad "corrupted data") (error e)))
+                           (Inflate feed s (first p) at n))))
+                  (do (vec-set! rd 2 (+ at n))
+                      (vec-set! rd 3 (+ (vec-ref rd 3) n))
+                      (vec-set! st 3 (- (vec-ref st 3) n))
+                      (take! (first r) 0 (first (rest r)))
+                      (if (Inflate done? s) (emit!) (do (%cu-sweep-tick! 0) (self)))))))))))
     (do (go)
-        (Zlib end s)
         (%uz-skip! u (vec-ref st 3))
         (pair (vec-ref st 0) (vec-ref st 1)))))
 
@@ -658,7 +660,7 @@
                       (let ((m (%uz-next-member u cdf)))
                         (if (null? m) ()
                           (do (%uz-member! u (first m) (rest m) tot)
-                              (%cu-sweep-tick! %cu-sweep-lines)
+                              (%cu-sweep-tick! 0)
                               (self)))))))
             (go)))
         (%uz-make-links! u)
