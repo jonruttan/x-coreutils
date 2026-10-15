@@ -7,8 +7,9 @@ ARGS split as sh splits them -- in CONF, CONF2 and ARGS, @P is a free port of
 path -- and makes one exchange with it.  t: one TCP connection, sent REQ and
 read to its end; t2: two in turn; tl: the length of the reply; tN: its first N
 bytes; t6: one connection to ::1; u: one datagram, and what comes back within
-a second; ul: its length; h: CONF2 written over the config, SIGHUP, then t
-with hi; w: two seconds' wait; n: none.  Then it sends SIGTERM.  The services
+a second; ul: its length; h: CONF2 written over the config, SIGHUP, a wait
+until the reply to hi is not the one before it, then t with hi; w: two
+seconds' wait; n: none.  Then it sends SIGTERM.  The services
 table names echo, discard, chargen, daytime, time and myserv as @P, for TCP
 and UDP alike.  Every expectation is busybox's own output for the same case,
 run as an unprivileged user: === before each reply, the status, then
@@ -72,6 +73,15 @@ shown as LPORT, @Q's as QPORT.
     (let wait ((n 0))
       (unless (if (>= n 60) #t (guard (_ #t) (do (Socket close (Socket udp-bind port)) #f)))
         (do (sys-usleep 50000) (wait (+ n 1)))))))
+  ; inetd rereads its config some time after SIGHUP arrives: wait, up to
+  ; 3 s, until a connection's reply is not the one from before the signal
+  ; -- the new service answers, or the dropped one refuses.  One probe
+  ; each 50 ms.
+  (def in-reloaded (fn (_ port req before)
+    (let wait ((n 0))
+      (unless (if (>= n 60) #t
+                (not (string=? before (in-tcp (guard (_ ()) (Socket tcp-connect "127.0.0.1" port)) req ()))))
+        (do (sys-usleep 50000) (wait (+ n 1)))))))
   (def in-udp (fn (_ port req)
     (in-udp-held port)
     (let ((fd (Socket udp-connect "127.0.0.1" port)))
@@ -90,9 +100,10 @@ shown as LPORT, @Q's as QPORT.
            ((string=? kind "u") (string-append "===\n" (in-udp port req)))
            ((string=? kind "ul") (string-concat (list "===\n" (%cu-int->str (byte-len (in-udp port req))) "\n")))
            ((string=? kind "h")
-             (do (file-write-all (in-f "conf") (file-read-all (in-f "conf2")))
-                 (sys-kill pid 1) (sys-usleep 400000)
-                 (string-append "===\n" (in-tcp (in-conn port) "hi\n" ()))))
+             (let ((before (in-tcp (in-conn port) "hi\n" ())))
+               (do (file-write-all (in-f "conf") (file-read-all (in-f "conf2")))
+                   (sys-kill pid 1) (in-reloaded port "hi\n" before)
+                   (string-append "===\n" (in-tcp (in-conn port) "hi\n" ())))))
            ((string=? kind "w") (do (sys-usleep 2000000) ""))
            (#t ""))))
   (def in-run (fn (_ args conf script kind req)

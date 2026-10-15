@@ -58,6 +58,7 @@
     (list "fold" (%letters "bsw"))
     (list "free" (%letters "bkmgh"))
     (list "fsync" (%letters "d"))
+    (list "fuser" (%letters "mks64"))
     (list "getopt" (%letters "onqQsTual"))
     (list "groups" ())
     (list "gunzip" (%letters "cfkt"))

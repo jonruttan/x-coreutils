@@ -8590,6 +8590,68 @@ Display process memory usage
 status 1
 ```
 
+### fuser -~
+
+```cu
+(run (list "fuser" "-~") "")
+```
+---
+```output
+stderr:
+fuser: unrecognized option: ~
+Usage: fuser [-msk46] [-SIGNAL] FILE or PORT/PROTO
+
+Find processes which use FILEs or PORTs
+
+	-m	Find processes which use same fs as FILEs
+	-4,-6	Search only IPv4/IPv6 space
+	-s	Don't display PIDs
+	-k	Kill found processes
+	-SIGNAL	Signal to send (default: KILL)
+status 1
+```
+
+### fuser --nope
+
+```cu
+(run (list "fuser" "--nope") "")
+```
+---
+```output
+stderr:
+fuser: unrecognized option: nope
+Usage: fuser [-msk46] [-SIGNAL] FILE or PORT/PROTO
+
+Find processes which use FILEs or PORTs
+
+	-m	Find processes which use same fs as FILEs
+	-4,-6	Search only IPv4/IPv6 space
+	-s	Don't display PIDs
+	-k	Kill found processes
+	-SIGNAL	Signal to send (default: KILL)
+status 1
+```
+
+### fuser with no operand
+
+```cu
+(run (list "fuser" "-m") "")
+```
+---
+```output
+stderr:
+Usage: fuser [-msk46] [-SIGNAL] FILE or PORT/PROTO
+
+Find processes which use FILEs or PORTs
+
+	-m	Find processes which use same fs as FILEs
+	-4,-6	Search only IPv4/IPv6 space
+	-s	Don't display PIDs
+	-k	Kill found processes
+	-SIGNAL	Signal to send (default: KILL)
+status 1
+```
+
 ### test -~
 
 ```cu

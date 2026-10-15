@@ -99,5 +99,6 @@
 (include-once "./nmeter.x")
 (include-once "./pmap.x")
 (include-once "./watch.x")
+(include-once "./fuser.x")
 (include-once "./options.x")
 (include-once "./cli.x")

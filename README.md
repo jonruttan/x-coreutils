@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and eighty-two applets: parity with busybox's `coreutils`
+**A hundred and eighty-three applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -17,7 +17,7 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `ipcalc`,
 `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
-`kill`, `killall`, `pwdx`, `pmap`, `top` and `lsof`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`kill`, `killall`, `pwdx`, `pmap`, `top`, `lsof` and `fuser`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
@@ -28,9 +28,9 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
     dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand
     expr factor fakeidentd false find flock fold free fsync ftpd ftpget
-    ftpput getopt groups gunzip gzip hd head hexdump hostid hostname
-    httpd id inetd install iostat ipcalc join kill killall link ln
-    logname ls lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd
+    ftpput fuser getopt groups gunzip gzip hd head hexdump hostid
+    hostname httpd id inetd install iostat ipcalc join kill killall link
+    ln logname ls lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd
     mktemp more mountpoint mpstat mv nc netcat nice nl nmeter nohup
     nologin nproc nslookup ntpd od paste patch pgrep pidof pipe_progress
     pkill pmap popmaildir printenv printf ps pwd readlink realpath
@@ -251,6 +251,7 @@ parsed by x-lang's `Opts`.
     cu/nmeter.x       nmeter: a line of readings laid out by a format string, over the Host
     cu/pmap.x         pmap: a process's memory regions, over the Host
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
+    cu/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
     cu/options.x      each applet's option declaration and help text
     cu/cli.x          the applet table, the option parse, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
