@@ -2045,6 +2045,24 @@
           "Display the time since the last boot"
           (list
             (Opts hidden (Opts flag "-s" ""))))))
+    ; busybox's help pairs -4 and -6 on one line and names -SIGNAL, which is
+    ; read before getopt; the rows are its text, the flags declared hidden
+    (pair "fuser"
+      (list
+        (Opts declare "fuser" "[-msk46] [-SIGNAL] FILE or PORT/PROTO"
+          "Find processes which use FILEs or PORTs"
+          (list
+            (Opts text "\t-m\tFind processes which use same fs as FILEs")
+            (Opts text "\t-4,-6\tSearch only IPv4/IPv6 space")
+            (Opts text "\t-s\tDon't display PIDs")
+            (Opts text "\t-k\tKill found processes")
+            (Opts text "\t-SIGNAL\tSignal to send (default: KILL)")
+            (Opts hidden (Opts flag "-m" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-6" ""))
+            (Opts hidden (Opts flag "-4" ""))))
+        (lit signal-any)))
     (pair "free"
       (list
         (Opts declare "free" "[-bkmgh]"
