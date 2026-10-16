@@ -126,6 +126,7 @@ the work.  Applet parity is the other axis: see the README.
 | `rev` |  |  |  | - |
 | `rm` | -i -r -R -f -v | -i -f -R -r -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
+| `route` | -n -e -A | -n -e -A |  | 100% |
 | `run-parts` | -a -u --reverse --test --exit-on-error --list | --reverse --test --exit-on-error --list -a -u --arg --umask |  | 100% |
 | `sendmail` | -t -f -o -i -w -H -S -a -v | -t -i -v -f -o -w -H -S -a |  | 100% |
 | `seq` | -w -s | -w -s |  | 100% |
@@ -195,4 +196,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 845 of 861 busybox options accepted (98%).**
+**Total: 848 of 864 busybox options accepted (98%).**

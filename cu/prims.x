@@ -746,6 +746,12 @@
     (guard (e (if (eq? (%cu-err-label e) (lit io)) e (error e)))
       (thunk))))
 
+; the C library's words for errno N, strerror's: what busybox prints after a
+; failed call, where the platform's own texts word some of them otherwise
+; (musl's "No such device" for ENODEV, "I/O error" for EIO)
+(def libc-strerror
+  (fn (_ n) (%cu-ptr->str (%cu-int->ptr (%cu-ptr-call (%cu-dlsym (%cu-dlopen () 1) "strerror") n)))))
+
 (def file-err-text
   (fn (_ e) (%cu-after-colon (e msg) 0)))
 

@@ -86,7 +86,7 @@ jobs:
           SPEC_HEAVY_MIN: 4
         run: X="$GITHUB_WORKSPACE/.x-lang/x.sh" sh tests/spec-gate.sh
 
-  # Linux, as root: the applets whose work is the kernel's (sysctl, lsmod),
+  # Linux, as root: the applets whose work is the kernel's (tests/linux/specs),
   # in the privileged container tests/linux/run.sh builds at the release
   # lang.xon declares, each case compared with that container's busybox.
   linux:

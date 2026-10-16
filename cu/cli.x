@@ -190,6 +190,7 @@
     (pair "pwdx" %cu-pwdx)
     (pair "sysctl" %cu-sysctl)
     (pair "lsmod" %cu-lsmod)
+    (pair "route" %cu-route)
     (pair "top" %cu-top)
     (pair "lsof" %cu-lsof)
     (pair "vmstat" %cu-vmstat)

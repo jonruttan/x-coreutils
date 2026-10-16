@@ -8205,6 +8205,46 @@ Show/set kernel parameters
 status 1
 ```
 
+### route -~
+
+```cu
+(run (list "route" "-~") "")
+```
+---
+```output
+stderr:
+route: unrecognized option: ~
+Usage: route [-ne] [-A inet[6]] [{add|del} [-net|-host] TARGET [netmask MASK]
+	[gw GATEWAY] [metric N] [mss BYTES] [window BYTES] [reject] [IFACE]]
+
+Show or edit kernel routing tables
+
+	-n	Don't resolve names
+	-e	Display other/more information
+	-A inet[6]	Select address family
+status 1
+```
+
+### route --nope
+
+```cu
+(run (list "route" "--nope") "")
+```
+---
+```output
+stderr:
+route: unrecognized option: nope
+Usage: route [-ne] [-A inet[6]] [{add|del} [-net|-host] TARGET [netmask MASK]
+	[gw GATEWAY] [metric N] [mss BYTES] [window BYTES] [reject] [IFACE]]
+
+Show or edit kernel routing tables
+
+	-n	Don't resolve names
+	-e	Display other/more information
+	-A inet[6]	Select address family
+status 1
+```
+
 ### top -~
 
 ```cu

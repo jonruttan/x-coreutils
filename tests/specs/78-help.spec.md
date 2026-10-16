@@ -3467,6 +3467,25 @@ stderr:
 status 0
 ```
 
+### route
+
+```cu
+(run (list "route" "--help") "")
+```
+---
+```output
+Usage: route [-ne] [-A inet[6]] [{add|del} [-net|-host] TARGET [netmask MASK]|
+	[gw GATEWAY] [metric N] [mss BYTES] [window BYTES] [reject] [IFACE]]|
+|
+Show or edit kernel routing tables|
+|
+	-n	Don't resolve names|
+	-e	Display other/more information|
+	-A inet[6]	Select address family|
+stderr:
+status 0
+```
+
 ### top
 
 ```cu

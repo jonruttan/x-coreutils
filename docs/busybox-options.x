@@ -117,6 +117,7 @@
     (list "rev" ())
     (list "rm" (%letters "irRfv"))
     (list "rmdir" (%letters "p"))
+    (list "route" (%letters "neA"))
     (list "run-parts" (list "-a" "-u" "--reverse" "--test" "--exit-on-error" "--list"))
     (list "seq" (%letters "ws"))
     (list "setsid" (%letters "c"))

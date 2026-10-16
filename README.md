@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and eighty-five applets: parity with busybox's `coreutils`
+**A hundred and eighty-six applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -22,7 +22,7 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
-`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl` and `lsmod`.**
+`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod` and `route`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
@@ -34,9 +34,9 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     mkpasswd mktemp more mountpoint mpstat mv nc netcat nice nl nmeter
     nohup nologin nproc nslookup ntpd od paste patch pgrep pidof
     pipe_progress pkill pmap popmaildir printenv printf ps pwd readlink
-    realpath reformime renice reset rev rm rmdir run-parts sendmail seq
-    setsid sha1sum sha256sum sha384sum sha3sum sha512sum shred shuf sleep
-    sort split stat strings sum sync sysctl tac tail tar tcpsvd tee
+    realpath reformime renice reset rev rm rmdir route run-parts sendmail
+    seq setsid sha1sum sha256sum sha384sum sha3sum sha512sum shred shuf
+    sleep sort split stat strings sum sync sysctl tac tail tar tcpsvd tee
     telnet telnetd test tftp tftpd time timeout top touch tr tree true
     truncate ts tsort tty ttysize udpsvd unexpand uniq unix2dos unlink
     unzip uname uptime users uudecode uuencode uuidgen usleep vi vmstat w
@@ -165,7 +165,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl` and `lsmod` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod` and `route` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -256,6 +256,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/procps.x       uptime, free, ps, pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
     cu/sysctl.x       sysctl: the kernel's parameters, read and written under /proc/sys
     cu/lsmod.x        lsmod: the kernel's loaded modules, from /proc/modules
+    cu/route.x        route: the routing tables shown, and routes added and deleted through the kernel's ioctls
     cu/top.x          top: its screens, keys and memory view, over the Host
     cu/vmstat.x       vmstat, and the compact numbers and %.2f the counter applets share
     cu/iostat.x       iostat: the CPU's shares and each disk's transfers, over the Host
