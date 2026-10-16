@@ -433,16 +433,18 @@
       (vec-ref %cu-crc-table
         (bit-and (bit-xor (bit-shr crc 24) b) 255)))))
 
+; TEXT is a string or a run, so a NUL in it is a byte like any other
 (def cu-cksum
   (fn (_ text)
-    (def end (byte-len text))
+    (def run (%cu-as-run text))
+    (def end (rest run))
     ; a byte here costs a few thousand objects, a table lookup's dispatch
     ; with it, so the walk sweeps as often as a loop of cheap steps
     (def over
       (fn (self i crc)
         (if (>= i end) crc
           (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
-              (self (+ i 1) (%cu-crc-byte crc (byte-at text i)))))))
+              (self (+ i 1) (%cu-crc-byte crc (byte-at (first run) i)))))))
     ; POSIX folds the LENGTH in after the bytes, low octet first
     (def tail
       (fn (self n crc)
@@ -457,19 +459,21 @@
         (display
           (string-append (%cu-int->str (cu-cksum text))
             (string-append " "
-              (string-append (%cu-int->str (byte-len text))
+              (string-append (%cu-int->str (rest text))
                 (if (null? name) "\n"
                   (string-append " " (string-append name "\n")))))))))
     (if (null? argv)
-      (do (one () (stdin-thunk)) 0)
-      (%cu-each-said argv stdin-thunk (%cu-says "cksum") one 0))))
+      (do (one () (%cu-read-run-said (%cu-says "cksum") "-" stdin-thunk)) 0)
+      (%cu-each-run-said argv stdin-thunk (%cu-says "cksum") one 0))))
 
 ; --- sum: the two historical checksums ----------------------------------------
 
-; BSD (the default): a 16-bit rotate-then-add, blocks of 1024
+; BSD (the default): a 16-bit rotate-then-add, blocks of 1024.  TEXT, here
+; and for System V, is a string or a run.
 (def cu-sum-bsd
   (fn (_ text)
-    (def end (byte-len text))
+    (def run (%cu-as-run text))
+    (def end (rest run))
     (def go
       (fn (self i s)
         (if (>= i end) s
@@ -477,19 +481,20 @@
               (self (+ i 1)
                 (bit-and
                   (+ (+ (bit-shr s 1) (bit-shl (bit-and s 1) 15))
-                    (byte-at text i))
+                    (byte-at (first run) i))
                   65535))))))
     (go 0 0)))
 
 ; System V (-s): the byte sum, folded twice into 16 bits, blocks of 512
 (def cu-sum-sysv
   (fn (_ text)
-    (def end (byte-len text))
+    (def run (%cu-as-run text))
+    (def end (rest run))
     (def total
       (let ((go (fn (self i s)
                   (if (>= i end) s
                     (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
-                        (self (+ i 1) (+ s (byte-at text i))))))))
+                        (self (+ i 1) (+ s (byte-at (first run) i))))))))
         (go 0 0)))
     (def r (+ (bit-and total 65535) (bit-shr total 16)))
     (bit-and (+ (bit-and r 65535) (bit-shr r 16)) 65535)))
@@ -501,7 +506,7 @@
     (def ops (Opts operands o))
     (def one
       (fn (_ name text)
-        (def n (byte-len text))
+        (def n (rest text))
         (display
           (if sysv?
             (string-append (%cu-int->str (cu-sum-sysv text))
@@ -517,5 +522,5 @@
                   (if (null? name) "\n"
                     (string-append " " (string-append name "\n"))))))))))
     (if (null? ops)
-      (do (one () (stdin-thunk)) 0)
-      (%cu-each-said ops stdin-thunk (%cu-says "sum") one 0))))
+      (do (one () (%cu-read-run-said (%cu-says "sum") "-" stdin-thunk)) 0)
+      (%cu-each-run-said ops stdin-thunk (%cu-says "sum") one 0))))
