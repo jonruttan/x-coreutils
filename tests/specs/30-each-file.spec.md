@@ -36,11 +36,11 @@ sha1sum: can't open 'nosuch': No such file or directory
 status 1
 2418082923 2 a
 2454254050 2 b
-cksum: nosuch: No such file or directory
+cksum: can't open 'nosuch': No such file or directory
 status 1
 32826     1 a
 00059     1 b
-sum: nosuch: No such file or directory
+sum: can't open 'nosuch': No such file or directory
 status 1
 ```
 

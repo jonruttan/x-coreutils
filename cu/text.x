@@ -622,6 +622,16 @@
       (if (eq? (file-err-op err) (lit read)) (read-says name err)
         (string-concat (list applet ": " name ": " (file-err-text err)))))))
 
+; busybox's open_or_warn words: "APPLET: can't open 'NAME': REASON" for a file
+; that would not open, and the common way for one that opened and would not
+; read
+(def %cu-says-open
+  (fn (_ applet)
+    (fn (_ name err)
+      (if (eq? (file-err-op err) (lit read))
+        (string-concat (list applet ": " name ": " (file-err-text err)))
+        (string-concat (list applet ": can't open '" name "': " (file-err-text err)))))))
+
 ; the words of shuf and base64, which name no file for one that opened and
 ; would not read: "APPLET: read error: REASON"
 (def %cu-read-error
