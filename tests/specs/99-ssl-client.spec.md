@@ -6,7 +6,9 @@ certificate made for the run: s_server answers a GET with a page about the
 session, which names the protocol it agreed.  Each case runs ssl_client in
 a child with ARGS (P the server's port) and INPUT (as printf's %b reads it)
 as standard input; with -s FD the child opens the connection itself and FD
-is that socket.  The report is the reply's first line, whether the page
+is that socket, and as -s ends the run at standard input's end, a request
+there is fed through a pipe held open three seconds past it, for the reply
+to come back first.  The report is the reply's first line, whether the page
 names TLSv1.3, the status and stderr.  The refusals and the messages are
 busybox's own; busybox's ssl_client speaks TLS 1.2 and this one TLS 1.3, so
 the exchanges are checked against the server, not against busybox.  The
@@ -38,7 +40,15 @@ weight and timeout are the TLS engines' build, which a session pays once.
     (def argv (sc-lines (file-read-all (sc-f "argv"))))
     (def pid (sys-fork))
     (when (= pid 0)
-      (do (sys-dup2 (file-open-read (sc-f "in")) 0)
+      (do (if (if socket? (> (byte-len input) 0) #f)
+            (let ((p (sys-pipe)))
+              (do (when (= (sys-fork) 0)
+                    (do (sys-dup2 (rest p) 1) (sys-close (first p))
+                        (%in-exec "/bin/sh" (list "/bin/sh" "-c" "cat /tmp/x-cu-ssl/in; sleep 3"))
+                        (sys-exit 1)))
+                  (sys-close (rest p))
+                  (sys-dup2 (first p) 0)))
+            (sys-dup2 (file-open-read (sc-f "in")) 0))
           (sys-dup2 (file-open-write (sc-f "out")) 1)
           (sys-dup2 (file-open-write (sc-f "err")) 2)
           (def full (if socket? (append (list "-s" (%cu-int->str (net-connect "127.0.0.1" sc-port))) argv) argv))

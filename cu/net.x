@@ -230,7 +230,7 @@
 (def %cu-dial
   (fn (_ spec default)
     (def colon (%in-index-of spec #\:))
-    (def host (if (null? colon) spec (substring spec 0 colon)))
+    (def host (%cu-dial-host spec))
     (def port (if (null? colon) default (%tn-port (substring spec (+ colon 1) (byte-len spec)))))
     (def ip (let ((q (guard (_ ()) (net-resolve host))))
               (if (null? q) (Err raise (lit net) (string-concat (list "bad address '" spec "'")) ()) q)))
@@ -238,6 +238,12 @@
                 (Err raise (lit net) (string-concat (list "can't connect to remote host (" ip "): " (%wget-err-text e))) ())
                 (error e)))
       (net-connect ip port))))
+
+; the HOST of HOST[:PORT]
+(def %cu-dial-host
+  (fn (_ spec)
+    (let ((colon (%in-index-of spec #\:)))
+      (if (null? colon) spec (substring spec 0 colon)))))
 
 ; the call an io Err came from, or nil for an Err that names none
 (def %wget-err-op

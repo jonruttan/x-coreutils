@@ -9,7 +9,8 @@
 ; networking/ssl_client.c: a TLS session to HOST (port 443 unless HOST:PORT
 ; names one), over the descriptors -s FD (and -r FD to read, else the same
 ; one), or over a pair of pipes to PROG ARGS run with -e; -n SNI names the
-; server, by default HOST.  Then what comes in on standard input is sent and
+; server, by default HOST without its port (busybox's sends HOST:PORT whole,
+; which a server may refuse: OpenSSL 3.5 answers it with alert 47).  Then what comes in on standard input is sent and
 ; what the server sends goes to standard output, until the server closes --
 ; or, with -s, until standard input ends.  As busybox's, the server is not
 ; authenticated.  The session is x-lang's TLS 1.3 (Tls13); busybox's speaks
@@ -45,7 +46,7 @@
              (s? (let ((w (%in-count (Opts value o "-s"))))
                    (pair (if (Opts on? o "-r") (%in-count (Opts value o "-r")) w) w)))
              (#t (let ((fd (%cu-dial (first ops) 443))) (pair fd fd)))))
-    (def sni (let ((n (Opts value o "-n"))) (if (not (null? n)) n (if (if e? #f (not s?)) (first ops) ()))))
+    (def sni (let ((n (Opts value o "-n"))) (if (not (null? n)) n (if (if e? #f (not s?)) (%cu-dial-host (first ops)) ()))))
     (def session (Tls13 over (first fds) (rest fds)
                    (if (null? sni) (list (list (lit insecure))) (list (pair (lit host) sni) (list (lit insecure))))))
     (%sc-copy session (first fds) s? #t)
