@@ -3543,6 +3543,31 @@ stderr:
 status 0
 ```
 
+### ifconfig
+
+```cu
+(run (list "ifconfig" "--help") "")
+```
+---
+```output
+Usage: ifconfig [-a] [IFACE] [ADDRESS]|
+|
+Configure a network interface|
+|
+	[add ADDRESS[/PREFIXLEN]]|
+	[del ADDRESS[/PREFIXLEN]]|
+	[[-]broadcast [ADDRESS]] [[-]pointopoint [ADDRESS]]|
+	[netmask ADDRESS] [dstaddr ADDRESS]|
+	[outfill NN] [keepalive NN]|
+	[hw ether|infiniband ADDRESS] [metric NN] [mtu NN]|
+	[[-]trailers] [[-]arp] [[-]allmulti]|
+	[multicast] [[-]promisc] [txqueuelen NN] [[-]dynamic]|
+	[mem_start NN] [io_addr NN] [irq NN]|
+	[up|down] ...|
+stderr:
+status 0
+```
+
 ### top
 
 ```cu
