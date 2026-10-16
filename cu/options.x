@@ -2243,6 +2243,33 @@
             (Opts hidden (Opts flag "-e" ""))
             (Opts hidden (Opts arg "-A" "inet[6]" ""))))
         (lit leading)))
+    ; arp's help lays its rows out with two tabs, by hand
+    (pair "arp"
+      (list
+        (Opts declare "arp" "\n[-vn]\t[-H HWTYPE] [-i IF] -a [HOSTNAME]\n[-v]\t\t    [-i IF] -d HOSTNAME [pub]\n[-v]\t[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [temp]\n[-v]\t[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [netmask MASK] pub\n[-v]\t[-H HWTYPE] [-i IF] -Ds HOSTNAME IFACE [netmask MASK] pub"
+          "Manipulate ARP cache"
+          (list
+            (Opts text "\t-a\t\tDisplay (all) hosts")
+            (Opts text "\t-d\t\tDelete ARP entry")
+            (Opts text "\t-s\t\tSet new entry")
+            (Opts text "\t-v\t\tVerbose")
+            (Opts text "\t-n\t\tDon't resolve names")
+            (Opts text "\t-i IF\t\tNetwork interface")
+            (Opts text "\t-D\t\tRead HWADDR from IFACE")
+            (Opts text "\t-A,-p AF\tProtocol family")
+            (Opts text "\t-H HWTYPE\tHardware address type")
+            (Opts hidden (Opts flag "-a" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-D" ""))
+            (Opts hidden (Opts arg "-i" "IF" ""))
+            (Opts hidden (Opts arg "-A" "AF" ""))
+            (Opts hidden (Opts arg "-p" "AF" ""))
+            (Opts hidden (Opts arg "-H" "HWTYPE" ""))
+            (Opts hidden (Opts arg "-t" "HWTYPE" ""))))
+        (lit leading)))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden
