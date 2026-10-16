@@ -227,6 +227,29 @@ stderr:
 status 0
 ```
 
+### a file that will not open is said as busybox says it, one that will not read -- a directory -- by its name, and the rest still summed
+
+```cu
+(do (cr-case #t "-" "mkdir d" "@" "-" (list "cksum" "nosuch" "abc" "d")) (cr-case #t "-" "mkdir d" "@" "-" (list "sum" "nosuch" "abc" "d")) (cr-case #t "-" "mkdir d" "@" "-" (list "sum" "-s" "nosuch" "d")))
+```
+---
+```output
+1219131554 3 abc|
+stderr:
+cksum: can't open 'nosuch': No such file or directory
+cksum: d: Is a directory
+status 1
+16556     1 abc|
+stderr:
+sum: can't open 'nosuch': No such file or directory
+sum: d: Is a directory
+status 1
+stderr:
+sum: can't open 'nosuch': No such file or directory
+sum: d: Is a directory
+status 1
+```
+
 ## cryptpw
 
 ### each method with a salt given, as -S or a second word; sha512 when -m does not say
