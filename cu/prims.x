@@ -22,6 +22,7 @@
 (import x/sys/host)
 (import x/type/regex)
 (import x/num/float)
+(import x/num/bigint)
 
 (provide cu/prims
   char->integer integer->char byte-at byte-len
@@ -52,7 +53,7 @@
   sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
   host-boot-time load-centi host-load-centi host-memory host-users host-utmp
   host-processes host-args host-process host-exe host-files host-cwd sys-signals sys-getpid re-compile re-search
-  host-load-fixed host-tasks host-cpu host-cpus host-threads host-maps host-regions
+  host-load-fixed host-tasks host-cpu host-cpus host-threads host-maps host-regions host-files-of host-holders
   host-counters host-disks host-interfaces host-interrupts
   cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
   net-resolve http-open http-read http-close http-status http-headers http-head
@@ -411,6 +412,16 @@
 (def host-threads (fn (_ pid) (Host threads pid)))
 (def host-maps (fn (_ pid) (Host maps pid)))
 (def host-regions (fn (_ pid) (Host regions pid)))
+; the processes holding a path, or with MOUNT? anything on its file system
+(def host-holders (fn (_ path mount?) (Host holders path mount?)))
+; what a process holds, only the uses named
+(def host-files-of
+  (fn (_ pid uses)
+    (def u (fn (_ i) (List ref i uses)))
+    (match
+      ((null? uses) (Host files pid))
+      ((null? (rest uses)) (Host files pid (u 0)))
+      (#t (Host files pid (u 0) (u 1) (u 2) (u 3))))))
 ; the kernel's totals since boot: event counts, and a record a disk, a
 ; network interface and an interrupt source
 (def host-counters (fn (_) (Host counters)))
@@ -630,6 +641,20 @@
 (def %cu-run-of (fn (_ s) (pair s (byte-len s))))
 
 (def %cu-run-bytes (fn (_ bs n) (pair (bytes->str bs) n)))
+
+; TEXT as a run: a run as it is, a string packed
+(def %cu-as-run (fn (_ t) (if (pair? t) t (%cu-run-of t))))
+
+; run R's bytes onto the list ACC, in order.  The walk never sweeps: its list
+; may hold a whole input, and a collect with a list that long live overflows
+; the C stack marking it.
+(def %cu-run-list
+  (fn (_ r acc)
+    (def t (first r))
+    (def go
+      (fn (self k acc)
+        (if (< k 0) acc (self (- k 1) (pair (byte-at t k) acc)))))
+    (go (- (rest r) 1) acc)))
 
 (def file-write-run (fn (_ fd r) (File write fd (first r) (rest r))))
 

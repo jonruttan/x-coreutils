@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and seventy-nine applets: parity with busybox's `coreutils`
+**A hundred and eighty-three applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -17,33 +17,35 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `ipcalc`,
 `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
-`kill`, `killall`, `pwdx`, `pmap`, `top` and `lsof`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`kill`, `killall`, `pwdx`, `pmap`, `top`, `lsof` and `fuser`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
-`hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts` and `sha384sum`.**
+`hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
+`sha3sum`, and its `cryptpw` and `mkpasswd`.**
 
     arch ascii base32 base64 basename cal cat chgrp chmod chown chroot
-    cksum clear cmp comm cp cpio crc32 cut date dc dd df diff dirname dnsd
-    dnsdomainname dos2unix du dumpleases ed echo env expand expr factor
-    fakeidentd false find flock fold free fsync ftpd ftpget ftpput getopt
-    groups gunzip gzip hd head hexdump hostid hostname httpd id inetd
-    install iostat ipcalc join kill killall link ln logname ls lsof
-    makemime md5sum mesg mkdir mkfifo mknod mktemp more mountpoint mpstat
-    mv nc netcat nice nl nmeter nohup nologin nproc nslookup ntpd od paste
-    patch pgrep pidof pipe_progress pkill pmap popmaildir printenv printf ps
-    pwd readlink realpath reformime renice reset rev rm rmdir run-parts
-    sendmail seq setsid sha1sum sha256sum sha384sum sha512sum shred shuf
-    sleep sort split stat strings sum sync tac tail tar tcpsvd tee telnet
-    telnetd test tftp tftpd time timeout top touch tr tree true truncate
-    ts tsort tty ttysize udpsvd unexpand uniq unix2dos unlink unzip uname
-    uptime users uudecode uuencode uuidgen usleep vi vmstat w watch wc
-    wget which who whois whoami xargs xxd yes zcat [ [[
+    cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
+    dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand
+    expr factor fakeidentd false find flock fold free fsync ftpd ftpget
+    ftpput fuser getopt groups gunzip gzip hd head hexdump hostid
+    hostname httpd id inetd install iostat ipcalc join kill killall link
+    ln logname ls lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd
+    mktemp more mountpoint mpstat mv nc netcat nice nl nmeter nohup
+    nologin nproc nslookup ntpd od paste patch pgrep pidof pipe_progress
+    pkill pmap popmaildir printenv printf ps pwd readlink realpath
+    reformime renice reset rev rm rmdir run-parts sendmail seq setsid
+    sha1sum sha256sum sha384sum sha3sum sha512sum shred shuf sleep sort
+    split stat strings sum sync tac tail tar tcpsvd tee telnet telnetd
+    test tftp tftpd time timeout top touch tr tree true truncate ts tsort
+    tty ttysize udpsvd unexpand uniq unix2dos unlink unzip uname uptime
+    users uudecode uuencode uuidgen usleep vi vmstat w watch wc wget
+    which who whois whoami xargs xxd yes zcat [ [[
 
-Highlights: **every digest is byte-identical with the system tool** on
-input with no NUL byte -- `md5sum`, `sha1sum`, `sha256sum` and
-`sha512sum` are the FIPS/RFC algorithms in x, and `cksum` is the POSIX
-CRC-32 with its length fold; `sort` is a merge sort with busybox's whole
+Highlights: **every digest is byte-identical with the system tool** --
+`md5sum`, `sha1sum`, `sha256sum` and `sha512sum` are the FIPS/RFC
+algorithms in x, reading every byte, a NUL too, and `cksum` is the
+POSIX CRC-32 with its length fold, on input with no NUL byte; `sort` is a merge sort with busybox's whole
 option set, keys (`-k`, `-t`) included; `expr` is a recursive-descent
 parser over the argument list with its own anchored BRE matcher,
 `\(...\)` capture and all; `chmod` reads an octal mode and the whole
@@ -83,12 +85,13 @@ Self-contained: no `(requires-lang ...)`.
   - **`which` tests existence**, not the execute bit.
   - **Text, not binary.** An applet holds what it reads as a string,
     and a string's length stops at its first NUL byte, so `cat`, `od`,
-    `wc`, `cmp`, `dd`, the digests and the other readers see a file or
-    a stream only up to its first NUL -- `cmp` can call two different
+    `wc`, `cmp`, `dd`, `cksum`, `sum` and the other readers see a file
+    or a stream only up to its first NUL -- `cmp` can call two different
     files the same.  What a tool *writes* carries its own count, so an
     escape that names NUL writes the byte: `printf '\0'`, `echo -e
     '\0'` and `tr a '\0'` all do.  `cp`, `mv` and `install`
-    copy every byte; `sort -z`, `shuf -z` and `xargs -0` read NUL as a
+    copy every byte, and the digests (`md5sum` to `sha3sum`, `-c` too)
+    read every byte; `sort -z`, `shuf -z` and `xargs -0` read NUL as a
     separator, and `env -0` writes it.
   - **`expr`'s regular expressions are its own grammar**: literals,
     `.`, `*`, bracket expressions with ranges and negation, `$`, and
@@ -233,6 +236,8 @@ parsed by x-lang's `Opts`.
     cu/runparts.x     run-parts: a directory's scripts, in order
     cu/tar.x          tar: ustar archives listed, extracted and made, z through gzip
     cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
+    cu/sha3.x         sha3sum: SHA-3 at any width busybox takes, through x-lang's Sha3
+    cu/crypt.x        cryptpw and mkpasswd, and the pw_encrypt httpd's passwords go through, over x-lang's Crypt
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/cpio.x         cpio: newc archives listed, extracted, made and copied through
     cu/dc.x           dc: the arbitrary-precision stack calculator, on bc's numbers
@@ -247,6 +252,7 @@ parsed by x-lang's `Opts`.
     cu/nmeter.x       nmeter: a line of readings laid out by a format string, over the Host
     cu/pmap.x         pmap: a process's memory regions, over the Host
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
+    cu/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
     cu/options.x      each applet's option declaration and help text
     cu/cli.x          the applet table, the option parse, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere

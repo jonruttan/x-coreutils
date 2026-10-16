@@ -25,15 +25,13 @@
   (fn (_ x) (bit-xor x %cu-m32)))
 
 ; the message as bytes: the raw bytes, then 0x80, zeros to 56 mod 64,
-; and eight bytes of bit length -- LOW byte first for MD5.
+; and eight bytes of bit length -- LOW byte first for MD5.  TEXT is a string
+; or a run, so a NUL in it is a byte like any other.
 (def %cu-md5-pad
   (fn (_ text)
-    (def len (byte-len text))
-    (def bytes
-      (let ((go (fn (self i acc)
-                  (if (< i 0) acc
-                    (self (- i 1) (pair (byte-at text i) acc))))))
-        (go (- len 1) ())))
+    (def run (%cu-as-run text))
+    (def len (rest run))
+    (def bytes (%cu-run-list run ()))
     (def zeros
       (let ((k (% (- 119 (% len 64)) 64)))
         (let ((go (fn (self n acc)
@@ -188,53 +186,9 @@
     (let go ((i (- b 1)) (acc ()))
       (if (< i a) acc (go (- i 1) (pair (bit-and (byte-at s i) 255) acc))))))
 
-; --- md5-crypt ------------------------------------------------------------------
-;
-; The $1$ password hash busybox's md5_crypt writes (FreeBSD's): KEY with up to
-; eight bytes of SALT, mixed through a thousand rounds of MD5, the sixteen bytes
-; at the end written in crypt's base-64 in its own order.
+; crypt's base-64, which httpd's and cryptpw's random salts are written in
 
 (def %cu-crypt64 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
-
-; N base-64 characters of V, its low six bits first
-(def %cu-to64
-  (fn (self v n)
-    (if (= n 0) ""
-      (string-append (substring %cu-crypt64 (bit-and v 63) (+ (bit-and v 63) 1))
-                     (self (bit-shr v 6) (- n 1))))))
-
-(def %cu-md5-crypt
-  (fn (_ key salt)
-    (def pw (%cu-bytes key 0 (byte-len key)))
-    (def s (let ((end (let go ((i 0)) (if (if (< i (byte-len salt)) (if (< i 8) (not (= (byte-at salt i) #\$)) #f) #f) (go (+ i 1)) i))))
-             (%cu-bytes salt 0 end)))
-    (def alt (%cu-md5-bytes (append pw s pw)))
-    (def lead
-      (append pw (%cu-bytes "$1$" 0 3) s
-        (let go ((pl (length pw)) (acc ()))
-          (if (<= pl 0) acc (go (- pl 16) (append acc (%cu-take alt (if (> pl 16) 16 pl))))))
-        (let go ((i (length pw)) (acc ()))
-          (if (= i 0) acc
-            (go (bit-shr i 1) (append acc (list (if (= (bit-and i 1) 1) 0 (first pw)))))))))
-    (def final
-      (let go ((i 0) (f (%cu-md5-bytes lead)))
-        (if (= i 1000) f
-          (do (when (= (% i 50) 49) (%cu-sweep! i))
-          (go (+ i 1)
-              (%cu-md5-bytes
-                (append (if (= (bit-and i 1) 1) pw f)
-                        (if (= (% i 3) 0) () s)
-                        (if (= (% i 7) 0) () pw)
-                        (if (= (bit-and i 1) 1) f pw))))))))
-    (def b (fn (_ k) (%cu-nth k final)))
-    (string-concat
-      (list "$1$" (bytes->str s) "$"
-            (%cu-to64 (+ (bit-shl (b 0) 16) (bit-shl (b 6) 8) (b 12)) 4)
-            (%cu-to64 (+ (bit-shl (b 1) 16) (bit-shl (b 7) 8) (b 13)) 4)
-            (%cu-to64 (+ (bit-shl (b 2) 16) (bit-shl (b 8) 8) (b 14)) 4)
-            (%cu-to64 (+ (bit-shl (b 3) 16) (bit-shl (b 9) 8) (b 15)) 4)
-            (%cu-to64 (+ (bit-shl (b 4) 16) (bit-shl (b 10) 8) (b 5)) 4)
-            (%cu-to64 (b 11) 2)))))
 
 ; --- SHA-1 --------------------------------------------------------------------
 
@@ -404,8 +358,7 @@
             (if (null? row)
               (do (if warn? (file-write 2 (string-append name ": invalid format\n")) ())
                   (self (rest ls) (+ total 1) (+ failed 1)))
-              (let ((text (if (string=? (rest row) "-") (stdin-thunk)
-                            (%cu-read-said says (rest row)))))
+              (let ((text (%cu-read-run-said says (rest row) stdin-thunk)))
                 (if (if (Err err? text) #f (%cu-hex=? (digest text) (first row)))
                   (do (say (string-append (rest row) ": OK"))
                       (self (rest ls) (+ total 1) failed))
@@ -438,7 +391,7 @@
         (%cu-sum-check-lists name digest ops stdin-thunk
           (Opts on? o "-s") (Opts on? o "-w") 0))
       ((if (Opts on? o "-s") #t (Opts on? o "-w")) (%cu-usage name))
-      (#t (%cu-each-said ops stdin-thunk (%cu-sum-says name) one 0)))))
+      (#t (%cu-each-run-said ops stdin-thunk (%cu-sum-says name) one 0)))))
 
 (def %cu-md5sum
   (fn (_ argv stdin-thunk)

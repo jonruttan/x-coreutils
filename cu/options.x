@@ -250,6 +250,53 @@
             (Opts flag "-c" "Check sums against list in FILEs")
             (Opts flag "-s" "Don't output anything, status code shows success")
             (Opts flag "-w" "Warn about improperly formatted checksum lines")))))
+    (pair "sha3sum"
+      (list
+        (Opts declare "sha3sum" "[-c[sw]] [-a BITS] [FILE]..."
+          "Print or check SHA3 checksums"
+          (list
+            (Opts text "\t-c\tCheck sums against list in FILEs")
+            (Opts text "\t-s\tDon't output anything, status code shows success")
+            (Opts text "\t-w\tWarn about improperly formatted checksum lines")
+            (Opts text "\t-a BITS\t224 (default), 256, 384, 512")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-w" ""))
+            (Opts hidden (Opts arg "-a" "BITS" ""))))))
+    (pair "cryptpw"
+      (list
+        (Opts declare "cryptpw" "[-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]"
+          "Print crypt(3) hashed PASSWORD"
+          (list
+            (Opts text "\t-P N\tRead password from fd N")
+            (Opts text "\t-m TYPE\tdes,md5,sha256/512 (default sha512)")
+            (Opts text "\t-S SALT")
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "--stdin" ""))
+            (Opts hidden (Opts arg "-P" "N" ""))
+            (Opts hidden (Opts arg "-m" "TYPE" ""))
+            (Opts hidden (Opts arg "-a" "TYPE" ""))
+            (Opts hidden (Opts arg "-S" "SALT" ""))
+            (Opts hidden (Opts arg "--password-fd" "N" ""))
+            (Opts hidden (Opts arg "--salt" "SALT" ""))
+            (Opts hidden (Opts arg "--method" "TYPE" ""))))))
+    (pair "mkpasswd"
+      (list
+        (Opts declare "mkpasswd" "[-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]"
+          "Print crypt(3) hashed PASSWORD"
+          (list
+            (Opts text "\t-P N\tRead password from fd N")
+            (Opts text "\t-m TYPE\tdes,md5,sha256/512 (default sha512)")
+            (Opts text "\t-S SALT")
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "--stdin" ""))
+            (Opts hidden (Opts arg "-P" "N" ""))
+            (Opts hidden (Opts arg "-m" "TYPE" ""))
+            (Opts hidden (Opts arg "-a" "TYPE" ""))
+            (Opts hidden (Opts arg "-S" "SALT" ""))
+            (Opts hidden (Opts arg "--password-fd" "N" ""))
+            (Opts hidden (Opts arg "--salt" "SALT" ""))
+            (Opts hidden (Opts arg "--method" "TYPE" ""))))))
     (pair "cksum"
       (list
         (Opts declare "cksum" "FILE..."
@@ -2045,6 +2092,24 @@
           "Display the time since the last boot"
           (list
             (Opts hidden (Opts flag "-s" ""))))))
+    ; busybox's help pairs -4 and -6 on one line and names -SIGNAL, which is
+    ; read before getopt; the rows are its text, the flags declared hidden
+    (pair "fuser"
+      (list
+        (Opts declare "fuser" "[-msk46] [-SIGNAL] FILE or PORT/PROTO"
+          "Find processes which use FILEs or PORTs"
+          (list
+            (Opts text "\t-m\tFind processes which use same fs as FILEs")
+            (Opts text "\t-4,-6\tSearch only IPv4/IPv6 space")
+            (Opts text "\t-s\tDon't display PIDs")
+            (Opts text "\t-k\tKill found processes")
+            (Opts text "\t-SIGNAL\tSignal to send (default: KILL)")
+            (Opts hidden (Opts flag "-m" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-6" ""))
+            (Opts hidden (Opts flag "-4" ""))))
+        (lit signal-any)))
     (pair "free"
       (list
         (Opts declare "free" "[-bkmgh]"

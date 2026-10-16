@@ -3128,6 +3128,61 @@ stderr:
 status 0
 ```
 
+### sha3sum
+
+```cu
+(run (list "sha3sum" "--help") "")
+```
+---
+```output
+Usage: sha3sum [-c[sw]] [-a BITS] [FILE]...|
+|
+Print or check SHA3 checksums|
+|
+	-c	Check sums against list in FILEs|
+	-s	Don't output anything, status code shows success|
+	-w	Warn about improperly formatted checksum lines|
+	-a BITS	224 (default), 256, 384, 512|
+stderr:
+status 0
+```
+
+### cryptpw
+
+```cu
+(run (list "cryptpw" "--help") "")
+```
+---
+```output
+Usage: cryptpw [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]|
+|
+Print crypt(3) hashed PASSWORD|
+|
+	-P N	Read password from fd N|
+	-m TYPE	des,md5,sha256/512 (default sha512)|
+	-S SALT|
+stderr:
+status 0
+```
+
+### mkpasswd
+
+```cu
+(run (list "mkpasswd" "--help") "")
+```
+---
+```output
+Usage: mkpasswd [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]|
+|
+Print crypt(3) hashed PASSWORD|
+|
+	-P N	Read password from fd N|
+	-m TYPE	des,md5,sha256/512 (default sha512)|
+	-S SALT|
+stderr:
+status 0
+```
+
 ### tree
 
 ```cu
@@ -3542,6 +3597,26 @@ Display process memory usage|
 |
 	-x	Show details|
 	-q	Quiet|
+stderr:
+status 0
+```
+
+### fuser
+
+```cu
+(run (list "fuser" "--help") "")
+```
+---
+```output
+Usage: fuser [-msk46] [-SIGNAL] FILE or PORT/PROTO|
+|
+Find processes which use FILEs or PORTs|
+|
+	-m	Find processes which use same fs as FILEs|
+	-4,-6	Search only IPv4/IPv6 space|
+	-s	Don't display PIDs|
+	-k	Kill found processes|
+	-SIGNAL	Signal to send (default: KILL)|
 stderr:
 status 0
 ```
