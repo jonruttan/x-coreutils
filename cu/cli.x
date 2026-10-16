@@ -192,6 +192,7 @@
     (pair "sysctl" %cu-sysctl)
     (pair "lsmod" %cu-lsmod)
     (pair "route" %cu-route)
+    (pair "arp" %cu-arp)
     (pair "top" %cu-top)
     (pair "lsof" %cu-lsof)
     (pair "vmstat" %cu-vmstat)

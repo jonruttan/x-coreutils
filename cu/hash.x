@@ -499,28 +499,29 @@
     (def r (+ (bit-and total 65535) (bit-shr total 16)))
     (bit-and (+ (bit-and r 65535) (bit-shr r 16)) 65535)))
 
+; busybox's lines: the sum, the blocks, a space and the name.  -r wins over
+; -s.  The name is shown under -s, standard input's as `-`, and for BSD only
+; when there is more than one operand; a BSD line without it still ends in
+; the space.
 (def %cu-sum
   (fn (_ argv stdin-thunk)
     (def o (%cu-opts "sum" argv))
-    (def sysv? (Opts on? o "-s"))
+    (def sysv? (if (Opts on? o "-r") #f (Opts on? o "-s")))
     (def ops (Opts operands o))
+    (def named? (if sysv? #t (if (pair? ops) (pair? (rest ops)) #f)))
     (def one
       (fn (_ name text)
         (def n (rest text))
         (display
-          (if sysv?
-            (string-append (%cu-int->str (cu-sum-sysv text))
-              (string-append " "
-                (string-append (%cu-int->str (/ (- (+ n 511) (% (+ n 511) 512)) 512))
-                  (if (null? name) "\n"
-                    (string-append " " (string-append name "\n"))))))
-            (string-append (%cu-pad-zero (%cu-int->str (cu-sum-bsd text)) 5)
-              (string-append " "
-                (string-append
+          (string-concat
+            (list
+              (if sysv?
+                (string-append (%cu-int->str (cu-sum-sysv text)) " "
+                  (%cu-int->str (/ (- (+ n 511) (% (+ n 511) 512)) 512)))
+                (string-append (%cu-pad-zero (%cu-int->str (cu-sum-bsd text)) 5) " "
                   (%cu-pad-left
-                    (%cu-int->str (/ (- (+ n 1023) (% (+ n 1023) 1024)) 1024)) 5)
-                  (if (null? name) "\n"
-                    (string-append " " (string-append name "\n"))))))))))
+                    (%cu-int->str (/ (- (+ n 1023) (% (+ n 1023) 1024)) 1024)) 5)))
+              " " (if named? name "") "\n")))))
     (if (null? ops)
-      (do (one () (%cu-read-run-said (%cu-says "sum") "-" stdin-thunk)) 0)
+      (do (one "-" (%cu-read-run-said (%cu-says "sum") "-" stdin-thunk)) 0)
       (%cu-each-run-said ops stdin-thunk (%cu-says "sum") one 0))))

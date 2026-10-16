@@ -11,6 +11,7 @@ the work.  Applet parity is the other axis: see the README.
 | `[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `[[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `arch` |  |  |  | - |
+| `arp` | -a -d -s -v -n -i -D -A -p -H | -a -d -s -v -n -D -i -A -p -H -t |  | 100% |
 | `ascii` |  |  |  | - |
 | `base32` | -d -i -w | -d -i -w |  | 100% |
 | `base64` | -d -w | -d -w |  | 100% |
@@ -197,4 +198,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 852 of 868 busybox options accepted (98%).**
+**Total: 862 of 878 busybox options accepted (98%).**

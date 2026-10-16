@@ -1,11 +1,12 @@
 # @weight 3
 
-busybox's sha3sum, its other digests on a file holding a NUL
-(coreutils/md5_sha1_sum.c), and cryptpw, which is mkpasswd too
-(loginutils/cryptpw.c).  Every expectation is busybox 1.36.1's own
-output, in alpine, run as an ordinary user; its cryptpw hashes through
-musl's crypt, sha512 when -m does not say.  A `|` marks the end of each
-line written to standard output.
+busybox's sha3sum, its other digests and sum on a file holding a NUL,
+and sum's lines (coreutils/md5_sha1_sum.c, coreutils/sum.c), and
+cryptpw, which is mkpasswd too (loginutils/cryptpw.c).  Every
+expectation is busybox 1.36.1's own output, in alpine, run as an
+ordinary user; its cryptpw hashes through musl's crypt, sha512 when -m
+does not say.  A `|` marks the end of each line written to standard
+output.
 
 ## the fixtures
 
@@ -182,6 +183,46 @@ nul: OK|
 stderr:
 status 0
 nul: OK|
+stderr:
+status 0
+```
+
+## sum
+
+### no name for one file or standard input, the BSD line still ending in its space; -s names each, `-` for standard input; -r wins over -s
+
+```cu
+(do (cr-case #t "abc" "@" "@" "-" (list "sum")) (cr-case #t "abc" "@" "@" "-" (list "sum" "-s")) (cr-case #t "abc" "@" "@" "-" (list "sum" "-s" "-r")) (cr-case #t "abc" "@" "@" "-" (list "sum" "-r" "-s")) (cr-case #t "-" "@" "@" "-" (list "sum" "abc")) (cr-case #t "-" "@" "@" "-" (list "sum" "-s" "abc")) (cr-case #t "-" "@" "@" "-" (list "sum" "abc" "long")) (cr-case #t "abc" "@" "@" "-" (list "sum" "-" "long")) (cr-case #t "abc" "@" "@" "-" (list "sum" "-s" "-")))
+```
+---
+```output
+16556     1 |
+stderr:
+status 0
+294 1 -|
+stderr:
+status 0
+16556     1 |
+stderr:
+status 0
+16556     1 |
+stderr:
+status 0
+16556     1 |
+stderr:
+status 0
+294 1 abc|
+stderr:
+status 0
+16556     1 abc|
+32540     1 long|
+stderr:
+status 0
+16556     1 -|
+32540     1 long|
+stderr:
+status 0
+294 1 -|
 stderr:
 status 0
 ```
