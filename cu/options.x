@@ -2231,6 +2231,18 @@
           "List loaded kernel modules"
           (list))
         (lit none)))
+    (pair "route"
+      (list
+        (Opts declare "route" "[-ne] [-A inet[6]] [{add|del} [-net|-host] TARGET [netmask MASK]\n\t[gw GATEWAY] [metric N] [mss BYTES] [window BYTES] [reject] [IFACE]]"
+          "Show or edit kernel routing tables"
+          (list
+            (Opts text "\t-n\tDon't resolve names")
+            (Opts text "\t-e\tDisplay other/more information")
+            (Opts text "\t-A inet[6]\tSelect address family")
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-e" ""))
+            (Opts hidden (Opts arg "-A" "inet[6]" ""))))
+        (lit leading)))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden

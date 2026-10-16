@@ -24,7 +24,7 @@ the writes are to kernel.domainname, which is the container's own.
           (sys-dup2 9 1) (sys-dup2 8 2) (file-close lx-o) (file-close lx-e)
           (string-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (%cu-int->str lx-st) "\n")))))
     (def lx-bb (fn (_ argv)
-      (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-be; echo $? > /tmp/lx-bs")))
+      (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be")))
           (string-concat (list (lx-read "/tmp/lx-bo") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))
     ; PRE run through the shell before each side
     (def lx-case (fn (_ pre argv)
