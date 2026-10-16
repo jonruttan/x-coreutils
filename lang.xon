@@ -76,7 +76,11 @@
 ; processes holding a file or anything on its file system, which fuser asks
 ; for each FILE (cu/fuser.x).
 ;
+; v0.31.0: Deflate and Inflate streams and the compiled Crc32 (x-lang#1035),
+; which gzip, gunzip, zcat and unzip deflate and inflate through, with no libz
+; (cu/gzip.x, cu/unzip.x).
+;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.30.0")
+(requires-release "v0.31.0")
 
 (entry "run.x")
