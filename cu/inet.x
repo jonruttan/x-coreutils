@@ -105,9 +105,26 @@
     (def buf (%str-make-raw 16))
     (map (fn (_ k) (%cu-ptr-set! (%cu-str->ptr buf) k (%inet-hex (substring hex (* 2 k) (+ (* 2 k) 2))) 1))
          (List range 0 16))
+    (%inet-ntop6-bytes buf)))
+
+; inet_ntop: the 16 bytes of BUF as an IPv6 address
+(def %inet-ntop6-bytes
+  (fn (_ buf)
     (def out (%str-make-raw 64))
     (%cu-ptr-call (%in-c "inet_ntop") 10 (%cu-str->ptr buf) (%cu-str->ptr out) 64)
     (%cu-ptr->str (%cu-str->ptr out))))
+
+; gethostbyaddr: the name of the IPv6 address in the 16 bytes of BUF, or nil
+(def %inet-addr-host6
+  (fn (_ buf)
+    (let ((h (%cu-ptr-call (%in-c "gethostbyaddr") (%cu-str->ptr buf) 16 10)))
+      (if (= h 0) () (%cu-ptr->str (%cu-int->ptr (%cu-ptr-word (%cu-int->ptr h) 0)))))))
+
+; getservbyport: the name of PORT for PROTO, from /etc/services, or nil
+(def %inet-service
+  (fn (_ port proto)
+    (let ((s (%cu-ptr-call (%in-c "getservbyport") (| (<< (& port 255) 8) (& (>> port 8) 255)) proto)))
+      (if (= s 0) () (%cu-ptr->str (%cu-int->ptr (%cu-ptr-word (%cu-int->ptr s) 0)))))))
 
 ; an AF_INET datagram socket, or the run ended as xsocket ends it
 (def %inet-socket

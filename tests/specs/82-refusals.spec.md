@@ -8305,6 +8305,64 @@ Manipulate ARP cache
 status 1
 ```
 
+### netstat -~
+
+```cu
+(run (list "netstat" "-~") "")
+```
+---
+```output
+stderr:
+netstat: unrecognized option: ~
+Usage: netstat [-ral] [-tuwx] [-enWp]
+
+Display networking information
+
+	-r	Routing table
+	-a	All sockets
+	-l	Listening sockets
+		Else: connected sockets
+	-t	TCP sockets
+	-u	UDP sockets
+	-w	Raw sockets
+	-x	Unix sockets
+		Else: all socket types
+	-e	Other/more information
+	-n	Don't resolve names
+	-W	Wide display
+	-p	Show PID/program name for sockets
+status 1
+```
+
+### netstat --nope
+
+```cu
+(run (list "netstat" "--nope") "")
+```
+---
+```output
+stderr:
+netstat: unrecognized option: nope
+Usage: netstat [-ral] [-tuwx] [-enWp]
+
+Display networking information
+
+	-r	Routing table
+	-a	All sockets
+	-l	Listening sockets
+		Else: connected sockets
+	-t	TCP sockets
+	-u	UDP sockets
+	-w	Raw sockets
+	-x	Unix sockets
+		Else: all socket types
+	-e	Other/more information
+	-n	Don't resolve names
+	-W	Wide display
+	-p	Show PID/program name for sockets
+status 1
+```
+
 ### top -~
 
 ```cu

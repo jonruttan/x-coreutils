@@ -97,6 +97,7 @@ the work.  Applet parity is the other axis: see the README.
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
 | `nc` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
 | `netcat` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
+| `netstat` | -r -a -l -t -u -w -x -e -n -W -p | -r -a -l -t -u -w -x -e -n -W -p |  | 100% |
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -i -s -v -w -n |  | 100% |
 | `nmeter` | -d | -d |  | 100% |
@@ -197,4 +198,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 858 of 874 busybox options accepted (98%).**
+**Total: 869 of 885 busybox options accepted (98%).**

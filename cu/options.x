@@ -2270,6 +2270,37 @@
             (Opts hidden (Opts arg "-H" "HWTYPE" ""))
             (Opts hidden (Opts arg "-t" "HWTYPE" ""))))
         (lit leading)))
+    ; netstat's help runs "Else:" lines under its rows, so they are laid out by hand
+    (pair "netstat"
+      (list
+        (Opts declare "netstat" "[-ral] [-tuwx] [-enWp]"
+          "Display networking information"
+          (list
+            (Opts text "\t-r\tRouting table")
+            (Opts text "\t-a\tAll sockets")
+            (Opts text "\t-l\tListening sockets")
+            (Opts text "\t\tElse: connected sockets")
+            (Opts text "\t-t\tTCP sockets")
+            (Opts text "\t-u\tUDP sockets")
+            (Opts text "\t-w\tRaw sockets")
+            (Opts text "\t-x\tUnix sockets")
+            (Opts text "\t\tElse: all socket types")
+            (Opts text "\t-e\tOther/more information")
+            (Opts text "\t-n\tDon't resolve names")
+            (Opts text "\t-W\tWide display")
+            (Opts text "\t-p\tShow PID/program name for sockets")
+            (Opts hidden (Opts flag "-r" ""))
+            (Opts hidden (Opts flag "-a" ""))
+            (Opts hidden (Opts flag "-l" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-u" ""))
+            (Opts hidden (Opts flag "-w" ""))
+            (Opts hidden (Opts flag "-x" ""))
+            (Opts hidden (Opts flag "-e" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-W" ""))
+            (Opts hidden (Opts flag "-p" ""))))
+        (lit leading)))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden
