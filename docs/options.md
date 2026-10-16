@@ -70,6 +70,7 @@ the work.  Applet parity is the other axis: see the README.
 | `hostname` | -s -i -d -f -F | -s -i -d -f -v --domain --fqdn -F --file |  | 100% |
 | `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -r -h -c -e -d | -m -u | 84% |
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
+| `ifconfig` |  |  |  | - |
 | `inetd` | -f -e -q -R | -f -e -q -R |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
 | `iostat` | -c -d -t -z -k -m | -c -d -t -z -k -m |  | 100% |
