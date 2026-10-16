@@ -6,6 +6,8 @@
 # Alpine, so the engine links against musl and busybox is the oracle's own.
 FROM alpine:3.20
 RUN apk add --no-cache build-base git curl
+# socat holds a listening unix socket for netstat's cases, which busybox's nc cannot
+RUN apk add --no-cache socat
 # The platform's tools call `shasum`; Alpine has the digests under their own
 # names.
 COPY shasum /usr/local/bin/shasum

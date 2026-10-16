@@ -91,6 +91,7 @@
     (list "mountpoint" (%letters "qdnx"))
     (list "mpstat" (%letters "AIuP"))
     (list "mv" (%letters "finT"))
+    (list "netstat" (%letters "raltuwxenWp"))
     (list "nice" (%letters "n"))
     (list "nl" (%letters "bnswvi"))
     (list "nmeter" (%letters "d"))
