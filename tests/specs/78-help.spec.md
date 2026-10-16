@@ -3527,6 +3527,34 @@ stderr:
 status 0
 ```
 
+### netstat
+
+```cu
+(run (list "netstat" "--help") "")
+```
+---
+```output
+Usage: netstat [-ral] [-tuwx] [-enWp]|
+|
+Display networking information|
+|
+	-r	Routing table|
+	-a	All sockets|
+	-l	Listening sockets|
+		Else: connected sockets|
+	-t	TCP sockets|
+	-u	UDP sockets|
+	-w	Raw sockets|
+	-x	Unix sockets|
+		Else: all socket types|
+	-e	Other/more information|
+	-n	Don't resolve names|
+	-W	Wide display|
+	-p	Show PID/program name for sockets|
+stderr:
+status 0
+```
+
 ### top
 
 ```cu

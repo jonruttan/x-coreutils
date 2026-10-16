@@ -463,8 +463,8 @@
                 (if (null? name) "\n"
                   (string-append " " (string-append name "\n")))))))))
     (if (null? argv)
-      (do (one () (%cu-read-run-said (%cu-says "cksum") "-" stdin-thunk)) 0)
-      (%cu-each-run-said argv stdin-thunk (%cu-says "cksum") one 0))))
+      (do (one () (%cu-read-run-said (%cu-says-open "cksum") "-" stdin-thunk)) 0)
+      (%cu-each-run-said argv stdin-thunk (%cu-says-open "cksum") one 0))))
 
 ; --- sum: the two historical checksums ----------------------------------------
 
@@ -523,5 +523,5 @@
                     (%cu-int->str (/ (- (+ n 1023) (% (+ n 1023) 1024)) 1024)) 5)))
               " " (if named? name "") "\n")))))
     (if (null? ops)
-      (do (one "-" (%cu-read-run-said (%cu-says "sum") "-" stdin-thunk)) 0)
-      (%cu-each-run-said ops stdin-thunk (%cu-says "sum") one 0))))
+      (do (one "-" (%cu-read-run-said (%cu-says-open "sum") "-" stdin-thunk)) 0)
+      (%cu-each-run-said ops stdin-thunk (%cu-says-open "sum") one 0))))
