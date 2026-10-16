@@ -92,6 +92,8 @@
 (include-once "./sysinfo.x")
 (include-once "./sha3.x")
 (include-once "./procps.x")
+(include-once "./sysctl.x")
+(include-once "./lsmod.x")
 (include-once "./top.x")
 (include-once "./vmstat.x")
 (include-once "./iostat.x")

@@ -80,6 +80,7 @@ the work.  Applet parity is the other axis: see the README.
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -a -A -x -d -L -H -R -p -F -l -i -n -s -h -S -X -v -t -r -c -u -C -w |  | 100% |
+| `lsmod` |  |  |  | - |
 | `lsof` |  |  |  | - |
 | `makemime` | -c -e -o -C -N -a | -c -e -o -C -N -a |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
@@ -143,6 +144,7 @@ the work.  Applet parity is the other axis: see the README.
 | `strings` | -a -f -o -n -t | -f -o -a -t -n |  | 100% |
 | `sum` | -r -s | -r -s |  | 100% |
 | `sync` | -d -f | -d -f |  | 100% |
+| `sysctl` | -e -n -q -a -p -w | -e -n -q -a -A -p -w |  | 100% |
 | `tac` |  |  |  | - |
 | `tail` | -c -f -n -q -s -v | -q -v -f -c -n -s |  | 100% |
 | `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -z --gzip -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -J -j --lzma --to-command | 84% |
@@ -193,4 +195,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 839 of 855 busybox options accepted (98%).**
+**Total: 845 of 861 busybox options accepted (98%).**

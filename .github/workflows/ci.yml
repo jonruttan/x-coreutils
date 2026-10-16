@@ -86,6 +86,19 @@ jobs:
           SPEC_HEAVY_MIN: 4
         run: X="$GITHUB_WORKSPACE/.x-lang/x.sh" sh tests/spec-gate.sh
 
+  # Linux, as root: the applets whose work is the kernel's (sysctl, lsmod),
+  # in the privileged container tests/linux/run.sh builds at the release
+  # lang.xon declares, each case compared with that container's busybox.
+  linux:
+    name: linux leg @ declared release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run the Linux specs as root
+        env:
+          ENGINE: docker
+        run: sh tests/linux/run.sh
+
   # The platform's linter, over this bundle's sources.  It reads every file as
   # text, including the branches no spec reaches, so the OS is not under test.
   #

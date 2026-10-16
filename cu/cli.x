@@ -188,6 +188,8 @@
     (pair "kill" %cu-kill)
     (pair "killall" %cu-killall)
     (pair "pwdx" %cu-pwdx)
+    (pair "sysctl" %cu-sysctl)
+    (pair "lsmod" %cu-lsmod)
     (pair "top" %cu-top)
     (pair "lsof" %cu-lsof)
     (pair "vmstat" %cu-vmstat)

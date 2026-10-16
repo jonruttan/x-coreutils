@@ -2204,6 +2204,33 @@
         (Opts declare "pwdx" "PID..."
           "Show current directory for PIDs"
           (list))))
+    ; sysctl's -q row is spaced, not tabbed, in busybox's help, so its rows
+    ; are laid out by hand
+    (pair "sysctl"
+      (list
+        (Opts declare "sysctl" "[-enq] { -a | -p [FILE]... | [-w] [KEY[=VALUE]]... }"
+          "Show/set kernel parameters"
+          (list
+            (Opts text "\t-e\tDon't warn about unknown keys")
+            (Opts text "\t-n\tDon't show key names")
+            (Opts text "\t-q      Quiet")
+            (Opts text "\t-a\tShow all values")
+            (Opts text "\t-p\tSet values from FILEs (default /etc/sysctl.conf)")
+            (Opts text "\t-w\tSet values")
+            (Opts hidden (Opts flag "-e" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-a" ""))
+            (Opts hidden (Opts flag "-A" ""))
+            (Opts hidden (Opts flag "-p" ""))
+            (Opts hidden (Opts flag "-w" ""))))
+        (lit leading)))
+    (pair "lsmod"
+      (list
+        (Opts declare "lsmod" ""
+          "List loaded kernel modules"
+          (list))
+        (lit none)))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden
