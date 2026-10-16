@@ -71,7 +71,7 @@
 ; v0.29.0: (Host files pid) (x-lang#1001), whose cwd record pwdx reads and
 ; whose descriptors lsof lists (cu/procps.x).
 ;
-; v0.30.0: (Host regions pid) (x-lang#1022), the regions pmap prints
+; v0.31.0: (Host regions pid) (x-lang#1022), the regions pmap prints
 ; (cu/pmap.x); and (Host holders path mount?) (x-lang#1005, #1013), the
 ; processes holding a file or anything on its file system, which fuser asks
 ; for each FILE (cu/fuser.x).
