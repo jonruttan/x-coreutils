@@ -3568,6 +3568,71 @@ stderr:
 status 0
 ```
 
+### ip
+
+```cu
+(run (list "ip" "--help") "")
+```
+---
+```output
+Usage: ip [OPTIONS] address|route|link|tunnel|neigh|rule [ARGS]|
+|
+OPTIONS := -f[amily] inet|inet6|link | -o[neline]|
+|
+ip addr add|del IFADDR dev IFACE | show|flush [dev IFACE] [to PREFIX]|
+ip route list|flush|add|del|change|append|replace|test ROUTE|
+ip link set IFACE [up|down] [arp on|off] [multicast on|off]|
+	[promisc on|off] [mtu NUM] [name NAME] [qlen NUM] [address MAC]|
+	[master IFACE | nomaster] [netns PID]|
+ip tunnel add|change|del|show [NAME]|
+	[mode ipip|gre|sit] [remote ADDR] [local ADDR] [ttl TTL]|
+ip neigh show|flush [to PREFIX] [dev DEV] [nud STATE]|
+ip rule [list] | add|del SELECTOR ACTION|
+stderr:
+status 0
+```
+
+### ipaddr
+
+```cu
+(run (list "ipaddr" "--help") "")
+```
+---
+```output
+Usage: ipaddr add|del IFADDR dev IFACE | show|flush [dev IFACE] [to PREFIX]|
+|
+ipaddr add|change|replace|delete dev IFACE [CONFFLAG-LIST] IFADDR|
+	IFADDR := PREFIX | ADDR peer PREFIX [broadcast ADDR|+|-]|
+		[anycast ADDR] [label STRING] [scope SCOPE]|
+	PREFIX := ADDR[/MASK]|
+	SCOPE := [host|link|global|NUMBER]|
+	CONFFLAG-LIST := [CONFFLAG-LIST] CONFFLAG|
+	CONFFLAG := [noprefixroute]|
+ipaddr show|flush [dev IFACE] [scope SCOPE] [to PREFIX] [label PATTERN]|
+stderr:
+status 0
+```
+
+### iplink
+
+```cu
+(run (list "iplink" "--help") "")
+```
+---
+```output
+Usage: iplink set IFACE [up|down] [arp on|off] [multicast on|off]|
+	[promisc on|off] [mtu NUM] [name NAME] [qlen NUM] [address MAC]|
+	[master IFACE | nomaster] [netns PID]|
+iplink add [link IFACE] IFACE [address MAC] type TYPE [ARGS]|
+iplink delete IFACE type TYPE [ARGS]|
+	TYPE ARGS := vlan VLANARGS | vrf table NUM|
+	VLANARGS := id VLANID [protocol 802.1q|802.1ad] [reorder_hdr on|off]|
+		[gvrp on|off] [mvrp on|off] [loose_binding on|off]|
+iplink show [IFACE]|
+stderr:
+status 0
+```
+
 ### top
 
 ```cu

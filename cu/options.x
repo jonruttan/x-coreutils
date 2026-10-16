@@ -2318,6 +2318,42 @@
             (Opts text "\t[mem_start NN] [io_addr NN] [irq NN]")
             (Opts text "\t[up|down] ...")))
         (lit none)))
+    ; ip, ipaddr and iplink read their words themselves, the options before them too
+    (pair "ip"
+      (list
+        (Opts declare "ip" "[OPTIONS] address|route|link|tunnel|neigh|rule [ARGS]"
+          "OPTIONS := -f[amily] inet|inet6|link | -o[neline]"
+          (list
+            (Opts text "ip addr add|del IFADDR dev IFACE | show|flush [dev IFACE] [to PREFIX]")
+            (Opts text "ip route list|flush|add|del|change|append|replace|test ROUTE")
+            (Opts text "ip link set IFACE [up|down] [arp on|off] [multicast on|off]")
+            (Opts text "\t[promisc on|off] [mtu NUM] [name NAME] [qlen NUM] [address MAC]")
+            (Opts text "\t[master IFACE | nomaster] [netns PID]")
+            (Opts text "ip tunnel add|change|del|show [NAME]")
+            (Opts text "\t[mode ipip|gre|sit] [remote ADDR] [local ADDR] [ttl TTL]")
+            (Opts text "ip neigh show|flush [to PREFIX] [dev DEV] [nud STATE]")
+            (Opts text "ip rule [list] | add|del SELECTOR ACTION")))
+        (lit none)))
+    (pair "ipaddr"
+      (list
+        (Opts declare "ipaddr" "add|del IFADDR dev IFACE | show|flush [dev IFACE] [to PREFIX]" ()
+          (list
+            (Opts text "ipaddr add|change|replace|delete dev IFACE [CONFFLAG-LIST] IFADDR")
+            (Opts text "\tIFADDR := PREFIX | ADDR peer PREFIX [broadcast ADDR|+|-]")
+            (Opts text "\t\t[anycast ADDR] [label STRING] [scope SCOPE]")
+            (Opts text "\tPREFIX := ADDR[/MASK]")
+            (Opts text "\tSCOPE := [host|link|global|NUMBER]")
+            (Opts text "\tCONFFLAG-LIST := [CONFFLAG-LIST] CONFFLAG")
+            (Opts text "\tCONFFLAG := [noprefixroute]")
+            (Opts text "ipaddr show|flush [dev IFACE] [scope SCOPE] [to PREFIX] [label PATTERN]")))
+        (lit none)))
+    ; busybox's iplink help has no blank line under its Usage: line, so it is all synopsis
+    (pair "iplink"
+      (list
+        (Opts declare "iplink"
+          "set IFACE [up|down] [arp on|off] [multicast on|off]\n\t[promisc on|off] [mtu NUM] [name NAME] [qlen NUM] [address MAC]\n\t[master IFACE | nomaster] [netns PID]\niplink add [link IFACE] IFACE [address MAC] type TYPE [ARGS]\niplink delete IFACE type TYPE [ARGS]\n\tTYPE ARGS := vlan VLANARGS | vrf table NUM\n\tVLANARGS := id VLANID [protocol 802.1q|802.1ad] [reorder_hdr on|off]\n\t\t[gvrp on|off] [mvrp on|off] [loose_binding on|off]\niplink show [IFACE]"
+          () ())
+        (lit none)))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden
