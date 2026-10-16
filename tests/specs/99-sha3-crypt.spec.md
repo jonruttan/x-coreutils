@@ -149,6 +149,28 @@ stderr:
 status 0
 ```
 
+### cksum and sum too, by both of sum's methods; standard input through cksum
+
+```cu
+(do (cr-case #t "-" "@" "@" "-" (list "cksum" "nul")) (cr-case #t "nul" "@" "@" "-" (list "cksum")) (cr-case #t "-" "@" "@" "-" (list "sum" "nul" "abc")) (cr-case #t "-" "@" "@" "-" (list "sum" "-s" "nul")))
+```
+---
+```output
+4103005925 6 nul|
+stderr:
+status 0
+4103005925 6|
+stderr:
+status 0
+51253     1 nul|
+16556     1 abc|
+stderr:
+status 0
+208 1 nul|
+stderr:
+status 0
+```
+
 ### -c reads all of each file it checks
 
 ```cu
