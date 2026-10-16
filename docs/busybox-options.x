@@ -19,6 +19,7 @@
 (def busybox-options
   (list
     (list "arch" ())
+    (list "arp" (%letters "adsvniDApH"))
     (list "ascii" ())
     (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))
