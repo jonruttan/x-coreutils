@@ -194,6 +194,7 @@
     (pair "route" %cu-route)
     (pair "arp" %cu-arp)
     (pair "netstat" %cu-netstat)
+    (pair "ifconfig" %cu-ifconfig)
     (pair "top" %cu-top)
     (pair "lsof" %cu-lsof)
     (pair "vmstat" %cu-vmstat)

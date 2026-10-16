@@ -99,6 +99,7 @@
 (include-once "./route.x")
 (include-once "./arp.x")
 (include-once "./netstat.x")
+(include-once "./ifconfig.x")
 (include-once "./top.x")
 (include-once "./vmstat.x")
 (include-once "./iostat.x")

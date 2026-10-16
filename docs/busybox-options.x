@@ -71,6 +71,7 @@
     (list "dnsdomainname" ())
     (list "hexdump" (%letters "bcdoxCefnsv"))
     (list "id" (%letters "ugGnr"))
+    (list "ifconfig" ())
     (list "install" (%letters "cdDspogmt"))
     (list "iostat" (%letters "cdtzkm"))
     (list "killall" (%letters "lqs"))

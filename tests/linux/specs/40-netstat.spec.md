@@ -32,8 +32,8 @@ syslogd's unix socket, and a listening one socat holds.
     ; as lx-case, with what POST says after each side's run compared too: the
     ; kernel's own account of what the run changed
     (def lx-case-after (fn (_ pre argv post)
-      (do (lx-sh pre) (def lx-a (lx-x argv)) (lx-sh (string-append post " > /tmp/lx-post 2>&1")) (def lx-pa (lx-read "/tmp/lx-post"))
-          (lx-sh pre) (def lx-b (lx-bb argv)) (lx-sh (string-append post " > /tmp/lx-post 2>&1")) (def lx-pb (lx-read "/tmp/lx-post"))
+      (do (lx-sh pre) (def lx-a (lx-x argv)) (lx-sh (string-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pa (lx-read "/tmp/lx-post"))
+          (lx-sh pre) (def lx-b (lx-bb argv)) (lx-sh (string-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pb (lx-read "/tmp/lx-post"))
           (display (if (if (string=? lx-a lx-b) (string=? lx-pa lx-pb) #f) "same\n"
                      (string-concat (list "ours:\n" lx-a lx-pa "busybox:\n" lx-b lx-pb)))))))
     (display "made"))

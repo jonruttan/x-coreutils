@@ -2310,6 +2310,23 @@
             (Opts hidden (Opts flag "-W" ""))
             (Opts hidden (Opts flag "-p" ""))))
         (lit leading)))
+    ; ifconfig reads its words itself, -a among them, as busybox's does
+    (pair "ifconfig"
+      (list
+        (Opts declare "ifconfig" "[-a] [IFACE] [ADDRESS]"
+          "Configure a network interface"
+          (list
+            (Opts text "\t[add ADDRESS[/PREFIXLEN]]")
+            (Opts text "\t[del ADDRESS[/PREFIXLEN]]")
+            (Opts text "\t[[-]broadcast [ADDRESS]] [[-]pointopoint [ADDRESS]]")
+            (Opts text "\t[netmask ADDRESS] [dstaddr ADDRESS]")
+            (Opts text "\t[outfill NN] [keepalive NN]")
+            (Opts text "\t[hw ether|infiniband ADDRESS] [metric NN] [mtu NN]")
+            (Opts text "\t[[-]trailers] [[-]arp] [[-]allmulti]")
+            (Opts text "\t[multicast] [[-]promisc] [txqueuelen NN] [[-]dynamic]")
+            (Opts text "\t[mem_start NN] [io_addr NN] [irq NN]")
+            (Opts text "\t[up|down] ...")))
+        (lit none)))
     ; busybox's top help runs its keys and options on from the description
     ; with no blank line between, so it is all description and the options
     ; are declared hidden
