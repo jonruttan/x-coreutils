@@ -2393,6 +2393,18 @@ stderr:
 status 0
 ```
 
+### ssl_client
+
+```cu
+(run (list "ssl_client" "--help") "")
+```
+---
+```output
+Usage: ssl_client [-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu

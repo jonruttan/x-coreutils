@@ -6609,6 +6609,32 @@ Display DHCP leases granted by udhcpd
 status 1
 ```
 
+### ssl_client -~
+
+```cu
+(run (list "ssl_client" "-~") "")
+```
+---
+```output
+stderr:
+ssl_client: unrecognized option: ~
+Usage: ssl_client [-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }
+status 1
+```
+
+### ssl_client --nope
+
+```cu
+(run (list "ssl_client" "--nope") "")
+```
+---
+```output
+stderr:
+ssl_client: unrecognized option: nope
+Usage: ssl_client [-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }
+status 1
+```
+
 ### httpd -c
 
 ```cu

@@ -225,6 +225,20 @@
 (def %wget-err-text
   (fn (_ e) (if (Err err? e) (file-err-text e) "")))
 
+; create_and_connect_stream_or_die on HOST[:PORT], PORT DEFAULT without one:
+; the connected socket, or the run ended (label net) as busybox ends it
+(def %cu-dial
+  (fn (_ spec default)
+    (def colon (%in-index-of spec #\:))
+    (def host (if (null? colon) spec (substring spec 0 colon)))
+    (def port (if (null? colon) default (%tn-port (substring spec (+ colon 1) (byte-len spec)))))
+    (def ip (let ((q (guard (_ ()) (net-resolve host))))
+              (if (null? q) (Err raise (lit net) (string-concat (list "bad address '" spec "'")) ()) q)))
+    (guard (e (if (eq? (Err label e) (lit io))
+                (Err raise (lit net) (string-concat (list "can't connect to remote host (" ip "): " (%wget-err-text e))) ())
+                (error e)))
+      (net-connect ip port))))
+
 ; the call an io Err came from, or nil for an Err that names none
 (def %wget-err-op
   (fn (_ e)
