@@ -14,7 +14,8 @@
 ; link prints its index, name, flags, MTU, qdisc, master, state and queue
 ; length (SIOCGIFTXQLEN), then its link-layer line, then the addresses the
 ; filter keeps -- dev, up, scope, to PREFIX and label PATTERN (fnmatch).
-; The verbs that change the kernel's state come later.
+; The verbs that change the kernel's state are in cu/ipset.x; ip route, neigh,
+; rule and tunnel come later.
 
 ; --- the run ----------------------------------------------------------------------
 
@@ -189,35 +190,35 @@
 (def %ip-set-nth
   (fn (_ l i v) (map (fn (_ e) (if (= (first e) i) v (rest e))) (%ip-indexed l))))
 
-; get_addr_1: NAME as an address of FAMILY (0 for either), (OK? FAMILY BYTES),
-; FAMILY and BYTES as far as it got where it is not one
+; get_addr_1: NAME as an address of FAMILY (0 for either), (OK? FAMILY BYTES
+; BYTELEN), FAMILY and BYTES as far as it got where it is not one
 (def %ip-addr1
   (fn (_ name family)
     (def zero (%ip-pad16 ()))
     (match
-      ((%ip-any? name) (list #t family zero))
+      ((%ip-any? name) (list #t family zero (if (= family 10) 16 4)))
       ((>= (%dp-find name 0 #\:) 0)
         (let ((buf (%inet-zeros 16)))
           (if (if (if (= family 0) #t (= family 10)) (%inet-pton6! buf 0 name) #f)
-            (list #t 10 (%ip-bytes (%cu-str->ptr buf) 0 16))
-            (list #f 10 zero))))
-      ((not (if (= family 0) #t (= family 2))) (list #f 0 zero))
-      (#t (let ((q (%ip-quad name))) (list (first q) 2 (%ip-pad16 (rest q))))))))
+            (list #t 10 (%ip-bytes (%cu-str->ptr buf) 0 16) 16)
+            (list #f 10 zero 0))))
+      ((not (if (= family 0) #t (= family 2))) (list #f 0 zero 0))
+      (#t (let ((q (%ip-quad name))) (list (first q) 2 (%ip-pad16 (rest q)) (if (first q) 4 0)))))))
 
 (def %ip-ones
   (fn (_ n) (let go ((n n) (c 0)) (if (= n 0) c (go (>> n 1) (+ c (& n 1)))))))
 
-; get_prefix_1: ARG as (FAMILY BYTES BITS), or the run ended
+; get_prefix_1: ARG as (FAMILY BYTES BITS BYTELEN), or the run ended
 (def %ip-prefix
   (fn (_ f arg family)
     (def slash (%dp-find arg 0 #\/))
     (def a (%ip-addr1 (if (< slash 0) arg (substring arg 0 slash)) family))
     (def full (if (= (List ref 1 a) 10) 128 32))
     (match
-      ((%ip-any? arg) (list family (%ip-pad16 ()) 0))
-      ((not (first a)) (list (List ref 1 a) (List ref 2 a) 0))
-      ((< slash 0) (list (List ref 1 a) (List ref 2 a) full))
-      (#t (list (List ref 1 a) (List ref 2 a) (%ip-plen f arg (substring arg (+ slash 1) (byte-len arg)) family full))))))
+      ((%ip-any? arg) (list family (%ip-pad16 ()) 0 0))
+      ((not (first a)) (list (List ref 1 a) (List ref 2 a) 0 0))
+      ((< slash 0) (list (List ref 1 a) (List ref 2 a) full (List ref 3 a)))
+      (#t (list (List ref 1 a) (List ref 2 a) (%ip-plen f arg (substring arg (+ slash 1) (byte-len arg)) family full) (List ref 3 a))))))
 
 ; the length after a prefix's slash: a number up to BITS, or a netmask
 (def %ip-plen
@@ -600,22 +601,31 @@
         ((string=? arg "all") (%ip-put (%ip-put f (lit scope) 255) (lit scopemask) 0))
         (#t (%ip-invarg f arg "scope"))))))
 
-; ipaddr_list_or_flush's listing: the links, each with its addresses
-(def %ip-list
+; ipaddr_list_or_flush up to its addresses: the words read into the filter,
+; the socket open (fd), the links dumped (links) and dev's index (ifindex)
+(def %ip-filter
   (fn (_ f0 ws)
     (def f1 (List fold (fn (_ f kv) (%ip-put f (first kv) (rest kv))) f0
                   (list (pair (lit family) (%ip-get f0 (lit preferred))) (pair (lit up) #f) (pair (lit label) ())
                         (pair (lit dev) ()) (pair (lit scope) 0) (pair (lit scopemask) 0)
-                        (pair (lit pfx) (list 0 () 0)) (pair (lit links) ()) (pair (lit ifindex) 0))))
+                        (pair (lit pfx) (list 0 () 0 0)) (pair (lit links) ()) (pair (lit ifindex) 0))))
     (def f2 (%ip-put f1 (lit scopes) (%ip-scopes f1)))
     (def f3 (let go ((f f2) (ws ws)) (if (null? ws) f (let ((r (%ip-list-word f ws))) (go (first r) (rest r))))))
     (def fd (%ip-open f3))
     (def links (%ip-dump f3 fd 18 (%ip-get f3 (lit preferred)) 1 %ip-link-of))
     (def dev (%ip-get f3 (lit dev)))
-    (def f (%ip-put (%ip-put f3 (lit links) links) (lit ifindex) (if (null? dev) 0 (%ip-dev-index f3 dev))))
+    (List fold (fn (_ f kv) (%ip-put f (first kv) (rest kv))) f3
+               (list (pair (lit fd) fd) (pair (lit links) links)
+                     (pair (lit ifindex) (if (null? dev) 0 (%ip-dev-index f3 dev)))))))
+
+; ipaddr_list_or_flush's listing: the links, each with its addresses
+(def %ip-list
+  (fn (_ f0 ws)
+    (def f (%ip-filter f0 ws))
     (def family (%ip-get f (lit family)))
-    (def addrs (if (= family 17) () (%ip-dump f fd 22 family 2 %ip-addr-of)))
-    (%cu-ptr-call (%in-c "close") fd)
+    (def links (%ip-get f (lit links)))
+    (def addrs (if (= family 17) () (%ip-dump f (%ip-get f (lit fd)) 22 family 2 %ip-addr-of)))
+    (%cu-ptr-call (%in-c "close") (%ip-get f (lit fd)))
     (map (fn (_ l)
            (when (if (if (%ip-get f (lit oneline)) (not (= family 17)) #f) #t (= (%ip-print-link f l) 0))
              (unless (= family 17) (%ip-print-addrs f (%ip-l-index l) addrs))))
@@ -627,23 +637,28 @@
 ; a verb this bundle does not carry yet
 (def %ip-later (fn (_ f w) (%ip-die f (string-concat (list "'" w "' is not implemented yet")))))
 
-; do_ipaddr
+; do_ipaddr: add, change (chg), replace and delete hand the kernel an address,
+; flush deletes those the filter keeps, the rest list
 (def %ip-addr
   (fn (_ f ws)
     (def k (if (null? ws) 5 (%ip-keyword (list "add" "change" "chg" "replace" "delete" "list" "show" "lst" "flush") (first ws))))
     (match
       ((< k 0) (%ip-invarg f (first ws) (%ip-get f (lit name))))
-      ((if (<= k 4) #t (= k 8)) (%ip-later f (first ws)))
+      ((<= k 4) (%ip-modify f (if (= k 4) 21 20) (%cu-nth k (list 1536 256 256 1280 0)) (rest ws)))
+      ((= k 8) (%ip-flush f (rest ws)))
       (#t (%ip-list f (if (null? ws) () (rest ws)))))))
 
-; do_iplink: its errors end the run with 2
+; do_iplink: its errors end the run with 2, a link-layer address it cannot read with 1
 (def %ip-link
   (fn (_ f ws)
-    (guard (e (if (eq? (%cu-err-label e) (lit ip)) 2 (error e)))
+    (guard (e (match ((eq? (%cu-err-label e) (lit ip)) 2)
+                     ((eq? (%cu-err-label e) (lit ip-exit1)) 1)
+                     (#t (error e))))
       (let ((k (if (null? ws) 3 (%ip-keyword (list "add" "delete" "set" "show" "lst" "list") (first ws)))))
         (match
           ((< k 0) (%ip-invarg f (first ws) (%ip-get f (lit name))))
-          ((<= k 2) (%ip-later f (first ws)))
+          ((<= k 1) (%ip-add-link f (rest ws) (if (= k 0) 16 17)))
+          ((= k 2) (%ip-set f (rest ws)))
           (#t (%ip-list (%ip-put f (lit preferred) 17) (if (null? ws) () (rest ws)))))))))
 
 ; ip_main's keywords

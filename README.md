@@ -22,7 +22,7 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
-`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip`, `ipaddr` and `iplink` (show).**
+`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip`, `ipaddr` and `iplink` (addresses and links).**
 
     arch arp ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
@@ -263,6 +263,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls
     cu/ip.x           ip, ipaddr and iplink: the links and their addresses shown, over a netlink socket
+    cu/ipset.x        ip addr add, change, delete and flush, ip link set, add and delete, over netlink and the ioctls
     cu/inet.x         what the network tables share: addresses, names through the C library, the ioctls' buffers
     cu/top.x          top: its screens, keys and memory view, over the Host
     cu/vmstat.x       vmstat, and the compact numbers and %.2f the counter applets share
