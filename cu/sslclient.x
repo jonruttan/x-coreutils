@@ -42,19 +42,21 @@
     (cu-stdin-to-command!)
     (sys-signal 13 cu-sig-ign)
     (def fds
-      (match (e? (%sc-run-prog ops))
+      (match (e? (%sc-run-prog %sc-say ops))
              (s? (let ((w (%in-count (Opts value o "-s"))))
                    (pair (if (Opts on? o "-r") (%in-count (Opts value o "-r")) w) w)))
              (#t (let ((fd (%cu-dial (first ops) 443))) (pair fd fd)))))
     (def sni (let ((n (Opts value o "-n"))) (if (not (null? n)) n (if (if e? #f (not s?)) (%cu-dial-host (first ops)) ()))))
     (def session (Tls13 over (first fds) (rest fds)
                    (if (null? sni) (list (list (lit insecure))) (list (pair (lit host) sni) (list (lit insecure))))))
-    (%sc-copy session (first fds) s? #t)
+    (%sc-copy session (first fds) 0 1 s? #t)
     0))
 
-; -e PROG ARGS: PROG run on a pair of pipes, (READ . WRITE) to talk to it
+; PROG ARGS run on a pair of pipes, (READ . WRITE) to talk to it: -e here,
+; and ssl_server's program.  A PROG that cannot run ends its child as
+; BB_EXECVP_or_die does, 127 when it is not found and 126 otherwise.
 (def %sc-run-prog
-  (fn (_ argv)
+  (fn (_ say argv)
     (def to (sys-pipe))
     (def from (sys-pipe))
     (def pid (sys-fork))
@@ -63,37 +65,37 @@
           (sys-dup2 (first to) 0) (sys-dup2 (rest from) 1)
           (sys-close (first to)) (sys-close (rest from))
           (let ((r (%in-exec (first argv) argv)))
-            (do (%sc-say (string-concat (list "can't execute '" (first argv) "': " (%in-errtext r))))
-                (sys-exit 1)))))
+            (do (say (string-concat (list "can't execute '" (first argv) "': " (%in-errtext r))))
+                (sys-exit (if (= (Err errno-of r) 2) 127 126))))))
     (sys-close (first to))
     (sys-close (rest from))
     (pair (first from) (rest to))))
 
-; tls_run_copy_loop: standard input sent, the server's data to standard
-; output; ends at the server's close, or with -s at standard input's end.
-; What the session has already read ahead is taken first: poll does not see it.
+; tls_run_copy_loop: what comes in on HERE is sent, the peer's data goes to
+; THERE; ends at the peer's close, or with LOCAL-EOF? at HERE's end.  What
+; the session has already read ahead is taken first: poll does not see it.
 (def %sc-copy
-  (fn (self session in s? stdin?)
+  (fn (self session in here there local-eof? reading?)
     (%cu-sweep-tick! 0)
     (if (Tls13 pending? session)
-      (if (%sc-from-server session) (self session in s? stdin?) ())
-      (let ((ready (sys-poll (append (if stdin? (list (pair 0 (list (lit in)))) ()) (list (pair in (list (lit in))))) 1000)))
+      (if (%sc-from-peer session there) (self session in here there local-eof? reading?) ())
+      (let ((ready (sys-poll (append (if reading? (list (pair here (list (lit in)))) ()) (list (pair in (list (lit in))))) 1000)))
         (def ready? (fn (_ fd) (List any? (fn (_ e) (= (first e) fd)) ready)))
         (match
-          ((null? ready) (self session in s? stdin?))
-          ((if stdin? (ready? 0) #f)
-            (let ((r (file-read-run 0 4096)))
+          ((null? ready) (self session in here there local-eof? reading?))
+          ((if reading? (ready? here) #f)
+            (let ((r (file-read-run here 4096)))
               (if (= (rest r) 0)
-                (if s? () (self session in s? #f))
+                (if local-eof? () (self session in here there local-eof? #f))
                 (do (Tls13 send session (list (first r) 0 (rest r)))
                     (if (ready? in)
-                      (if (%sc-from-server session) (self session in s? stdin?) ())
-                      (self session in s? stdin?))))))
-          (#t (if (%sc-from-server session) (self session in s? stdin?) ())))))))
+                      (if (%sc-from-peer session there) (self session in here there local-eof? reading?) ())
+                      (self session in here there local-eof? reading?))))))
+          (#t (if (%sc-from-peer session there) (self session in here there local-eof? reading?) ())))))))
 
-; a record of the server's data to standard output: #f at its close
-(def %sc-from-server
-  (fn (_ session)
+; a record of the peer's data to THERE: #f at its close
+(def %sc-from-peer
+  (fn (_ session there)
     (let ((r (Tls13 recv-run session 16384)))
       (if (null? r) #f
-        (do (File write 1 (first r) (rest r)) #t)))))
+        (do (File write there (first r) (rest r)) #t)))))

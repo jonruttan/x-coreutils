@@ -6635,6 +6635,36 @@ Usage: ssl_client [-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }
 status 1
 ```
 
+### ssl_server -~
+
+```cu
+(run (list "ssl_server" "-~") "")
+```
+---
+```output
+stderr:
+ssl_server: unrecognized option: ~
+Usage: ssl_server -f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server
+
+	-f PEMFILE	HAProxy-style CRT file
+status 1
+```
+
+### ssl_server --nope
+
+```cu
+(run (list "ssl_server" "--nope") "")
+```
+---
+```output
+stderr:
+ssl_server: unrecognized option: nope
+Usage: ssl_server -f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server
+
+	-f PEMFILE	HAProxy-style CRT file
+status 1
+```
+
 ### httpd -c
 
 ```cu

@@ -84,7 +84,11 @@
 ; descriptors already open, and (Tls13 pending? session) (x-lang#1046), what
 ; the session has read ahead, which ssl_client copies through (cu/sslclient.x).
 ;
+; v0.33.0: (Tls13 accept IN OUT opts) (x-lang#1054), the server's side of a
+; TLS 1.3 session, signed with (Rsa sign-pss) or Ed25519 and its key read
+; by (X509 private-key) (x-lang#1052), which ssl_server runs (cu/sslserver.x).
+;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.32.0")
+(requires-release "v0.33.0")
 
 (entry "run.x")
