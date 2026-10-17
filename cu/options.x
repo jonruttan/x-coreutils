@@ -1922,6 +1922,15 @@
             (Opts hidden (Opts flag "--dry-run" ""))
             (Opts hidden (Opts flag "--backup-if-mismatch" ""))
             (Opts hidden (Opts flag "--no-backup-if-mismatch" ""))))))
+    (pair "ssl_client"
+      (list
+        (Opts declare "ssl_client" "[-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }" ()
+          (list
+            (Opts hidden (Opts arg "-s" "FD" ""))
+            (Opts hidden (Opts arg "-r" "FD" ""))
+            (Opts hidden (Opts arg "-n" "SNI" ""))
+            (Opts hidden (Opts flag "-e" ""))))
+        (lit leading)))
     (pair "ed"
       (list
         (Opts declare "ed" "[-p PROMPT] [-s] [FILE]" ()
