@@ -74,7 +74,10 @@ the work.  Applet parity is the other axis: see the README.
 | `inetd` | -f -e -q -R | -f -e -q -R |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
 | `iostat` | -c -d -t -z -k -m | -c -d -t -z -k -m |  | 100% |
+| `ip` |  |  |  | - |
+| `ipaddr` |  |  |  | - |
 | `ipcalc` | -b -n -m -p -h -s | -b -n -m -p -h -s --broadcast --network --netmask --prefix --hostname --silent |  | 100% |
+| `iplink` |  |  |  | - |
 | `kill` | -l -s | -l -s |  | 100% |
 | `join` | _not a busybox applet_ | -t | | - |
 | `killall` | -l -q -s | -l -q -s |  | 100% |
