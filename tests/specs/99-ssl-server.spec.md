@@ -5,9 +5,11 @@ ssl_server on a connection accepted from a free port of 127.0.0.1, with
 `openssl s_client -quiet -tls1_3` as the client.  Each case runs
 ssl_server in a child whose standard input and output are the accepted
 socket, as tcpsvd hands it one, with ARGS after `-f`'s PEM file; s_client
-sends "hello" and prints what comes back.  The PEM files hold a key and its
-self-signed certificate, made for the run: RSA, Ed25519, and the RSA key
-alone.  The report is what the client printed, then ssl_server's status
+sends "hello" and prints what comes back.  The PEM file holds an RSA key
+and its self-signed certificate, made for the run; the key alone is the
+PEM file with no certificate.  An Ed25519 key is Tls13 accept's to sign
+with, checked in x-lang's tls13 spec: the LibreSSL macOS ships can make no
+Ed25519 key.  The report is what the client printed, then ssl_server's status
 and stderr.  The refusals and the messages are busybox's own; busybox's
 ssl_server speaks TLS 1.2 with an RSA key and this one TLS 1.3, so the
 exchanges are checked against s_client, not against busybox.  The weight
@@ -23,9 +25,7 @@ and timeout are the TLS engines' build, which a session pays once.
   (ss-sh (string-concat (list
     "d=/tmp/x-cu-ssls; rm -rf $d; mkdir -p $d && cd $d"
     " && openssl req -x509 -newkey rsa:2048 -nodes -keyout rsa.key -out rsa.crt -days 1 -subj /CN=localhost >/dev/null 2>&1"
-    " && cat rsa.key rsa.crt > rsa.pem"
-    " && openssl req -x509 -newkey ed25519 -nodes -keyout ed.key -out ed.crt -days 1 -subj /CN=localhost >/dev/null 2>&1"
-    " && cat ed.key ed.crt > ed.pem")))
+    " && cat rsa.key rsa.crt > rsa.pem")))
   (def ss (fn (_ args)
     (%cu-heap-collect)
     (def l (Socket tcp-listen-on "127.0.0.1" 0))
@@ -56,17 +56,6 @@ and timeout are the TLS engines' build, which a session pays once.
 
 ```cu
 (ss (list "-f" "/tmp/x-cu-ssls/rsa.pem" "sh" "-c" "read l; echo \"got $l\""))
-```
----
-```output
-got hello
-[status 0]
-```
-
-### an Ed25519 key
-
-```cu
-(ss (list "-f" "/tmp/x-cu-ssls/ed.pem" "sh" "-c" "read l; echo \"got $l\""))
 ```
 ---
 ```output
