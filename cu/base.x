@@ -78,6 +78,7 @@
 (include-once "./ntpd.x")
 (include-once "./dumpleases.x")
 (include-once "./sslclient.x")
+(include-once "./sslserver.x")
 (include-once "./tcpsvd.x")
 (include-once "./ftpd.x")
 (include-once "./ipcalc.x")

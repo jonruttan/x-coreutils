@@ -1931,6 +1931,15 @@
             (Opts hidden (Opts arg "-n" "SNI" ""))
             (Opts hidden (Opts flag "-e" ""))))
         (lit leading)))
+    ; busybox's usage runs into its description: "PROG ARGSInetd-style"
+    (pair "ssl_server"
+      (list
+        (Opts declare "ssl_server" "-f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server" ()
+          (list
+            (Opts hidden (Opts arg "-f" "PEMFILE" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts text "\t-f PEMFILE\tHAProxy-style CRT file")))
+        (lit leading)))
     (pair "ed"
       (list
         (Opts declare "ed" "[-p PROMPT] [-s] [FILE]" ()

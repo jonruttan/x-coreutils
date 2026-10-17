@@ -134,6 +134,7 @@
     (pair "ntpd" %cu-ntpd)
     (pair "dumpleases" %cu-dumpleases)
     (pair "ssl_client" %cu-ssl-client)
+    (pair "ssl_server" %cu-ssl-server)
     (pair "tcpsvd" %cu-tcpsvd)
     (pair "udpsvd" %cu-udpsvd)
     (pair "ftpd" %cu-ftpd)
