@@ -49,8 +49,9 @@ interfaces after.
     (def lx-reset "ip link del lxv 2>/dev/null; ip link del lx0.7 2>/dev/null; ip link del lx0.8 2>/dev/null; ip link set lx9 name lx0 2>/dev/null; ip link set lx0 nomaster; ip link set lx0 down; ip addr flush dev lx0; ip link set lx0 mtu 1500 qlen 1000 arp on multicast on promisc off address 02:00:00:00:00:01; true")
     (def lx-show "ip addr show dev lx0")
     (def lx-links "ip link show")
-    ; a link made anew has the next index and, unless the case gives one, a random address
-    (def lx-made "ip link show | sed -e 's/^[0-9]*: /N: /' -e '/link\\/ether 02:00:00:/!s/link\\/ether [0-9a-f:]*/link\\/ether MAC/'")
+    ; a link made anew has the next index and, unless the case gives one, a random
+    ; address; eth0's peer, outside the container, may hold the same index
+    (def lx-made "ip link show | sed -e 's/^[0-9]*: /N: /' -e 's/^N: eth0@[^:]*:/N: eth0@PEER:/' -e '/link\\/ether 02:00:00:/!s/link\\/ether [0-9a-f:]*/link\\/ether MAC/'")
     (lx-sh lx-reset)
     (display "made"))
 ```
