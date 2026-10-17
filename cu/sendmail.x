@@ -197,18 +197,10 @@
 
 ; --- the connection --------------------------------------------------------------
 
-; create_and_connect_stream_or_die on HOST[:PORT]
+; the server HOST[:PORT], port 25 by default
 (def %sm-connect!
   (fn (_ spec)
-    (def colon (%in-index-of spec #\:))
-    (def host (if (null? colon) spec (substring spec 0 colon)))
-    (def port (if (null? colon) 25 (%tn-port (substring spec (+ colon 1) (byte-len spec)))))
-    (def ip (let ((q (guard (_ ()) (net-resolve host))))
-              (if (null? q) (%sm-die (string-concat (list "bad address '" host "'"))) q)))
-    (def fd (guard (e (if (eq? (Err label e) (lit io))
-                        (%sm-die (string-concat (list "can't connect to remote host (" ip "): " (%wget-err-text e))))
-                        (error e)))
-              (net-connect ip port)))
+    (def fd (%cu-dial spec 25))
     (set! %sm-rd fd)
     (set! %sm-wr fd)))
 

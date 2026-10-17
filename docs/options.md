@@ -144,6 +144,7 @@ the work.  Applet parity is the other axis: see the README.
 | `sleep` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -c -b -f -i -d -n -g -M -r -s -u -z -o -t -k |  | 100% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
+| `ssl_client` | -s -r -n -e | -s -r -n -e |  | 100% |
 | `stat` | -L -f -t -c | -f -L -t -c |  | 100% |
 | `strings` | -a -f -o -n -t | -f -o -a -t -n |  | 100% |
 | `sum` | -r -s | -r -s |  | 100% |
@@ -199,4 +200,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 869 of 885 busybox options accepted (98%).**
+**Total: 873 of 889 busybox options accepted (98%).**

@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and eighty-nine applets: parity with busybox's `coreutils`
+**A hundred and ninety applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -16,7 +16,7 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `ipcalc`,
-`tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
+`ssl_client`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
 `kill`, `killall`, `pwdx`, `pmap`, `top`, `lsof` and `fuser`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
@@ -24,24 +24,23 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
 `sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat` and `ifconfig`.**
 
-    arch arp ascii base32 base64 basename cal cat chgrp chmod chown
-    chroot cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df
-    diff dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env
-    expand expr factor fakeidentd false find flock fold free fsync ftpd
-    ftpget ftpput fuser getopt groups gunzip gzip hd head hexdump hostid
-    hostname httpd id ifconfig inetd install iostat ipcalc join kill
-    killall link ln logname ls lsmod lsof makemime md5sum mesg mkdir
-    mkfifo mknod mkpasswd mktemp more mountpoint mpstat mv nc netcat
-    netstat nice nl nmeter nohup nologin nproc nslookup ntpd od paste
-    patch pgrep pidof pipe_progress pkill pmap popmaildir printenv printf
-    ps pwd readlink realpath reformime renice reset rev rm rmdir route
-    run-parts sendmail seq setsid sha1sum sha256sum sha384sum sha3sum
-    sha512sum shred shuf sleep sort split stat strings sum sync sysctl
-    tac tail tar tcpsvd tee telnet telnetd test tftp tftpd time timeout
-    top touch tr tree true truncate ts tsort tty ttysize udpsvd unexpand
-    uniq unix2dos unlink unzip uname uptime users uudecode uuencode
-    uuidgen usleep vi vmstat w watch wc wget which who whois whoami xargs
-    xxd yes zcat [ [[
+    arch arp ascii base32 base64 basename cal cat chgrp chmod chown chroot
+    cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
+    dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand
+    expr factor fakeidentd false find flock fold free fsync ftpd ftpget
+    ftpput fuser getopt groups gunzip gzip hd head hexdump hostid hostname
+    httpd id ifconfig inetd install iostat ipcalc join kill killall link
+    ln logname ls lsmod lsof makemime md5sum mesg mkdir mkfifo mknod
+    mkpasswd mktemp more mountpoint mpstat mv nc netcat netstat nice nl
+    nmeter nohup nologin nproc nslookup ntpd od paste patch pgrep pidof
+    pipe_progress pkill pmap popmaildir printenv printf ps pwd readlink
+    realpath reformime renice reset rev rm rmdir route run-parts sendmail
+    seq setsid sha1sum sha256sum sha384sum sha3sum sha512sum shred shuf
+    sleep sort split ssl_client stat strings sum sync sysctl tac tail tar
+    tcpsvd tee telnet telnetd test tftp tftpd time timeout top touch tr
+    tree true truncate ts tsort tty ttysize udpsvd unexpand uniq unix2dos
+    unlink unzip uname uptime users uudecode uuencode uuidgen usleep vi
+    vmstat w watch wc wget which who whois whoami xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -138,7 +137,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.31.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.32.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -241,6 +240,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/popmaildir.x   popmaildir: a POP3 mailbox fetched into a maildir, by a connection helper or stdin
     cu/ntpd.x         ntpd: an NTP client and server, its clock filter, selection and discipline, -k keys
     cu/dumpleases.x   dumpleases: the leases of a udhcpd lease file, time left or when each ends
+    cu/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order
