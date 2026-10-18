@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and ninety-three applets: parity with busybox's `coreutils`
+**A hundred and ninety-four applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -16,7 +16,7 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `ipcalc`,
-`ssl_client`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
+`ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
 `kill`, `killall`, `pwdx`, `pmap`, `top`, `lsof` and `fuser`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
@@ -36,12 +36,12 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     patch pgrep pidof pipe_progress pkill pmap popmaildir printenv printf
     ps pwd readlink realpath reformime renice reset rev rm rmdir route
     run-parts sendmail seq setsid sha1sum sha256sum sha384sum sha3sum
-    sha512sum shred shuf sleep sort split ssl_client stat strings sum sync
-    sysctl tac tail tar tcpsvd tee telnet telnetd test tftp tftpd time
-    timeout top touch tr tree true truncate ts tsort tty ttysize udpsvd
-    unexpand uniq unix2dos unlink unzip uname uptime users uudecode
-    uuencode uuidgen usleep vi vmstat w watch wc wget which who whois
-    whoami xargs xxd yes zcat [ [[
+    sha512sum shred shuf sleep sort split ssl_client ssl_server stat
+    strings sum sync sysctl tac tail tar tcpsvd tee telnet telnetd test
+    tftp tftpd time timeout top touch tr tree true truncate ts tsort tty
+    ttysize udpsvd unexpand uniq unix2dos unlink unzip uname uptime users
+    uudecode uuencode uuidgen usleep vi vmstat w watch wc wget which who
+    whois whoami xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -138,7 +138,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.32.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.33.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -242,6 +242,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/ntpd.x         ntpd: an NTP client and server, its clock filter, selection and discipline, -k keys
     cu/dumpleases.x   dumpleases: the leases of a udhcpd lease file, time left or when each ends
     cu/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
+    cu/sslserver.x    ssl_server: a TLS 1.3 server on the connection inetd or tcpsvd hands it, PROG on the far side
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
     cu/runparts.x     run-parts: a directory's scripts, in order

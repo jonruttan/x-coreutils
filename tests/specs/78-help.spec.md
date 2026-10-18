@@ -2405,6 +2405,20 @@ stderr:
 status 0
 ```
 
+### ssl_server
+
+```cu
+(run (list "ssl_server" "--help") "")
+```
+---
+```output
+Usage: ssl_server -f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server|
+|
+	-f PEMFILE	HAProxy-style CRT file|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu
