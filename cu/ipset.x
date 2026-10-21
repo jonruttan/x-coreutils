@@ -346,14 +346,14 @@
           ((= (%cu-ptr-ref p (+ o 4) 2) 2) (- 0 (%inet-int32 (%cu-ptr-ref p (+ o 16) 4))))
           (#t (go (+ o (%ip-align len)))))))))
 
-; the messages that delete MS, in batches of busybox's 3584 bytes, each
-; message an RTM_DELADDR of its own sequence number
+; the messages that delete those whose bytes MS holds, in batches of busybox's
+; 3584 bytes, each a KIND (RTM_DELADDR, RTM_DELROUTE) of its own sequence number
 (def %ip-flush-batches
-  (fn (_ ms seq)
+  (fn (_ ms kind seq)
     (let go ((ms ms) (seq seq) (batch ()) (used 0) (acc ()))
       (if (null? ms) (reverse (if (null? batch) acc (pair (List flatten (reverse batch)) acc)))
-        (let ((m (List ref 7 (first ms))))
-          (let ((del (append (List take 4 m) (%ip-le 21 2) (%ip-le 1 2) (%ip-le seq 4) (List drop 12 m)
+        (let ((m (first ms)))
+          (let ((del (append (List take 4 m) (%ip-le kind 2) (%ip-le 1 2) (%ip-le seq 4) (List drop 12 m)
                              (map (fn (_ k) 0) (List range (length m) (%ip-align (length m)))))))
             (if (> (+ used (length m)) 3584)
               (go (rest ms) (+ seq 1) (list del) (length del) (pair (List flatten (reverse batch)) acc))
@@ -367,7 +367,7 @@
                     (%ip-dump f fd 22 (%ip-get f (lit family)) (+ 10 round) %ip-addr-raw-of)))
     (if (null? ms) 0
       (let ((bad (List find (fn (_ e) (not (null? e)))
-                            (map (fn (_ b) (%ip-send-check fd b)) (%ip-flush-batches ms (+ 1000 (* round 1000)))))))
+                            (map (fn (_ b) (%ip-send-check fd b)) (%ip-flush-batches (map (fn (_ a) (List ref 7 a)) ms) 21 (+ 1000 (* round 1000)))))))
         (if (null? bad) (%ip-flush-round f (+ round 1))
           (do (%ip-say f (string-append "can't send flush request: " (libc-strerror bad))) 1))))))
 

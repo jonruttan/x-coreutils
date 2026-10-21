@@ -199,6 +199,7 @@
     (pair "ip" %cu-ip)
     (pair "ipaddr" %cu-ipaddr)
     (pair "iplink" %cu-iplink)
+    (pair "iproute" %cu-iproute)
     (pair "top" %cu-top)
     (pair "lsof" %cu-lsof)
     (pair "vmstat" %cu-vmstat)

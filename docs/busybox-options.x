@@ -75,6 +75,7 @@
     (list "ip" ())
     (list "ipaddr" ())
     (list "iplink" ())
+    (list "iproute" ())
     (list "install" (%letters "cdDspogmt"))
     (list "iostat" (%letters "cdtzkm"))
     (list "killall" (%letters "lqs"))

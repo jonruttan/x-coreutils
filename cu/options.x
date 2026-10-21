@@ -2365,6 +2365,22 @@
             (Opts text "\tCONFFLAG := [noprefixroute]")
             (Opts text "ipaddr show|flush [dev IFACE] [scope SCOPE] [to PREFIX] [label PATTERN]")))
         (lit none)))
+    (pair "iproute"
+      (list
+        (Opts declare "iproute" "list|flush|add|del|change|append|replace|test ROUTE" ()
+          (list
+            (Opts text "iproute list|flush SELECTOR")
+            (Opts text "\tSELECTOR := [root PREFIX] [match PREFIX] [proto RTPROTO]")
+            (Opts text "\tPREFIX := default|ADDR[/MASK]")
+            (Opts text "iproute get ADDR [from ADDR iif IFACE]")
+            (Opts text "\t[oif IFACE] [tos TOS]")
+            (Opts text "iproute add|del|change|append|replace|test ROUTE")
+            (Opts text "\tROUTE := NODE_SPEC [INFO_SPEC]")
+            (Opts text "\tNODE_SPEC := PREFIX [table TABLE_ID] [proto RTPROTO] [scope SCOPE] [metric METRIC]")
+            (Opts text "\tINFO_SPEC := NH OPTIONS")
+            (Opts text "\tNH := [via [inet|inet6] ADDR] [dev IFACE] [src ADDR] [onlink]")
+            (Opts text "\tOPTIONS := [mtu [lock] NUM] [advmss [lock] NUM]")))
+        (lit none)))
     ; busybox's iplink help has no blank line under its Usage: line, so it is all synopsis
     (pair "iplink"
       (list
