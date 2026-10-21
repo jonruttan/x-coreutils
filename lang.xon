@@ -89,6 +89,6 @@
 ; by (X509 private-key) (x-lang#1052), which ssl_server runs (cu/sslserver.x).
 ;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.33.0")
+(requires-release "v0.34.0")
 
 (entry "run.x")
