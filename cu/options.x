@@ -2381,6 +2381,28 @@
             (Opts text "\tNH := [via [inet|inet6] ADDR] [dev IFACE] [src ADDR] [onlink]")
             (Opts text "\tOPTIONS := [mtu [lock] NUM] [advmss [lock] NUM]")))
         (lit none)))
+    (pair "ipneigh"
+      (list (Opts declare "ipneigh" "show|flush [to PREFIX] [dev DEV] [nud STATE]" () ()) (lit none)))
+    (pair "iprule"
+      (list
+        (Opts declare "iprule" "[list] | add|del SELECTOR ACTION" ()
+          (list
+            (Opts text "\tSELECTOR := [from PREFIX] [to PREFIX] [tos TOS] [fwmark FWMARK[/MASK]]")
+            (Opts text "\t\t\t[dev IFACE] [pref NUMBER]")
+            (Opts text "\tACTION := [table TABLE_ID] [nat ADDR]")
+            (Opts text "\t\t\t[prohibit|reject|unreachable]")
+            (Opts text "\t\t\t[realms [SRCREALM/]DSTREALM]")
+            (Opts text "\tTABLE_ID := [local|main|default|NUMBER]")))
+        (lit none)))
+    (pair "iptunnel"
+      (list
+        (Opts declare "iptunnel" "add|change|del|show [NAME]\n\t[mode ipip|gre|sit] [remote ADDR] [local ADDR] [ttl TTL]" ()
+          (list
+            (Opts text "iptunnel add|change|del|show [NAME]")
+            (Opts text "\t[mode ipip|gre|sit] [remote ADDR] [local ADDR]")
+            (Opts text "\t[[i|o]seq] [[i|o]key KEY] [[i|o]csum]")
+            (Opts text "\t[ttl TTL] [tos TOS] [[no]pmtudisc] [dev PHYS_DEV]")))
+        (lit none)))
     ; busybox's iplink help has no blank line under its Usage: line, so it is all synopsis
     (pair "iplink"
       (list
