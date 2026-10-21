@@ -14,8 +14,8 @@
 ; link prints its index, name, flags, MTU, qdisc, master, state and queue
 ; length (SIOCGIFTXQLEN), then its link-layer line, then the addresses the
 ; filter keeps -- dev, up, scope, to PREFIX and label PATTERN (fnmatch).
-; The verbs that change the kernel's state are in cu/ipset.x; ip route, neigh,
-; rule and tunnel come later.
+; The verbs that change the kernel's state are in cu/ipset.x, ip route in
+; cu/iproute.x; ip neigh, rule and tunnel come later.
 
 ; --- the run ----------------------------------------------------------------------
 
@@ -139,12 +139,12 @@
 (def %ip-indexed
   (fn (_ l) (let go ((l l) (i 0) (acc ())) (if (null? l) (reverse acc) (go (rest l) (+ i 1) (pair (pair i (first l)) acc))))))
 
-; rtnl_rtscope_initialize: the scope names, /etc/iproute2/rt_scopes over
-; busybox's own, as ((ID . NAME) ...), a later line over an earlier one
-(def %ip-scopes
-  (fn (_ f)
-    (def own (list (pair 0 "global") (pair 255 "nowhere") (pair 254 "host") (pair 253 "link") (pair 200 "site")))
-    (def text (file-or-err (fn (_) (file-read-unsized "/etc/iproute2/rt_scopes"))))
+; rtnl_tab_initialize: the names of a table -- scopes, protos, tables --
+; /etc/iproute2/rt_FILE over busybox's OWN, as ((ID . NAME) ...), a later
+; line over an earlier one
+(def %ip-names
+  (fn (_ f file own)
+    (def text (file-or-err (fn (_) (file-read-unsized (string-append "/etc/iproute2/rt_" file)))))
     (if (Err err? text) own
       (let go ((lines (%cu-lines text)) (no 1) (acc own))
         (if (null? lines) acc
@@ -152,23 +152,27 @@
             (if (null? (if (null? ws) () (rest ws))) (go (rest lines) (+ no 1) acc)
               (let ((id (%ip-strtou (first ws))))
                 (if (if (null? id) #t (> (first id) 1023))
-                  (do (%ip-say f (string-concat (list "database scopes is corrupted at line " (%cu-int->str no)))) acc)
+                  (do (%ip-say f (string-concat (list "database " file " is corrupted at line " (%cu-int->str no)))) acc)
                   (go (rest lines) (+ no 1) (pair (pair (first id) (first (rest ws))) acc)))))))))))
 
-; rtnl_rtscope_n2a
-(def %ip-scope-name
-  (fn (_ f id)
-    (let ((e (List find (fn (_ e) (= (first e) id)) (%ip-get f (lit scopes)))))
+; rtnl_*_n2a: ID's name in TAB, else its number
+(def %ip-name
+  (fn (_ tab id)
+    (let ((e (List find (fn (_ e) (= (first e) id)) tab)))
       (if (null? e) (%cu-int->str id) (rest e)))))
 
-; rtnl_rtscope_a2n: the lowest id named NAME, else NAME's number up to 1023 (RT_TABLE_MAX), else nil
-(def %ip-scope-id
-  (fn (_ f name)
-    (def tab (%ip-get f (lit scopes)))
+; rtnl_a2n: the lowest id TAB names NAME, else NAME's number up to 1023 (RT_TABLE_MAX), else nil
+(def %ip-id
+  (fn (_ tab name)
     (def named (filter (fn (_ e) (if (string=? (rest e) name) (eq? (List find (fn (_ x) (= (first x) (first e))) tab) e) #f)) tab))
     (if (null? named)
       (let ((n (%ip-strtou name))) (if (if (null? n) #t (> (first n) 1023)) () (first n)))
-      (List fold (fn (_ m e) (if (< (first e) m) (first e) m)) 256 named))))
+      (List fold (fn (_ m e) (if (< (first e) m) (first e) m)) 1024 named))))
+
+(def %ip-scopes
+  (fn (_ f) (%ip-names f "scopes" (list (pair 0 "global") (pair 255 "nowhere") (pair 254 "host") (pair 253 "link") (pair 200 "site")))))
+(def %ip-scope-name (fn (_ f id) (%ip-name (%ip-get f (lit scopes)) id)))
+(def %ip-scope-id (fn (_ f name) (%ip-id (%ip-get f (lit scopes)) name)))
 
 ; --- prefixes ---------------------------------------------------------------------
 
@@ -309,6 +313,11 @@
     (%inet-set! req 16 family 1)
     (let ((r (%in-call (%cu-ptr-call (%in-c "write") fd (%cu-str->ptr req) 20))))
       (when (< r 0) (%ip-die f (string-append "write error: " (libc-strerror (Err errno-of r))))))
+    (%ip-dump-read f fd seq of)))
+
+; xrtnl_dump_filter: the messages to SEQ up to NLMSG_DONE, each as OF reads it
+(def %ip-dump-read
+  (fn (_ f fd seq of)
     (def buf (%str-make-raw 32768))
     (let go ((acc ()))
       (let ((n (%in-call (%cu-ptr-call (%in-c "recv") fd (%cu-str->ptr buf) 32768 0))))
@@ -668,6 +677,7 @@
     (match
       ((< k 0) (%ip-usage))
       ((= k 0) (%ip-addr f (rest ws)))
+      ((if (= k 1) #t (= k 2)) (%ip-route f (rest ws)))
       ((= k 3) (%ip-link f (rest ws)))
       (#t (%ip-later f (first ws))))))
 

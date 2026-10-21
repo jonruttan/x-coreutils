@@ -103,6 +103,7 @@
 (include-once "./ifconfig.x")
 (include-once "./ip.x")
 (include-once "./ipset.x")
+(include-once "./iproute.x")
 (include-once "./top.x")
 (include-once "./vmstat.x")
 (include-once "./iostat.x")
