@@ -16,11 +16,18 @@
 ; authenticated.  The session is x-lang's TLS 1.3 (Tls13); busybox's speaks
 ; TLS 1.2, so a server that takes only 1.2 is refused here.
 
+(module cu/sslclient)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims append cu-sig-ign cu-stdin-to-command! cu-sweep-tick!
+  file-read-run file-write string-concat sys-close sys-dup2 sys-exit sys-fork
+  sys-pipe sys-poll sys-signal)
+
 (import x/net/tls13)
 
 (def %sc-say (fn (_ msg) (file-write 2 (string-concat (list "ssl_client: " msg "\n")))))
 
-(def %cu-ssl-client
+(def cu-ssl-client
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "ssl_client" argv))
     (def ops (Opts operands o))
@@ -42,20 +49,20 @@
     (cu-stdin-to-command!)
     (sys-signal 13 cu-sig-ign)
     (def fds
-      (match (e? (%sc-run-prog %sc-say ops))
+      (match (e? (sc-run-prog %sc-say ops))
              (s? (let ((w (%in-count (Opts value o "-s"))))
                    (pair (if (Opts on? o "-r") (%in-count (Opts value o "-r")) w) w)))
              (#t (let ((fd (%cu-dial (first ops) 443))) (pair fd fd)))))
     (def sni (let ((n (Opts value o "-n"))) (if (not (null? n)) n (if (if e? #f (not s?)) (%cu-dial-host (first ops)) ()))))
     (def session (Tls13 over (first fds) (rest fds)
                    (if (null? sni) (list (list (lit insecure))) (list (pair (lit host) sni) (list (lit insecure))))))
-    (%sc-copy session (first fds) 0 1 s? #t)
+    (sc-copy session (first fds) 0 1 s? #t)
     0))
 
 ; PROG ARGS run on a pair of pipes, (READ . WRITE) to talk to it: -e here,
 ; and ssl_server's program.  A PROG that cannot run ends its child as
 ; BB_EXECVP_or_die does, 127 when it is not found and 126 otherwise.
-(def %sc-run-prog
+(def sc-run-prog
   (fn (_ say argv)
     (def to (sys-pipe))
     (def from (sys-pipe))
@@ -74,7 +81,7 @@
 ; tls_run_copy_loop: what comes in on HERE is sent, the peer's data goes to
 ; THERE; ends at the peer's close, or with LOCAL-EOF? at HERE's end.  What
 ; the session has already read ahead is taken first: poll does not see it.
-(def %sc-copy
+(def sc-copy
   (fn (self session in here there local-eof? reading?)
     (cu-sweep-tick! 0)
     (if (Tls13 pending? session)
@@ -99,3 +106,5 @@
     (let ((r (Tls13 recv-run session 16384)))
       (if (null? r) #f
         (do (File write there (first r) (rest r)) #t)))))
+
+(provide cu/sslclient cu-ssl-client sc-copy sc-run-prog)

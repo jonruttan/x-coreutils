@@ -325,13 +325,13 @@ no clock a spec can pin.
     ; the walk's output as a string.  Asserted in x rather than quoted:
     ; a body carries "> " lines and the runner strips a literal "> "
     ; prompt from captured stdout.
-    (def %cu-dd
+    (def cu-dd
       (fn (_ flags start)
         (first (cu-diff-dir
                  (cu-opts "diff" (append flags
                                     (list "/tmp/x-cu-dd/A" "/tmp/x-cu-dd/B")))
                  flags "/tmp/x-cu-dd/A" "/tmp/x-cu-dd/B" start))))
-    (def %cu-dd-has?
+    (def cu-dd-has?
       (fn (_ hay needle)
         (def hn (byte-len hay))
         (def nn (byte-len needle))
@@ -349,9 +349,9 @@ no clock a spec can pin.
 ### a file only one side has is named, not compared
 
 ```cu
-(do (def out (%cu-dd () ()))
-    (display (%cu-dd-has? out "Only in /tmp/x-cu-dd/A: onlyA.txt\n"))
-    (display (%cu-dd-has? out "Only in /tmp/x-cu-dd/B: onlyB.txt\n")))
+(do (def out (cu-dd () ()))
+    (display (cu-dd-has? out "Only in /tmp/x-cu-dd/A: onlyA.txt\n"))
+    (display (cu-dd-has? out "Only in /tmp/x-cu-dd/B: onlyB.txt\n")))
 ```
 ---
     #t#t
@@ -359,9 +359,9 @@ no clock a spec can pin.
 ### a shared subdirectory is common, until -r
 
 ```cu
-(do (display (%cu-dd-has? (%cu-dd () ())
+(do (display (cu-dd-has? (cu-dd () ())
        "Common subdirectories: /tmp/x-cu-dd/A/sub and /tmp/x-cu-dd/B/sub\n"))
-    (display (%cu-dd-has? (%cu-dd (list "-r") ())
+    (display (cu-dd-has? (cu-dd (list "-r") ())
        "Common subdirectories")))
 ```
 ---
@@ -373,7 +373,7 @@ The header is the command that would show that one file, so it carries
 the flags as they were given.
 
 ```cu
-(display (%cu-dd-has? (%cu-dd (list "-r") ())
+(display (cu-dd-has? (cu-dd (list "-r") ())
   "diff -r /tmp/x-cu-dd/A/sub/deep.txt /tmp/x-cu-dd/B/sub/deep.txt\n"))
 ```
 ---
@@ -385,9 +385,9 @@ The name that was only on one side is no longer merely named: it is
 compared, against nothing.
 
 ```cu
-(do (def out (%cu-dd (list "-r" "-N") ()))
-    (display (%cu-dd-has? out "Only in"))
-    (display (%cu-dd-has? out
+(do (def out (cu-dd (list "-r" "-N") ()))
+    (display (cu-dd-has? out "Only in"))
+    (display (cu-dd-has? out
       "diff -r -N /tmp/x-cu-dd/A/onlyA.txt /tmp/x-cu-dd/B/onlyA.txt\n1d0\n")))
 ```
 ---
@@ -396,9 +396,9 @@ compared, against nothing.
 ### -S starts the walk at a name, in the ORDER the walk uses
 
 ```cu
-(do (def out (%cu-dd (list "-r" "-S" "same.txt") "same.txt"))
-    (display (%cu-dd-has? out "diff.txt"))
-    (display (%cu-dd-has? out "sub/deep.txt")))
+(do (def out (cu-dd (list "-r" "-S" "same.txt") "same.txt"))
+    (display (cu-dd-has? out "diff.txt"))
+    (display (cu-dd-has? out "sub/deep.txt")))
 ```
 ---
     #f#t
@@ -413,7 +413,7 @@ files in directories it was never pointed at is a surprise, not a
 feature.
 
 ```cu
-(display (%cu-dd-has? (%cu-dd (list "-r" "-S" "sub") "sub") "deep.txt"))
+(display (cu-dd-has? (cu-dd (list "-r" "-S" "sub") "sub") "deep.txt"))
 ```
 ---
     #t

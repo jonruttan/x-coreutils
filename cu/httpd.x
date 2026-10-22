@@ -36,6 +36,20 @@
 
 ; --- the state a run sets --------------------------------------------------------
 
+(module cu/httpd)
+
+(import cu/cli cu-opts)
+(import cu/prims append bit-and byte-at byte-len cu-dlopen cu-dlsym
+  cu-int->str cu-lines cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
+  cu-sweep! file-close file-dir? file-err-text file-exists? file-open-read
+  file-read-all file-read-run file-seek file-stat file-write map net-accept
+  net-close net-connect net-listen net-listen-on net-peer net-resolve
+  net-shutdown net-stdin-socket reverse set-first! str-make-raw string-append
+  string-concat string=? substring sys-dup2 sys-exec-or-err sys-exit sys-fork
+  sys-getcwd sys-group-id sys-pipe sys-setenv sys-signal sys-user-group
+  sys-user-id sys-user-name sys-wait)
+(import cu/text cu-member-s?)
+
 (def %hd-verbose 0)
 (def %hd-name "httpd")        ; the prefix of a message: the peer's IP:PORT with -v
 (def %hd-index "index.html")
@@ -93,7 +107,7 @@
             (if (< n 16) s (go (%wget-div n 16) s))))))))
 
 (def %hd-http-date
-  (fn (_ secs) (%cu-date-fmt "%a, %d %b %Y %H:%M:%S GMT" (%cu-date-split secs #t) secs)))
+  (fn (_ secs) (cu-date-fmt "%a, %d %b %Y %H:%M:%S GMT" (cu-date-split secs #t) secs)))
 
 ; S starts with P, letters compared without case
 (def %hd-prefix-ci?
@@ -182,7 +196,7 @@
                 (string-concat (list "Location: " %hd-moved "/" (if (null? %hd-query) "" (string-append "?" %hd-query)) "\r\n"))
                 ""))))
     (def page (let ((p (Assoc find code %hd-errpages))) (if (null? p) () (rest p))))
-    (if (if (null? page) #f (%t-permitted? page 4))
+    (if (if (null? page) #f (t-permitted? page 4))
       (do (%hd-write-all (string-append head "\r\n"))
           (%hd-send-file page #f))
       (%hd-write-all
@@ -425,10 +439,10 @@
     (def name (if (if first? (not (null? %hd-conf)) #f) %hd-conf (string-append path "/httpd.conf")))
     (def found
       (match
-        ((%t-permitted? name 4) name)
+        ((t-permitted? name 4) name)
         ((not first?) ())
         ((not (null? %hd-conf)) (%hd-die (string-append %hd-conf ": No such file or directory")))
-        ((%t-permitted? "httpd.conf" 4) "httpd.conf")
+        ((t-permitted? "httpd.conf" 4) "httpd.conf")
         (#t ())))
     (if (null? found) #f
       (do (map (fn (_ l) (%hd-conf-line l found first? path))
@@ -513,22 +527,22 @@
   (fn (_ stored user given)
     (match
       ((Str8 starts? "*" stored)
-        (let ((sys (%hd-system-password user)))
-          (if (null? sys) #f (%hd-crypt-equal? given sys))))
+        (let ((sys (hd-system-password user)))
+          (if (null? sys) #f (hd-crypt-equal? given sys))))
       ((if (> (byte-len stored) 1) (if (= (byte-at stored 0) #\$)
                                      (if (= (byte-at stored 1) #\y) #t (%hd-alnum? (byte-at stored 1))) #f) #f)
-        (%hd-crypt-equal? given stored))
+        (hd-crypt-equal? given stored))
       (#t (string=? given stored)))))
 
 ; pw_encrypt GIVEN with STORED as the salt, compared: STORED's prefix names
 ; the method, as busybox's does.  A hash that failed, "*", agrees with
 ; nothing, so a locked account's "*" is never a match.
-(def %hd-crypt-equal?
+(def hd-crypt-equal?
   (fn (_ given stored)
-    (let ((h (%cu-pw-encrypt given stored))) (if (string=? h "*") #f (string=? h stored)))))
+    (let ((h (cu-pw-encrypt given stored))) (if (string=? h "*") #f (string=? h stored)))))
 
 ; USER's password field from /etc/passwd, or /etc/shadow's when that is x or *
-(def %hd-system-password
+(def hd-system-password
   (fn (_ user)
     (def pw (%hd-passwd-field "/etc/passwd" user))
     (if (if (null? pw) #f (if (string=? pw "x") #t (string=? pw "*")))
@@ -537,7 +551,7 @@
 
 (def %hd-passwd-field
   (fn (_ file user)
-    (if (not (%t-permitted? file 4)) ()
+    (if (not (t-permitted? file 4)) ()
       (let go ((ls (cu-lines (file-read-all file))))
         (if (null? ls) ()
           (let ((l (first ls)) (c (%wget-index (first ls) #\: 0)))
@@ -656,7 +670,7 @@
           (if (if (not dir-url?) (eq? (Assoc get (lit file-type) st) (lit dir)) #f)
             (do (set! %hd-moved url) ())
             (do (%hd-stat! st) (%hd-interp-for target)))))
-      (dir-url? (if (%t-permitted? "cgi-bin/index.cgi" 1) (lit index) (%hd-fail 404)))
+      (dir-url? (if (t-permitted? "cgi-bin/index.cgi" 1) (lit index) (%hd-fail 404)))
       (#t ()))))
 
 ; interp when a *.ext: line names TARGET's suffix, its interpreter kept
@@ -710,7 +724,7 @@
     (def eq (%wget-index s #\= 0))
     (def body (if (null? eq) s (substring s 0 eq)))
     (def out (list ""))
-    (%cu-b64-decode-to body (fn (_ r) (set-first! out (string-append (first out) (substring (first r) 0 (rest r))))) #t)
+    (cu-b64-decode-to body (fn (_ r) (set-first! out (string-append (first out) (substring (first r) 0 (rest r))))) #t)
     (first out)))
 
 ; a POST's length: digits and nothing else, or a 400
@@ -731,7 +745,7 @@
                                                     ((if (>= c #\A) (<= c #\Z) #f) c)
                                                     ((if (>= c #\0) (<= c #\9) #f) c)
                                                     (#t #\_)))
-                                   (%tftp-bytes h 0 colon))))
+                                   (tftp-bytes h 0 colon))))
             (value (substring h (%hd-skip-blanks h (+ colon 1)) (byte-len h))))
         (set! %hd-cgi-env
           (pair (pair (if (%hd-prefix-ci? h "Content-Type:") name (string-append "HTTP_" name)) value)
@@ -975,7 +989,7 @@
   (fn (_ st rel)
     (match
       ((not (eq? (Assoc get (lit file-type) st) (lit file))) (%hd-fail 403))
-      ((not (%t-permitted? rel 1)) (do (%hd-stat! st) ()))
+      ((not (t-permitted? rel 1)) (do (%hd-stat! st) ()))
       (#t (lit normal)))))
 
 (def %hd-stat!
@@ -993,11 +1007,11 @@
 ; --- the listener ----------------------------------------------------------------------
 
 ; bb_daemonize: the parent ends, the child leaves the terminal for /dev/null
-(def %hd-daemonize
+(def hd-daemonize
   (fn (_)
     (when (> (sys-fork) 0) (sys-exit 0))
-    (%ss-resolve!)
-    (cu-ptr-call %ss-c-setsid)
+    (ss-resolve!)
+    (ss-setsid)
     (let ((fd (File open "/dev/null" (lit rdwr))))
       (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
           (when (> fd 2) (file-close fd))))))
@@ -1042,7 +1056,7 @@
     (string-concat
       (map (fn (_ c)
              (if (%hd-alnum? c) (bytes->str (list c)) (string-concat (list "&#" (cu-int->str c) ";"))))
-           (%tftp-bytes s 0 (byte-len s))))))
+           (tftp-bytes s 0 (byte-len s))))))
 
 (def %hd-alnum?
   (fn (_ c)
@@ -1051,7 +1065,7 @@
       ((if (>= c #\A) (<= c #\Z) #f) #t)
       (#t (if (>= c #\0) (<= c #\9) #f)))))
 
-(def %cu-httpd
+(def cu-httpd
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "httpd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
@@ -1063,12 +1077,12 @@
             (do (file-write 1 (let ((z (%wget-index s 0 0))) (if (null? z) s (substring s 0 z)))) 0)))
         ((not (null? (Opts value o "-e"))) (do (file-write 1 (%hd-encode (Opts value o "-e"))) 0))
         ((not (null? (Opts value o "-m")))
-          (do (file-write 1 (string-append (Crypt md5 (Opts value o "-m") (%hd-salt 8)) "\n")) 0))
+          (do (file-write 1 (string-append (Crypt md5 (Opts value o "-m") (hd-salt 8)) "\n")) 0))
         (#t (%hd-run o stdin-thunk))))))
 
 (def %hd-run
   (fn (_ o stdin-thunk)
-    (set! %hd-verbose (%nc-count o "-v"))
+    (set! %hd-verbose (nc-count o "-v"))
     (set! %hd-name "httpd")
     (set! %hd-index "index.html")
     (set! %hd-conf (Opts value o "-c"))
@@ -1076,7 +1090,7 @@
     (set! %hd-proxy ())
     (set! %hd-remote-ip 0)
     (let ((r (Opts value o "-r"))) (set! %hd-realm (if (null? r) "Web Server Authentication" r)))
-    (def ug (let ((u (Opts value o "-u"))) (if (null? u) () (%hd-ugid u))))
+    (def ug (let ((u (Opts value o "-u"))) (if (null? u) () (hd-ugid u))))
     (def home (Opts value o "-h"))
     (set! %hd-home (if (null? home) (sys-getcwd) home))
     (unless (null? home)
@@ -1092,7 +1106,7 @@
           (%hd-serve (fn (_) (let ((p (stdin-thunk (lit chunk))))
                                (let ((r (if (pair? p) p (pair p (byte-len p)))))
                                  (if (= (rest r) 0) () r))))))
-      (do (unless (Opts on? o "-f") (%hd-daemonize))
+      (do (unless (Opts on? o "-f") (hd-daemonize))
           (%hd-listen lfd)))))
 
 ; openServer: -p's PORT on every address, or HOST[:PORT] (80 unless given) on
@@ -1125,21 +1139,21 @@
 
 
 ; crypt_make_rand64encoded: N characters of crypt's base-64, from /dev/urandom
-(def %hd-salt
+(def hd-salt
   (fn (_ n)
     (let ((fd (file-open-read "/dev/urandom")))
       (let ((r (file-read-run fd n)))
         (do (file-close fd)
             (string-concat
-              (map (fn (_ b) (let ((v (bit-and b 63))) (substring %cu-crypt64 v (+ v 1))))
-                   (%cu-bytes (first r) 0 (rest r)))))))))
+              (map (fn (_ b) (let ((v (bit-and b 63))) (substring cu-crypt64 v (+ v 1))))
+                   (cu-bytes (first r) 0 (rest r)))))))))
 
 ; --- -u ---------------------------------------------------------------------------
 
 ; get_uidgid: USER[:GROUP] as (UID . GID) -- a number, or a name the system
 ; knows; a user's GID its login group (the uid itself for a number no account
 ; has) unless GROUP names one -- or the run ends naming it unknown
-(def %hd-ugid
+(def hd-ugid
   (fn (_ spec)
     (def colon (%wget-index spec #\: 0))
     (def user (if (null? colon) spec (substring spec 0 colon)))
@@ -1169,10 +1183,13 @@
   (fn (_ ug)
     (def lib (cu-dlopen () 1))
     (def fail? (fn (_ r sym)
-      (let ((e (%ss-call r (lit call) sym)))
+      (let ((e (ss-call r (lit call) sym)))
         (unless (null? e) (%hd-die (string-concat (list sym ": " (file-err-text e))))))))
     (def buf (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr buf) 0 (rest ug) 4)
     (fail? (cu-ptr-call (cu-dlsym lib "setgroups") 1 (cu-str->ptr buf)) "setgroups")
     (fail? (cu-ptr-call (cu-dlsym lib "setgid") (rest ug)) "setgid")
     (fail? (cu-ptr-call (cu-dlsym lib "setuid") (first ug)) "setuid")))
+
+(provide cu/httpd cu-httpd hd-crypt-equal? hd-daemonize hd-salt
+  hd-system-password hd-ugid)

@@ -16,7 +16,15 @@
 ; is 1.  An odd number of words is `odd input`, and nothing is put out.
 
 ; isspace's bytes: the space, and tab up to carriage return
-(def %ts-space?
+(module cu/tsort)
+
+(import cu/cli cu-usage)
+(import cu/prims byte-at byte-len cu-sweep-lines cu-sweep-tick! file-err-text
+  file-write length reverse string-append string-concat string=? substring
+  vec-build vec-make vec-ref vec-set!)
+(import cu/text cu-fold-pieces cu-msort cu-pieces cu-run-text cu-str<)
+
+(def ts-space?
   (fn (_ b) (if (= b #\space) #t (if (< b #\tab) #f (<= b #\return)))))
 
 ; The words of S onto WORDS, newest first.  CARRY is a word the last piece ended
@@ -30,7 +38,7 @@
         (match
           ((>= i end)
             (pair (if (< start 0) "" (string-append pre (substring s start end))) acc))
-          ((%ts-space? (byte-at s i))
+          ((ts-space? (byte-at s i))
             (if (< start 0) (self (+ i 1) -1 pre acc)
               (do (cu-sweep-tick! cu-sweep-lines)
                   (self (+ i 1) -1 ""
@@ -119,7 +127,7 @@
 
 ; tsort [FILE]: FILE, or `-` or no operand standard input.  A FILE that will
 ; not open ends it; one that opens and will not read, a directory, is empty.
-(def %cu-tsort
+(def cu-tsort
   (fn (_ argv stdin-thunk)
     (def ops argv)
     (def name (if (null? ops) "-" (first ops)))
@@ -140,3 +148,5 @@
                   (if (= (% (length words) 2) 1)
                     (do (file-write 2 "tsort: odd input\n") 1)
                     (%ts-sort words))))))))))
+
+(provide cu/tsort cu-tsort ts-space?)

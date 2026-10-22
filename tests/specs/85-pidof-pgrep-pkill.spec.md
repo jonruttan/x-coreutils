@@ -181,7 +181,7 @@ status 1
 ### get_signum: a number, a name in any case, with or without SIG, EXIT; nothing else
 
 ```cu
-(list (%pg-signum "9") (%pg-signum "term") (%pg-signum "SIGKILL") (%pg-signum "sigHup") (%pg-signum "EXIT") (%pg-signum "NOPE") (%pg-signum "99") (%pg-signum "9x"))
+(list (pg-signum "9") (pg-signum "term") (pg-signum "SIGKILL") (pg-signum "sigHup") (pg-signum "EXIT") (pg-signum "NOPE") (pg-signum "99") (pg-signum "9x"))
 ```
 ---
     (9 15 9 1 0 () () ())

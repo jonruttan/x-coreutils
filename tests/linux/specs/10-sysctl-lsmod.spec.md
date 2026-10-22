@@ -67,7 +67,7 @@ bundle.  So the keys read are compared by name and the ones not read are
 counted.
 
 ```cu
-(do (def lx-names (fn (_ text) (Str8 join "\n" (map (fn (_ l) (substring l 0 (%dp-find l 0 #\=))) (filter (fn (_ l) (>= (%dp-find l 0 #\=) 0)) (cu-lines text))))))
+(do (def lx-names (fn (_ text) (Str8 join "\n" (map (fn (_ l) (substring l 0 (dp-find l 0 #\=))) (filter (fn (_ l) (>= (dp-find l 0 #\=) 0)) (cu-lines text))))))
     (def lx-errors (fn (_ text) (length (filter (fn (_ l) (Str8 starts? "sysctl: error reading key" l)) (cu-lines text)))))
     (def lx-xa (lx-x (list "sysctl" "-a")))
     (def lx-ba (lx-bb (list "sysctl" "-a")))

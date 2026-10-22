@@ -19,6 +19,17 @@
 ; (net-send-to-run, net-recv-from-run), so their NUL bytes cross.
 
 ; the applet a message is said as: tftp, or tftpd, which shares the protocol
+(module cu/tftp)
+
+(import cu/cli cu-opts cu-refuse-option cu-usage)
+(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-nth
+  cu-ptr-call cu-str->ptr cu-sweep! file-close file-err-text file-open-or-err
+  file-open-read file-open-write file-read-run file-stat file-unlink
+  file-write length map net-close net-recv-from-run net-resolve net-send-run
+  net-send-to-run net-sock-addr net-sockaddr net-stdin-socket net-udp-bind
+  net-udp-open reverse string-append string-concat string=? substring
+  sys-chroot sys-close sys-poll sys-user-group sys-user-id)
+
 (def %tftp-name "tftp")
 (def %tftp-say (fn (_ msg) (file-write 2 (string-concat (list %tftp-name ": " msg "\n")))))
 
@@ -50,7 +61,7 @@
 ; --- packets ---------------------------------------------------------------------
 
 ; S's bytes then a NUL
-(def %tftp-cstr (fn (_ s) (append (%tftp-bytes s 0 (byte-len s)) (list 0))))
+(def %tftp-cstr (fn (_ s) (append (tftp-bytes s 0 (byte-len s)) (list 0))))
 
 (def %tftp-u16 (fn (_ n) (list (% (%wget-div n 256) 256) (% n 256))))
 
@@ -163,7 +174,7 @@
       (if (>= have n) (reverse acc)
         (let ((r (file-read-run fd (- n have))))
           (if (= (rest r) 0) (reverse acc)
-            (go (append (reverse (%tftp-bytes (first r) 0 (rest r))) acc) (+ have (rest r)))))))))
+            (go (append (reverse (tftp-bytes (first r) 0 (rest r))) acc) (+ have (rest r)))))))))
 
 ; the transfer, after the request: answers #t when it finished
 (def %tftp-transfer
@@ -267,7 +278,7 @@
 
 ; --- the applet ------------------------------------------------------------------
 
-(def %cu-tftp
+(def cu-tftp
   (fn (_ argv stdin-thunk)
     (def o (Opts parse %tftp-flags %tftp-values (%tftp-hpa argv)))
     (def ops (Opts operands o))
@@ -324,7 +335,7 @@
     (if ok 0 1)))
 
 ; S's bytes from A to B, as a list
-(def %tftp-bytes
+(def tftp-bytes
   (fn (_ s a b)
     (let go ((i (- b 1)) (acc ()))
       (if (< i a) acc (go (- i 1) (pair (& (byte-at s i) 255) acc))))))
@@ -401,7 +412,7 @@
 (def %tftpd-error-packet
   (fn (_ code text) (append (%tftp-u16 5) (append (%tftp-u16 code) (%tftp-cstr text)))))
 
-(def %cu-tftpd
+(def cu-tftpd
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "tftpd" argv))
     (set! %tftp-name "tftpd")
@@ -442,7 +453,7 @@
   (fn (_ user)
     (def gid (sys-user-group user))
     (def fail? (fn (_ r what)
-      (let ((e (%ss-call r (lit call) what)))
+      (let ((e (ss-call r (lit call) what)))
         (unless (null? e) (%tftpd-die (string-concat (list what ": " (file-err-text e))))))))
     (fail? (cu-ptr-call (%tftpd-c "initgroups") user gid) "can't set groups")
     (fail? (cu-ptr-call (%tftpd-c "setgid") gid) "setgid")
@@ -451,7 +462,7 @@
 ; FILE, a request's name, with each byte below a space as ?
 (def %tftpd-sanitize
   (fn (_ file)
-    (bytes->str (map (fn (_ b) (if (< b 32) #\? b)) (%tftp-bytes file 0 (byte-len file))))))
+    (bytes->str (map (fn (_ b) (if (< b 32) #\? b)) (tftp-bytes file 0 (byte-len file))))))
 
 ; the file opened -- an RRQ's to read, a WRQ's truncated, created with -c --
 ; then the transfer: 0 once it finished, 1 when it did not, a WRQ's file then
@@ -483,3 +494,5 @@
         (if rrq? (%tftp-put-wait oack 0 blksize #f)
           (let ((r (%tftp-exchange oack (+ blksize 4))))
             (if (null? r) (do (%tftp-say "timeout") #f) (%tftp-get-data r 1 blksize file))))))))
+
+(provide cu/tftp cu-tftp cu-tftpd tftp-bytes)

@@ -1590,7 +1590,7 @@ bob Basic
     (sys-dup2 9 1) (file-close hm-o)
     (def hm (file-read-all "/tmp/x-cu-hd/out"))
     (list hm-st (byte-len hm) (substring hm 0 3) (substring hm 11 12) (substring hm 34 35)
-          (string=? (%cu-pw-encrypt "pass" (substring hm 0 11)) (substring hm 0 34))))
+          (string=? (cu-pw-encrypt "pass" (substring hm 0 11)) (substring hm 0 34))))
 ```
 ---
     (0 35 "$1$" "$" "\n" #t)
@@ -1598,7 +1598,7 @@ bob Basic
 ### pw_encrypt with a $1$ salt is md5-crypt, as busybox's cryptpw -m md5 writes it
 
 ```cu
-(list (%cu-pw-encrypt "secret" "$1$saltsalt") (%cu-pw-encrypt "x" "$1$ab") (%cu-pw-encrypt "a-much-longer-password-than-16-bytes" "$1$12345678") (%cu-pw-encrypt "" "$1$xyz"))
+(list (cu-pw-encrypt "secret" "$1$saltsalt") (cu-pw-encrypt "x" "$1$ab") (cu-pw-encrypt "a-much-longer-password-than-16-bytes" "$1$12345678") (cu-pw-encrypt "" "$1$xyz"))
 ```
 ---
     ("$1$saltsalt$9xy1btjgzLYfb7hivXtC//" "$1$ab$e2KlfqG5YBMTjSz7XF.Eu1" "$1$12345678$Wdd9w490ag62uQQwem2Yr0" "$1$xyz$kjXWClpYD0.j9bPLUk/Ii.")
@@ -1606,7 +1606,7 @@ bob Basic
 ### a hash that failed is "*", and agrees with nothing, a locked account's "*" too
 
 ```cu
-(list (%cu-pw-encrypt "pw" "a") (%hd-crypt-equal? "pw" "*") (%hd-crypt-equal? "secret" "$1$saltsalt$9xy1btjgzLYfb7hivXtC//"))
+(list (cu-pw-encrypt "pw" "a") (hd-crypt-equal? "pw" "*") (hd-crypt-equal? "secret" "$1$saltsalt$9xy1btjgzLYfb7hivXtC//"))
 ```
 ---
     ("*" #f #t)

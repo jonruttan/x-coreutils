@@ -130,7 +130,7 @@
   (fn (_ period cmd width now)
     (def line (string-concat (list "Every " (%vm-fixed period 1) "s: " (cu-pad-right cmd width))))
     (if (> width 20)
-      (string-append (substring line 0 (- width 20)) (substring (%ps-boot-line now) 0 19))
+      (string-append (substring line 0 (- width 20)) (substring (ps-boot-line now) 0 19))
       line)))
 
 ; get_terminal_width on standard error: $COLUMNS over the terminal's, 80 for

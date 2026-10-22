@@ -70,7 +70,7 @@ the captured FILE -- reading it into a string would stop at the first
 NUL, which is the thing being tested.
 
 ```cu
-(do (def cap-size (fn (_ argv) (do (cu-z argv) (%cu-stat-get (file-stat-full "/tmp/x-cu-z/.cap") (lit size))))) (display (if (= (cap-size (list "env" "-0")) (cap-size (list "env"))) "same size" "differ")) (newline) (display (cap-size (list "env" "-i" "-0"))))
+(do (def cap-size (fn (_ argv) (do (cu-z argv) (cu-stat-get (file-stat-full "/tmp/x-cu-z/.cap") (lit size))))) (display (if (= (cap-size (list "env" "-0")) (cap-size (list "env"))) "same size" "differ")) (newline) (display (cap-size (list "env" "-i" "-0"))))
 ```
 ---
 ```output

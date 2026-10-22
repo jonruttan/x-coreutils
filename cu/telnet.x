@@ -22,6 +22,14 @@
 ; buffers: the first line goes out at once, the banners at exit.  The rest is
 ; written straight to the descriptors.
 
+(module cu/telnet)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims append byte-at byte-len cu-ptr-ref cu-ptr-set! cu-sig-ign
+  cu-stdin-to-command! cu-str->ptr cu-sweep-lines cu-sweep-tick! file-read-run
+  file-write filter length net-connect net-resolve net-send-run reverse
+  str-make-raw string-concat sys-getenv sys-isatty sys-poll sys-signal)
+
 (def %tn-iac 255)
 (def %tn-dont 254)
 (def %tn-do 253)
@@ -93,7 +101,7 @@
 
 ; BYTES as a run, (BUFFER . COUNT): a string's byte-len stops at a zero byte,
 ; and a subnegotiation has them
-(def %tn-run
+(def tn-run
   (fn (_ bytes)
     (def n (length bytes))
     (def buf (str-make-raw (+ n 1)))
@@ -108,7 +116,7 @@
       (if (null? l) (reverse acc)
         (go (rest l) (if (= (first l) %tn-iac) (pair (first l) (pair (first l) acc)) (pair (first l) acc)))))))
 
-(def %tn-str-bytes
+(def tn-str-bytes
   (fn (_ s) (let go ((i (- (byte-len s) 1)) (acc ())) (if (< i 0) acc (go (- i 1) (pair (byte-at s i) acc))))))
 
 (def %tn-change? (fn (_ c) (List any? (fn (_ x) (eq? x c)) %tn-changes)))
@@ -140,13 +148,13 @@
                                                 (/ (- (rest w) (% (rest w) 256)) 256) (% (rest w) 256)))
                              (list %tn-iac %tn-se))))))
     (when (%tn-change? (lit ttype))
-      (do (%tn-put (append (list %tn-iac %tn-sb %tn-ttype 0) (%tn-escaped (%tn-str-bytes %tn-ttype-name))
+      (do (%tn-put (append (list %tn-iac %tn-sb %tn-ttype 0) (%tn-escaped (tn-str-bytes %tn-ttype-name))
                            (list %tn-iac %tn-se)))
           (set! %tn-ttype-name ())
           (%tn-unchange! (lit ttype))))
     (when (%tn-change? (lit environ))
       (do (%tn-put (append (list %tn-iac %tn-sb %tn-environ 0 0 #\U #\S #\E #\R 1)
-                           (%tn-escaped (%tn-str-bytes %tn-login)) (list %tn-iac %tn-se)))
+                           (%tn-escaped (tn-str-bytes %tn-login)) (list %tn-iac %tn-se)))
           (set! %tn-login ())
           (%tn-unchange! (lit environ))))))
 
@@ -155,7 +163,7 @@
   (fn (_)
     (%tn-answer!)
     (unless (null? %tn-out)
-      (let ((ok (guard (_ #f) (do (net-send-run %tn-net (%tn-run (reverse %tn-out))) #t))))
+      (let ((ok (guard (_ #f) (do (net-send-run %tn-net (tn-run (reverse %tn-out))) #t))))
         (do (set! %tn-out ())
             (unless ok
               (do (file-write 1 "Error writing to foreign host\r\n")
@@ -221,7 +229,7 @@
           #f)
       (let ((was %tn-echo-state))
         (def out (%tn-decode (first r) (rest r)))
-        (unless (null? out) (let ((run (%tn-run out))) (File write 1 (first run) (rest run))))
+        (unless (null? out) (let ((run (tn-run out))) (File write 1 (first run) (rest run))))
         (unless (= was %tn-echo-state)
           (do (%tn-note! (lit echo))
               (if (= %tn-echo-state 1)
@@ -254,7 +262,7 @@
         (changed 1 (fn (_) (do (%tn-banner "character" "]") (%tn-raw!)))))
       (#t
         (do (when (= b #\z)
-              (do (%tn-cook!) (sys-kill 0 (%ts-signal-number "TSTP")) (%tn-raw!)))
+              (do (%tn-cook!) (sys-kill 0 (ts-signal-number "TSTP")) (%tn-raw!)))
             (file-write 1 "continuing...\r\n")
             (unless (= %tn-echo-state 1) (%tn-cook!))
             #t)))))
@@ -301,7 +309,7 @@
 
 ; --- the applet -------------------------------------------------------------------
 
-(def %cu-telnet
+(def cu-telnet
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "telnet" argv))
     (def ops (Opts operands o))
@@ -312,7 +320,7 @@
         (%tn-main o (first ops) (if (null? (rest ops)) () (first (rest ops))))))))
 
 ; bb_lookup_port: digits up to 65535, else /etc/services
-(def %tn-port
+(def tn-port
   (fn (_ s)
     (if (null? s) 23
       (let ((n (%in-strtou s)))
@@ -325,7 +333,7 @@
     (set! %tn-ttype-name (sys-getenv "TERM"))
     (set! %tn-login (let ((l (Opts value o "-l")))
                       (if (null? l) (if (Opts on? o "-a") (sys-getenv "USER") ()) l)))
-    (def port (%tn-port port-arg))
+    (def port (tn-port port-arg))
     (def ip (let ((q (guard (_ ()) (net-resolve host))))
               (if (null? q) (%net-die (string-concat (list "bad address '" host "'"))) q)))
     (set! %tn-net (guard (e (if (eq? (Err label e) (lit io))
@@ -338,3 +346,5 @@
     (sys-signal 13 cu-sig-ign)
     (Sys catch-signal %tn-sigint)
     (%tn-loop #f)))
+
+(provide cu/telnet cu-telnet tn-port tn-run tn-str-bytes)

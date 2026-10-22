@@ -25,10 +25,10 @@
 
 (def %pmap-cmdline
   (fn (_ args)
-    (%ps-resolve!)
+    (ps-resolve!)
     (def trim
       (fn (self r) (if (if (pair? r) (= (byte-len (first r)) 0) #f) (self (rest r)) r)))
-    (def s (%ps-printable (cu-join-with (reverse (trim (reverse args))) " ")))
+    (def s (ps-printable (cu-join-with (reverse (trim (reverse args))) " ")))
     (if (> (byte-len s) 4095) (substring s 0 4095) s)))
 
 (def %pmap-kib (fn (_ n) (if (null? n) 0 (/ (- n (% n 1024)) 1024))))
@@ -101,7 +101,7 @@
     (def go
       (fn (self ops st)
         (if (null? ops) st
-          (let ((pid (%cu-range-number "pmap" (first ops) 0 2147483647)))
+          (let ((pid (cu-range-number "pmap" (first ops) 0 2147483647)))
             (if (null? pid) 1
               (self (rest ops) (if (= (%pmap-report pid x quiet) 0) st 42)))))))
     (if (null? (Opts operands o)) (cu-usage "pmap") (go (Opts operands o) 0))))

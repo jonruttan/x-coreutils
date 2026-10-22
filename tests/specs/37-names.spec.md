@@ -33,7 +33,7 @@ owner and group, their ids, the user's name, and the name of root's group.
 ### an id with no name answers nil, which stat shows as UNKNOWN
 
 ```cu
-(display (list (sys-user-name 99999) (sys-group-name 99999) (%cu-stat-user 99999) (%cu-stat-group 99999)))
+(display (list (sys-user-name 99999) (sys-group-name 99999) (cu-stat-user 99999) (cu-stat-group 99999)))
 ```
 ---
     (() () UNKNOWN UNKNOWN)

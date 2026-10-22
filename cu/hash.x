@@ -8,8 +8,8 @@
 ;
 ; md5sum sha1sum cksum sum.  SHA-256 built the pattern (cu/sha256.x):
 ; the padded message is a BYTE LIST, never a string, because a NUL in
-; the padding would truncate a C string.  The 32-bit helpers -- %cu-m32
-; %cu-add32 %cu-word-hex cu-nth -- are that file's, reused here.
+; the padding would truncate a C string.  The 32-bit helpers -- cu-m32
+; cu-add32 cu-word-hex cu-nth -- are that file's, reused here.
 ;
 ; MD5 is little-endian where SHA is big-endian: the block words and the
 ; trailing bit-length both reverse, and the digest prints byte-swapped.
@@ -17,12 +17,23 @@
 
 ; --- shared 32-bit rotation ---------------------------------------------------
 
+(module cu/hash)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
+  byte-len cu-as-run cu-int->str cu-lines cu-nth cu-run-list cu-sweep!
+  cu-sweep-bytes cu-sweep-steps file-err-op file-err-text file-or-err
+  file-read-all file-write integer->char length list->string map reverse
+  string-append string-concat string=? substring vec-make vec-ref vec-set!)
+(import cu/text cu-each-run-said cu-pad-left cu-pad-zero cu-read-run-said
+  cu-say cu-says cu-says-open)
+
 (def %cu-rotl32
   (fn (_ x n)
-    (bit-and (bit-or (bit-shl x n) (bit-shr x (- 32 n))) %cu-m32)))
+    (bit-and (bit-or (bit-shl x n) (bit-shr x (- 32 n))) cu-m32)))
 
 (def %cu-not32
-  (fn (_ x) (bit-xor x %cu-m32)))
+  (fn (_ x) (bit-xor x cu-m32)))
 
 ; the message as bytes: the raw bytes, then 0x80, zeros to 56 mod 64,
 ; and eight bytes of bit length -- LOW byte first for MD5.  TEXT is a string
@@ -110,12 +121,12 @@
     (def round
       (fn (self i ks ss a b c d)
         (if (> i 63) (list a b c d)
-          (let ((f (%cu-add32
-                     (%cu-add32 (%cu-md5-f i b c d) a)
-                     (%cu-add32 (first ks) (cu-nth (%cu-md5-g i) m)))))
+          (let ((f (cu-add32
+                     (cu-add32 (%cu-md5-f i b c d) a)
+                     (cu-add32 (first ks) (cu-nth (%cu-md5-g i) m)))))
             (self (+ i 1) (rest ks) (rest ss)
               d
-              (%cu-add32 b (%cu-rotl32 f (first ss)))
+              (cu-add32 b (%cu-rotl32 f (first ss)))
               b c)))))
     (def out
       (round 0 %cu-md5-k %cu-md5-s
@@ -124,7 +135,7 @@
       (fn (self a b acc)
         (if (null? a) (reverse acc)
           (self (rest a) (rest b)
-            (pair (%cu-add32 (first a) (first b)) acc)))))
+            (pair (cu-add32 (first a) (first b)) acc)))))
     (add2 hs out ())))
 
 ; MD5 prints each word LOW byte first: the hex of the byte-swapped word
@@ -137,13 +148,13 @@
             (pair
               (let ((b (bit-and (bit-shr w shift) 255)))
                 (list->string
-                  (list (integer->char (%cu-hex-digit (bit-shr b 4)))
-                        (integer->char (%cu-hex-digit (bit-and b 15))))))
+                  (list (integer->char (cu-hex-digit (bit-shr b 4)))
+                        (integer->char (cu-hex-digit (bit-and b 15))))))
               acc)))))
     (go 0 ())))
 
 ; the block walk both digests share: 64 bytes at a time, state in/out
-(def %cu-hash-blocks
+(def cu-hash-blocks
   (fn (self bs hs step)
     (if (null? bs) hs
       (let ((take64 (let ((go (fn (self2 l n acc)
@@ -156,21 +167,21 @@
 (def cu-md5
   (fn (_ text)
     (def hs
-      (%cu-hash-blocks (%cu-md5-pad text)
+      (cu-hash-blocks (%cu-md5-pad text)
         (list 1732584193 4023233417 2562383102 271733878)
         (fn (_ hs block) (%cu-md5-block hs block))))
     (string-concat (map (fn (_ w) (%cu-word-hex-le w)) hs))))
 
 ; MD5 of a list of bytes, as a list of sixteen bytes: what md5-crypt hashes
 ; holds NULs, which a string would not carry
-(def %cu-md5-bytes
+(def cu-md5-bytes
   (fn (_ bytes)
     (def n (length bytes))
     (def zeros (let go ((k (% (- 119 (% n 64)) 64)) (acc ())) (if (= k 0) acc (go (- k 1) (pair 0 acc)))))
     (def len-bytes (let go ((shift 0) (acc ()))
                      (if (> shift 56) (reverse acc)
                        (go (+ shift 8) (pair (bit-and (bit-shr (* n 8) shift) 255) acc)))))
-    (def hs (%cu-hash-blocks (append bytes (list 128) zeros len-bytes)
+    (def hs (cu-hash-blocks (append bytes (list 128) zeros len-bytes)
               (list 1732584193 4023233417 2562383102 271733878)
               (fn (_ st block) (%cu-md5-block st block))))
     (let go ((ws (reverse hs)) (acc ()))
@@ -181,14 +192,14 @@
                 (pair (bit-and (bit-shr w 16) 255) (pair (bit-and (bit-shr w 24) 255) acc))))))))))
 
 ; the bytes of S from A to B
-(def %cu-bytes
+(def cu-bytes
   (fn (_ s a b)
     (let go ((i (- b 1)) (acc ()))
       (if (< i a) acc (go (- i 1) (pair (bit-and (byte-at s i) 255) acc))))))
 
 ; crypt's base-64, which httpd's and cryptpw's random salts are written in
 
-(def %cu-crypt64 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
+(def cu-crypt64 "./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
 
 ; --- SHA-1 --------------------------------------------------------------------
 
@@ -235,15 +246,15 @@
       ((< t 60) 2400959708)
       (#t 3395469782))))
 
-(def %cu-sha1-block
+(def cu-sha1-block
   (fn (_ hs block)
     (def w (%cu-sha1-schedule block))
     (def round
       (fn (self t ws a b c d e)
         (if (null? ws) (list a b c d e)
-          (let ((tmp (%cu-add32
-                       (%cu-add32 (%cu-rotl32 a 5) (%cu-sha1-f t b c d))
-                       (%cu-add32 (%cu-add32 e (%cu-sha1-kt t))
+          (let ((tmp (cu-add32
+                       (cu-add32 (%cu-rotl32 a 5) (%cu-sha1-f t b c d))
+                       (cu-add32 (cu-add32 e (%cu-sha1-kt t))
                          (first ws)))))
             (self (+ t 1) (rest ws)
               tmp a (%cu-rotl32 b 30) c d)))))
@@ -255,16 +266,16 @@
       (fn (self a b acc)
         (if (null? a) (reverse acc)
           (self (rest a) (rest b)
-            (pair (%cu-add32 (first a) (first b)) acc)))))
+            (pair (cu-add32 (first a) (first b)) acc)))))
     (add2 hs out ())))
 
 (def cu-sha1
   (fn (_ text)
     (def hs
-      (%cu-hash-blocks (%cu-sha-pad text)
+      (cu-hash-blocks (cu-sha-pad text)
         (list 1732584193 4023233417 2562383102 271733878 3285377520)
-        (fn (_ hs block) (%cu-sha1-block hs block))))
-    (string-concat (map (fn (_ w) (%cu-word-hex w)) hs))))
+        (fn (_ hs block) (cu-sha1-block hs block))))
+    (string-concat (map (fn (_ w) (cu-word-hex w)) hs))))
 
 ; --- the digest applets -------------------------------------------------------
 ;
@@ -336,7 +347,7 @@
         (if (if (Err err? text) (not (eq? (file-err-op text) (lit read))) #f)
           (do (cu-say (cu-says name) (first lists) text) 1)
           (self name digest (rest lists) stdin-thunk status? warn?
-            (%cu-max-status st
+            (cu-max-status st
               (%cu-sum-check-lines name digest (first lists)
                 (if (Err err? text) () (cu-lines text)) stdin-thunk
                 status? warn?))))))))
@@ -379,7 +390,7 @@
 
 ; -s and -w shape only what -c says: without it busybox refuses them with its
 ; usage text.  No operand is stdin.
-(def %cu-sum-applet
+(def cu-sum-applet
   (fn (_ name digest argv stdin-thunk)
     (def o (cu-opts name argv))
     (def ops (if (null? (Opts operands o)) (list "-") (Opts operands o)))
@@ -393,13 +404,13 @@
       ((if (Opts on? o "-s") #t (Opts on? o "-w")) (cu-usage name))
       (#t (cu-each-run-said ops stdin-thunk (%cu-sum-says name) one 0)))))
 
-(def %cu-md5sum
+(def cu-md5sum
   (fn (_ argv stdin-thunk)
-    (%cu-sum-applet "md5sum" (fn (_ t) (cu-md5 t)) argv stdin-thunk)))
+    (cu-sum-applet "md5sum" (fn (_ t) (cu-md5 t)) argv stdin-thunk)))
 
-(def %cu-sha1sum
+(def cu-sha1sum
   (fn (_ argv stdin-thunk)
-    (%cu-sum-applet "sha1sum" (fn (_ t) (cu-sha1 t)) argv stdin-thunk)))
+    (cu-sum-applet "sha1sum" (fn (_ t) (cu-sha1 t)) argv stdin-thunk)))
 
 ; --- cksum: the POSIX CRC-32 --------------------------------------------------
 
@@ -413,7 +424,7 @@
           (if (= (bit-and c 2147483648) 0)
             (bit-shl c 1)
             (bit-xor (bit-shl c 1) 79764919))
-          %cu-m32)))))
+          cu-m32)))))
 
 (def %cu-crc-build
   (fn (_)
@@ -421,7 +432,7 @@
     (def go
       (fn (self i)
         (if (> i 255) v
-          (do (vec-set! v i (%cu-crc-bit8 8 (bit-and (bit-shl i 24) %cu-m32)))
+          (do (vec-set! v i (%cu-crc-bit8 8 (bit-and (bit-shl i 24) cu-m32)))
               (self (+ i 1))))))
     (go 0)))
 
@@ -429,7 +440,7 @@
 
 (def %cu-crc-byte
   (fn (_ crc b)
-    (bit-xor (bit-and (bit-shl crc 8) %cu-m32)
+    (bit-xor (bit-and (bit-shl crc 8) cu-m32)
       (vec-ref %cu-crc-table
         (bit-and (bit-xor (bit-shr crc 24) b) 255)))))
 
@@ -450,9 +461,9 @@
       (fn (self n crc)
         (if (= n 0) crc
           (self (bit-shr n 8) (%cu-crc-byte crc (bit-and n 255))))))
-    (bit-and (%cu-not32 (tail end (over 0 0))) %cu-m32)))
+    (bit-and (%cu-not32 (tail end (over 0 0))) cu-m32)))
 
-(def %cu-cksum
+(def cu-cksum-applet
   (fn (_ argv stdin-thunk)
     (def one
       (fn (_ name text)
@@ -503,7 +514,7 @@
 ; -s.  The name is shown under -s, standard input's as `-`, and for BSD only
 ; when there is more than one operand; a BSD line without it still ends in
 ; the space.
-(def %cu-sum
+(def cu-sum
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "sum" argv))
     (def sysv? (if (Opts on? o "-r") #f (Opts on? o "-s")))
@@ -525,3 +536,6 @@
     (if (null? ops)
       (do (one "-" (cu-read-run-said (cu-says-open "sum") "-" stdin-thunk)) 0)
       (cu-each-run-said ops stdin-thunk (cu-says-open "sum") one 0))))
+
+(provide cu/hash cu-bytes cu-cksum-applet cu-crypt64 cu-hash-blocks cu-md5
+  cu-md5-bytes cu-md5sum cu-sha1-block cu-sha1sum cu-sum cu-sum-applet)

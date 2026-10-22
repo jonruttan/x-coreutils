@@ -61,7 +61,7 @@
 ; SEGFAULTED rather than raising.
 ; WHAT AN APPLET TAKES THAT IS NOT AN OPTION.  dd's operands are
 ; key=value, and date's format is an operand beginning with +, so neither
-; is in a %cu-option-spec row -- and both are read, so the matrix would
+; is in a cu-option-spec row -- and both are read, so the matrix would
 ; otherwise count a supported thing as missing.
 (def %mx-extra
   (list

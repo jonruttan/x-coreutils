@@ -86,7 +86,7 @@
   (fn (_ code text)
     (def body (string-append code (%fd-double text 255)))
     (def s (string-append (if (null? (%wget-index body 10 0)) body
-                            (bytes->str (map (fn (_ b) (if (= b 10) 0 b)) (%cu-bytes body 0 (byte-len body)))))
+                            (bytes->str (map (fn (_ b) (if (= b 10) 0 b)) (cu-bytes body 0 (byte-len body)))))
                           "\r\n"))
     (%fd-send s)
     (when (> %fd-verbose 1) (%fd-log s))))
@@ -138,7 +138,7 @@
   (fn (_ s)
     (if (if (null? (%wget-index s 255 0)) (null? (%wget-index s 0 0)) #f) s
       (bytes->str
-        (let go ((bs (%cu-bytes s 0 (byte-len s))) (acc ()))
+        (let go ((bs (cu-bytes s 0 (byte-len s))) (acc ()))
           (match ((null? bs) (reverse acc))
                  ((= (first bs) 255)
                    (match ((null? (rest bs)) (reverse acc))
@@ -163,7 +163,7 @@
     (set! %fd-arg (if (null? sp) () (substring cmd (+ sp 1) (byte-len cmd))))
     (def word (if (null? sp) cmd (substring cmd 0 sp)))
     (def k (byte-len word))
-    (bytes->str (map (fn (_ b) (bit-and b 223)) (%cu-bytes word (if (> k 4) (- k 4) 0) k)))))
+    (bytes->str (map (fn (_ b) (bit-and b 223)) (cu-bytes word (if (> k 4) (- k 4) 0) k)))))
 
 ; --- the data connection ---------------------------------------------------------
 
@@ -370,7 +370,7 @@
 (def %fd-mkstemp
   (fn (_)
     (def t (str-make-raw 12))
-    (let go ((i 0) (bs (%cu-bytes "uniq.XXXXXX" 0 11)))
+    (let go ((i 0) (bs (cu-bytes "uniq.XXXXXX" 0 11)))
       (unless (null? bs) (do (cu-ptr-set! (cu-str->ptr t) i (first bs) 1) (go (+ i 1) (rest bs)))))
     (cu-ptr-set! (cu-str->ptr t) 11 0 1)
     (def fd (Sys %sign-fold (cu-ptr-call (%fd-c "mkstemp") (cu-str->ptr t))))
@@ -468,10 +468,10 @@
 (def %fd-password-ok?
   (fn (_ user plain)
     (if (null? user) #f
-      (let ((stored (%hd-system-password user)))
+      (let ((stored (hd-system-password user)))
         (match ((null? stored) #f)
                ((= (byte-len stored) 0) #t)
-               (#t (%hd-crypt-equal? (if (null? plain) "" plain) stored)))))))
+               (#t (hd-crypt-equal? (if (null? plain) "" plain) stored)))))))
 
 ; USER anonymous with -a ANON, a user the system knows
 (def %fd-anonymous?
@@ -504,7 +504,7 @@
     (def uid (sys-user-id user))
     (def gid (sys-user-group user))
     (def fail? (fn (_ r what)
-      (let ((e (%ss-call r (lit call) what)))
+      (let ((e (ss-call r (lit call) what)))
         (unless (null? e) (%fd-die (string-concat (list what ": " (file-err-text e))))))))
     (fail? (cu-ptr-call (%fd-c "initgroups") user gid) "can't set groups")
     (fail? (cu-ptr-call (%fd-c "setgid") gid) "setgid")
@@ -527,8 +527,8 @@
 
 (def %fd-main
   (fn (_ o)
-    (def v (%nc-count o "-v"))
-    (def vs (%nc-count o "-S"))
+    (def v (nc-count o "-v"))
+    (def vs (nc-count o "-S"))
     (set! %fd-verbose (if (> vs v) vs v))
     (set! %fd-write? (Opts on? o "-w"))
     (set! %fd-timeout (let ((t (Opts value o "-t"))) (if (null? t) 120 (%fd-num t))))

@@ -105,7 +105,7 @@ The encoded forms come from the system's base64 and uuencode.
 ### the passes cover the block the file's last bytes sit in
 
 ```cu
-(do (cu-run (list "shred" "-n" "1" "/tmp/x-cu-b/shredme") "") (display (%cu-stat-get (file-stat-full "/tmp/x-cu-b/shredme") (lit size))) (newline))
+(do (cu-run (list "shred" "-n" "1" "/tmp/x-cu-b/shredme") "") (display (cu-stat-get (file-stat-full "/tmp/x-cu-b/shredme") (lit size))) (newline))
 ```
 ---
     4096

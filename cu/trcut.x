@@ -33,7 +33,7 @@
     (if (>= i (byte-len s)) (reverse acc)
       (match
         ((= (byte-at s i) 92)
-          (let ((e (%cu-esc-at s i (lit tr))))
+          (let ((e (cu-esc-at s i (lit tr))))
             (self s (cu-nth 1 e)
               (if (< (cu-nth 3 e) 0) acc
                 (pair (pair (cu-nth 3 e) #t) acc)))))

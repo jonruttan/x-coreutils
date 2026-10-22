@@ -28,6 +28,10 @@
 ; dash-word the grammar accepts; find's for the same reason, or a valid
 ; expression reads as a bad flag.  cu/find.x parses them; this list only makes
 ; them spellable.
+(module cu/options)
+
+(import cu/prims append length map reverse substring)
+
 (def %cu-test-operators
   (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
         "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
@@ -53,11 +57,11 @@
       (Opts declare name "[OPTIONS] HOST PORT  - connect\nnc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen"
         "\t-e PROG\tRun PROG after connect (must be last)\n\t-l\tListen mode, for inbound connects\n\t-lk\tWith -e, provides persistent server\n\t-p PORT\tLocal port\n\t-s ADDR\tLocal address\n\t-w SEC\tTimeout for connects and final net reads\n\t-i SEC\tDelay interval for lines sent\n\t-n\tDon't do DNS resolution\n\t-u\tUDP mode\n\t-b\tAllow broadcasts\n\t-v\tVerbose\n\t-o FILE\tHex dump traffic\n\t-z\tZero-I/O mode (scanning)"
         (append (list)
-          (%cu-hidden-flags %nc-flags)
-          (%cu-hidden-args %nc-values)))
+          (%cu-hidden-flags nc-flags)
+          (%cu-hidden-args nc-values)))
       (lit none))))
 
-(def %cu-option-spec
+(def cu-option-spec
   (list
     (pair "cat"
       (list
@@ -2481,3 +2485,5 @@
             (%cu-hidden-flags %cu-test-operators))
           (pair (lit help) #f))
         (lit none)))))
+
+(provide cu/options cu-option-spec)

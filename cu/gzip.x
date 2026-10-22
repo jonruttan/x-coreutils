@@ -22,14 +22,24 @@
 ; whole.  busybox deflates with code of its own, so a compressed file holds
 ; the same data but not always the same bytes.
 
+(module cu/gzip)
+
+(import cu/cli cu-opts)
+(import cu/prims append byte-at byte-len char->integer cu-err-label
+  cu-int->ptr cu-ptr-set! cu-str->ptr cu-sweep-tick! file-close file-err-text
+  file-open-err file-open-wronly file-set-times file-stat-full file-unlink
+  file-write filter length reverse str-make-raw string-append string-concat
+  string=? substring vec-build vec-ref vec-set!)
+(import cu/text cu-pieces)
+
 (import x/codec/deflate)
 (import x/codec/inflate)
 (import x/codec/crc32)
 
 (def %gz-room 32768)
 
-(def %gz-copy (prim-ref (lit mem) (lit copy)))
-(def %gz-at (fn (_ p off) (cu-int->ptr (+ ((prim-ref (lit ptr) (lit ->int)) p) off))))
+(def gz-copy (prim-ref (lit mem) (lit copy)))
+(def gz-at (fn (_ p off) (cu-int->ptr (+ ((prim-ref (lit ptr) (lit ->int)) p) off))))
 
 ; the run ends: MSG said under the applet's NAME, and the status 1
 (def %gz-die
@@ -54,7 +64,7 @@
 ; held until the next comes or the sink is closed, so the last goes out as the
 ; stream's final block, as zlib writes it, not an empty final block after it;
 ; the writer may fill its buffer again, so what is held is a copy.
-(def %gz-sink
+(def gz-sink
   (fn (_ fd)
     (def head (str-make-raw 10))
     (do (%gz-fill! head (list 31 139 8 0 0 0 0 0 0 3))
@@ -75,7 +85,7 @@
 
 ; the piece held before deflated, and N bytes of BUF held in its place;
 ; counted into the CRC and length
-(def %gz-sink-write!
+(def gz-sink-write!
   (fn (_ k buf n)
     (let ((held (vec-ref k 4)))
       (do (%gz-sink-step! k (first held) (rest held) #f)
@@ -86,10 +96,10 @@
 (def %gz-held
   (fn (_ buf n)
     (let ((r (str-make-raw (if (= n 0) 1 n))))
-      (do (if (> n 0) (%gz-copy (cu-str->ptr r) (cu-str->ptr buf) n) ()) (pair r n)))))
+      (do (if (> n 0) (gz-copy (cu-str->ptr r) (cu-str->ptr buf) n) ()) (pair r n)))))
 
 ; the held piece as the stream's end, then the CRC and length
-(def %gz-sink-close!
+(def gz-sink-close!
   (fn (_ k)
     (let ((held (vec-ref k 4)))
       (do (%gz-sink-step! k (first held) (rest held) #t)
@@ -99,16 +109,16 @@
 ; SRC's pieces deflated to FD as busybox's gzip writes them
 (def %gz-pack!
   (fn (_ src fd)
-    (def k (%gz-sink fd))
+    (def k (gz-sink fd))
     (def feed
       (fn (self)
         (let ((p (src)))
           (match
             ((Err err? p) (error p))
             ((= (rest p) 0) ())
-            (#t (do (%gz-sink-write! k (first p) (rest p)) (cu-sweep-tick! 0) (self)))))))
+            (#t (do (gz-sink-write! k (first p) (rest p)) (cu-sweep-tick! 0) (self)))))))
     (do (feed)
-        (%gz-sink-close! k))))
+        (gz-sink-close! k))))
 
 (def %gz-fill!
   (fn (_ buf bytes)
@@ -253,7 +263,7 @@
     (let ((n (vec-ref st 4)) (out (vec-ref st 6)))
       (unless (= n 0)
         (let ((copy (str-make-raw n)))
-          (do (%gz-copy (cu-str->ptr copy) (cu-str->ptr out) n)
+          (do (gz-copy (cu-str->ptr copy) (cu-str->ptr out) n)
               (vec-set! st 2 (Crc32 update (vec-ref st 2) out 0 n))
               (vec-set! st 3 (& (+ (vec-ref st 3) n) 4294967295))
               (vec-set! st 4 0)
@@ -265,8 +275,8 @@
     (unless (= n 0)
       (let ((filled (vec-ref st 4)))
         (let ((k (if (< (- %gz-room filled) n) (- %gz-room filled) n)))
-          (do (%gz-copy (%gz-at (cu-str->ptr (vec-ref st 6)) filled)
-                            (%gz-at (cu-str->ptr out) at) k)
+          (do (gz-copy (gz-at (cu-str->ptr (vec-ref st 6)) filled)
+                            (gz-at (cu-str->ptr out) at) k)
               (vec-set! st 4 (+ filled k))
               (when (= (vec-ref st 4) %gz-room) (%gz-emit! st))
               (self st out (+ at k) (- n k))))))))
@@ -312,7 +322,7 @@
                 (error e)))
       (thunk))))
 
-(def %cu-gzip
+(def cu-gzip
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
@@ -322,14 +332,14 @@
                                                 (Opts on? o "--test"))) #f)
             (Opts operands o) stdin-thunk))))))
 
-(def %cu-gunzip
+(def cu-gunzip
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
         (let ((o (cu-opts "gunzip" argv)))
           (%gz-files (%gz-settings "gunzip" o #t #f) (Opts operands o) stdin-thunk))))))
 
-(def %cu-zcat
+(def cu-zcat
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
@@ -366,11 +376,11 @@
     (if (not (vec-ref t 1)) (string-append file ".gz")
       (let ((n (byte-len file)))
         (match
-          ((%gz-ends? file ".gz") (substring file 0 (- n 3)))
-          ((%gz-ends? file ".tgz") (string-append (substring file 0 (- n 4)) ".tar"))
+          ((gz-ends? file ".gz") (substring file 0 (- n 3)))
+          ((gz-ends? file ".tgz") (string-append (substring file 0 (- n 4)) ".tar"))
           (#t ()))))))
 
-(def %gz-ends?
+(def gz-ends?
   (fn (_ s e)
     (if (< (byte-len s) (byte-len e)) #f
       (string=? (substring s (- (byte-len s) (byte-len e)) (byte-len s)) e))))
@@ -429,7 +439,7 @@
 (def %gz-to-file
   (fn (_ t file st src new)
     (def name (%gz-name t))
-    (def mode (& (%cu-stat-get st (lit mode)) 4095))
+    (def mode (& (cu-stat-get st (lit mode)) 4095))
     (if (vec-ref t 3) (guard (e ()) (file-unlink new)) ())
     (let ((fd (File open new (list (lit wronly) (lit creat) (lit excl)) mode)))
       (if (< fd 0)
@@ -466,7 +476,7 @@
       ((null? argv) ())
       ((string=? (first argv) "--") argv)
       ((%gz-level-word? (first argv))
-        (let ((letters (filter (fn (_ c) (not (%gz-digit? c))) (rest (%gz-word-bytes (first argv))))))
+        (let ((letters (filter (fn (_ c) (not (%gz-digit? c))) (rest (gz-word-bytes (first argv))))))
           (if (null? letters) (self (rest argv))
             (pair (bytes->str (pair 45 letters)) (self (rest argv))))))
       (#t (pair (first argv) (self (rest argv)))))))
@@ -479,7 +489,7 @@
       (if (= (char->integer (byte-at w 0)) 45) (%gz-digit? (char->integer (byte-at w 1))) #f)
       #f)))
 
-(def %gz-word-bytes
+(def gz-word-bytes
   (fn (_ w)
     (def go (fn (self i acc) (if (< i 0) acc (self (- i 1) (pair (char->integer (byte-at w i)) acc)))))
     (go (- (byte-len w) 1) ())))
@@ -489,7 +499,7 @@
 ; SRC's pieces inflated for tar, as busybox's child gunzip hands them over: an
 ; error is said, under tar's name, and the data ends there, for tar to say
 ; what it makes of that.
-(def %gz-tar-pieces
+(def gz-tar-pieces
   (fn (_ src)
     (def pieces (%gz-inflate-pieces "tar" src (list 0)))
     (def over (list #f))
@@ -507,7 +517,7 @@
 
 ; SRC with its first piece looked at: (GZIP? . SOURCE), the source handing
 ; that piece out again first
-(def %gz-sniff
+(def gz-sniff
   (fn (_ src)
     (let ((p (src)))
       (if (Err err? p) (pair #f (fn (_ . how) (if (pair? how) (src (first how)) p)))
@@ -518,3 +528,6 @@
                 (fn (_ . how)
                   (if (pair? how) (src (first how))
                     (if (first again) (do (%set-first! again #f) p) (src))))))))))
+
+(provide cu/gzip cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
+  gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces gz-word-bytes)

@@ -20,6 +20,17 @@
 
 ; --- the orderings ------------------------------------------------------------
 
+(module cu/sort)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-at byte-len cu-b->s cu-int->str cu-lines cu-nth
+  cu-sweep-at cu-sweep-steps cu-sweep-tick! cu-words-line file-close
+  file-err-op file-err-text file-open-or-err file-open-write file-write length
+  reverse string-append string-concat string=? substring)
+(import cu/text cu-delim-fields-said cu-gather-said cu-join-with cu-msort
+  cu-num-prefix cu-print-fields-to cu-print-lines cu-print-lines-to
+  cu-split-byte cu-str<)
+
 (def %sort-blank? (fn (_ b) (if (= b 32) #t (= b 9))))
 
 (def %sort-trim-left
@@ -52,7 +63,7 @@
                         (pair (cu-b->s (byte-at s i)) acc) acc)))))
         (go 0 ())))))
 
-(def %sort-fold
+(def sort-fold
   (fn (_ s)
     (def end (byte-len s))
     (def go (fn (self i acc)
@@ -99,7 +110,7 @@
 
 (def %sort-month
   (fn (_ s)
-    (def t (%sort-fold (%sort-trim-left s)))
+    (def t (sort-fold (%sort-trim-left s)))
     (if (< (byte-len t) 3) 0
       (let ((head (substring t 0 3)))
         (def go (fn (self ms n)
@@ -204,7 +215,7 @@
       (fn (_ s)
         (def t (if b? (%sort-trim-left s) s))
         (def u (%sort-filter t d? i?))
-        (if f? (%sort-fold u) u)))
+        (if f? (sort-fold u) u)))
     ; -1, 0 or 1 for the key, so the fallback can see a tie
     (def cmp
       (fn (_ a b)
@@ -229,7 +240,7 @@
 
 ; --- the applet ---------------------------------------------------------------
 
-(def %cu-sort
+(def cu-sort
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "sort" argv))
     (def sep (Opts value o "-t"))
@@ -319,3 +330,5 @@
                 1))
           (#t (self (rest xs) (+ n 1))))))
     (go ls 1)))
+
+(provide cu/sort cu-sort sort-fold)

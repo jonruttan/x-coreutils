@@ -202,7 +202,7 @@ status 1
 ### alone, this kernel's signals, then libc's RTMIN and RTMAX where it has them, as busybox's print_signames lists them
 
 ```cu
-(let ((rt (%pg-rt)) (line (fn (_ n name) (string-concat (list (cu-pad-left (cu-int->str n) 2) ") " name "\n"))))) (do (sys-dup2 1 9) (def oo (file-open-write (nf ".out"))) (sys-dup2 oo 1) (def st (cu-run (list "killall" "-l") "")) (sys-dup2 9 1) (file-close oo) (list st (str=? (file-read-all (nf ".out")) (string-concat (append (map (fn (_ e) (line (rest e) (first e))) (sys-signals)) (if (null? rt) () (list (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))))))))
+(let ((rt (pg-rt)) (line (fn (_ n name) (string-concat (list (cu-pad-left (cu-int->str n) 2) ") " name "\n"))))) (do (sys-dup2 1 9) (def oo (file-open-write (nf ".out"))) (sys-dup2 oo 1) (def st (cu-run (list "killall" "-l") "")) (sys-dup2 9 1) (file-close oo) (list st (str=? (file-read-all (nf ".out")) (string-concat (append (map (fn (_ e) (line (rest e) (first e))) (sys-signals)) (if (null? rt) () (list (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))))))))
 ```
 ---
     (0 #t)
@@ -246,7 +246,7 @@ The process is sleep, run through a link with a name no other process has,
 so its argv[0] names it (macOS stops a copy of a system binary).
 
 ```cu
-(do (def name (string-append "kap" (cu-int->str (sys-getpid)))) (def path (nf name)) (proc-run (list "/bin/ln" "-s" "/bin/sleep" path)) (def kid (sys-fork)) (if (= kid 0) (do (sys-exec path (list "30.4242")) (sys-exit 127)) ()) (def exec-wait (fn (self n) (if (if (> n 0) (let ((e (host-exe kid))) (if (null? e) #t (not (str=? (%pg-base e) "sleep")))) #f) (do (sys-usleep 20000) (self (- n 1))) ()))) (exec-wait 250) (def st (cu-run (list "killall" "-INT" name) "")) (list st (sys-wait kid)))
+(do (def name (string-append "kap" (cu-int->str (sys-getpid)))) (def path (nf name)) (proc-run (list "/bin/ln" "-s" "/bin/sleep" path)) (def kid (sys-fork)) (if (= kid 0) (do (sys-exec path (list "30.4242")) (sys-exit 127)) ()) (def exec-wait (fn (self n) (if (if (> n 0) (let ((e (host-exe kid))) (if (null? e) #t (not (str=? (pg-base e) "sleep")))) #f) (do (sys-usleep 20000) (self (- n 1))) ()))) (exec-wait 250) (def st (cu-run (list "killall" "-INT" name) "")) (list st (sys-wait kid)))
 ```
 ---
     (0 130)

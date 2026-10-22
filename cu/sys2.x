@@ -8,8 +8,19 @@
 ;
 ; true false env printenv sleep date which xargs test.
 
-(def %cu-true (fn (_ argv stdin-thunk) 0))
-(def %cu-false (fn (_ argv stdin-thunk) 1))
+(module cu/sys2)
+
+(import cu/cli cu-missing-operand cu-opts)
+(import cu/prims append byte-at byte-len cu-lines cu-stdin-to-command!
+  cu-words-line file-err-sym file-err-text file-exists? file-write filter map
+  proc-run reverse string-append string-concat string=? substring sys-environ
+  sys-exec-or-err sys-exit sys-fork sys-getenv sys-setenv sys-sleep
+  sys-unsetenv sys-usleep sys-wait)
+(import cu/text cu-delim-fields-said cu-join-with cu-member-s? cu-num-prefix
+  cu-print-fields cu-print-lines cu-read-said cu-says cu-split-byte)
+
+(def cu-true (fn (_ argv stdin-thunk) 0))
+(def cu-false (fn (_ argv stdin-thunk) 1))
 
 ; Is "NAME=VALUE" one of NAMES?
 (def %cu-env-named?
@@ -109,7 +120,7 @@
                     (sys-exit (if (eq? (file-err-sym e) (lit enoent)) 127 126))))))
         (sys-exit 125))))
 
-(def %cu-env
+(def cu-env
   (fn (_ argv stdin-thunk)
     (let ((z (%cu-env-zero argv () #f)))
       (let ((o (cu-opts "env" (rest z))))
@@ -137,7 +148,7 @@
 
 ; printenv NAME...: the value of each that is set, a line apiece, and status 1
 ; where any is not; with no NAME, the whole environment, as env prints it
-(def %cu-printenv
+(def cu-printenv
   (fn (_ argv stdin-thunk)
     (def go
       (fn (self ns st)
@@ -145,13 +156,13 @@
           (let ((v (sys-getenv (first ns))))
             (if (null? v) (self (rest ns) 1)
               (do (display (string-append v "\n")) (self (rest ns) st)))))))
-    (if (null? argv) (%cu-env argv stdin-thunk) (go argv 0))))
+    (if (null? argv) (cu-env argv stdin-thunk) (go argv 0))))
 
 ; sleep INTERVAL...: as long as they come to between them.  The first interval
 ; that is not one is said, as busybox says it, and nothing is slept: status 1.
-(def %cu-sleep
+(def cu-sleep
   (fn (_ argv stdin-thunk)
-    (def us (map %cu-sleep-us argv))
+    (def us (map cu-sleep-us argv))
     (def bad
       (fn (self as xs)
         (match
@@ -166,13 +177,13 @@
       ((null? argv) (cu-missing-operand "sleep" argv))
       ((not (null? b))
         (do (file-write 2 (string-concat (list "sleep: invalid number '" b "'\n"))) 1))
-      (#t (do (%cu-sleep-for (total us 0)) 0)))))
+      (#t (do (cu-sleep-for (total us 0)) 0)))))
 
 ; Interval A in microseconds, or nil where it is not one: digits, with a
 ; point and digits of a fraction, either part empty but not both, then a
 ; unit -- s seconds, the default, m minutes, h hours or d days.  A fraction
 ; past the sixth digit is dropped.
-(def %cu-sleep-us
+(def cu-sleep-us
   (fn (_ a)
     (def end (byte-len a))
     (def last (if (> end 0) (byte-at a (- end 1)) 0))
@@ -201,7 +212,7 @@
 
 ; US microseconds slept: the whole seconds through sleep, the rest through
 ; usleep, which on Darwin takes less than a second
-(def %cu-sleep-for
+(def cu-sleep-for
   (fn (_ us)
     (let ((secs (/ (- us (% us 1000000)) 1000000)))
       (do (if (> secs 0) (sys-sleep secs) ())
@@ -214,7 +225,7 @@
 ; which: the PATH walk; existence is the test (there is no access(X_OK)
 ; door -- the recorded divergence).  -a lists every directory that has
 ; the name, in PATH order, rather than stopping at the first.
-(def %cu-which
+(def cu-which
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "which" argv))
     (def all? (Opts on? o "-a"))
@@ -312,7 +323,7 @@
             (self cmd repl (rest ws) trace?
               (if (> st2 st) st2 st))))))))
 
-(def %cu-xargs
+(def cu-xargs
   (fn (_ argv stdin-thunk)
     ; -0 reads as a negative NUMBER to Opts before the declaration is
     ; consulted (x-lang#650, what ls's -1 works around).  Here that also
@@ -372,9 +383,12 @@
 
 ; test, [ and [[ moved to cu/test.x, which parses the whole grammar.
 
-(def %cu-last
+(def cu-last
   (fn (self l) (if (null? (rest l)) (first l) (self (rest l)))))
-(def %cu-drop-last
+(def cu-drop-last
   (fn (self l)
     (if (null? (rest l)) ()
       (pair (first l) (self (rest l))))))
+
+(provide cu/sys2 cu-drop-last cu-env cu-false cu-last cu-printenv cu-sleep
+  cu-sleep-for cu-sleep-us cu-true cu-which cu-xargs)

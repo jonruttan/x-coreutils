@@ -190,7 +190,7 @@
   (fn (_ name)
     (if (string=? name "-") 0
       (let ((st (file-stat-full name)))
-        (if (null? st) 0 (%cu-stat-get st (lit size)))))))
+        (if (null? st) 0 (cu-stat-get st (lit size)))))))
 
 ; each operand in turn, paged; one that will not open is said and passed
 (def %more-page

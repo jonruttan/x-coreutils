@@ -49,7 +49,7 @@
         (match
           ((if (>= c #\0) (<= c #\9) #f) #t)
           ((if (>= (| c 32) #\a) (<= (| c 32) #\z) #f) #t)
-          (#t (%dp-in? c "_-.")))))
+          (#t (dp-in? c "_-.")))))
     (def go (fn (self i) (if (>= i n) #t (if (ok? (byte-at name i)) (self (+ i 1)) #f))))
     (if (= n 0) #f (if (= (byte-at name 0) #\.) #f (go 0)))))
 
@@ -67,7 +67,7 @@
         (let ((st (file-stat-full path)))
           (match
             ((null? st) #f)
-            ((= (& (& (%cu-stat-get st (lit mode)) 61440) 40960) 0) #f)
+            ((= (& (& (cu-stat-get st (lit mode)) 61440) 40960) 0) #f)
             ((not (%rp-valid? name)) #f)
             (list? #t)
             (#t (= (Sys %sign-fold (cu-ptr-call %rp-c-access path 1)) 0))))))
@@ -101,7 +101,7 @@
 ; an octal number from 0 to 07777, or nil once said
 (def %rp-umask
   (fn (_ s)
-    (def r (%hx-strtoul s 0 8 4294967295))
+    (def r (hx-strtoul s 0 8 4294967295))
     (match
       ((if (= (byte-len s) 0) #t (if (null? (first r)) #t (not (= (rest r) (byte-len s)))))
         (do (file-write 2 (string-concat (list "run-parts: invalid number '" s "'\n"))) ()))

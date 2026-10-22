@@ -455,7 +455,7 @@ with it as the salt gives it back.
           (cu-run argv "")
           (sys-dup2 9 1) (file-close o)
           (let ((s (file-read-all (cr-f "r")))) (substring s 0 (- (byte-len s) 1))))))
-    (def cr-shape (fn (_ s) (list (byte-len s) (if (Str8 starts? "$" s) (substring s 0 3) "des") (string=? (%cu-pw-encrypt "pw" s) s))))
+    (def cr-shape (fn (_ s) (list (byte-len s) (if (Str8 starts? "$" s) (substring s 0 3) "des") (string=? (cu-pw-encrypt "pw" s) s))))
     (display (map (fn (_ m) (cr-shape (cr-run (list "cryptpw" "-m" m "pw")))) (list "des" "md5" "sha256" "sha512")))
     (newline)
     (display (cr-shape (cr-run (list "mkpasswd" "pw")))))

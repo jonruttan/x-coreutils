@@ -16,7 +16,12 @@
 ; Retires the build's sha256sum/shasum fallback dance (155 calls in
 ; the measured closure).
 
-(def %cu-m32 4294967295)
+(module cu/sha256)
+
+(import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor cu-as-run
+  cu-nth cu-run-list integer->char list->string map reverse string-concat)
+
+(def cu-m32 4294967295)
 
 (def %cu-sha-h
   (list 1779033703 3144134277 1013904242 2773480762
@@ -42,14 +47,14 @@
 
 (def %cu-rotr
   (fn (_ x n)
-    (bit-and (bit-or (bit-shr x n) (bit-shl x (- 32 n))) %cu-m32)))
+    (bit-and (bit-or (bit-shr x n) (bit-shl x (- 32 n))) cu-m32)))
 
-(def %cu-add32
-  (fn (_ a b) (bit-and (+ a b) %cu-m32)))
+(def cu-add32
+  (fn (_ a b) (bit-and (+ a b) cu-m32)))
 
 ; the message as bytes, padded: 0x80, zeros to 56 mod 64, 8-byte
 ; big-endian bit length
-(def %cu-sha-pad
+(def cu-sha-pad
   (fn (_ text)
     (def run (cu-as-run text))
     (def len (rest run))
@@ -95,7 +100,7 @@
             (def s1 (bit-xor (%cu-rotr w2 17)
                       (bit-xor (%cu-rotr w2 19) (bit-shr w2 10))))
             (self (+ t 1)
-              (pair (%cu-add32 (%cu-add32 w16v s0) (%cu-add32 w7 s1))
+              (pair (cu-add32 (cu-add32 w16v s0) (cu-add32 w7 s1))
                 wrev))))))
     (extend 16 (reverse w16))))
 
@@ -110,19 +115,19 @@
           (let ((s1 (bit-xor (%cu-rotr e 6)
                       (bit-xor (%cu-rotr e 11) (%cu-rotr e 25)))))
             (def ch (bit-xor (bit-and e f)
-                      (bit-and (bit-xor e %cu-m32) g)))
-            (def t1 (%cu-add32 h
-                      (%cu-add32 s1
-                        (%cu-add32 ch
-                          (%cu-add32 (first ks) (first ws))))))
+                      (bit-and (bit-xor e cu-m32) g)))
+            (def t1 (cu-add32 h
+                      (cu-add32 s1
+                        (cu-add32 ch
+                          (cu-add32 (first ks) (first ws))))))
             (def s0 (bit-xor (%cu-rotr a 2)
                       (bit-xor (%cu-rotr a 13) (%cu-rotr a 22))))
             (def maj (bit-xor (bit-and a b)
                        (bit-xor (bit-and a c) (bit-and b c))))
-            (def t2 (%cu-add32 s0 maj))
+            (def t2 (cu-add32 s0 maj))
             (self (rest ws) (rest ks)
-              (%cu-add32 t1 t2) a b c
-              (%cu-add32 d t1) e f g)))))
+              (cu-add32 t1 t2) a b c
+              (cu-add32 d t1) e f g)))))
     (def out
       (round w %cu-sha-k
         (cu-nth 0 hs) (cu-nth 1 hs) (cu-nth 2 hs) (cu-nth 3 hs)
@@ -131,26 +136,26 @@
       (fn (self a b acc)
         (if (null? a) (reverse acc)
           (self (rest a) (rest b)
-            (pair (%cu-add32 (first a) (first b)) acc)))))
+            (pair (cu-add32 (first a) (first b)) acc)))))
     (add2 hs out ())))
 
-(def %cu-hex-digit
+(def cu-hex-digit
   (fn (_ d) (if (< d 10) (+ 48 d) (+ 87 d))))
 
-(def %cu-word-hex
+(def cu-word-hex
   (fn (_ w)
     (def go
       (fn (self shift acc)
         (if (< shift 0) (list->string (reverse acc))
           (self (- shift 4)
             (pair (integer->char
-                    (%cu-hex-digit (bit-and (bit-shr w shift) 15)))
+                    (cu-hex-digit (bit-and (bit-shr w shift) 15)))
               acc)))))
     (go 28 ())))
 
 (def cu-sha256
   (fn (_ text)
-    (def padded (%cu-sha-pad text))
+    (def padded (cu-sha-pad text))
     (def blocks
       (fn (self bs hs)
         (if (null? bs) hs
@@ -162,10 +167,13 @@
             (self (rest take64)
               (%cu-sha-block hs (first take64)))))))
     (def hs (blocks padded %cu-sha-h))
-    (string-concat (map (fn (_ w) (%cu-word-hex w)) hs))))
+    (string-concat (map (fn (_ w) (cu-word-hex w)) hs))))
 
 ; The shared driver, not a second copy: md5sum, sha1sum and sha256sum emit
 ; through one loop, so a change (like growing -c) reaches all of them.
-(def %cu-sha256sum
+(def cu-sha256sum
   (fn (_ argv stdin-thunk)
-    (%cu-sum-applet "sha256sum" (fn (_ t) (cu-sha256 t)) argv stdin-thunk)))
+    (cu-sum-applet "sha256sum" (fn (_ t) (cu-sha256 t)) argv stdin-thunk)))
+
+(provide cu/sha256 cu-add32 cu-hex-digit cu-m32 cu-sha-pad cu-sha256
+  cu-sha256sum cu-word-hex)

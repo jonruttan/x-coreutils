@@ -228,12 +228,12 @@
     ; in busybox's order: the options, the interval, a count after an interval
     ; of 0 refused before it is read, the count, -I, then -P
     (if (not (null? unknown)) (cu-refuse-option "mpstat" unknown)
-      (let ((interval (if (null? ops) 0 (%cu-range-number "mpstat" (first ops) 0 2147483647))))
+      (let ((interval (if (null? ops) 0 (cu-range-number "mpstat" (first ops) 0 2147483647))))
         (def counted (if (null? ops) #f (not (null? (rest ops)))))
         (match
           ((null? interval) 1)
           ((if counted (= interval 0) #f) (cu-usage "mpstat"))
-          (#t (let ((count (if counted (%cu-range-number "mpstat" (first (rest ops)) 0 2147483647) -1)))
+          (#t (let ((count (if counted (cu-range-number "mpstat" (first (rest ops)) 0 2147483647) -1)))
                 (match
                   ((null? count) 1)
                   ((eq? ints (lit bad)) (cu-usage "mpstat"))
@@ -254,7 +254,7 @@
         (match
           ((null? ws) bits)
           ((str=? (first ws) "ALL") (self (rest ws) every))
-          (#t (let ((k (%cu-range-number "mpstat" (first ws) 0 2147483647)))
+          (#t (let ((k (cu-range-number "mpstat" (first ws) 0 2147483647)))
                 (match
                   ((null? k) ())
                   ((>= k n) (do (file-write 2 "mpstat: not that many processors\n") ()))
@@ -278,8 +278,8 @@
 (def %mp-main
   (fn (_ shows bitmap only n interval count)
     (def first-sample (%mp-sample n))
-    (file-write 1 (%io-uname-line (first first-sample) n #f))
-    (def clock (fn (_ s) (%io-time (first s))))
+    (file-write 1 (io-uname-line (first first-sample) n #f))
+    (def clock (fn (_ s) (io-time (first s))))
     (if (= interval 0)
       (do (file-write 1 (%mp-report (%mp-zero n) first-sample (clock first-sample) (clock first-sample) shows bitmap only n 0)) 0)
       (let ((go (fn (self prev count)

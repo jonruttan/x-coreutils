@@ -71,7 +71,7 @@
 
 (def %nt-say (fn (_ msg) (file-write 2 (string-concat (list "ntpd: " msg "\n")))))
 (def %nt-die (fn (_ msg) (Err raise (lit net) msg ())))
-(def %nt-why (fn (_ op) (%tar-why op "")))
+(def %nt-why (fn (_ op) (tar-why op "")))
 
 ; --- numbers ------------------------------------------------------------------------
 
@@ -106,7 +106,7 @@
 ; gettime1900d: the time now, G.cur_time set to it
 (def %nt-now!
   (fn (_)
-    (let ((t (%si-now)))
+    (let ((t (si-now)))
       (set! %nt-cur (%nt+ (%nt+ (Float from (first t)) (%nt* (Float from "0.000001") (rest t))) %nt-1900))
       %nt-cur)))
 
@@ -154,16 +154,16 @@
 (def %nt-sha1-bytes
   (fn (_ bytes)
     (def n (length bytes))
-    (def hs (%cu-hash-blocks (append bytes (list 128) (%nt-zeros (% (- 119 (% n 64)) 64)) (%nt-be-bytes (* n 8) 8))
+    (def hs (cu-hash-blocks (append bytes (list 128) (%nt-zeros (% (- 119 (% n 64)) 64)) (%nt-be-bytes (* n 8) 8))
               (list 1732584193 4023233417 2562383102 271733878 3285377520)
-              (fn (_ st block) (%cu-sha1-block st block))))
+              (fn (_ st block) (cu-sha1-block st block))))
     (List fold (fn (_ acc w) (append acc (%nt-be-bytes w 4))) () hs)))
 
 ; hash(): the key's bytes then the packet's first 48, MD5 or SHA1
 (def %nt-hash
   (fn (_ key msg48)
     (if (eq? (cu-nth 1 key) (lit md5))
-      (%cu-md5-bytes (append (cu-nth 3 key) msg48))
+      (cu-md5-bytes (append (cu-nth 3 key) msg48))
       (%nt-sha1-bytes (append (cu-nth 3 key) msg48)))))
 
 ; --- addresses -------------------------------------------------------------------------
@@ -178,8 +178,8 @@
     (def p (cu-str->ptr sa))
     (def out (str-make-raw 64))
     (if (= (%nt-family sa) 2)
-      (cu-ptr-call (%in-c "inet_ntop") 2 (cu-int->ptr (+ (%td-ptr->int p) 4)) (cu-str->ptr out) 64)
-      (cu-ptr-call (%in-c "inet_ntop") %nt-af6 (cu-int->ptr (+ (%td-ptr->int p) 8)) (cu-str->ptr out) 64))
+      (cu-ptr-call (%in-c "inet_ntop") 2 (cu-int->ptr (+ (td-ptr->int p) 4)) (cu-str->ptr out) 64)
+      (cu-ptr-call (%in-c "inet_ntop") %nt-af6 (cu-int->ptr (+ (td-ptr->int p) 8)) (cu-str->ptr out) 64))
     (cu-ptr->str (cu-str->ptr out))))
 
 ; host2sockaddr(HOST, 123): (SOCKADDR LEN), or nil said as busybox says it
@@ -218,7 +218,7 @@
   (fn (_ sa)
     (def p (cu-str->ptr sa))
     (if (= (%nt-family sa) 2) (map (fn (_ i) (cu-ptr-ref p i 1)) (list 4 5 6 7))
-      (List take 4 (%cu-md5-bytes (map (fn (_ i) (cu-ptr-ref p i 1)) (list 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23)))))))
+      (List take 4 (cu-md5-bytes (map (fn (_ i) (cu-ptr-ref p i 1)) (list 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23)))))))
 
 ; --- peers --------------------------------------------------------------------------------
 
@@ -391,13 +391,13 @@
                 (sys-setenv "freq_drift_ppm" (%nt-u %nt-drift))
                 (sys-setenv "poll_interval" (%nt-u (<< 1 %nt-poll)))
                 (sys-setenv "offset" (%nt-f offset))
-                (map (fn (_ n) (sys-signal n 0)) (list 13 (%ts-signal-number "CHLD")))
+                (map (fn (_ n) (sys-signal n 0)) (list 13 (ts-signal-number "CHLD")))
                 (let ((r (%in-exec %nt-script (list %nt-script action))))
                   (do (%nt-say (string-concat (list "can't execute '" %nt-script "': " (%in-errtext r))))
                       (sys-exit 111)))))))))
 
 ; strftime_YYYYMMDDHHMMSS
-(def %nt-stamp (fn (_ secs) (%cu-date-fmt "%Y-%m-%d %H:%M:%S" (%cu-date-split secs #f) secs)))
+(def %nt-stamp (fn (_ secs) (cu-date-fmt "%Y-%m-%d %H:%M:%S" (cu-date-split secs #f) secs)))
 
 (def %nt-timeval
   (fn (_ secs usecs)
@@ -409,7 +409,7 @@
 ; step_time
 (def %nt-step!
   (fn (_ offset)
-    (def tvc (%si-now))
+    (def tvc (si-now))
     (def dtime (%nt+ (%nt+ (first tvc) (%nt* (Float from "0.000001") (rest tvc))) offset))
     (def sec (%nt-trunc dtime))
     (def usec (%nt-trunc (%nt* (%nt- dtime sec) 1000000)))
@@ -828,7 +828,7 @@
         (let ((idx (%in-call (cu-ptr-call (%in-c "if_nametoindex") iface))) (v (str-make-raw 4)))
           (do (cu-ptr-set! (cu-str->ptr v) 0 idx 4)
               (if (= idx 0) -1 (%in-call (cu-ptr-call (%in-c "setsockopt") fd (if v6? 41 0) (if v6? 125 25) (cu-str->ptr v) 4)))))
-        (let ((name (%nt-raw (append (%tn-str-bytes iface) (list 0)))))
+        (let ((name (%nt-raw (append (tn-str-bytes iface) (list 0)))))
           (%in-call (cu-ptr-call (%in-c "setsockopt") fd 1 25 (cu-str->ptr name) (+ (byte-len iface) 1))))))
     (when (< r 0) (%nt-die (string-concat (list "can't bind to interface " iface ": " (%nt-why (lit setsockopt))))))))
 
@@ -839,7 +839,7 @@
   (fn (_ file shown)
     (def text (guard (e e) (if (string=? file "-") (file-read-all 0) (file-read-all file))))
     (match ((Err err? text) (do (%nt-say (string-concat (list shown ": " (%wget-err-text text)))) ()))
-           ((null? text) (do (%nt-say (string-concat (list shown ": " (%tar-why (lit open) shown)))) ()))
+           ((null? text) (do (%nt-say (string-concat (list shown ": " (tar-why (lit open) shown)))) ()))
            (#t (%in-lines text)))))
 
 ; the keys of -k's FILE: (ID TYPE MSGSIZE KEYBYTES), the last read first
@@ -865,7 +865,7 @@
     (def bad (fn (_) (%nt-die (string-append "malformed key at line " (%nt-u lineno)))))
     (when (>= (byte-len key) 41) (bad))
     (def bytes
-      (match (md5? (%tn-str-bytes key))
+      (match (md5? (tn-str-bytes key))
              ((= (& (byte-len key) 1) 1) (bad))
              (#t (let ((b (%nt-unhex key))) (if (null? b) (bad) b)))))
     (list (%nt-range (first t) 1 65535) (if md5? (lit md5) (lit sha1)) (if md5? 68 72) bytes)))
@@ -952,7 +952,7 @@
     (set! %nt-rootdisp (Float from 0))
     (set! %nt-freqhold -1)
     (set! %nt-ratio 0)
-    (set! %nt-verbose (%nc-count o "-d"))
+    (set! %nt-verbose (nc-count o "-d"))
     (set! %nt-w? (Opts on? o "-w"))
     (set! %nt-q? (Opts on? o "-q"))
     (set! %nt-alarm-at ())
@@ -975,10 +975,10 @@
       (if (< %nt-listen 0) (Err raise (lit usage) "" ()) (set! %nt-stratum 1)))
     (unless n? (guard (_ ()) (file-write-all "/var/run/ntpd.pid" (string-append (%nt-u (sys-getpid)) "\n"))))
     (when %nt-q? (set! %nt-alarm-at (%nt+ %nt-cur 10)))
-    (set! %nt-sigs (map %ts-signal-number (list "TERM" "INT" "ALRM")))
+    (set! %nt-sigs (map ts-signal-number (list "TERM" "INT" "ALRM")))
     (map (fn (_ n) (Sys catch-signal n)) %nt-sigs)
     (sys-signal 13 cu-sig-ign)
-    (sys-signal (%ts-signal-number "CHLD") cu-sig-ign)
+    (sys-signal (ts-signal-number "CHLD") cu-sig-ign)
     (def sig (%nt-loop (* %nt-peer-cnt 4)))
     (unless n? (guard (_ ()) (file-unlink "/var/run/ntpd.pid")))
     (sys-signal sig 0)

@@ -42,7 +42,7 @@
             (self (+ i 1)
               (pair (match
                       ((if tcsh (= c #\newline) #f) "\\n")
-                      ((if (= c #\') #t (if tcsh (if (= c #\!) #t (%ts-space? c)) #f))
+                      ((if (= c #\') #t (if tcsh (if (= c #\!) #t (ts-space? c)) #f))
                         (string-concat (list "'\\" (bytes->str (list c)) "'")))
                       (#t (bytes->str (list c))))
                     acc))))))
@@ -83,7 +83,7 @@
   (fn (_ g c)
     (def body (%go-body g))
     (def n (byte-len body))
-    (def at (%dp-find body 0 c))
+    (def at (dp-find body 0 c))
     (if (if (< at 0) #t (= c #\:)) ()
       (let ((takes (if (< (+ at 1) n) (= (byte-at body (+ at 1)) #\:) #f)))
         (pair takes (if takes (if (< (+ at 2) n) (= (byte-at body (+ at 2)) #\:) #f) #f))))))
@@ -232,7 +232,7 @@
       (fn (self i start acc)
         (match
           ((>= i n) (reverse (pair (substring s start n) acc)))
-          ((%dp-in? (byte-at s i) seps) (self (+ i 1) (+ i 1) (pair (substring s start i) acc)))
+          ((dp-in? (byte-at s i) seps) (self (+ i 1) (+ i 1) (pair (substring s start i) acc)))
           (#t (self (+ i 1) start acc)))))
     (go 0 0 ())))
 
@@ -278,7 +278,7 @@
       ((if compatible #t (not (if (> (byte-len (first argv)) 0) (= (byte-at (first argv) 0) #\-) #f)))
         (let ((s (first argv)))
           (%go-output
-            (%go-settings (substring s (%dp-skip-in s 0 "-+") (byte-len s)) () #f "getopt" #t (lit none))
+            (%go-settings (substring s (dp-skip-in s 0 "-+") (byte-len s)) () #f "getopt" #t (lit none))
             (rest argv) #f)))
       (#t (%go-main argv)))))
 

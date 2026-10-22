@@ -33,7 +33,7 @@ case: stdout, the status, then stderr.
           (go (+ i 4) (pair (+ (* 64 (- (byte-at s (+ i 1)) #\0)) (* 8 (- (byte-at s (+ i 2)) #\0)) (- (byte-at s (+ i 3)) #\0)) acc))
           (go (+ i 1) (pair (byte-at s i) acc)))))))
   (def dl-lease (fn (_ r)
-    (if (string=? r "T") (%tn-str-bytes "abcdefghij")
+    (if (string=? r "T") (tn-str-bytes "abcdefghij")
       (let ((f (Str8 split "," r)))
         (let ((host (List take 19 (dl-host (if (> (length f) 3) (cu-nth 3 f) "")))))
           (append (dl-be (%wget-digits (first f)) 4)

@@ -32,7 +32,7 @@
   (fn (_ n wide shown)
     (string-concat
       (list (cu-pad-left (cu-int->str n) wide) " "
-            (cu-pad-zero (%dp-udigits n 16 #f) 2) " " shown))))
+            (cu-pad-zero (dp-udigits n 16 #f) 2) " " shown))))
 
 (def %ascii-row
   (fn (_ i)
@@ -101,7 +101,7 @@
                         (lit fatal))
                     (do (file-write 1
                           (string-concat
-                            (list (cu-pad-zero (%dp-udigits (& (^ (first r) 4294967295) 4294967295) 16 #f) 8)
+                            (list (cu-pad-zero (dp-udigits (& (^ (first r) 4294967295) 4294967295) 16 #f) 8)
                                   (if shown (string-append " " name) "") "\n")))
                         (lit ok)))))))))
     (def each

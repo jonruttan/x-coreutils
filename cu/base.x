@@ -70,29 +70,44 @@
   cu-tail-follow cu-tail-round cu-text-from cu-unmarked cu-wc cu-with-sources)
 (import cu/trcut cu-cut cu-tr)
 (import cu/fs cat-ranges cu-cat cu-cp cu-ln cu-mkdir cu-mv cu-rm cu-rmdir)
-(include-once "./sha256.x")
-(include-once "./hash.x")
-(include-once "./crypt.x")
-(include-once "./sha512.x")
-(include-once "./text3.x")
+(import cu/sha256 cu-add32 cu-hex-digit cu-m32 cu-sha-pad cu-sha256
+  cu-sha256sum cu-word-hex)
+(import cu/hash cu-bytes cu-cksum-applet cu-crypt64 cu-hash-blocks cu-md5
+  cu-md5-bytes cu-md5sum cu-sha1-block cu-sha1sum cu-sum cu-sum-applet)
+(import cu/crypt cu-cryptpw cu-mkpasswd cu-pw-encrypt)
+(import cu/sha512 cu-nthrest cu-sha384sum cu-sha512sum)
+(import cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from cu-base64
+  cu-dos2unix cu-expand cu-factor cu-list->vec cu-shuf cu-shuf-range cu-spaces
+  cu-split cu-take cu-unexpand cu-unix2dos cu-vec->list cu-yes)
 (import cu/encode cu-od cu-uudecode cu-uuencode)
 (import cu/expr cu-expr)
-(include-once "./perm.x")
-(include-once "./who.x")
-(include-once "./text2.x")
-(include-once "./fs2.x")
-(include-once "./sys2.x")
-(include-once "./test.x")
-(include-once "./fs3.x")
-(include-once "./ls.x")
-(include-once "./sort.x")
+(import cu/perm cu-basename-of cu-chgrp cu-chmod cu-chown cu-chown-number
+  cu-df cu-dirname-of cu-link cu-mkfifo cu-mode-of cu-mode-valid?
+  cu-octal->int cu-readlink cu-realpath cu-realpath-of cu-sync)
+(import cu/who cu-arch cu-chroot cu-groups cu-id cu-logname cu-nice cu-nproc
+  cu-uname cu-uname-field cu-users cu-w cu-who cu-whoami)
+(import cu/text2 cu-echo cu-fold cu-oct->str cu-pad cu-paste cu-printf
+  cu-rev-applet cu-seq cu-tac cu-tee)
+(import cu/fs2 cu-base-of cu-cmp cu-cmp-walk cu-install cu-max-status
+  cu-mkdir-p! cu-mktemp cu-pwd cu-touch)
+(import cu/sys2 cu-drop-last cu-env cu-false cu-last cu-printenv cu-sleep
+  cu-sleep-for cu-sleep-us cu-true cu-which cu-xargs)
+(import cu/test cu-bracket cu-dbracket cu-test t-permitted?)
+(import cu/fs3 cu-dd cu-dd-has? cu-dd-records cu-dev-major cu-dev-minor
+  cu-dot? cu-du cu-du-blocks cu-mode-octal4 cu-nohup cu-path-join
+  cu-perm-places cu-perm-string cu-shred cu-stat cu-stat-get cu-stat-group
+  cu-stat-user cu-timeout cu-truncate cu-tty cu-unlink cu-usleep)
+(import cu/ls cu-ls ls-cell ls-human ls-user-cell)
+(import cu/sort cu-sort sort-fold)
 (import cu/text4 cu-nl cu-uniq)
-(include-once "./walk.x")
-(include-once "./fmt-lex.x")
-(include-once "./date.x")
-(include-once "./diff-lex.x")
+(import cu/walk cu-walk-names cu-walk-pair cu-walk-status cu-walk-worst)
+(import cu/fmt-lex cu-esc-at cu-esc-run cu-fmt-conv cu-fmt-dir? cu-fmt-left?
+  cu-fmt-parse cu-fmt-raw cu-fmt-width cu-runs-onto cu-write-runs)
+(import cu/date cu-date cu-date-fmt cu-date-moment cu-date-mon-abbr cu-date-of
+  cu-date-split cu-date-today)
+(import cu/diff-lex cu-dl-lines)
 (import cu/diff cu-diff cu-diff-dir cu-diff-str)
-(include-once "./find.x")
+(import cu/find cu-find cu-glob-class cu-glob?)
 (include-once "./vi.x")
 (include-once "./vi-move.x")
 (include-once "./vi-edit.x")
@@ -100,68 +115,94 @@
 (include-once "./vi-set.x")
 (include-once "./vi-undo.x")
 (import cu/more cu-clear cu-more cu-reset more-typed)
-(include-once "./tsort.x")
-(include-once "./strings.x")
-(include-once "./cal.x")
+(import cu/tsort cu-tsort ts-space?)
+(import cu/strings cu-range-number cu-strings-applet)
+(import cu/cal cal-sum cal/ cu-cal)
 (include-once "./net.x")
-(include-once "./nc.x")
+(import cu/nc cu-nc cu-netcat nc-count nc-flags nc-values)
 (import cu/dns cu-nslookup ns-bytes ns-drop ns-hex ns-name ns-u16)
-(include-once "./tftp.x")
+(import cu/tftp cu-tftp cu-tftpd tftp-bytes)
 (include-once "./ftp.x")
-(include-once "./dump.x")
-(include-once "./hexdump.x")
+(import cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
+  cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
+  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-in? dp-skip-in dp-skip-ws
+  dp-udigits dp-zeros)
+(import cu/hexdump cu-hd cu-hexdump cu-xxd hx-strtoul)
 (import cu/tree cu-tree)
 (import cu/time cu-time)
 (import cu/base32 cu-base32)
 (import cu/ascii cu-ascii cu-crc32 cu-uuidgen)
-(include-once "./session.x")
-(include-once "./httpd.x")
+(import cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
+  cu-ttysize ss-call ss-flock ss-resolve! ss-setsid)
+(import cu/httpd cu-httpd hd-crypt-equal? hd-daemonize hd-salt
+  hd-system-password hd-ugid)
 (import cu/dnsd cu-dnsd)
 (include-once "./inetd.x")
 (import cu/fakeidentd cu-fakeidentd)
-(include-once "./telnet.x")
-(include-once "./telnetd.x")
+(import cu/telnet cu-telnet tn-port tn-run tn-str-bytes)
+(import cu/telnetd cu-telnetd td-ptr->int)
 (include-once "./mime.x")
 (include-once "./sendmail.x")
 (import cu/popmaildir cu-popmaildir)
 (include-once "./ntpd.x")
 (import cu/dumpleases cu-dumpleases)
-(include-once "./sslclient.x")
+(import cu/sslclient cu-ssl-client sc-copy sc-run-prog)
 (import cu/sslserver cu-ssl-server)
-(include-once "./tcpsvd.x")
+(import cu/tcpsvd cu-tcpsvd cu-udpsvd ts-signal-number)
 (import cu/ftpd cu-ftpd)
 (import cu/ipcalc cu-ipcalc)
 (import cu/getopt cu-getopt)
 (import cu/runparts cu-run-parts)
-(include-once "./tar.x")
-(include-once "./gzip.x")
+(import cu/tar cu-tar cu-unsafe-prefix tar-all-pieces tar-mkdir tar-mknod
+  tar-copy-out! tar-field tar-fill! tar-find-str tar-last-slash tar-makedev
+  tar-member? tar-min tar-printable tar-reader tar-resolve! tar-skip!
+  tar-str-bytes tar-verbose-line tar-why tc-block tc-sub-run tm-link tm-mode
+  tm-name tm-size)
+(import cu/gzip cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
+  gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces gz-word-bytes)
 (import cu/unzip cu-unzip)
 (import cu/cpio cu-cpio)
 (import cu/dc cu-dc)
 (import cu/ed cu-ed)
 (import cu/patch cu-patch)
-(include-once "./sysinfo.x")
+(import cu/sysinfo cu-dnsdomainname cu-hostid cu-hostname cu-mesg cu-mknod
+  cu-mountpoint cu-renice cu-ts si-digits? si-now)
 (import cu/sha3 cu-sha3sum)
-(include-once "./procps.x")
-(include-once "./sysctl.x")
+(import cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
+  cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head pg-nsig pg-rt
+  pg-signal-word pg-signum ps-args ps-boot-line ps-div ps-four ps-free-text
+  ps-free-unit ps-parse-o ps-printable ps-resolve! ps-sorted ps-stat ps-table
+  ps-uptime-line)
+(import cu/sysctl cu-sysctl sy-trim)
 (import cu/lsmod cu-lsmod)
-(include-once "./inet.x")
-(include-once "./route.x")
-(include-once "./arp.x")
+(import cu/inet inet-addr-host inet-addr-host6 inet-aton inet-dec inet-dotted
+  inet-hex inet-hex8 inet-host-addr inet-int32 inet-ioctl inet-left inet-ntop6
+  inet-ntop6-bytes inet-pton6! inet-resolve inet-rresolve inet-service
+  inet-set! inet-sin! inet-socket inet-swap inet-words inet-zeros)
+(import cu/route cu-route rt-show4)
+(import cu/arp ar-ether cu-arp)
 (import cu/netstat cu-netstat)
-(include-once "./ifconfig.x")
-(include-once "./ip.x")
-(include-once "./ipset.x")
-(include-once "./iproute.x")
+(import cu/ifconfig cu-ifconfig if-ref if-req)
+(import cu/ip cu-ip cu-ipaddr cu-iplink ip-addr-of ip-addr-shown? ip-addr1
+  ip-align ip-attr ip-attrs ip-bytes ip-dev-index ip-die ip-digit ip-dump
+  ip-dump-read ip-filter ip-get ip-id ip-index-name ip-indexed ip-invarg
+  ip-keyword ip-link-of ip-match? ip-name ip-names ip-next ip-ntoa ip-num
+  ip-off ip-open ip-pad16 ip-prefix ip-put ip-run ip-say ip-scope-id
+  ip-scope-name ip-scopes ip-sl ip-some)
+(import cu/ipset ip-add-link ip-address ip-attr! ip-buf ip-family! ip-flush
+  ip-flush-batches ip-init-map ip-le ip-modify ip-pfx-bytes ip-prefix-in
+  ip-req ip-req-bytes ip-rta ip-send-check ip-set ip-strtoul ip-talk
+  ip-unsigned)
+(import cu/iproute cu-iproute ip-route)
 (include-once "./top.x")
 (include-once "./vmstat.x")
-(include-once "./iostat.x")
+(import cu/iostat cu-iostat io-time io-uname-line)
 (import cu/mpstat cu-mpstat)
 (import cu/nmeter cu-nmeter nm-line nm-parse nm-sample)
 (import cu/pmap cu-pmap)
 (include-once "./watch.x")
-(include-once "./fuser.x")
-(include-once "./options.x")
+(import cu/fuser cu-fuser fu-args)
+(import cu/options cu-option-spec)
 (import cu/cli cu-argv cu-dispatch cu-extra-operand cu-find-applet
   cu-last-given cu-last-valued cu-main cu-missing-file-operand
   cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of

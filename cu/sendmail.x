@@ -107,7 +107,7 @@
 (def %sm-sane
   (fn (_ s)
     (def t (%sm-trim s))
-    (if (List all? %sm-safe? (%tn-str-bytes t)) t
+    (if (List all? %sm-safe? (tn-str-bytes t)) t
       (do (%sm-say (string-concat (list "bad address '" t "'"))) ""))))
 
 ; angle_address: the address inside a trailing <...>, else all of S
@@ -237,7 +237,7 @@
 
 (def %sm-main
   (fn (_ o)
-    (set! %sm-verbose (%nc-count o "-v"))
+    (set! %sm-verbose (nc-count o "-v"))
     (set! %sm-timeout (let ((w (Opts value o "-w"))) (if (null? w) 0 (%in-count w))))
     (set! %sm-buf "")
     (set! %sm-eof? #f)
@@ -252,7 +252,7 @@
                                acc))
                            #f (Opts values o "-a")))
     (def auth? (not (null? (Opts values o "-a"))))
-    (def host (%sm-sane (%cu-uname-field (sys-uname) (lit nodename))))
+    (def host (%sm-sane (cu-uname-field (sys-uname) (lit nodename))))
     (sys-signal 13 cu-sig-ign)
     (if (Opts on? o "-H")
       (do (%sm-helper! (Opts value o "-H"))
@@ -277,7 +277,7 @@
 (def %sm-canonical
   (fn (_ host)
     (def h (cu-ptr-call (%in-c "gethostbyname") host))
-    (if (= (%td-ptr->int h) 0) (%sm-die (string-concat (list "bad address '" host "'")))
+    (if (= (td-ptr->int h) 0) (%sm-die (string-concat (list "bad address '" host "'")))
       (cu-ptr->str (cu-int->ptr (cu-ptr-word h 0))))))
 
 ; AUTH LOGIN or PLAIN; without -au and -ap, the user and password are fd 4's
@@ -289,11 +289,11 @@
     (def p (rest cred))
     (if plain?
       (do (%sm-check "AUTH PLAIN" 334)
-          (guard (_ ()) (file-write %sm-wr (%mm-b64 (append (list 0) (%tn-str-bytes u) (list 0) (%tn-str-bytes p))))))
+          (guard (_ ()) (file-write %sm-wr (%mm-b64 (append (list 0) (tn-str-bytes u) (list 0) (tn-str-bytes p))))))
       (do (%sm-check "AUTH LOGIN" 334)
-          (guard (_ ()) (file-write %sm-wr (%mm-b64 (%tn-str-bytes u))))
+          (guard (_ ()) (file-write %sm-wr (%mm-b64 (tn-str-bytes u))))
           (%sm-check "" 334)
-          (guard (_ ()) (file-write %sm-wr (%mm-b64 (%tn-str-bytes p))))))
+          (guard (_ ()) (file-write %sm-wr (%mm-b64 (tn-str-bytes p))))))
     (%sm-check "" 235)))
 
 (def %sm-fd4-cred

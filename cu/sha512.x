@@ -17,6 +17,11 @@
 ; The constants are stored as the signed readings of the same 64-bit
 ; patterns, which is what the engine's reader will hand back anyway.
 
+(module cu/sha512)
+
+(import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor cu-as-run
+  cu-nth cu-run-list integer->char list->string map reverse string-concat)
+
 (def %cu-sha512-h
   (list
         7640891576956012808 -4942790177534073029 4354685564936845355 -6534734903238641935 5840696475078001361 -7276294671716946913 2270897969802886507 6620516959819538809))
@@ -128,10 +133,10 @@
                 wrev))))))
     (extend 16 (reverse w16))))
 
-(def %cu-nthrest
+(def cu-nthrest
   (fn (self n l) (if (= n 0) l (self (- n 1) (rest l)))))
 
-(def %cu-drop8 (fn (_ bs) (%cu-nthrest 8 bs)))
+(def %cu-drop8 (fn (_ bs) (cu-nthrest 8 bs)))
 
 (def %cu-be64
   (fn (_ bs)
@@ -180,7 +185,7 @@
         (if (< shift 0) (list->string (reverse acc))
           (self (- shift 4)
             (pair (integer->char
-                    (%cu-hex-digit (bit-and (%cu-shr64 w shift) 15)))
+                    (cu-hex-digit (bit-and (%cu-shr64 w shift) 15)))
               acc)))))
     (go 60 ())))
 
@@ -197,7 +202,7 @@
                         (go bs 128 ()))))
             (self (rest take) (%cu-sha512-block hs (first take)))))))
     (def out (blocks (%cu-sha512-pad text) start))
-    (string-concat (map (fn (_ w) (%cu-word-hex64 w)) (%cu-take out words)))))
+    (string-concat (map (fn (_ w) (%cu-word-hex64 w)) (cu-take out words)))))
 
 (def cu-sha512 (fn (_ text) (%cu-sha512-hex text %cu-sha512-h 8)))
 
@@ -208,10 +213,12 @@
 
 (def cu-sha384 (fn (_ text) (%cu-sha512-hex text %cu-sha384-h 6)))
 
-(def %cu-sha512sum
+(def cu-sha512sum
   (fn (_ argv stdin-thunk)
-    (%cu-sum-applet "sha512sum" (fn (_ t) (cu-sha512 t)) argv stdin-thunk)))
+    (cu-sum-applet "sha512sum" (fn (_ t) (cu-sha512 t)) argv stdin-thunk)))
 
-(def %cu-sha384sum
+(def cu-sha384sum
   (fn (_ argv stdin-thunk)
-    (%cu-sum-applet "sha384sum" (fn (_ t) (cu-sha384 t)) argv stdin-thunk)))
+    (cu-sum-applet "sha384sum" (fn (_ t) (cu-sha384 t)) argv stdin-thunk)))
+
+(provide cu/sha512 cu-nthrest cu-sha384sum cu-sha512sum)

@@ -18,6 +18,14 @@
 ; a NUL, so a NUL is passed over in x; and both read on past the bytes a read
 ; filled, so each answer is cut at the piece's count.
 
+(module cu/strings)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-ptr-call
+  cu-sweep-lines cu-sweep-tick! file-err-op file-err-text file-write reverse
+  string-append string-concat string=?)
+(import cu/text cu-fold-one cu-num-prefix cu-pad-left)
+
 (def %sg+ (prim-ref (lit int) (lit +)))
 (def %sg-str->ptr (prim-ref (lit str) (lit ->ptr)))
 (def %sg-ptr->int (prim-ref (lit ptr) (lit ->int)))
@@ -41,7 +49,7 @@
 ; else, from LO to HI.  Answers the number, or nil once the trouble is said --
 ; `invalid number 'S'`, which a number past an unsigned int is too, or `number
 ; S is not in LO..HI range`.
-(def %cu-range-number
+(def cu-range-number
   (fn (_ applet s lo hi)
     (def end (byte-len s))
     (def digits?
@@ -165,13 +173,13 @@
               (rest r))))))
 
 ; strings [-fo] [-t o|d|x] [-n LEN] [FILE]...
-(def %cu-strings-applet
+(def cu-strings-applet
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "strings" argv))
     (def ops (Opts operands o))
     (def n-arg (let ((v (Opts value o "-n"))) (if (null? v) "4" v)))
     (def t-arg (let ((v (Opts value o "-t"))) (if (null? v) "o" v)))
-    (def len (%cu-range-number "strings" n-arg 1 2147483647))
+    (def len (cu-range-number "strings" n-arg 1 2147483647))
     (def radix
       (match
         ((string=? t-arg "o") 8)
@@ -202,3 +210,5 @@
               (set! %sg-least len)
               (set! %sg-radix-of (if offsets? radix ()))
               (each (if (null? ops) (list "-") ops) 0))))))
+
+(provide cu/strings cu-range-number cu-strings-applet)

@@ -22,6 +22,18 @@
 ; digits pivot at 69 as POSIX has it (69-99 are 19xx, 00-68 20xx), no year
 ; means this one, and every field must name a real moment: February 30th is
 ; refused, and a second of 60 is taken and rolls into the next minute.
+(module cu/fs2)
+
+(import cu/cli cu-missing-file-operand cu-opts)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-sweep!
+  cu-sweep-bytes file-chmod file-chown file-close file-copy file-dir?
+  file-exists? file-mkdir file-open-excl file-set-times file-stat-full
+  file-utimes file-write file-write-all filter integer->char length
+  list->string map rng-int rng-make string-append string-concat string=?
+  substring sys-getcwd sys-getenv)
+(import cu/text cu-first-unopened cu-member-s? cu-num-prefix cu-pad-left
+  cu-pieces-past cu-say cu-says cu-with-sources)
+
 (def %cu-touch-stamp
   (fn (_ s)
     (def end (byte-len s))
@@ -50,15 +62,15 @@
           (match
             ((= lead 4) (num 0 4))
             ((= lead 2) (let ((yy (num 0 2))) (if (>= yy 69) (+ 1900 yy) (+ 2000 yy))))
-            (#t (Assoc get (lit year) (%cu-date-today #f)))))
+            (#t (Assoc get (lit year) (cu-date-today #f)))))
         (def month (num lead (+ lead 2)))
         (def day (num (+ lead 2) (+ lead 4)))
         (def hour (num (+ lead 4) (+ lead 6)))
         (def minute (num (+ lead 6) (+ lead 8)))
         (def second (if (= dot end) 0 (num (+ dot 1) end)))
-        (%cu-date-moment year month day hour minute second 60 #f)))))
+        (cu-date-moment year month day hour minute second 60 #f)))))
 
-(def %cu-touch
+(def cu-touch
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "touch" argv))
     (def c? (Opts on? o "-c"))
@@ -67,7 +79,7 @@
     (def dspec (Opts value o "-d"))
     (def tspec (Opts value o "-t"))
     (def ref-st (if (null? rfile) () (file-stat-full rfile)))
-    (def dsecs (if (null? dspec) () (%cu-date-of dspec () #f)))
+    (def dsecs (if (null? dspec) () (cu-date-of dspec () #f)))
     (def tsecs (if (null? tspec) () (%cu-touch-stamp tspec)))
     (def refused
       (match
@@ -89,7 +101,7 @@
         ((not (null? dsecs)) (pair dsecs dsecs))
         ((not (null? tsecs)) (pair tsecs tsecs))
         ((not (null? ref-st))
-          (pair (%cu-stat-get ref-st (lit atime)) (%cu-stat-get ref-st (lit mtime))))
+          (pair (cu-stat-get ref-st (lit atime)) (cu-stat-get ref-st (lit mtime))))
         (#t ())))
     (def stamp
       (fn (_ path)
@@ -103,17 +115,17 @@
         (if (null? os) st
           (let ((path (first os)))
             (match
-              ((file-exists? path) (self (rest os) (%cu-max-status st (stamp path))))
+              ((file-exists? path) (self (rest os) (cu-max-status st (stamp path))))
               (c? (self (rest os) st))
               (#t (do (file-write-all path "")
                       (self (rest os)
-                        (%cu-max-status st (if (null? times) 0 (stamp path)))))))))))
+                        (cu-max-status st (if (null? times) 0 (stamp path)))))))))))
     (match
       ((not (null? refused)) (do (file-write 2 refused) 1))
       ((null? ops) (do (file-write 2 "touch: missing operand\n") 1))
       (#t (go ops 0)))))
 
-(def %cu-max-status (fn (_ a b) (if (> a b) a b)))
+(def cu-max-status (fn (_ a b) (if (> a b) a b)))
 
 ; ls lives in cu/ls.x: the busybox option set is a module's worth.
 
@@ -122,7 +134,7 @@
 ; a shell reached it by, links unresolved -- and the physical one when it
 ; does not.  busybox defaults to -L; the physical default here is GNU's,
 ; and what this applet always printed.
-(def %cu-pwd
+(def cu-pwd
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "pwd" argv))
     (def here (sys-getcwd))
@@ -133,7 +145,7 @@
           ((null? p) here)
           ((= (byte-len p) 0) here)
           ((not (= (byte-at p 0) 47)) here)
-          ((string=? (%cu-realpath-of p) here) p)
+          ((string=? (cu-realpath-of p) here) p)
           (#t here))))
     ; an operand is said and passed over, as GNU's pwd does
     (do (if (null? (Opts operands o)) ()
@@ -152,12 +164,12 @@
 ; the destination's parents, -m the mode, -o/-g the ownership, -p the
 ; timestamps, and -t naming a directory to install into.  -s would
 ; strip a binary and there is no strip to call, so it is not claimed.
-(def %cu-install
+(def cu-install
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "install" argv))
     (def ops (Opts operands o))
     (def mode (let ((m (Opts value o "-m")))
-                (if (null? m) () (%cu-octal->int m))))
+                (if (null? m) () (cu-octal->int m))))
     (def owner (Opts value o "-o"))
     (def group (Opts value o "-g"))
     (def into (Opts value o "-t"))
@@ -172,15 +184,15 @@
     (if (Opts on? o "-d")
       (let ((go (fn (self ds)
                   (if (null? ds) 0
-                    (do (%cu-mkdir-p! (first ds))
+                    (do (cu-mkdir-p! (first ds))
                         (finish! (first ds) ())
                         (self (rest ds)))))))
         (go ops))
       (let ((dst (if (null? into)
-                   (if (null? ops) () (%cu-last ops))
+                   (if (null? ops) () (cu-last ops))
                    into)))
         (def srcs (if (null? into)
-                    (if (null? ops) () (%cu-drop-last ops))
+                    (if (null? ops) () (cu-drop-last ops))
                     ops))
         (if (null? srcs)
           (cu-missing-file-operand "install" ops)
@@ -188,16 +200,16 @@
                       (if (null? ss) st
                         (let ((target
                                 (if (file-dir? dst)
-                                  (%cu-path-join dst (%cu-base-of (first ss)))
+                                  (cu-path-join dst (cu-base-of (first ss)))
                                   dst)))
                           (do (if (Opts on? o "-D")
-                                (%cu-mkdir-p! (%cu-dirname-of target)) ())
+                                (cu-mkdir-p! (cu-dirname-of target)) ())
                               (file-copy (first ss) target)
                               (finish! target (first ss))
                               (self (rest ss) st)))))))
             (go srcs 0)))))))
 
-(def %cu-base-of
+(def cu-base-of
   (fn (_ p)
     (def slash
       (let ((go (fn (self i last)
@@ -207,7 +219,7 @@
     (if (< slash 0) p (substring p (+ slash 1) (byte-len p)))))
 
 ; shared with mkdir -p
-(def %cu-mkdir-p!
+(def cu-mkdir-p!
   (fn (_ path)
     (def end (byte-len path))
     (def go
@@ -227,7 +239,7 @@
 ; directory, -u prints a name without creating it, -q keeps quiet
 ;
 ; One TEMPLATE at most; a second is refused in GNU's words.
-(def %cu-mktemp
+(def cu-mktemp
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "mktemp" argv))
     (if (> (length (Opts operands o)) 1)
@@ -249,7 +261,7 @@
             ()))))
     (def template
       (if (null? into) (if (null? ops) "/tmp/tmp.XXXXXX" base)
-        (%cu-path-join into (%cu-basename-of base))))
+        (cu-path-join into (cu-basename-of base))))
     (def end (byte-len template))
     (def xs
       (let ((go (fn (self i)
@@ -301,7 +313,7 @@
 ; not given, and the skips bytes to pass in each before comparing, from where
 ; the offsets and lines then count.  No operand, or more than four, is the
 ; usage line and 1; so is a count -n or a skip that is not a number.
-(def %cu-cmp
+(def cu-cmp
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "cmp" argv))
     (def ops (Opts operands o))
@@ -365,7 +377,7 @@
       (#t
         (cu-with-sources ops stdin-thunk says 2
           (fn (_ a b)
-            (%cu-cmp-walk (cu-pieces-past a (skip 2)) (cu-pieces-past b (skip 3))
+            (cu-cmp-walk (cu-pieces-past a (skip 2)) (cu-pieces-past b (skip 3))
               ops (pair "" 0) (pair "" 0) cap (Opts on? o "-l") s? says)))))))
 
 ; The bytes of the piece sources A and B compared in turn, from the runs RA
@@ -377,7 +389,7 @@
 ; the system's cmp puts them -- and the walk goes on.  QUIET? says nothing,
 ; not even which input ended first.  The pieces of the two need not line up:
 ; each keeps its own run and its place in it.
-(def %cu-cmp-walk
+(def cu-cmp-walk
   (fn (_ a b names ra rb cap list? quiet? says)
     (def name-a (first names))
     (def name-b (first (rest names)))
@@ -458,5 +470,8 @@
   (fn (_ off x y)
     (string-concat
       (list (cu-int->str off) " "
-            (cu-pad-left (%cu-oct->str x) 3) " "
-            (cu-pad-left (%cu-oct->str y) 3) "\n"))))
+            (cu-pad-left (cu-oct->str x) 3) " "
+            (cu-pad-left (cu-oct->str y) 3) "\n"))))
+
+(provide cu/fs2 cu-base-of cu-cmp cu-cmp-walk cu-install cu-max-status
+  cu-mkdir-p! cu-mktemp cu-pwd cu-touch)

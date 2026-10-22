@@ -37,7 +37,7 @@
       ((= b 12) "\\f")
       ((= b 13) "\\r")
       ((if (>= b 32) (<= b 126) #f) (cu-b->s b))
-      (#t (cu-pad-zero (%cu-oct->str b) 3)))))
+      (#t (cu-pad-zero (cu-oct->str b) 3)))))
 
 ; a word of `size` bytes, LITTLE-endian, from position i, the bytes from END
 ; on read as 0
@@ -74,7 +74,7 @@
           ((if (eq? od-type (lit x)) (cu< size 5) #f)
             (%cu-od-digits v 16 (w 2 4 8) #t))
           ((eq? od-type (lit o))
-            (string-append " " (cu-pad-zero (%cu-oct->str v) (w 3 6 11))))
+            (string-append " " (cu-pad-zero (cu-oct->str v) (w 3 6 11))))
           ((eq? od-type (lit x))
             (string-append " " (cu-pad-zero (cu-hexs v) (w 2 4 8))))
           ((eq? od-type (lit u))
@@ -383,7 +383,7 @@
     (def m? (Opts on? o "-m"))
     (def ops (Opts operands o))
     ; uuencode NAME, or uuencode FILE NAME
-    (def name (if (null? ops) "-" (%cu-last ops)))
+    (def name (if (null? ops) "-" (cu-last ops)))
     (def src (if (pair? (rest ops)) (list (first ops)) ()))
     ; the begin line names the FILE's permissions, as busybox's and the system's
     ; uuencode do, or what the umask leaves of 0666 for standard input
@@ -391,12 +391,12 @@
       (let ((st (if (if (null? src) #t (string=? (first src) "-")) ()
                   (file-stat-full (first src)))))
         (if (null? st) (bit-and 438 (bit-xor (sys-umask) 511))
-          (bit-and (%cu-stat-get st (lit mode)) 511))))
+          (bit-and (cu-stat-get st (lit mode)) 511))))
     ; the input is encoded as it is read, and the begin line goes out with its
     ; first piece, so a FILE that could not be read puts out nothing
     (def begin
       (string-concat
-        (list (if m? "begin-base64 " "begin ") (%cu-oct->str mode) " " name
+        (list (if m? "begin-base64 " "begin ") (cu-oct->str mode) " " name
               "\n")))
     (def g (cu-fold-said src stdin-thunk (cu-says "uuencode")
              (%cu-uu-take begin m?) (list #f (pair "" 0) () 0)))
@@ -417,7 +417,7 @@
           (let ((text (if (= (rest (cu-nth 1 s)) 0) r
                         (cu-run-join (cu-nth 1 s) r 0 (rest r)))))
             (if m?
-              (let ((b (%cu-b64-put-from text 76 (cu-nth 2 s) (cu-nth 3 s)
+              (let ((b (cu-b64-put-from text 76 (cu-nth 2 s) (cu-nth 3 s)
                          #f)))
                 (list #t (cu-run-part text (first b) (rest text))
                       (cu-nth 1 b) (cu-nth 2 b)))
@@ -441,8 +441,8 @@
 (def %cu-uu-end
   (fn (_ m? left line col)
     (if m?
-      (let ((b (%cu-b64-put-from left 76 line col #t)))
-        (do (%cu-b64-put-end 76 (cu-nth 1 b) (cu-nth 2 b))
+      (let ((b (cu-b64-put-from left 76 line col #t)))
+        (do (cu-b64-put-end 76 (cu-nth 1 b) (cu-nth 2 b))
             (display "====\n")))
       (do (if (> (rest left) 0)
             (display
@@ -551,7 +551,7 @@
                 (do (cu-sweep-at k cu-sweep-lines)
                     (self (rest ls) (%cu-onto bs out) (+ n (length bs))
                       (+ k 1))))))))
-    (if b64? (%cu-b64-decode-to (cu-join-with body "\n") put #t)
+    (if b64? (cu-b64-decode-to (cu-join-with body "\n") put #t)
       (go (filter (fn (_ l) (> (byte-len l) 0)) body) () 0 0))))
 
 (provide cu/encode cu-od cu-uudecode cu-uuencode)

@@ -23,6 +23,12 @@
 ; is what access answers for an ordinary process; it does not model ACLs, and
 ; root is not special-cased (both recorded divergences).
 
+(module cu/test)
+
+(import cu/prims bit-and bit-shr byte-len file-exists? file-lstat-full
+  file-stat-full file-write string=? sys-geteuid sys-getgroups sys-isatty)
+(import cu/text cu-num-prefix)
+
 (def %t-stat (fn (_ p) (file-stat-full p)))
 (def %t-lstat (fn (_ p) (file-lstat-full p)))
 
@@ -32,39 +38,39 @@
 (def %t-file-type?
   (fn (_ p k)
     (let ((st (%t-stat p)))
-      (if (null? st) #f (eq? (%cu-stat-get st (lit file-type)) k)))))
+      (if (null? st) #f (eq? (cu-stat-get st (lit file-type)) k)))))
 
 (def %t-link?
   (fn (_ p)
     (let ((st (%t-lstat p)))
-      (if (null? st) #f (eq? (%cu-stat-get st (lit file-type)) (lit link))))))
+      (if (null? st) #f (eq? (cu-stat-get st (lit file-type)) (lit link))))))
 
 (def %t-mode-bit?
   (fn (_ p bit)
     (let ((st (%t-stat p)))
-      (if (null? st) #f (not (= 0 (bit-and (%cu-stat-get st (lit mode)) bit)))))))
+      (if (null? st) #f (not (= 0 (bit-and (cu-stat-get st (lit mode)) bit)))))))
 
 ; the permission triple that applies to US: owner, group, or other
-(def %t-permitted?
+(def t-permitted?
   (fn (_ p want)
     (let ((st (%t-stat p)))
       (if (null? st) #f
-        (let ((mode (%cu-stat-get st (lit mode))))
+        (let ((mode (cu-stat-get st (lit mode))))
           (def uid (sys-geteuid))
           (def in-group?
             (let ((go (fn (self gs)
                         (if (null? gs) #f
-                          (if (= (first gs) (%cu-stat-get st (lit gid))) #t
+                          (if (= (first gs) (cu-stat-get st (lit gid))) #t
                             (self (rest gs)))))))
               (go (sys-getgroups))))
           (def triple
-            (if (= uid (%cu-stat-get st (lit uid))) (bit-shr mode 6)
+            (if (= uid (cu-stat-get st (lit uid))) (bit-shr mode 6)
               (if in-group? (bit-shr mode 3) mode)))
           (not (= 0 (bit-and triple want))))))))
 
 (def %t-mtime
   (fn (_ p)
-    (let ((st (%t-stat p))) (if (null? st) (- 0 1) (%cu-stat-get st (lit mtime))))))
+    (let ((st (%t-stat p))) (if (null? st) (- 0 1) (cu-stat-get st (lit mtime))))))
 
 (def %t-same-file?
   (fn (_ a b)
@@ -72,8 +78,8 @@
       (match
         ((null? x) #f)
         ((null? y) #f)
-        ((= (%cu-stat-get x (lit dev)) (%cu-stat-get y (lit dev)))
-          (= (%cu-stat-get x (lit ino)) (%cu-stat-get y (lit ino))))
+        ((= (cu-stat-get x (lit dev)) (cu-stat-get y (lit dev)))
+          (= (cu-stat-get x (lit ino)) (cu-stat-get y (lit ino))))
         (#t #f)))))
 
 ; --- the operators ------------------------------------------------------------
@@ -108,12 +114,12 @@
       ((string=? op "-h") (%t-link? v))
       ((string=? op "-s")
         (let ((st (%t-stat v)))
-          (if (null? st) #f (> (%cu-stat-get st (lit size)) 0))))
+          (if (null? st) #f (> (cu-stat-get st (lit size)) 0))))
       ((string=? op "-z") (= (byte-len v) 0))
       ((string=? op "-n") (> (byte-len v) 0))
-      ((string=? op "-r") (%t-permitted? v 4))
-      ((string=? op "-w") (%t-permitted? v 2))
-      ((string=? op "-x") (%t-permitted? v 1))
+      ((string=? op "-r") (t-permitted? v 4))
+      ((string=? op "-w") (t-permitted? v 2))
+      ((string=? op "-x") (t-permitted? v 1))
       ((string=? op "-k") (%t-mode-bit? v 512))       ; sticky
       ((string=? op "-u") (%t-mode-bit? v 2048))      ; setuid
       ((string=? op "-g") (%t-mode-bit? v 1024))      ; setgid
@@ -230,19 +236,21 @@
           ((first r) 0)
           (#t 1))))))
 
-(def %cu-test
+(def cu-test
   (fn (_ argv stdin-thunk) (%cu-test-eval argv)))
 
-(def %cu-bracket
+(def cu-bracket
   (fn (_ argv stdin-thunk)
     (if (null? argv) 2
-      (if (not (string=? (%cu-last argv) "]"))
+      (if (not (string=? (cu-last argv) "]"))
         (do (file-write 2 "[: missing ]\n") 2)
-        (%cu-test-eval (%cu-drop-last argv))))))
+        (%cu-test-eval (cu-drop-last argv))))))
 
-(def %cu-dbracket
+(def cu-dbracket
   (fn (_ argv stdin-thunk)
     (if (null? argv) 2
-      (if (not (string=? (%cu-last argv) "]]"))
+      (if (not (string=? (cu-last argv) "]]"))
         (do (file-write 2 "[[: missing ]]\n") 2)
-        (%cu-test-eval (%cu-drop-last argv))))))
+        (%cu-test-eval (cu-drop-last argv))))))
+
+(provide cu/test cu-bracket cu-dbracket cu-test t-permitted?)

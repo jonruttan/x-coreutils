@@ -35,9 +35,9 @@
 ; u32 the kernel holds; 32 an IPv6 one, four such u32s
 (def %nst-addr
   (fn (_ hex)
-    (if (<= (byte-len hex) 8) (pair 4 (%inet-hex hex))
+    (if (<= (byte-len hex) 8) (pair 4 (inet-hex hex))
       (pair 6 (List fold (fn (_ acc k)
-                           (let ((v (%inet-hex (substring hex (* 8 k) (+ (* 8 k) 8)))))
+                           (let ((v (inet-hex (substring hex (* 8 k) (+ (* 8 k) 8)))))
                              (append acc (map (fn (_ b) (& (>> v (* 8 b)) 255)) (list 0 1 2 3)))))
                          () (List range 0 4))))))
 
@@ -47,18 +47,18 @@
 ; xmalloc_sockaddr2dotted_noport: the address as numbers
 (def %nst-dotted
   (fn (_ a)
-    (if (= (first a) 4) (%inet-dotted (rest a))
+    (if (= (first a) 4) (inet-dotted (rest a))
       (let ((buf (str-make-raw 16)))
-        (do (let go ((k 0) (bs (rest a))) (unless (null? bs) (do (%inet-set! buf k (first bs) 1) (go (+ k 1) (rest bs)))))
-            (%inet-ntop6-bytes buf))))))
+        (do (let go ((k 0) (bs (rest a))) (unless (null? bs) (do (inet-set! buf k (first bs) 1) (go (+ k 1) (rest bs)))))
+            (inet-ntop6-bytes buf))))))
 
 ; xmalloc_sockaddr2host_noport: the address's name, nil where it has none
 (def %nst-name
   (fn (_ a)
-    (if (= (first a) 4) (%inet-addr-host (rest a))
+    (if (= (first a) 4) (inet-addr-host (rest a))
       (let ((buf (str-make-raw 16)))
-        (do (let go ((k 0) (bs (rest a))) (unless (null? bs) (do (%inet-set! buf k (first bs) 1) (go (+ k 1) (rest bs)))))
-            (%inet-addr-host6 buf))))))
+        (do (let go ((k 0) (bs (rest a))) (unless (null? bs) (do (inet-set! buf k (first bs) 1) (go (+ k 1) (rest bs)))))
+            (inet-addr-host6 buf))))))
 
 ; get_sname: "*" for port 0, the service's name unless NUMERIC?, else the number
 (def %nst-service
@@ -66,7 +66,7 @@
     (match
       ((= port 0) "*")
       (numeric? (cu-int->str port))
-      (#t (let ((s (%inet-service port proto))) (if (null? s) (cu-int->str port) s))))))
+      (#t (let ((s (inet-service port proto))) (if (null? s) (cu-int->str port) s))))))
 
 ; ip_port_str: ADDRESS:PORT, by name unless NUMERIC?
 (def %nst-endpoint
@@ -97,7 +97,7 @@
 ; "PID/" and the base name of the command line's first word, nineteen at most
 (def %nst-prog-name
   (fn (_ pid cmd)
-    (def nul (%dp-find cmd 0 #\null))
+    (def nul (dp-find cmd 0 #\null))
     (def argv0 (if (< nul 0) cmd (substring cmd 0 nul)))
     (def slash (let go ((i (- (byte-len argv0) 1))) (match ((< i 0) -1) ((= (byte-at argv0 i) #\/) i) (#t (go (- i 1))))))
     (def s (string-concat (list pid "/" (substring argv0 (+ slash 1) (byte-len argv0)))))
@@ -117,13 +117,13 @@
 ; (LOCAL LPORT REMOTE RPORT STATE TXQ RXQ INODE), nil for a line it cannot read
 (def %nst-inet-line
   (fn (_ line)
-    (def w (%inet-words line))
-    (def ep (fn (_ s) (let ((c (%dp-find s 0 #\:))) (if (< c 0) () (pair (substring s 0 c) (%inet-hex (substring s (+ c 1) (byte-len s))))))))
+    (def w (inet-words line))
+    (def ep (fn (_ s) (let ((c (dp-find s 0 #\:))) (if (< c 0) () (pair (substring s 0 c) (inet-hex (substring s (+ c 1) (byte-len s))))))))
     (if (< (length w) 10) ()
       (let ((l (ep (List ref 1 w))) (r (ep (List ref 2 w))) (q (ep (List ref 4 w))))
         (if (if (null? l) #t (if (null? r) #t (null? q))) ()
-          (list (%nst-addr (first l)) (rest l) (%nst-addr (first r)) (rest r) (%inet-hex (List ref 3 w))
-                (%inet-hex (first q)) (rest q) (cu-num-prefix (List ref 9 w))))))))
+          (list (%nst-addr (first l)) (rest l) (%nst-addr (first r)) (rest r) (inet-hex (List ref 3 w))
+                (inet-hex (first q)) (rest q) (cu-num-prefix (List ref 9 w))))))))
 
 ; print_inet_line: one socket, where its side (CONNECTED?) is asked for
 (def %nst-inet-print
@@ -133,9 +133,9 @@
         (file-write 1
           (string-concat
             (list proto "   " (cu-pad-left (cu-int->str (List ref 6 p)) 6) " " (cu-pad-left (cu-int->str (List ref 5 p)) 6) " "
-                  (%inet-left (%nst-endpoint (List ref 0 p) (List ref 1 p) proto numeric?) width) " "
-                  (%inet-left (%nst-endpoint (List ref 2 p) (List ref 3 p) proto numeric?) width) " "
-                  (%inet-left state 12)
+                  (inet-left (%nst-endpoint (List ref 0 p) (List ref 1 p) proto numeric?) width) " "
+                  (inet-left (%nst-endpoint (List ref 2 p) (List ref 3 p) proto numeric?) width) " "
+                  (inet-left state 12)
                   (if (null? progs) ""
                     (let ((e (Assoc entry (List ref 7 p) progs))) (if (null? e) "-" (rest e))))
                   "\n")))))))
@@ -179,27 +179,27 @@
 (def %nst-unix
   (fn (_ st)
     (fn (_ line)
-      (def w (%inet-words line))
+      (def w (inet-words line))
       (if (= (byte-len line) 0) #t
         (if (< (length w) 7) #f
-          (let ((refcnt (%inet-hex (List ref 1 w))) (proto (%inet-hex (List ref 2 w))) (fl (%inet-hex (List ref 3 w)))
-                (type (%inet-hex (List ref 4 w))) (state (%inet-hex (List ref 5 w))) (inode (cu-num-prefix (List ref 6 w))))
+          (let ((refcnt (inet-hex (List ref 1 w))) (proto (inet-hex (List ref 2 w))) (fl (inet-hex (List ref 3 w)))
+                (type (inet-hex (List ref 4 w))) (state (inet-hex (List ref 5 w))) (inode (cu-num-prefix (List ref 6 w))))
             (do
                 (when (if (if (List ref 0 st) (List ref 1 st) #f) #t
                         (if (if (= state 1) (not (= (& fl 65536) 0)) #f) (List ref 1 st) (List ref 0 st)))
                   (file-write 1
                     (string-concat
-                      (list (%inet-left (if (= proto 0) "unix" "??") 5) " " (%inet-left (cu-int->str refcnt) 6) " "
-                            (%inet-left (string-concat (list "[ " (if (= (& fl 65536) 0) "" "ACC ") (if (= (& fl 131072) 0) "" "W ")
+                      (list (inet-left (if (= proto 0) "unix" "??") 5) " " (inet-left (cu-int->str refcnt) 6) " "
+                            (inet-left (string-concat (list "[ " (if (= (& fl 65536) 0) "" "ACC ") (if (= (& fl 131072) 0) "" "W ")
                                                              (if (= (& fl 262144) 0) "" "N ") "]")) 11) " "
-                            (%inet-left (match ((= type 1) "STREAM") ((= type 2) "DGRAM") ((= type 3) "RAW") ((= type 4) "RDM")
+                            (inet-left (match ((= type 1) "STREAM") ((= type 2) "DGRAM") ((= type 3) "RAW") ((= type 4) "RDM")
                                                ((= type 5) "SEQPACKET") (#t "UNKNOWN")) 10) " "
-                            (%inet-left (match ((= state 0) "FREE") ((= state 1) (if (= (& fl 65536) 0) "" "LISTENING"))
+                            (inet-left (match ((= state 0) "FREE") ((= state 1) (if (= (& fl 65536) 0) "" "LISTENING"))
                                                ((= state 2) "CONNECTING") ((= state 3) "CONNECTED") ((= state 4) "DISCONNECTING")
                                                (#t "UNKNOWN")) 13) " "
                             (cu-pad-left (cu-int->str inode) 6) " "
                             (let ((progs (List ref 4 st)))
-                              (if (null? progs) "" (%inet-left (let ((e (Assoc entry inode progs))) (if (null? e) "-" (rest e))) 20)))
+                              (if (null? progs) "" (inet-left (let ((e (Assoc entry inode progs))) (if (null? e) "-" (rest e))) 20)))
                             (if (>= (length w) 8) (List ref 7 w) "") "\n"))))
                 #t)))))))
 
@@ -218,13 +218,13 @@
     (def connected (if (on? "-a") #t (not (on? "-l"))))
     (def kinds (filter on? (list "-t" "-u" "-w" "-x")))
     (def want? (fn (_ k) (if (null? kinds) #t (List find (fn (_ x) (string=? x k)) kinds))))
-    (if (on? "-r") (%rt-show4 (on? "-n") (not (on? "-e")))
+    (if (on? "-r") (rt-show4 (on? "-n") (not (on? "-e")))
       (let ((progs (if (on? "-p") (%nst-load-programs) ())))
         (def st (list connected listen (on? "-n") (if (on? "-W") 51 23) (if (on? "-p") progs ())))
         (def banner (if (on? "-p") "PID/Program name    " ""))
         (when (if (want? "-t") #t (if (want? "-u") #t (want? "-w")))
           (file-write 1 (string-concat (list "Active Internet connections " (%nst-which st) "\nProto Recv-Q Send-Q "
-                                             (%inet-left "Local Address" (List ref 3 st)) " " (%inet-left "Foreign Address" (List ref 3 st))
+                                             (inet-left "Local Address" (List ref 3 st)) " " (inet-left "Foreign Address" (List ref 3 st))
                                              " State       " banner "\n"))))
         (when (want? "-t") (do (%nst-table "/proc/net/tcp" (%nst-tcp st)) (%nst-table "/proc/net/tcp6" (%nst-tcp st))))
         (when (want? "-u") (do (%nst-table "/proc/net/udp" (%nst-udp st)) (%nst-table "/proc/net/udp6" (%nst-udp st))))

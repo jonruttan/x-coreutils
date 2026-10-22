@@ -24,22 +24,27 @@
 ; filesystem" from the suite.
 
 ; The entries of DIR worth walking: no . or .., in sorted order.
-(def %cu-walk-names
+(module cu/walk)
+
+(import cu/prims file-list-dir filter string=?)
+(import cu/text cu-msort cu-str<)
+
+(def cu-walk-names
   (fn (_ dir)
     (cu-msort
-      (filter (fn (_ n) (not (%cu-dot? n))) (file-list-dir dir))
+      (filter (fn (_ n) (not (cu-dot? n))) (file-list-dir dir))
       cu-str<)))
 
 ; Visit each entry of DIR and answer the WORST status any visit gave.
 ; The visitor takes the NAME, not the path: every caller joins it to a
 ; different root, and half of them join it to two.
-(def %cu-walk-status
+(def cu-walk-status
   (fn (_ dir visit)
-    (%cu-walk-worst (%cu-walk-names dir) visit 0)))
+    (cu-walk-worst (cu-walk-names dir) visit 0)))
 
 ; Visit each of NS and answer the WORST status any visit gave, ST or worse: the
 ; fold, for a caller that has the names already.
-(def %cu-walk-worst
+(def cu-walk-worst
   (fn (self ns visit st)
     (if (null? ns) st
       (let ((r (visit (first ns))))
@@ -50,7 +55,7 @@
 ; worst comes back. START, when not nil, is the name to begin at (entries sorted
 ; before it are skipped), and applies to this directory only: a caller that
 ; descends passes nil on the way down.
-(def %cu-walk-pair
+(def cu-walk-pair
   (fn (_ a b start visit)
     (def from
       (fn (_ ns)
@@ -74,4 +79,6 @@
                 (self (if ina (rest as) as)
                       (if inb (rest bs) bs)
                       (if (> r st) r st))))))))
-    (go (from (%cu-walk-names a)) (from (%cu-walk-names b)) 0)))
+    (go (from (cu-walk-names a)) (from (cu-walk-names b)) 0)))
+
+(provide cu/walk cu-walk-names cu-walk-pair cu-walk-status cu-walk-worst)

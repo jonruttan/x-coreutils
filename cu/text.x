@@ -1059,7 +1059,7 @@
 ; -s's interval: "2", "0.5", "1.25", read as sleep reads one
 (def %cu-tail-sleep
   (fn (_ spec)
-    (let ((us (%cu-sleep-us spec))) (if (null? us) () (%cu-sleep-for us)))))
+    (let ((us (cu-sleep-us spec))) (if (null? us) () (cu-sleep-for us)))))
 
 ; the bytes of NAME from FROM up to TO
 (def %cu-read-range
@@ -1083,7 +1083,7 @@
           (let ((st (file-stat-full (first ns))))
             (if (null? st)
               (self (rest ns) (rest os) last (pair (first os) acc))
-              (let ((size (%cu-stat-get st (lit size))))
+              (let ((size (cu-stat-get st (lit size))))
                 (def from
                   (if (< size (first os))
                     (do (file-write 2
@@ -1129,8 +1129,8 @@
       (def file? (not (string=? name "-")))
       (def st (if file? (file-stat-full name) ()))
       (def size
-        (if (if (null? st) #f (eq? (%cu-stat-get st (lit file-type)) (lit file)))
-          (%cu-stat-get st (lit size)) ()))
+        (if (if (null? st) #f (eq? (cu-stat-get st (lit file-type)) (lit file)))
+          (cu-stat-get st (lit size)) ()))
       (def r
         (match
           (from-start?
@@ -1450,8 +1450,8 @@
         ((null? (rest r))
           (let ((st (file-stat-full (if (string=? op "-") "/dev/fd/0" op))))
             (list name (%cu-wc-counted (first r))
-              (eq? (%cu-stat-get st (lit file-type)) (lit file))
-              (%cu-stat-get st (lit size)) () #t)))
+              (eq? (cu-stat-get st (lit file-type)) (lit file))
+              (cu-stat-get st (lit size)) () #t)))
         ((eq? (file-err-op (rest r)) (lit read))
           (list name (%cu-wc-counted (first r)) #f 0
             ((cu-says "wc") op (rest r)) #t))
@@ -1663,7 +1663,7 @@
         (if (null? suf)
           (%cu-basename-put (first ops)
             (if (null? (rest ops)) () (first (rest ops))))
-          (%cu-walk-worst ops (fn (_ p) (%cu-basename-put p suf)) 0))))))
+          (cu-walk-worst ops (fn (_ p) (%cu-basename-put p suf)) 0))))))
 
 ; P's last name on a line, SUF taken off its end where SUF is given and is not
 ; the whole of it
@@ -1700,7 +1700,7 @@
       (let ((go (fn (self ps)
                   (if (null? ps) 0
                     (do (display
-                          (string-append (%cu-dirname-of (first ps)) "\n"))
+                          (string-append (cu-dirname-of (first ps)) "\n"))
                         (self (rest ps)))))))
         (go argv)))))
 

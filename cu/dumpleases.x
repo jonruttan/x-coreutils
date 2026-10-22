@@ -66,7 +66,7 @@
     (def head (%dl-read fd 8))
     (if (< (length head) 8)
       (do (file-write 2 "dumpleases: short read\n") 1)
-      (let ((curr (first (%si-now))))
+      (let ((curr (first (si-now))))
         (let ((written (%nt-imin (%dl-be head) curr)))
           (let go ()
             (let ((lease (%dl-read fd 36)))
@@ -81,13 +81,13 @@
     (def ip (cu-join-with (map cu-int->str (List take 4 (List drop 4 l))) "."))
     (def name-bytes (let go ((l (List take 19 (List drop 14 l))) (acc ()))
                       (if (if (null? l) #t (= (first l) 0)) (reverse acc) (go (rest l) (pair (first l) acc)))))
-    (def name (%tar-printable (bytes->str name-bytes)))
+    (def name (tar-printable (bytes->str name-bytes)))
     (def ends (+ (%dl-be (List take 4 l)) written))
     (string-concat
       (list mac " " (cu-pad-right ip 16) (cu-pad-right name 19) " "
             (match ((<= ends curr) "expired")
                    (dec? (cu-int->str (if abs? ends (- ends curr))))
-                   (abs? (%cu-date-fmt "%a %b %e %H:%M:%S %Y" (%cu-date-split ends #f) ends))
+                   (abs? (cu-date-fmt "%a %b %e %H:%M:%S %Y" (cu-date-split ends #f) ends))
                    (#t (%dl-left (- ends curr))))
             "\n"))))
 

@@ -31,7 +31,7 @@
               (if (null? es) ()
                 (if (string=? (first (first es)) applet) (rest (first es))
                   (self (rest es))))))
-    (go %cu-option-spec)))
+    (go cu-option-spec)))
 
 ; The row as the parse reads it: (FLAGS VALUES) or (FLAGS VALUES LABEL), the
 ; spellings its declaration lists, hidden or not.
@@ -81,11 +81,11 @@
       ; a first word that is -SIGNAL is the applet's own, read before getopt
       ; as busybox's pkill reads it
       ((eq? label (lit signal))
-        (Opts parse flags values (if (null? (%pg-signal-word argv)) argv (rest argv))))
+        (Opts parse flags values (if (null? (pg-signal-word argv)) argv (rest argv))))
       ; the first -SIGNAL before a --, wherever it stands, and -4 and -6, as
       ; busybox's fuser reads them
       ((eq? label (lit signal-any))
-        (Opts parse flags values (first (rest (rest (%fu-args argv))))))
+        (Opts parse flags values (first (rest (rest (fu-args argv))))))
       ; options up to the first word that is not a cluster of the flags; each
       ; letter reaches the parse as a word of its own, so the flags are listed
       ; in the order given (the parse reverses a cluster's), and the rest come
@@ -215,7 +215,7 @@
     (do (file-write 2
           (string-concat
             (if (null? ops) (list applet ": missing operand\n")
-              (list applet ": missing operand after '" (%cu-last ops) "'\n"))))
+              (list applet ": missing operand after '" (cu-last ops) "'\n"))))
         1)))
 
 ; Too few file operands for an applet that copies or moves them, in GNU's

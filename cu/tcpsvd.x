@@ -20,6 +20,18 @@
 ; busybox's handler ends it: -v says so, and the signal is sent again with its
 ; default action.
 
+(module cu/tcpsvd)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-int->ptr cu-int->str
+  cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-sig-ign
+  cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text file-read-run
+  file-write filter length map net-accept net-close net-peer net-resolve
+  net-sock-addr net-sockaddr net-sockaddr-read net-udp-open str-make-raw
+  string-append string-concat string=? substring sys-close sys-dup2
+  sys-exec-or-err sys-exit sys-fork sys-getpid sys-pipe sys-poll sys-setenv
+  sys-signal sys-signals)
+
 (def %ts-app "tcpsvd")
 (def %ts-tcp #t)
 (def %ts-verbose 0)
@@ -114,14 +126,14 @@
 (def %ts-drop!
   (fn (_ ug)
     (def fail? (fn (_ r sym)
-      (let ((e (%ss-call r (lit call) sym)))
+      (let ((e (ss-call r (lit call) sym)))
         (unless (null? e) (%ts-die (string-concat (list sym ": " (file-err-text e))))))))
     (fail? (cu-ptr-call (%ts-c "setgid") (rest ug)) "setgid")
     (fail? (cu-ptr-call (%ts-c "setuid") (first ug)) "setuid")))
 
 ; --- the children ---------------------------------------------------------------
 
-(def %ts-signal-number
+(def ts-signal-number
   (fn (_ name)
     (let ((e (List find (fn (_ e) (string=? (first e) name)) (sys-signals)))) (if (null? e) () (rest e)))))
 
@@ -129,7 +141,7 @@
 (def %ts-fatal
   (fn (_)
     (filter (fn (_ n) (not (null? n)))
-      (map %ts-signal-number (list "TERM" "HUP" "INT" "QUIT" "ABRT" "ALRM" "VTALRM" "XCPU" "XFSZ" "USR1" "USR2")))))
+      (map ts-signal-number (list "TERM" "HUP" "INT" "QUIT" "ABRT" "ALRM" "VTALRM" "XCPU" "XFSZ" "USR1" "USR2")))))
 
 ; print_waitstat and the bookkeeping for each child that has ended
 (def %ts-reap!
@@ -284,8 +296,8 @@
 
 ; --- the applets -----------------------------------------------------------------
 
-(def %cu-tcpsvd (fn (_ argv stdin-thunk) (%ts-main "tcpsvd" argv)))
-(def %cu-udpsvd (fn (_ argv stdin-thunk) (%ts-main "udpsvd" argv)))
+(def cu-tcpsvd (fn (_ argv stdin-thunk) (%ts-main "tcpsvd" argv)))
+(def cu-udpsvd (fn (_ argv stdin-thunk) (%ts-main "udpsvd" argv)))
 
 (def %ts-main
   (fn (_ app argv)
@@ -309,7 +321,7 @@
 (def %ts-start
   (fn (_ app o)
     (def ops (Opts operands o))
-    (set! %ts-verbose (%nc-count o "-v"))
+    (set! %ts-verbose (nc-count o "-v"))
     (set! %ts-env? (not (Opts on? o "-E")))
     (set! %ts-h? (if (Opts on? o "-h") #t (Opts on? o "-p")))
     (set! %ts-lname (Opts value o "-l"))
@@ -324,14 +336,14 @@
 ; the socket bound, the user dropped to, and the connections served
 (def %ts-run
   (fn (_ o ops backlog)
-    (def ug (let ((u (Opts value o "-u"))) (if (null? u) () (%hd-ugid u))))
+    (def ug (let ((u (Opts value o "-u"))) (if (null? u) () (hd-ugid u))))
     (def host (first ops))
     (def quad (if (if (= (byte-len host) 0) #t (string=? host "0")) "0.0.0.0"
                 (let ((q (guard (_ ()) (net-resolve host))))
                   (if (null? q) (%ts-die (string-concat (list "bad address '" host "'"))) q))))
     (def port (%ts-port (first (rest ops))))
     (set! %ts-prog (rest (rest ops)))
-    (set! %ts-chld (%ts-signal-number "CHLD"))
+    (set! %ts-chld (ts-signal-number "CHLD"))
     (set! %ts-sigs (%ts-fatal))
     (Sys catch-signal %ts-chld)
     (map (fn (_ s) (Sys catch-signal s)) %ts-sigs)
@@ -345,3 +357,5 @@
     (let ((p (sys-pipe)))
       (do (%ts-fcntl (first p) 2 1) (%ts-fcntl (rest p) 2 1) (set! %ts-idle (first p))))
     (%ts-loop lfd)))
+
+(provide cu/tcpsvd cu-tcpsvd cu-udpsvd ts-signal-number)

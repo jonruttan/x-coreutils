@@ -125,8 +125,8 @@
     (def emit
       (fn (_ v eq)
         (def all (list (>> v 32) (>> v 24) (>> v 16) (>> v 8) v))
-        (def keep (if (= eq 0) 5 (- 5 (%cal/ (* (+ eq 1) 2) 3))))
-        (map put! (%cu-take all keep))))
+        (def keep (if (= eq 0) 5 (- 5 (cal/ (* (+ eq 1) 2) 3))))
+        (map put! (cu-take all keep))))
     (def go
       (fn (self i v k eq)
         (if (= i n) (list v k eq)
@@ -176,7 +176,7 @@
     (def ops (Opts operands o))
     (def name (if (null? ops) "-" (first ops)))
     (def w (Opts value o "-w"))
-    (def col (if (null? w) 76 (%cu-range-number "base32" w 0 2147483647)))
+    (def col (if (null? w) 76 (cu-range-number "base32" w 0 2147483647)))
     (def said
       (fn (_ err)
         (match

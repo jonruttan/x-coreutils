@@ -39,6 +39,11 @@
 ; the directive's parts, and the byte an escape names, are read off the
 ; token's text once it is cut, and no x code runs inside the base.
 
+(module cu/fmt-lex)
+
+(import cu/prims append bit-and byte-at byte-len cu-b->s cu-nth cu-run-of
+  reverse set-first! substring)
+
 (import x/reader/lexer)
 ; the module a first make imports, here so the state image carries it: read
 ; from source at the make it costs ~0.9 s
@@ -227,7 +232,7 @@
 ; the output, and BYTE the one byte it names, or -1 where it names other text.
 ; The byte is there because a NUL cannot travel in TEXT: a string's length
 ; stops at one, so a caller that works in bytes -- tr's set -- reads it here.
-(def %cu-esc-at
+(def cu-esc-at
   (fn (_ s i variant)
     (let ((c (if (< (+ i 1) (byte-len s)) (byte-at s (+ i 1)) (- 0 1))))
       (let ((named (if (< c 0) (- 0 1) (%cu-esc-named c variant))))
@@ -271,7 +276,7 @@
 ; written one after another rather than packed, since packing them meant
 ; gathering every literal byte in x.  The tokens are the arg lexer's, whose
 ; escapes open as echo's do; VARIANT names them to the decoder.
-(def %cu-esc-run
+(def cu-esc-run
   (fn (_ s variant)
     (def go
       (fn (self ts acc)
@@ -287,17 +292,17 @@
       (go ((%cu-fl-arg-lexer) read-str s) ()))))
 
 ; RUNS onto ACC, which holds runs in reverse, so the first run goes deepest
-(def %cu-runs-onto
+(def cu-runs-onto
   (fn (self runs acc)
     (if (null? runs) acc (self (rest runs) (pair (first runs) acc)))))
 
 ; RUNS to FD, in order, each through the counted write
-(def %cu-write-runs
+(def cu-write-runs
   (fn (self fd runs)
     (if (null? runs) ()
       (do (file-write-run fd (first runs)) (self fd (rest runs))))))
 
-; The escape token TX, read by the rule TAG names, decoded as %cu-esc-at
+; The escape token TX, read by the rule TAG names, decoded as cu-esc-at
 ; decodes one: the tag says what the token holds, so an octal or hex escape
 ; goes straight to its digits.
 (def %cu-esc-token
@@ -305,7 +310,7 @@
     (match
       ((eq? tag (lit oct)) (%cu-esc-number tx 1 variant))
       ((eq? tag (lit hex)) (%cu-esc-hex-at tx 2 0))
-      (#t (%cu-esc-at tx 0 variant)))))
+      (#t (cu-esc-at tx 0 variant)))))
 
 ; the run one escape stands for, for a caller that holds the escape alone
 (def %cu-esc-one-run
@@ -326,7 +331,7 @@
 
 ; A format -> its tokens. ESCAPES? says whether a backslash means something
 ; here: printf says yes, a strftime format says no.
-(def %cu-fmt-parse
+(def cu-fmt-parse
   (fn (_ fmt escapes?)
     (def go
       (fn (self ts acc)
@@ -343,10 +348,13 @@
       (go ((%cu-fl-lexer) read-str fmt) ()))))
 
 ; the parts of a directive token, named
-(def %cu-fmt-dir? (fn (_ t) (if (pair? t) (eq? (first t) (lit dir)) #f)))
-(def %cu-fmt-left? (fn (_ t) (cu-nth 1 t)))
+(def cu-fmt-dir? (fn (_ t) (if (pair? t) (eq? (first t) (lit dir)) #f)))
+(def cu-fmt-left? (fn (_ t) (cu-nth 1 t)))
 (def %cu-fmt-zero? (fn (_ t) (cu-nth 2 t)))
-(def %cu-fmt-width (fn (_ t) (cu-nth 3 t)))
+(def cu-fmt-width (fn (_ t) (cu-nth 3 t)))
 (def %cu-fmt-prec (fn (_ t) (cu-nth 4 t)))
-(def %cu-fmt-conv (fn (_ t) (cu-nth 5 t)))
-(def %cu-fmt-raw (fn (_ t) (cu-nth 6 t)))
+(def cu-fmt-conv (fn (_ t) (cu-nth 5 t)))
+(def cu-fmt-raw (fn (_ t) (cu-nth 6 t)))
+
+(provide cu/fmt-lex cu-esc-at cu-esc-run cu-fmt-conv cu-fmt-dir? cu-fmt-left?
+  cu-fmt-parse cu-fmt-raw cu-fmt-width cu-runs-onto cu-write-runs)

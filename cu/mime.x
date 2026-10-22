@@ -32,7 +32,7 @@
 (def %mm-last-component
   (fn (_ p)
     (def s (%mm-strip p))
-    (if (string=? s "/") s (%cu-basename-of s))))
+    (if (string=? s "/") s (cu-basename-of s))))
 
 ; --- base64 -------------------------------------------------------------------
 
@@ -317,7 +317,7 @@
                      (#t (read (pair ch acc) (+ n 1))))))))
       (unless (eq? (rest got) (lit done))
         (let ((d (%mm-decode (first got))))
-          (do (unless (null? (first d)) (let ((r (%tn-run (first d)))) (guard (_ ()) (File write fd (first r) (rest r)))))
+          (do (unless (null? (first d)) (let ((r (tn-run (first d)))) (guard (_ ()) (File write fd (first r) (rest r)))))
               (if (rest got)
                 (unless (null? (rest d)) (%mm-die "truncated input"))
                 (fill (rest d)))))))))

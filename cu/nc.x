@@ -30,6 +30,15 @@
 ; ARGV split at -e: (ARGS . PROG), PROG the program and its arguments or nil.
 ; busybox also reads -e at the end of a cluster of flags that take no value,
 ; as -lve PROG
+(module cu/nc)
+
+(import cu/cli cu-refuse-option)
+(import cu/prims append byte-at byte-len cu-int->str cu-sig-ign file-close
+  file-err-sym file-open-write file-read-run file-write filter integer->char
+  length list->string map net-accept net-close net-connect net-listen
+  net-resolve net-shutdown reverse string-concat string=? substring sys-dup2
+  sys-exec sys-exit sys-poll sys-signal sys-sleep)
+
 (def %nc-split-exec
   (fn (_ argv)
     (let go ((l argv) (acc ()))
@@ -55,11 +64,11 @@
 
 ; -u, -b (UDP's broadcasts) and -s are not here: refused, rather than read as
 ; TCP or as no address at all.  -e is split off before the parse.
-(def %nc-flags (list "-n" "-v" "-l" "-k" "-z"))
-(def %nc-values (list "-p" "-w" "-i" "-o" "-e"))
+(def nc-flags (list "-n" "-v" "-l" "-k" "-z"))
+(def nc-values (list "-p" "-w" "-i" "-o" "-e"))
 
 ; how many times FLAG was given: -vv is two
-(def %nc-count
+(def nc-count
   (fn (_ o flag)
     (length (filter (fn (_ f) (string=? f flag)) (rest (Assoc entry (lit on) o))))))
 
@@ -223,7 +232,7 @@
     (def w (let ((v (Opts value o "-w"))) (if (null? v) 0 (%wget-digits v))))
     (def interval (let ((v (Opts value o "-i"))) (if (null? v) 0 (%wget-digits v))))
     (def wait-ms (if (> w 0) (* w 1000) -1))
-    (set! %nc-verbose (+ (%nc-count o "-v") 0))
+    (set! %nc-verbose (+ (nc-count o "-v") 0))
     (set! %nc-wrote-net 0)
     (set! %nc-wrote-out 0)
     (sys-signal 13 cu-sig-ign)                    ; SIGPIPE, as busybox ignores it
@@ -258,14 +267,14 @@
     (unless (< %nc-hex-fd 0) (do (file-close %nc-hex-fd) (set! %nc-hex-fd -1)))
     st))
 
-(def %cu-nc (fn (_ argv stdin-thunk) (%nc-main "nc" argv)))
-(def %cu-netcat (fn (_ argv stdin-thunk) (%nc-main "netcat" argv)))
+(def cu-nc (fn (_ argv stdin-thunk) (%nc-main "nc" argv)))
+(def cu-netcat (fn (_ argv stdin-thunk) (%nc-main "netcat" argv)))
 
 (def %nc-main
   (fn (_ name argv)
     (set! %nc-name name)
     (def split (%nc-split-exec argv))
-    (def o (Opts parse %nc-flags %nc-values (first split)))
+    (def o (Opts parse nc-flags nc-values (first split)))
     (def ops (Opts operands o))
     (match
       ((not (null? (Opts unknown o))) (cu-refuse-option name (Opts unknown o)))
@@ -276,3 +285,5 @@
                     (do (file-write 2 (string-concat (list name ": " (e msg) "\n"))) 1)
                     (error e)))
           (%nc-run o ops (rest split)))))))
+
+(provide cu/nc cu-nc cu-netcat nc-count nc-flags nc-values)

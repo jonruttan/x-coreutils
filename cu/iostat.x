@@ -20,12 +20,20 @@
 
 ; Unix seconds as busybox's strftime writes them in the C locale: %x is
 ; mm/dd/yy and %X hh:mm:ss
-(def %io-date (fn (_ secs) (%cu-date-fmt "%m/%d/%y" (%cu-date-split secs #f) secs)))
-(def %io-time (fn (_ secs) (%cu-date-fmt "%H:%M:%S" (%cu-date-split secs #f) secs)))
+(module cu/iostat)
+
+(import cu/cli cu-last-given cu-opts cu-refuse-option)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth file-write filter
+  host-cpu host-cpus host-disks length map reverse string-append string-concat
+  substring sys-uname)
+(import cu/text cu-member-s? cu-pad-right)
+
+(def %io-date (fn (_ secs) (cu-date-fmt "%m/%d/%y" (cu-date-split secs #f) secs)))
+(def io-time (fn (_ secs) (cu-date-fmt "%H:%M:%S" (cu-date-split secs #f) secs)))
 
 ; SYSNAME RELEASE (NODENAME), then what AFTER-NAME formats from the date and
 ; the machine: iostat's and mpstat's first lines differ in their tabs
-(def %io-uname-line
+(def io-uname-line
   (fn (_ secs cpus tabbed)
     (def u (sys-uname))
     (def get (fn (_ k) (Assoc get k u)))
@@ -51,8 +59,8 @@
   (fn (_ d)
     (def name (Assoc get (lit name) d))
     (list (if (> (byte-len name) 12) (substring name 0 12) name)
-          (%vm-get (lit reads) d) (%ps-div (%vm-get (lit read-bytes) d) 512)
-          (%vm-get (lit writes) d) (%ps-div (%vm-get (lit write-bytes) d) 512))))
+          (%vm-get (lit reads) d) (ps-div (%vm-get (lit read-bytes) d) 512)
+          (%vm-get (lit writes) d) (ps-div (%vm-get (lit write-bytes) d) 512))))
 
 ; is_partition: an sd name, then a digit
 (def %io-partition?
@@ -92,8 +100,8 @@
             (%vm-right (%vm-fixed (%vm-rate (- (+ (at c 1) (at c 3)) (+ (at p 1) (at p 3))) itv 100) 2) 8) " "
             (%vm-right (%vm-fixed (rate (at p 2) (at c 2)) 2) 12) " "
             (%vm-right (%vm-fixed (rate (at p 4) (at c 4)) 2) 12) " "
-            (%vm-right (cu-int->str (%ps-div (- (at c 2) (at p 2)) div)) 10) " "
-            (%vm-right (cu-int->str (%ps-div (- (at c 4) (at p 4)) div)) 10) "\n"))))
+            (%vm-right (cu-int->str (ps-div (- (at c 2) (at p 2)) div)) 10) " "
+            (%vm-right (cu-int->str (ps-div (- (at c 4) (at p 4)) div)) 10) "\n"))))
 
 ; The disks' lines, and the last samples kept: (TEXT . PREVS), PREVS an alist
 ; by name.  With NAMES, those disks alone; otherwise every disk but a
@@ -125,7 +133,7 @@
 
 ; --- iostat ------------------------------------------------------------------
 
-(def %cu-iostat
+(def cu-iostat
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "iostat" argv))
     (def ops (Opts operands o))
@@ -144,13 +152,13 @@
     (def both (not (if (on "-c") #t (on "-d"))))
     ; the options are refused before an operand is read, as getopt runs first
     (if (not (null? unknown)) (cu-refuse-option "iostat" unknown)
-      (let ((interval (if (null? nums) 0 (%cu-range-number "iostat" (first nums) 0 2147483647))))
+      (let ((interval (if (null? nums) 0 (cu-range-number "iostat" (first nums) 0 2147483647))))
         (def count
           (match
             ((null? interval) ())
             ((null? nums) 1)
             ((null? (rest nums)) (if (= interval 0) 1 -1))
-            (#t (%cu-range-number "iostat" (first (rest nums)) 0 2147483647))))
+            (#t (cu-range-number "iostat" (first (rest nums)) 0 2147483647))))
         (if (null? count) 1
           (%io-main (if both #t (on "-c")) (if both #t (on "-d")) (on "-t") (on "-z")
             (match ((null? unit) (pair "Blk" 1)) ((str=? unit "-m") (pair " MB" 2048)) (#t (pair " kB" 2)))
@@ -171,14 +179,14 @@
   (fn (_ cpu dev stamp z unit names all interval count)
     (def cpus (length (host-cpus)))
     (def smp (> cpus 1))
-    (file-write 1 (string-append (%io-uname-line (%vm-now) (if (= cpus 0) 1 cpus) #t) "\n"))
+    (file-write 1 (string-append (io-uname-line (%vm-now) (if (= cpus 0) 1 cpus) #t) "\n"))
     (def go
       (fn (self prev prev-up prevs count)
         (def now (%vm-now))
         (def c (%io-cpu))
         (def up (if smp (%vm-uptime) 0))
         (def itv (let ((d (- (cu-nth 9 c) (cu-nth 9 prev)))) (if (= d 0) 1 d)))
-        (if stamp (file-write 1 (string-concat (list (%io-date now) " " (%io-time now) "\n"))))
+        (if stamp (file-write 1 (string-concat (list (%io-date now) " " (io-time now) "\n"))))
         (if cpu (file-write 1 (string-append (%io-cpu-report prev c itv) (if dev "\n" ""))))
         (def r
           (if dev
@@ -192,3 +200,5 @@
           (do (%vm-wait (* interval 1000000))
               (self c up (rest r) left)))))
     (go (list 0 0 0 0 0 0 0 0 0 0) 0 () count)))
+
+(provide cu/iostat cu-iostat io-time io-uname-line)

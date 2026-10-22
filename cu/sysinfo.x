@@ -14,6 +14,18 @@
 ; mknod, fchmod, getpriority and setpriority, gettimeofday.  renice, mesg and
 ; hostid read their words as busybox does, without getopt.
 
+(module cu/sysinfo)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims byte-at byte-len cu-cstr-at cu-dlopen cu-dlsym cu-int->ptr
+  cu-int->str cu-lines cu-nth cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set!
+  cu-ptr-word cu-str->ptr cu-words-line file-close file-err-text
+  file-lstat-full file-open-err file-open-read file-stat-full file-write
+  filter length map reverse str-make-raw string-append string-concat string=?
+  substring sys-isatty sys-user-id)
+(import cu/text cu-fold-lines-said cu-join-with cu-num-prefix cu-pad-zero
+  cu-says)
+
 (def %si-lib ())
 (def %si-fn (fn (_ name) (cu-dlsym %si-lib name)))
 (def %si-resolve! (fn (_) (if (null? %si-lib) (set! %si-lib (cu-dlopen () 1)) ())))
@@ -80,16 +92,16 @@
       (map (fn (_ k) (cu-int->str (& (cu-ptr-ref p k 1) 255))) (list 0 1 2 3)) ".")))
 
 (def %si-upto-dot
-  (fn (_ s) (let ((d (%dp-find s 0 #\.))) (if (< d 0) s (substring s 0 d)))))
+  (fn (_ s) (let ((d (dp-find s 0 #\.))) (if (< d 0) s (substring s 0 d)))))
 
 (def %si-after-dot
-  (fn (_ s) (let ((d (%dp-find s 0 #\.))) (if (< d 0) () (substring s (+ d 1) (byte-len s))))))
+  (fn (_ s) (let ((d (dp-find s 0 #\.))) (if (< d 0) () (substring s (+ d 1) (byte-len s))))))
 
-(def %cu-hostname (fn (_ argv stdin-thunk) (%si-hostname-run "hostname" argv)))
+(def cu-hostname (fn (_ argv stdin-thunk) (%si-hostname-run "hostname" argv)))
 
 ; dnsdomainname: hostname's options taken, and -d whatever they are -- the
 ; domain of the host's full name, nothing when it has none
-(def %cu-dnsdomainname
+(def cu-dnsdomainname
   (fn (_ argv stdin-thunk) (%si-host-show "dnsdomainname" (%si-hostname) #t #f #f)))
 
 (def %si-hostname-run
@@ -152,22 +164,22 @@
   (fn (_ text)
     (filter (fn (_ w) (> (byte-len w) 0))
       (map (fn (_ l)
-             (let ((c (%dp-find l 0 #\#)))
+             (let ((c (dp-find l 0 #\#)))
                (let ((t (if (< c 0) l (substring l 0 c))))
                  (let ((ws (cu-words-line t))) (if (null? ws) "" (first ws))))))
            (cu-lines text)))))
 
 ; --- hostid ----------------------------------------------------------------------
 
-(def %cu-hostid
+(def cu-hostid
   (fn (_ argv stdin-thunk)
     (if (pair? argv) (cu-usage "hostid")
       (let ((id (& (%si-call "gethostid") 4294967295)))
-        (do (file-write 1 (string-append (cu-pad-zero (%dp-udigits id 16 #f) 8) "\n")) 0)))))
+        (do (file-write 1 (string-append (cu-pad-zero (dp-udigits id 16 #f) 8) "\n")) 0)))))
 
 ; --- mountpoint -----------------------------------------------------------------
 
-(def %cu-mountpoint
+(def cu-mountpoint
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "mountpoint" argv))
     (def q (Opts on? o "-q"))
@@ -184,10 +196,10 @@
     (let ((st (file-stat-full arg)))
       (match
         ((null? st) (%si-mp-say q (string-append arg ": " (%si-why (lit stat) arg))))
-        ((eq? (%cu-stat-get st (lit file-type)) (lit block))
-          (let ((dev (%cu-stat-get st (lit rdev))))
-            (do (file-write 1 (string-concat (list (cu-int->str (%cu-dev-major dev)) ":"
-                                                  (cu-int->str (%cu-dev-minor dev)) "\n")))
+        ((eq? (cu-stat-get st (lit file-type)) (lit block))
+          (let ((dev (cu-stat-get st (lit rdev))))
+            (do (file-write 1 (string-concat (list (cu-int->str (cu-dev-major dev)) ":"
+                                                  (cu-int->str (cu-dev-minor dev)) "\n")))
                 0)))
         (#t (%si-mp-say q (string-append arg ": not a block device")))))))
 
@@ -196,7 +208,7 @@
     (let ((st (file-lstat-full arg)))
       (match
         ((null? st) (%si-mp-say q (string-append arg ": " (%si-why (lit lstat) arg))))
-        ((not (eq? (%cu-stat-get st (lit file-type)) (lit dir)))
+        ((not (eq? (cu-stat-get st (lit file-type)) (lit dir)))
           (%si-mp-say q (string-append arg ": Not a directory")))
         (#t
           (let ((up (file-stat-full (string-append arg "/.."))))
@@ -206,12 +218,12 @@
 
 (def %si-mp-report
   (fn (_ q d n arg st up)
-    (def dev (%cu-stat-get st (lit dev)))
+    (def dev (cu-stat-get st (lit dev)))
     (def not-mnt
-      (if (= dev (%cu-stat-get up (lit dev)))
-        (not (= (%cu-stat-get st (lit ino)) (%cu-stat-get up (lit ino)))) #f))
-    (do (if d (file-write 1 (string-concat (list (cu-int->str (%cu-dev-major dev)) ":"
-                                                (cu-int->str (%cu-dev-minor dev)) "\n"))) ())
+      (if (= dev (cu-stat-get up (lit dev)))
+        (not (= (cu-stat-get st (lit ino)) (cu-stat-get up (lit ino)))) #f))
+    (do (if d (file-write 1 (string-concat (list (cu-int->str (cu-dev-major dev)) ":"
+                                                (cu-int->str (cu-dev-minor dev)) "\n"))) ())
         (if n (file-write 1 (string-concat (list "UNKNOWN " arg "\n"))) ())
         (if (if q #t (if d #t n)) ()
           (file-write 1 (string-concat (list arg " is " (if not-mnt "not " "") "a mountpoint\n"))))
@@ -219,7 +231,7 @@
 
 ; --- mknod -----------------------------------------------------------------------
 
-(def %cu-mknod
+(def cu-mknod
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "mknod" argv))
     (def ops (Opts operands o))
@@ -233,10 +245,10 @@
         (if (= (length ops) 2) (%si-mknod (first ops) (| mode type) 0 (not (null? m))) (cu-usage "mknod")))
       ((not (= (length ops) 4)) (cu-usage "mknod"))
       (#t
-        (let ((maj (%cu-range-number "mknod" (cu-nth 2 ops) 0 4294967295))
-              (min (%cu-range-number "mknod" (cu-nth 3 ops) 0 4294967295)))
+        (let ((maj (cu-range-number "mknod" (cu-nth 2 ops) 0 4294967295))
+              (min (cu-range-number "mknod" (cu-nth 3 ops) 0 4294967295)))
           (if (if (null? maj) #t (null? min)) 1
-            (%si-mknod (first ops) (| mode type) (%tar-makedev (pair maj min)) (not (null? m)))))))))
+            (%si-mknod (first ops) (| mode type) (tar-makedev (pair maj min)) (not (null? m)))))))))
 
 ; the type a TYPE word names, as S_IFMT bits: b block, c or u character, p fifo
 (def %si-node-type
@@ -253,7 +265,7 @@
 ; is not one
 (def %si-mknod-mode
   (fn (_ m)
-    (if (%cu-mode-valid? m) (& (%cu-mode-of m 438 #f 0) 4095)
+    (if (cu-mode-valid? m) (& (cu-mode-of m 438 #f 0) 4095)
       (do (%si-say "mknod" (string-append "invalid mode '" m "'")) ()))))
 
 ; NAME made; with -m, under a umask of 0, so its mode is the one asked for
@@ -268,7 +280,7 @@
 
 ; --- mesg ------------------------------------------------------------------------
 
-(def %cu-mesg
+(def cu-mesg
   (fn (_ argv stdin-thunk)
     (def c (if (null? argv) () (let ((w (first argv))) (if (= (byte-len w) 0) 0 (byte-at w 0)))))
     (match
@@ -291,11 +303,11 @@
 (def %si-fd-mode
   (fn (_ fd)
     (let ((p (string-append "/dev/fd/" (cu-int->str fd))))
-      (let ((st (file-stat-full p))) (if (null? st) 0 (& (%cu-stat-get st (lit mode)) 4095))))))
+      (let ((st (file-stat-full p))) (if (null? st) 0 (& (cu-stat-get st (lit mode)) 4095))))))
 
 ; --- renice ----------------------------------------------------------------------
 
-(def %cu-renice
+(def cu-renice
   (fn (_ argv stdin-thunk)
     (def rel (if (pair? argv) (%si-prefix? (first argv) "-n") #f))
     (def words
@@ -317,11 +329,11 @@
     (def neg (if (> (byte-len w) 0) (= (byte-at w 0) #\-) #f))
     (def digits (if (if neg #t (if (> (byte-len w) 0) (= (byte-at w 0) #\+) #f))
                   (substring w 1 (byte-len w)) w))
-    (if (%si-digits? digits)
+    (if (si-digits? digits)
       (let ((n (cu-num-prefix digits))) (if neg (- 0 n) n))
       ())))
 
-(def %si-digits?
+(def si-digits?
   (fn (_ s)
     (if (= (byte-len s) 0) #f
       (let go ((i 0))
@@ -353,7 +365,7 @@
     (def who
       (if (= which 2)
         (let ((u (sys-user-id w))) (if (null? u) (do (%si-say "renice" (string-append "unknown user " w)) ()) u))
-        (if (%si-digits? w) (cu-num-prefix w)
+        (if (si-digits? w) (cu-num-prefix w)
           (do (%si-say "renice" (string-concat (list "invalid number '" w "'"))) ()))))
     (if (null? who) 1
       (let ((prio (if rel (%si-getprio which who) 0)))
@@ -376,7 +388,7 @@
 
 ; --- ts --------------------------------------------------------------------------
 
-(def %cu-ts
+(def cu-ts
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "ts" argv))
     (def i (Opts on? o "-i"))
@@ -387,7 +399,7 @@
         (%si-ts-run i s fmt stdin-thunk)))))
 
 ; the time now, as (SECONDS . MICROSECONDS)
-(def %si-now
+(def si-now
   (fn (_)
     (let ((tv (str-make-raw 16)))
       (do (%si-call "gettimeofday" tv 0)
@@ -404,22 +416,22 @@
 ; FMT with a %.S or %.s at its end cut to %S or %s: (FORMAT . FRACTION?)
 (def %si-ts-format
   (fn (_ fmt)
-    (if (if (%gz-ends? fmt "%.S") #t (%gz-ends? fmt "%.s"))
+    (if (if (gz-ends? fmt "%.S") #t (gz-ends? fmt "%.s"))
       (pair (string-append (substring fmt 0 (- (byte-len fmt) 2)) (substring fmt (- (byte-len fmt) 1) (byte-len fmt))) #t)
       (pair fmt #f))))
 
 (def %si-ts-run
   (fn (_ i s fmt stdin-thunk)
     (def ff (%si-ts-format fmt))
-    (def base (list (%si-now)))
+    (def base (list (si-now)))
     (def stamp
       (fn (_ line)
-        (let ((now (%si-now)))
+        (let ((now (si-now)))
           (let ((t (if (if i #t s) (%si-elapsed now (first base)) now)))
             (do (if i (%set-first! base now) ())
                 (let ((secs (first t)))
                   (string-append
-                    (%cu-date-fmt (first ff) (%cu-date-split secs (if i #t s)) secs)
+                    (cu-date-fmt (first ff) (cu-date-split secs (if i #t s)) secs)
                     (if (rest ff) (string-append "." (cu-pad-zero (cu-int->str (rest t)) 6)) "")
                     " " line)))))))
     (rest
@@ -446,3 +458,6 @@
   (fn (_ w)
     (if (if (> (byte-len w) 0) (if (= (byte-at w 0) #\-) #t (= (byte-at w 0) #\+)) #f)
       (substring w 1 (byte-len w)) w)))
+
+(provide cu/sysinfo cu-dnsdomainname cu-hostid cu-hostname cu-mesg cu-mknod
+  cu-mountpoint cu-renice cu-ts si-digits? si-now)

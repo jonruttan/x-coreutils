@@ -111,7 +111,7 @@
     (def net (bit-and ip mask))
     (when (on? "-m" "--netmask") (file-write 1 (string-concat (list "NETMASK=" (%ic-ntoa mask) "\n"))))
     (when (on? "-b" "--broadcast")
-      (file-write 1 (string-concat (list "BROADCAST=" (%ic-ntoa (bit-or net (bit-xor mask %cu-m32))) "\n"))))
+      (file-write 1 (string-concat (list "BROADCAST=" (%ic-ntoa (bit-or net (bit-xor mask cu-m32))) "\n"))))
     (when (on? "-n" "--network") (file-write 1 (string-concat (list "NETWORK=" (%ic-ntoa net) "\n"))))
     (when (on? "-p" "--prefix") (file-write 1 (string-concat (list "PREFIX=" (cu-int->str (%ic-popcount mask)) "\n"))))
     (when (on? "-h" "--hostname")

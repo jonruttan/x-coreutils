@@ -253,7 +253,7 @@
     (map
       (fn (_ g)
         (let ((lo (let ((s (- (first g) ctx))) (if (< s 0) 0 s)))
-              (hi (let ((e (+ (%cu-last g) ctx))) (if (>= e n) (- n 1) e))))
+              (hi (let ((e (+ (cu-last g) ctx))) (if (>= e n) (- n 1) e))))
           (slice lo hi)))
       groups)))
 
@@ -272,8 +272,8 @@
     (def a (cu-lines atext))
     (def b (cu-lines btext))
     ; the SAME text read twice: once as it is, once as diff compares it
-    (def an (%cu-dl-lines atext fold? squeeze? strip?))
-    (def bn (%cu-dl-lines btext fold? squeeze? strip?))
+    (def an (cu-dl-lines atext fold? squeeze? strip?))
+    (def bn (cu-dl-lines btext fold? squeeze? strip?))
     (def n (length a))
     (def m (length b))
     (def av (vec-make (+ n 1) ""))
@@ -454,7 +454,7 @@
       ((Err err? ra) (do (cu-say says (first ops) ra) (pair "" 2)))
       ((Err err? rb) (do (cu-say says (first (rest ops)) rb) (pair "" 2)))
       ((if (Opts on? o "-a") #f (if (cu-run-nul? ra) #t (cu-run-nul? rb)))
-        (let ((st (%cu-cmp-walk a b ops ra rb (- 0 1) #f #t says)))
+        (let ((st (cu-cmp-walk a b ops ra rb (- 0 1) #f #t says)))
           (if (= st 1) (pair (%cu-diff-binary-text ops) 1) (pair "" st))))
       (#t (%cu-diff-text-sources o ops a b ra rb says head)))))
 
@@ -520,7 +520,7 @@
                              " is not a directory\n")) 1)))
           (#t (emit! (%cu-diff-one-file o flags pa pb
                        (%cu-diff-source pa) (%cu-diff-source pb)))))))
-    (let ((st (%cu-walk-pair a b start one)))
+    (let ((st (cu-walk-pair a b start one)))
       (pair (string-concat (reverse (first out))) st))))
 
 ; The two names a report names.  "-" is stdin, and diff calls it that.

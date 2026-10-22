@@ -695,7 +695,7 @@
     (def st (file-stat-full path))
     (match
       ((null? st) ())
-      ((if (= (%vi& (Assoc get (lit mode) st) 18) 0) (= (%cu-stat-get st (lit uid)) (sys-getuid)) #f)
+      ((if (= (%vi& (Assoc get (lit mode) st) 18) 0) (= (cu-stat-get st (lit uid)) (sys-getuid)) #f)
         (file-read-all path))
       (#t (do (%vi-status-line-bold! ".exrc: permission denied") ())))))
 

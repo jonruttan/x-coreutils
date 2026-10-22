@@ -15,7 +15,24 @@
 ; and the applet cannot disagree about what a flag meant -- the hand-rolled
 ; per-applet parsers that lived here and across the applets are gone.
 
-(def %cu-stat-get
+(module cu/fs3)
+
+(import cu/cli cu-extra-operand cu-last-given cu-opts cu-usage)
+(import cu/prims append bit-and bit-shr byte-at byte-len cu& cu+ cu- cu-b->s
+  cu-hexs cu-int->str cu-nth cu-sig-ign cu-sighup cu-sigkill cu-sigterm
+  cu-stdin-to-command! cu-sweep! cu-sweep-bytes cu< file-chmod file-close
+  file-err-text file-exists? file-lstat-file-type file-lstat-full
+  file-lstat-wide file-open-append file-open-or-err file-open-update
+  file-open-wronly file-or-err file-seek file-stat-full file-stat-wide
+  file-statfs-full file-truncate file-unlink file-write file-write-nuls
+  file-write-random length reverse set-first! string-append string-concat
+  string=? substring sys-exec sys-exit sys-fork sys-group-name sys-isatty
+  sys-signal sys-sleep sys-user-name sys-usleep sys-wait)
+(import cu/text cu-enough cu-file-pieces cu-fold-pieces cu-num-prefix
+  cu-pad-left cu-pad-right cu-pad-zero cu-run-join cu-run-part cu-run-slice
+  cu-split-byte cu-stdin-pieces cu-unmarked)
+
+(def cu-stat-get
   (fn (_ st key)
     (let ((e (Assoc entry key st)))
       (if (null? e) 0 (rest e)))))
@@ -23,10 +40,10 @@
 ; --- the mode, spelled two ways -----------------------------------------------
 
 (def %cu-mode-octal
-  (fn (_ mode) (%cu-oct->str (bit-and mode 4095))))
+  (fn (_ mode) (cu-oct->str (bit-and mode 4095))))
 
 ; four digits, as stat's Access line and chmod's reports show a mode: 0644
-(def %cu-mode-octal4
+(def cu-mode-octal4
   (fn (_ mode) (cu-pad-zero (%cu-mode-octal mode) 4)))
 
 (def %cu-file-type-letter
@@ -70,47 +87,47 @@
 ; the nine places of a mode.  The setuid, setgid and sticky bits show in the
 ; execute places of the user, the group and the others: s and t over a set
 ; execute bit, S and T over a clear one -- rwsr-xr-x, rw-r--r-T
-(def %cu-perm-places
+(def cu-perm-places
   (fn (_ mode)
     (string-append (%cu-perm-triple mode 6 2048 "s" "S")       ; 04000
       (string-append (%cu-perm-triple mode 3 1024 "s" "S")     ; 02000
         (%cu-perm-triple mode 0 512 "t" "T")))))               ; 01000
 
-(def %cu-perm-string
+(def cu-perm-string
   (fn (_ file-type mode)
-    (string-append (%cu-file-type-letter file-type) (%cu-perm-places mode))))
+    (string-append (%cu-file-type-letter file-type) (cu-perm-places mode))))
 
 ; --- stat ---------------------------------------------------------------------
 
 ; a device number's halves, as the platform packs them: Darwin keeps the
 ; major in the top byte; Linux (glibc) splits each across the word
-(def %cu-dev-major
+(def cu-dev-major
   (fn (_ dev)
     (if os-darwin? (bit-and (bit-shr dev 24) 255)
       (+ (bit-and (bit-shr dev 8) 4095)
          (bit-and (bit-shr dev 32) 4294963200)))))
 
-(def %cu-dev-minor
+(def cu-dev-minor
   (fn (_ dev)
     (if os-darwin? (bit-and dev 16777215)
       (+ (bit-and dev 255) (bit-and (bit-shr dev 12) 4294967040)))))
 
 ; the name stat shows for an owner or a group, or UNKNOWN where the system has
 ; none, as stat says it
-(def %cu-stat-user
+(def cu-stat-user
   (fn (_ uid) (let ((n (sys-user-name uid))) (if (null? n) "UNKNOWN" n))))
 
-(def %cu-stat-group
+(def cu-stat-group
   (fn (_ gid) (let ((n (sys-group-name gid))) (if (null? n) "UNKNOWN" n))))
 
 ; -c FMT: the GNU specifiers busybox carries. Anything else is copied through,
 ; so a format is never silently eaten.
 (def %cu-stat-spec
   (fn (_ c name st)
-    (def file-type (%cu-stat-get st (lit file-type)))
-    (def mode (%cu-stat-get st (lit mode)))
-    (def num (fn (_ key) (cu-int->str (%cu-stat-get st key))))
-    (def hex (fn (_ key) (cu-hexs (%cu-stat-get st key))))
+    (def file-type (cu-stat-get st (lit file-type)))
+    (def mode (cu-stat-get st (lit mode)))
+    (def num (fn (_ key) (cu-int->str (cu-stat-get st key))))
+    (def hex (fn (_ key) (cu-hexs (cu-stat-get st key))))
     (match
       ((= c 110) name)                          ; n
       ((= c 115) (num (lit size)))              ; s
@@ -118,19 +135,19 @@
       ((= c 66)  "512")                         ; B
       ((= c 102) (cu-hexs mode))               ; f
       ((= c 97)  (%cu-mode-octal mode))         ; a
-      ((= c 65)  (%cu-perm-string file-type mode))   ; A
+      ((= c 65)  (cu-perm-string file-type mode))   ; A
       ((= c 117) (num (lit uid)))               ; u
-      ((= c 85)  (%cu-stat-user (%cu-stat-get st (lit uid))))    ; U
+      ((= c 85)  (cu-stat-user (cu-stat-get st (lit uid))))    ; U
       ((= c 103) (num (lit gid)))               ; g
-      ((= c 71)  (%cu-stat-group (%cu-stat-get st (lit gid))))   ; G
+      ((= c 71)  (cu-stat-group (cu-stat-get st (lit gid))))   ; G
       ((= c 104) (num (lit nlink)))             ; h
       ((= c 105) (num (lit ino)))               ; i
       ((= c 100) (num (lit dev)))               ; d
       ((= c 68)  (hex (lit dev)))               ; D
       ((= c 114) (num (lit rdev)))              ; r
       ((= c 82)  (hex (lit rdev)))              ; R
-      ((= c 116) (cu-hexs (%cu-dev-major (%cu-stat-get st (lit rdev)))))   ; t
-      ((= c 84)  (cu-hexs (%cu-dev-minor (%cu-stat-get st (lit rdev)))))   ; T
+      ((= c 116) (cu-hexs (cu-dev-major (cu-stat-get st (lit rdev)))))   ; t
+      ((= c 84)  (cu-hexs (cu-dev-minor (cu-stat-get st (lit rdev)))))   ; T
       ((= c 70)  (%cu-file-type-word file-type))          ; F
       ((= c 88)  (num (lit atime)))             ; X
       ((= c 89)  (num (lit mtime)))             ; Y
@@ -143,15 +160,15 @@
 ; report, and stat prints `?` for it.
 (def %cu-stat-fs-spec
   (fn (_ c name fs)
-    (def num (fn (_ key) (cu-int->str (%cu-stat-get fs key))))
+    (def num (fn (_ key) (cu-int->str (cu-stat-get fs key))))
     (match
       ((= c 110) name)                                       ; n
-      ((= c 105) (cu-hexs (%cu-stat-get fs (lit fsid))))    ; i
+      ((= c 105) (cu-hexs (cu-stat-get fs (lit fsid))))    ; i
       ((= c 108)                                             ; l
         (let ((e (Assoc entry (lit namelen) fs)))
           (if (null? e) "?" (cu-int->str (rest e)))))
-      ((= c 116) (cu-hexs (%cu-stat-get fs (lit type))))    ; t
-      ((= c 84)  (%cu-stat-get fs (lit typename)))           ; T
+      ((= c 116) (cu-hexs (cu-stat-get fs (lit type))))    ; t
+      ((= c 84)  (cu-stat-get fs (lit typename)))           ; T
       ((= c 115) (num (lit bsize)))                          ; s
       ((= c 83)  (num (lit frsize)))                         ; S
       ((= c 98)  (num (lit blocks)))                         ; b
@@ -170,8 +187,8 @@
           (let ((t (first ts)))
             (self (rest ts)
               (pair
-                (if (%cu-fmt-dir? t)
-                  (let ((conv (%cu-fmt-conv t)))
+                (if (cu-fmt-dir? t)
+                  (let ((conv (cu-fmt-conv t)))
                     ; %% is a %, and so is a format ending in a bare one
                     (match
                       ((= (byte-len conv) 0) "%")
@@ -179,45 +196,45 @@
                       (#t (spec (byte-at conv 0) name st))))
                   t)
                 acc))))))
-    (go (%cu-fmt-parse fmt #f) ())))
+    (go (cu-fmt-parse fmt #f) ())))
 
 ; the default block, as stat lays it out: the device as major,minor,
 ; the inode padded to ten, a device's own type after its link count, and
 ; the owner and group as their ids in five columns and names in eight.
 (def %cu-stat-default
   (fn (_ name st)
-    (def file-type (%cu-stat-get st (lit file-type)))
-    (def mode (%cu-stat-get st (lit mode)))
-    (def dev (%cu-stat-get st (lit dev)))
-    (def rdev (%cu-stat-get st (lit rdev)))
-    (def uid (%cu-stat-get st (lit uid)))
-    (def gid (%cu-stat-get st (lit gid)))
-    (def nlink (cu-int->str (%cu-stat-get st (lit nlink))))
+    (def file-type (cu-stat-get st (lit file-type)))
+    (def mode (cu-stat-get st (lit mode)))
+    (def dev (cu-stat-get st (lit dev)))
+    (def rdev (cu-stat-get st (lit rdev)))
+    (def uid (cu-stat-get st (lit uid)))
+    (def gid (cu-stat-get st (lit gid)))
+    (def nlink (cu-int->str (cu-stat-get st (lit nlink))))
     (def device? (if (eq? file-type (lit char)) #t (eq? file-type (lit block))))
     (string-concat
       (list "  File: " name "\n"
-            "  Size: " (cu-int->str (%cu-stat-get st (lit size)))
-            "\tBlocks: " (cu-int->str (%cu-stat-get st (lit blocks)))
-            "\tIO Block: " (cu-int->str (%cu-stat-get st (lit blksize)))
+            "  Size: " (cu-int->str (cu-stat-get st (lit size)))
+            "\tBlocks: " (cu-int->str (cu-stat-get st (lit blocks)))
+            "\tIO Block: " (cu-int->str (cu-stat-get st (lit blksize)))
             "\t" (%cu-file-type-word file-type) "\n"
-            "Device: " (cu-int->str (%cu-dev-major dev)) ","
-            (cu-int->str (%cu-dev-minor dev))
+            "Device: " (cu-int->str (cu-dev-major dev)) ","
+            (cu-int->str (cu-dev-minor dev))
             "\tInode: "
-            (cu-pad-right (cu-int->str (%cu-stat-get st (lit ino))) 10)
+            (cu-pad-right (cu-int->str (cu-stat-get st (lit ino))) 10)
             "  Links: "
             (if device?
               (string-concat
                 (list (cu-pad-right nlink 5) " Device type: "
-                      (cu-int->str (%cu-dev-major rdev)) ","
-                      (cu-int->str (%cu-dev-minor rdev))))
+                      (cu-int->str (cu-dev-major rdev)) ","
+                      (cu-int->str (cu-dev-minor rdev))))
               nlink)
             "\n"
-            "Access: (" (%cu-mode-octal4 mode) "/"
-            (%cu-perm-string file-type mode) ")  Uid: ("
+            "Access: (" (cu-mode-octal4 mode) "/"
+            (cu-perm-string file-type mode) ")  Uid: ("
             (cu-pad-left (cu-int->str uid) 5) "/"
-            (cu-pad-left (%cu-stat-user uid) 8) ")   Gid: ("
+            (cu-pad-left (cu-stat-user uid) 8) ")   Gid: ("
             (cu-pad-left (cu-int->str gid) 5) "/"
-            (cu-pad-left (%cu-stat-group gid) 8) ")\n"))))
+            (cu-pad-left (cu-stat-group gid) 8) ")\n"))))
 
 ; the filesystem block under -f, in stat -f's column widths
 (def %cu-stat-fs-default
@@ -236,7 +253,7 @@
             "Inodes: Total: " (cu-pad-right (sp 99) 10)
             " Free: " (sp 100) "\n"))))
 
-(def %cu-stat
+(def cu-stat
   (fn (_ argv stdin-thunk)
     ; Read through the declaration, so -c may follow its operands and -L is
     ; reached at all.
@@ -289,16 +306,16 @@
 ; the disk usage, in 1024-byte units (the block count the kernel
 ; reports is in 512s, so it halves).  Directories recurse; -s prints
 ; only the total, -a every file as well.
-(def %cu-du-blocks
-  (fn (_ st) (/ (- (%cu-stat-get st (lit blocks))
-                   (% (%cu-stat-get st (lit blocks)) 2)) 2)))
+(def cu-du-blocks
+  (fn (_ st) (/ (- (cu-stat-get st (lit blocks))
+                   (% (cu-stat-get st (lit blocks)) 2)) 2)))
 
-(def %cu-path-join
+(def cu-path-join
   (fn (_ dir name)
     (if (string=? dir "/") (string-append "/" name)
       (string-append dir (string-append "/" name)))))
 
-(def %cu-dot?
+(def cu-dot?
   (fn (_ n) (if (string=? n ".") #t (string=? n ".."))))
 
 ; du: -a prints every file as well as each directory, -d N stops the printing
@@ -387,7 +404,7 @@
   (fn (_ way st top? root)
     (match
       ((if (%cu-du-at way (lit xdev))
-         (if top? #f (not (= (%cu-stat-get st (lit dev)) root)))
+         (if top? #f (not (= (cu-stat-get st (lit dev)) root)))
          #f)
         #t)
       ((%cu-du-at way (lit count-all)) #f)
@@ -399,14 +416,14 @@
 (def %cu-du-once?
   (fn (_ way st)
     (if (%cu-du-at way (lit hash-all)) #t
-      (if (eq? (%cu-stat-get st (lit file-type)) (lit dir)) #f
-        (> (%cu-stat-get st (lit nlink)) 1)))))
+      (if (eq? (cu-stat-get st (lit file-type)) (lit dir)) #f
+        (> (cu-stat-get st (lit nlink)) 1)))))
 
 ; whether ST's inode was counted already; it is counted from now on either way
 (def %cu-du-counted!
   (fn (_ way st)
     (let ((cell (%cu-du-at way (lit seen)))
-          (id (pair (%cu-stat-get st (lit dev)) (%cu-stat-get st (lit ino)))))
+          (id (pair (cu-stat-get st (lit dev)) (cu-stat-get st (lit ino)))))
       (if (%cu-du-member? id (first cell)) #t
         (do (set-first! cell (pair id (first cell))) #f)))))
 
@@ -427,13 +444,13 @@
   (fn (_ way path level top? root)
     (let ((st (%cu-du-read way path top?)))
       (if (null? st) 0
-        (let ((here (if top? (%cu-stat-get st (lit dev)) root)))
+        (let ((here (if top? (cu-stat-get st (lit dev)) root)))
           (match
             ((%cu-du-skip? way st top? here) 0)
-            ((eq? (%cu-stat-get st (lit file-type)) (lit dir))
+            ((eq? (cu-stat-get st (lit file-type)) (lit dir))
               (%cu-du-dir way path level st here))
             (#t
-              (let ((n (%cu-du-blocks st)))
+              (let ((n (cu-du-blocks st)))
                 (do (if (if top? #t (%cu-du-at way (lit all)))
                       (%cu-du-emit way level n path) ())
                     n)))))))))
@@ -442,9 +459,9 @@
 ; be read is complained about and counted for its own blocks alone
 (def %cu-du-dir
   (fn (_ way path level st root)
-    (let ((names (file-or-err (fn (_) (%cu-walk-names path)))))
+    (let ((names (file-or-err (fn (_) (cu-walk-names path)))))
       (let ((total
-              (+ (%cu-du-blocks st)
+              (+ (cu-du-blocks st)
                  (if (Err err? names)
                    (do (%cu-du-bad! way
                          (string-concat
@@ -461,7 +478,7 @@
     (if (null? names) acc
       (self way dir (rest names) level root
         (+ acc
-          (%cu-du-walk way (%cu-path-join dir (first names)) level #f root))))))
+          (%cu-du-walk way (cu-path-join dir (first names)) level #f root))))))
 
 (def %cu-du-emit
   (fn (_ way level n path)
@@ -471,14 +488,14 @@
 
 (def %cu-du-show
   (fn (_ n o)
-    ; Blocks to bytes: -k is du's own unit and %ls-human's is bytes, so a 268K
+    ; Blocks to bytes: -k is du's own unit and ls-human's is bytes, so a 268K
     ; directory would print as a bare "268" without this scaling.
-    (if (Opts on? o "-h") (%ls-human (* n 1024))
+    (if (Opts on? o "-h") (ls-human (* n 1024))
       (if (Opts on? o "-m")
         (cu-int->str (/ (- n (% n 1024)) 1024))
         (cu-int->str n)))))
 
-(def %cu-du
+(def cu-du
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "du" argv))
     (def ops0 (Opts operands o))
@@ -522,7 +539,7 @@
     (let ((v (%cu-dd-operand argv key)))
       (if (null? v) () (cu-split-byte v 44)))))
 
-(def %cu-dd-has?
+(def cu-dd-has?
   (fn (self vs name)
     (if (null? vs) #f
       (if (string=? (first vs) name) #t (self (rest vs) name)))))
@@ -538,7 +555,7 @@
 (def %cu-dd-unknown
   (fn (self vs known)
     (if (null? vs) ()
-      (if (%cu-dd-has? known (first vs))
+      (if (cu-dd-has? known (first vs))
         (self (rest vs) known)
         (first vs)))))
 
@@ -547,7 +564,7 @@
 ; Each is a run, since either may be a NUL.
 (def %cu-dd-convert
   (fn (_ raw conv odd)
-    (if (%cu-dd-has? conv "swab")
+    (if (cu-dd-has? conv "swab")
       (let ((t (if (= (rest odd) 0) raw (cu-run-join odd raw 0 (rest raw)))))
         (let ((even (- (rest t) (% (rest t) 2))))
           (pair (%cu-dd-bytes (pair (first t) even) conv)
@@ -561,9 +578,9 @@
 ; and sweeping as it goes.
 (def %cu-dd-bytes
   (fn (_ r conv)
-    (def swab? (%cu-dd-has? conv "swab"))
-    (def lower? (%cu-dd-has? conv "lcase"))
-    (def upper? (%cu-dd-has? conv "ucase"))
+    (def swab? (cu-dd-has? conv "swab"))
+    (def lower? (cu-dd-has? conv "lcase"))
+    (def upper? (cu-dd-has? conv "ucase"))
     (def t (first r))
     (def n (rest r))
     ; the byte that lands at I: its pair's under swab, where it has one
@@ -594,15 +611,15 @@
   (fn (_ argv key flags flag size none)
     (let ((v (%cu-dd-operand argv key)))
       (if (null? v) none
-        (* (cu-num-prefix v) (if (%cu-dd-has? flags flag) 1 size))))))
+        (* (cu-num-prefix v) (if (cu-dd-has? flags flag) 1 size))))))
 
 ; Blocks of SIZE in N bytes, as "WHOLE+PARTIAL".
-(def %cu-dd-records
+(def cu-dd-records
   (fn (_ n size)
     (string-append (cu-int->str (/ (- n (% n size)) size))
       (string-append "+" (if (= (% n size) 0) "0" "1")))))
 
-(def %cu-dd
+(def cu-dd
   (fn (_ argv stdin-thunk)
     (def in (%cu-dd-operand argv "if"))
     (def out (%cu-dd-operand argv "of"))
@@ -674,15 +691,15 @@
     (def n (cu-nth 2 s))
     (do (%cu-dd-put fd (%cu-dd-bytes (cu-nth 3 s) conv))
         (if (= fd 1) ()
-          (do (if (if (%cu-dd-has? conv "notrunc") #t
-                    (%cu-dd-has? oflag "append")) ()
+          (do (if (if (cu-dd-has? conv "notrunc") #t
+                    (cu-dd-has? oflag "append")) ()
                 (file-truncate fd (+ at n)))
               (file-close fd)))
         (if quiet? ()
           (file-write 2
             (string-concat
-              (list (%cu-dd-records n ibs) " records in\n"
-                    (%cu-dd-records n obs) " records out\n"
+              (list (cu-dd-records n ibs) " records in\n"
+                    (cu-dd-records n obs) " records out\n"
                     (cu-int->str n) " bytes copied\n"))))
         0)))
 
@@ -714,7 +731,7 @@
 (def %cu-dd-open
   (fn (_ out at oflag)
     (let ((fd (file-open-or-err
-                (if (%cu-dd-has? oflag "append") file-open-append
+                (if (cu-dd-has? oflag "append") file-open-append
                   file-open-update)
                 out)))
       (if (Err err? fd) fd
@@ -735,7 +752,7 @@
 
 ; --- truncate, unlink, shred --------------------------------------------------
 
-(def %cu-truncate
+(def cu-truncate
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "truncate" argv))
     ; -s TAKES A VALUE, and a value flag is not among the record's
@@ -773,7 +790,7 @@
 ; path itself, so a link is removed whether or not it leads anywhere.  File
 ; unlink raises where the call fails; the raise is caught and its errno's text
 ; reported.
-(def %cu-unlink
+(def cu-unlink
   (fn (_ argv stdin-thunk)
     (match
       ((null? argv) (do (file-write 2 "unlink: missing operand\n") 1))
@@ -810,8 +827,8 @@
   (fn (_ path)
     (let ((st (file-stat-full path)))
       (if (null? st) 0
-        (%cu-shred-blocks (%cu-stat-get st (lit size))
-          (%cu-stat-get st (lit blksize)))))))
+        (%cu-shred-blocks (cu-stat-get st (lit size))
+          (cu-stat-get st (lit blksize)))))))
 
 ; K passes of random bytes over SIZE, each from the start
 (def %cu-shred-passes
@@ -821,7 +838,7 @@
           (file-write-random fd size)
           (self fd size (- k 1))))))
 
-(def %cu-shred
+(def cu-shred
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "shred" argv))
     (def n-arg (Opts value o "-n"))
@@ -875,7 +892,7 @@
 ; then exits 0 has still timed out, and timeout reports 124 for it.  A
 ; command killed by a signal keeps 128+N instead -- which is how -k's
 ; KILL comes back as 137 rather than 124.
-(def %cu-timeout
+(def cu-timeout
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "timeout" argv))
     (def fired 7)                     ; the watchdog's "I signalled" status
@@ -918,7 +935,7 @@
 
 ; usleep N: N microseconds, N digits and nothing else, as busybox reads it; no
 ; N is the usage, and anything else an invalid number
-(def %cu-usleep
+(def cu-usleep
   (fn (_ argv stdin-thunk)
     (def n (if (null? argv) "" (first argv)))
     (def digits?
@@ -936,7 +953,7 @@
 ; the doors this bundle has -- ttyname(3) is not among them -- so the
 ; reporting form names the controlling terminal generically.
 ; An operand is refused with 2, the status tty keeps for a usage error.
-(def %cu-tty
+(def cu-tty
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "tty" argv))
     (def quiet? (Opts on? o "-s"))
@@ -947,7 +964,7 @@
       ((sys-isatty 0) (do (say "/dev/tty\n") 0))
       (#t (do (say "not a tty\n") 1)))))
 
-(def %cu-nohup
+(def cu-nohup
   (fn (_ argv stdin-thunk)
     (if (null? argv)
       (do (file-write 2 "nohup: missing operand\n") 1)
@@ -955,3 +972,8 @@
           (cu-stdin-to-command!)
           (sys-exec (first argv) (rest argv))
           127))))
+
+(provide cu/fs3 cu-dd cu-dd-has? cu-dd-records cu-dev-major cu-dev-minor
+  cu-dot? cu-du cu-du-blocks cu-mode-octal4 cu-nohup cu-path-join
+  cu-perm-places cu-perm-string cu-shred cu-stat cu-stat-get cu-stat-group
+  cu-stat-user cu-timeout cu-truncate cu-tty cu-unlink cu-usleep)

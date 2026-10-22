@@ -84,14 +84,14 @@
   (fn (_ sec usec)
     (if (>= sec 3600)
       (string-concat
-        (list (cu-int->str (%cal/ sec 3600)) "h " (cu-int->str (%cal/ (% sec 3600) 60)) "m "
+        (list (cu-int->str (cal/ sec 3600)) "h " (cu-int->str (cal/ (% sec 3600) 60)) "m "
               (%tm-2 (% sec 60)) "s"))
       (string-concat
-        (list (cu-int->str (%cal/ sec 60)) "m " (cu-int->str (% sec 60)) "."
-              (%tm-2 (%cal/ usec 10000)) "s")))))
+        (list (cu-int->str (cal/ sec 60)) "m " (cu-int->str (% sec 60)) "."
+              (%tm-2 (cal/ usec 10000)) "s")))))
 
 (def %tm-secs
-  (fn (_ sec usec) (string-concat (list (cu-int->str sec) "." (%tm-2 (%cal/ usec 10000))))))
+  (fn (_ sec usec) (string-concat (list (cu-int->str sec) "." (%tm-2 (cal/ usec 10000))))))
 
 ; The record of a run: (STATUS ELAPSED-MS RUSAGE COMMAND), RUSAGE the raw
 ; struct rusage.  A field of it by name.
@@ -116,40 +116,40 @@
     (def uusec (%tm-le ru 8 4))
     (def ssec (%tm-le ru 16 8))
     (def susec (%tm-le ru 24 4))
-    (def vv (+ (* (+ usec ssec) 1000) (%cal/ (+ uusec susec) 1000)))
-    (def ticks (let ((t (%cal/ vv 10))) (if (= t 0) 1 t)))
+    (def vv (+ (* (+ usec ssec) 1000) (cal/ (+ uusec susec) 1000)))
+    (def ticks (let ((t (cal/ vv 10))) (if (= t 0) 1 t)))
     (def n (fn (_ f) (cu-int->str (%tm-ru ru f))))
     (match
       ((= c #\C) (cu-join-with (cu-nth 3 run) " "))
-      ((= c #\D) (cu-int->str (%cal/ (+ (%tm-ru ru (lit idrss)) (%tm-ru ru (lit isrss))) ticks)))
+      ((= c #\D) (cu-int->str (cal/ (+ (%tm-ru ru (lit idrss)) (%tm-ru ru (lit isrss))) ticks)))
       ((= c #\E)
-        (let ((sec (%cal/ elapsed 1000)))
+        (let ((sec (cal/ elapsed 1000)))
           (if (>= sec 3600) (%tm-hms sec 0)
-            (string-concat (list (cu-int->str (%cal/ sec 60)) "m " (cu-int->str (% sec 60)) "."
-                                 (%tm-2 (% (%cal/ elapsed 10) 100)) "s")))))
+            (string-concat (list (cu-int->str (cal/ sec 60)) "m " (cu-int->str (% sec 60)) "."
+                                 (%tm-2 (% (cal/ elapsed 10) 100)) "s")))))
       ((= c #\F) (n (lit majflt)))
       ((= c #\I) (n (lit inblock)))
       ((= c #\K)
-        (cu-int->str (%cal/ (+ (%tm-ru ru (lit idrss)) (+ (%tm-ru ru (lit isrss)) (%tm-ru ru (lit ixrss))))
+        (cu-int->str (cal/ (+ (%tm-ru ru (lit idrss)) (+ (%tm-ru ru (lit isrss)) (%tm-ru ru (lit ixrss))))
                              ticks)))
       ((= c #\M) (n (lit maxrss)))
       ((= c #\O) (n (lit oublock)))
-      ((= c #\P) (if (> elapsed 0) (string-append (cu-int->str (%cal/ (* vv 100) elapsed)) "%") "?%"))
+      ((= c #\P) (if (> elapsed 0) (string-append (cu-int->str (cal/ (* vv 100) elapsed)) "%") "?%"))
       ((= c #\R) (n (lit minflt)))
       ((= c #\S) (%tm-secs ssec susec))
       ((= c #\T) (%tm-hms ssec susec))
       ((= c #\U) (%tm-secs usec uusec))
       ((= c #\u) (%tm-hms usec uusec))
       ((= c #\W) (n (lit nswap)))
-      ((= c #\X) (cu-int->str (%cal/ (%tm-ru ru (lit ixrss)) ticks)))
+      ((= c #\X) (cu-int->str (cal/ (%tm-ru ru (lit ixrss)) ticks)))
       ((= c #\Z) (cu-int->str (cu-ptr-call %tm-c-getpagesize)))
       ((= c #\c) (n (lit nivcsw)))
-      ((= c #\e) (%tm-secs (%cal/ elapsed 1000) (* (% (%cal/ elapsed 10) 100) 10000)))
+      ((= c #\e) (%tm-secs (cal/ elapsed 1000) (* (% (cal/ elapsed 10) 100) 10000)))
       ((= c #\k) (n (lit nsignals)))
-      ((= c #\p) (cu-int->str (%cal/ (%tm-ru ru (lit isrss)) ticks)))
+      ((= c #\p) (cu-int->str (cal/ (%tm-ru ru (lit isrss)) ticks)))
       ((= c #\r) (n (lit msgrcv)))
       ((= c #\s) (n (lit msgsnd)))
-      ((= c #\t) (cu-int->str (%cal/ (%tm-ru ru (lit idrss)) ticks)))
+      ((= c #\t) (cu-int->str (cal/ (%tm-ru ru (lit idrss)) ticks)))
       ((= c #\w) (n (lit nvcsw)))
       ((= c #\x) (cu-int->str (%tm-exit-of status)))
       ((= c #\%) "%")
@@ -194,7 +194,7 @@
 ; --- running it ------------------------------------------------------------------
 
 (def %tm-now-ms
-  (fn (_) (let ((t (Sys time-of-day))) (+ (* (first t) 1000) (%cal/ (rest t) 1000)))))
+  (fn (_) (let ((t (Sys time-of-day))) (+ (* (first t) 1000) (cal/ (rest t) 1000)))))
 
 ; COMMAND run: (STATUS ELAPSED-MS RUSAGE COMMAND), STATUS the raw wait status.
 ; SIGINT and SIGQUIT are ignored while it runs, so they reach it and not time.

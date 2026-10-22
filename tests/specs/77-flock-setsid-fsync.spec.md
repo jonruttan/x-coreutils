@@ -120,7 +120,7 @@ status 1
 ### a file locked elsewhere: -n fails with 1 and no word; a descriptor is locked and unlocked by its number
 
 ```cu
-(do (%ss-resolve!) (def held (File open (nf "f") (lit rdonly))) (cu-ptr-call %ss-c-flock held 2) (run (list "flock" "-n" (nf "f") "true") "") (cu-ptr-call %ss-c-flock held 8) (run (list "flock" "-n" (nf "f") "true") "") (run (list "flock" (cu-int->str held)) "") (run (list "flock" "-u" (cu-int->str held)) "") (file-close held) (display ""))
+(do (ss-resolve!) (def held (File open (nf "f") (lit rdonly))) (ss-flock held 2) (run (list "flock" "-n" (nf "f") "true") "") (ss-flock held 8) (run (list "flock" "-n" (nf "f") "true") "") (run (list "flock" (cu-int->str held)) "") (run (list "flock" "-u" (cu-int->str held)) "") (file-close held) (display ""))
 ```
 ---
 ```output

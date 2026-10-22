@@ -18,7 +18,22 @@
 ; many copies of it at a time as fill up to 8,192 bytes, as GNU's yes
 ; fills a buffer, and the loop sweeps every 512 writes, since there is
 ; no end to them.
-(def %cu-yes
+(module cu/text3)
+
+(import cu/cli cu-operands cu-opts)
+(import cu/prims byte-at byte-len cu& cu+ cu- cu-b->s cu-int->str cu-lines
+  cu-nth cu-run-bytes cu-sweep! cu-sweep-at cu-sweep-bytes cu-sweep-lines
+  cu-sweep-steps cu-words-line cu< cu<< cu>> file-close file-err-op
+  file-err-text file-open-or-err file-open-write file-write integer->char
+  length list->string reverse rng-int rng-make set-first! string-append
+  string-concat substring vec-build vec-ref vec-set!)
+(import cu/text cu-delim-fields-said cu-enough cu-file-pieces
+  cu-fold-lines-said cu-fold-pieces cu-fold-said cu-fold-stdin cu-gather-said
+  cu-join-with cu-map-swept cu-newlines-from cu-num-prefix cu-print-fields
+  cu-print-fields-to cu-print-lines cu-print-lines-to cu-read-error
+  cu-run-join cu-run-part cu-say cu-says)
+
+(def cu-yes
   (fn (_ argv stdin-thunk)
     (def buf
       (%cu-yes-copies
@@ -84,7 +99,7 @@
         (string-append " "
           (string-append (cu-int->str (first ps))
             (string-append (if (> k 1) (string-append "^" (cu-int->str k)) "")
-              (self (%cu-nthrest k ps) h?))))))))
+              (self (cu-nthrest k ps) h?))))))))
 
 ; how many of PS, from the start, are P
 (def %cu-factor-run
@@ -110,7 +125,7 @@
 ; factor [-h] [NUMBER...]: the operands, or else the words of standard input,
 ; each with its prime factors; one that is not a number is said, the rest are
 ; still factored, and the status is 1
-(def %cu-factor
+(def cu-factor
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "factor" argv))
     (def h? (Opts on? o "-h"))
@@ -126,7 +141,7 @@
 
 ; expand and unexpand read -t off the declaration now.
 
-(def %cu-spaces
+(def cu-spaces
   (fn (self k) (if (<= k 0) "" (string-append " " (self (- k 1))))))
 
 ; expand: a TAB advances to the next multiple of the tab width; every
@@ -143,12 +158,12 @@
             (match
               ((if (= b 9) (if init? lead? #t) #f)
                 (let ((gap (- w (% col w))))
-                  (self (+ i 1) (+ col gap) lead? (pair (%cu-spaces gap) acc))))
+                  (self (+ i 1) (+ col gap) lead? (pair (cu-spaces gap) acc))))
               ((= b 32) (self (+ i 1) (+ col 1) lead? (pair " " acc)))
               (#t (self (+ i 1) (+ col 1) #f (pair (cu-b->s b) acc))))))))
     (go 0 0 #t ())))
 
-(def %cu-expand
+(def cu-expand
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "expand" argv))
     (def w (cu-num-prefix (Opts value o "-t" "8")))
@@ -176,8 +191,8 @@
     (def stops (- (/ (- to (% to w)) w) (/ (- from (% from w)) w)))
     (match
       (one-space? " ")
-      ((= stops 0) (%cu-spaces (- to from)))
-      (#t (string-append (%cu-tabs stops) (%cu-spaces (% to w)))))))
+      ((= stops 0) (cu-spaces (- to from)))
+      (#t (string-append (%cu-tabs stops) (cu-spaces (% to w)))))))
 
 ; unexpand: the leading run of blanks -- spaces and tabs both -- becomes
 ; tabs plus a remainder; with ALL? every run does.  When only the leading
@@ -214,7 +229,7 @@
 ; Which runs are respelled: the leading one, unless -a -- or -t, which says it
 ; too -- asks for every one; and -f, first only, keeps it to the leading run
 ; whatever else was given, and in whichever order.
-(def %cu-unexpand
+(def cu-unexpand
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "unexpand" argv))
     (def w (cu-num-prefix (Opts value o "-t" "8")))
@@ -317,11 +332,11 @@
                             (self (rest os) st)))))))))
         (go ops 0)))))
 
-(def %cu-dos2unix
+(def cu-dos2unix
   (fn (_ argv stdin-thunk)
     (%cu-crlf-applet "dos2unix" #f argv stdin-thunk)))
 
-(def %cu-unix2dos
+(def cu-unix2dos
   (fn (_ argv stdin-thunk)
     (%cu-crlf-applet "unix2dos" #t argv stdin-thunk)))
 
@@ -391,7 +406,7 @@
       (go 0 (first s) (cu-nth 1 s) (cu-nth 2 s)))))
 
 ; split [FILE [PREFIX]]: a third operand is refused
-(def %cu-split
+(def cu-split
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "split" argv))
     (cu-operands "split" (Opts operands o) 0 2
@@ -442,7 +457,7 @@
 ; the filler walks L, sweeping as it goes; a vector made first and set after
 ; would pay for filling every slot twice, the first time in a loop of the
 ; platform's that no sweep reaches.
-(def %cu-list->vec
+(def cu-list->vec
   (fn (_ l n)
     (let ((cur (list l)))
       (vec-build n
@@ -452,7 +467,7 @@
                 (set-first! cur (rest xs))
                 (first xs))))))))
 
-(def %cu-vec->list
+(def cu-vec->list
   (fn (_ v n)
     (def go
       (fn (self i acc)
@@ -464,11 +479,11 @@
 (def %cu-shuffle
   (fn (_ items)
     (def n (length items))
-    (def v (%cu-list->vec items n))
+    (def v (cu-list->vec items n))
     (def r (rng-make (date-now-unix)))
     (def go
       (fn (self i)
-        (if (<= i 0) (%cu-vec->list v n)
+        (if (<= i 0) (cu-vec->list v n)
           (let ((j (do (cu-sweep-at i cu-sweep-lines) (rng-int r (+ i 1)))))
             (let ((tmp (vec-ref v i)))
               (do (vec-set! v i (vec-ref v j))
@@ -477,14 +492,14 @@
     (go (- n 1))))
 
 ; the first K of L; none when K is 0 or less
-(def %cu-take
+(def cu-take
   (fn (self l k)
     (if (if (<= k 0) #t (null? l)) ()
       (pair (first l) (self (rest l) (- k 1))))))
 
 ; With -e the operands are what is shuffled, as many as are given; -i shuffles
 ; a range and takes none; otherwise there is one FILE at most.
-(def %cu-shuf
+(def cu-shuf
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "shuf" argv))
     (cu-operands "shuf" (Opts operands o) 0
@@ -508,7 +523,7 @@
     ; what is shuffled, and whether reading it failed
     (def read
       (match
-        ((not (null? iv)) (pair (%cu-shuf-range iv) 0))
+        ((not (null? iv)) (pair (cu-shuf-range iv) 0))
         (echo? (pair rest1 0))
         (z? (cu-delim-fields-said rest1 stdin-thunk 0 (cu-read-error "shuf")
                #f))
@@ -517,7 +532,7 @@
               (pair (cu-lines (first g)) (rest g))))))
     (def items (first read))
     (def out (%cu-shuffle items))
-    (def picked (if (null? nv) out (%cu-take out count)))
+    (def picked (if (null? nv) out (cu-take out count)))
     ; -o writes where the shuffle goes, so a caller can shuffle a file in
     ; place without a shell redirect reading it at the same time.
     (def dest (Opts value o "-o"))
@@ -543,7 +558,7 @@
         1)))
 
 ; "LO-HI" -> the integers from LO to HI, as strings.
-(def %cu-shuf-range
+(def cu-shuf-range
   (fn (_ spec)
     (def dash
       (let ((go (fn (self i)
@@ -593,8 +608,8 @@
 ; newline.
 (def %cu-b64-put
   (fn (_ s wrap)
-    (let ((r (%cu-b64-put-from (pair s (byte-len s)) wrap () 0 #t)))
-      (%cu-b64-put-end wrap (cu-nth 1 r) (cu-nth 2 r)))))
+    (let ((r (cu-b64-put-from (pair s (byte-len s)) wrap () 0 #t)))
+      (cu-b64-put-end wrap (cu-nth 1 r) (cu-nth 2 r)))))
 
 ; The encoding of run R carried on from a line begun before it: FROM-LINE holds
 ; the characters made since the last write, newest first, and FROM-COL how
@@ -603,7 +618,7 @@
 ; under LAST? the one or two at the end are padded out, else they are left for
 ; the next piece.  Answers (NEXT LINE COL), NEXT where the steps stopped.  The
 ; walk sweeps as it goes.
-(def %cu-b64-put-from
+(def cu-b64-put-from
   (fn (_ r wrap from-line from-col last?)
     (def s (first r))
     (def end (rest r))
@@ -646,7 +661,7 @@
     (display (bytes->str (reverse (if (= wrap 0) line (pair 10 line)))))))
 
 ; what is left of the last line, out at the end of the encoding
-(def %cu-b64-put-end
+(def cu-b64-put-end
   (fn (_ wrap line col)
     (if (= col 0) () (%cu-b64-out wrap line))))
 
@@ -657,7 +672,7 @@
     (fn (_ piece s)
       (let ((text (if (= (rest (first s)) 0) piece
                     (cu-run-join (first s) piece 0 (rest piece)))))
-        (let ((r (%cu-b64-put-from text wrap (cu-nth 1 s) (cu-nth 2 s) #f)))
+        (let ((r (cu-b64-put-from text wrap (cu-nth 1 s) (cu-nth 2 s) #f)))
           (list (cu-run-part text (first r) (rest text))
                 (cu-nth 1 r) (cu-nth 2 r)))))))
 
@@ -674,7 +689,7 @@
 ; bytes the characters before it in that quantum spell are put first, as GNU
 ; puts them.  GARBAGE? passes over what is not base64 instead, which is how
 ; uudecode reads a body.
-(def %cu-b64-decode-to
+(def cu-b64-decode-to
   (fn (_ s put garbage?)
     (let ((st (%cu-b64-decode-from (pair s (byte-len s)) %cu-b64-fresh put
                 garbage?)))
@@ -746,7 +761,7 @@
 (def %cu-b64-flush
   (fn (_ put out n) (put (cu-run-bytes (reverse out) n))))
 
-(def %cu-base64
+(def cu-base64
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "base64" argv))
     (cu-operands "base64" (Opts operands o) 0 1
@@ -817,7 +832,11 @@
                      (list (pair "" 0) () 0))))
             (if (> (rest g) 0) 1
               (let ((s (first g)))
-                (let ((r (%cu-b64-put-from (first s) wrap (cu-nth 1 s)
+                (let ((r (cu-b64-put-from (first s) wrap (cu-nth 1 s)
                            (cu-nth 2 s) #t)))
-                  (do (%cu-b64-put-end wrap (cu-nth 1 r) (cu-nth 2 r))
+                  (do (cu-b64-put-end wrap (cu-nth 1 r) (cu-nth 2 r))
                       0))))))))))
+
+(provide cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from cu-base64
+  cu-dos2unix cu-expand cu-factor cu-list->vec cu-shuf cu-shuf-range cu-spaces
+  cu-split cu-take cu-unexpand cu-unix2dos cu-vec->list cu-yes)

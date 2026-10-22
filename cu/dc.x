@@ -226,7 +226,7 @@
 
 (def %dcn-parse10
   (fn (_ t)
-    (def dot (%dp-find t 0 #\.))
+    (def dot (dp-find t 0 #\.))
     (let go ((i 0) (m 0))
       (if (>= i (byte-len t)) (pair m (if (< dot 0) 0 (- (byte-len t) (+ dot 1))))
         (if (= i dot) (go (+ i 1) m)
@@ -234,7 +234,7 @@
 
 (def %dcn-parse-base
   (fn (_ t base)
-    (def dot (%dp-find t 0 #\.))
+    (def dot (dp-find t 0 #\.))
     (def end (if (< dot 0) (byte-len t) dot))
     (def int (let go ((i 0) (m 0)) (if (>= i end) m (go (+ i 1) (%dc-big+ (%dc-big* m base) (%dcn-digit (byte-at t i) (- base 1)))))))
     (if (< dot 0) (pair int 0)
@@ -487,7 +487,7 @@
 (def %dcl-rest
   (fn (_ src)
     (let ((text (vec-ref src 0)) (pos (vec-ref src 1)))
-      (let ((nl (%dp-find text pos #\newline)))
+      (let ((nl (dp-find text pos #\newline)))
         (substring text pos (if (< nl 0) (byte-len text) nl))))))
 
 (def %dc-space? (fn (_ c) (if (= c #\space) #t (if (>= c 9) (<= c 13) #f))))
@@ -543,7 +543,7 @@
       ((= c #\.) (if (%dc-digit? (%dcl-peek src 0)) (%dcl-number src c) (%dc-bad-char c)))
       ((%dc-numch? c) (%dcl-number src c))
       ((= c #\[) (%dcl-string src))
-      ((if (> c 0) (>= (%dp-find %dc-ops 0 c) 0) #f) (list (lit ch) (bytes->str (list c))))
+      ((if (> c 0) (>= (dp-find %dc-ops 0 c) 0) #f) (list (lit ch) (bytes->str (list c))))
       (#t (%dc-bad-char c)))))
 
 (def %dc-bad-char
@@ -636,7 +636,7 @@
   (fn (_) (do (%dc-need 2) (pair (%dc-num! (first (rest (%dg 0)))) (%dc-num! (first (%dg 0)))))))
 
 ; the top N items replaced by IT
-(def %dc-replace! (fn (_ n it) (%dg! 0 (pair it (%cu-nthrest n (%dg 0))))))
+(def %dc-replace! (fn (_ n it) (%dg! 0 (pair it (cu-nthrest n (%dg 0))))))
 
 (def %dc-binop!
   (fn (_ f)
@@ -859,7 +859,7 @@
   (fn (_)
     (let ((e (sys-getenv "DC_LINE_LENGTH")))
       (if (null? e) 70
-        (let ((n (if (%si-digits? e) (cu-num-prefix e) ())))
+        (let ((n (if (si-digits? e) (cu-num-prefix e) ())))
           (match ((null? n) 70) ((= n 0) 2147483647) ((< n 2) 70) (#t n)))))))
 
 ; the -e and -f options in the order given, as getopt meets them: (FLAG . VALUE)

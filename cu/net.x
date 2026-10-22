@@ -231,7 +231,7 @@
   (fn (_ spec default)
     (def colon (%in-index-of spec #\:))
     (def host (%cu-dial-host spec))
-    (def port (if (null? colon) default (%tn-port (substring spec (+ colon 1) (byte-len spec)))))
+    (def port (if (null? colon) default (tn-port (substring spec (+ colon 1) (byte-len spec)))))
     (def ip (let ((q (guard (_ ()) (net-resolve host))))
               (if (null? q) (Err raise (lit net) (string-concat (list "bad address '" spec "'")) ()) q)))
     (guard (e (if (eq? (Err label e) (lit io))

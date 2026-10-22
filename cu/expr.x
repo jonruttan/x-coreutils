@@ -447,7 +447,7 @@
         (do (file-write 2
               (string-concat
                 (list (e msg)
-                      (if end? (string-append " after '" (%cu-last argv)) "")
+                      (if end? (string-append " after '" (cu-last argv)) "")
                       (if end? "'\n" "\n"))))
             2)))
     (if (null? argv)

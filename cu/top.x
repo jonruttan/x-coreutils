@@ -54,7 +54,7 @@
 
 (def %top-u32 (fn (_ n) (& n 4294967295)))
 (def %top-u16 (fn (_ n) (& n 65535)))
-(def %top-ticks (fn (_ ns) (if (null? ns) 0 (%ps-div ns %top-tick))))
+(def %top-ticks (fn (_ ns) (if (null? ns) 0 (ps-div ns %top-tick))))
 
 ; --- %cu-top ------------------------------------------------------------------
 
@@ -72,7 +72,7 @@
     (match
       ((not (null? unknown)) (cu-refuse-option "top" unknown))
       ((null? interval) (do (file-write 2 (string-concat (list "top: invalid number '" d "'\n"))) 1))
-      (#t (let ((iterations (if (null? n) 0 (%cu-range-number "top" n 0 2147483647))))
+      (#t (let ((iterations (if (null? n) 0 (cu-range-number "top" n 0 2147483647))))
             (if (null? iterations) 1
               (%top-main (Opts on? o "-b") (Opts on? o "-m") (Opts on? o "-H") interval iterations)))))))
 
@@ -89,7 +89,7 @@
     (def frac (if (null? dot) "" (substring digits (+ dot 1) (byte-len digits))))
     (def ms-frac (substring (string-append frac "000") 0 3))
     (if (if (%top-digits? whole) (if (%top-digits? frac) (> (+ (byte-len whole) (byte-len frac)) 0) #f) #f)
-      (%ps-div (* (+ (* (%top-number whole) 1000) (%top-number ms-frac)) (if (null? scale) 1000 scale)) 1000)
+      (ps-div (* (+ (* (%top-number whole) 1000) (%top-number ms-frac)) (if (null? scale) 1000 scale)) 1000)
       ())))
 
 (def %top-index
@@ -192,14 +192,14 @@
     (def get (fn (_ k) (Assoc get k p)))
     (def rss (get (lit rss)))
     (list (get (lit pid)) (if (null? (get (lit ppid))) 0 (get (lit ppid)))
-          (if (null? rss) 0 (%ps-div rss 1024))
+          (if (null? rss) 0 (ps-div rss 1024))
           (+ (%top-ticks (get (lit utime))) (%top-ticks (get (lit stime))))
-          (get (lit uid)) (cu-pad-right (%ps-stat p) 3) (get (lit comm))
+          (get (lit uid)) (cu-pad-right (ps-stat p) 3) (get (lit comm))
           (get (lit processor)) 0)))
 
 (def %top-scan
   (fn (_)
-    (def procs (%ps-sorted (host-processes)))
+    (def procs (ps-sorted (host-processes)))
     (%top-swept-map %top-row
       (if %top-threads
         (%top-flatten (%top-swept-map (fn (_ p) (let ((ts (host-threads (Assoc get (lit pid) p)))) (if (null? ts) (list p) ts))) procs))
@@ -291,39 +291,39 @@
   (fn (_ n)
     (def digit (fn (_ k) (substring "0123456789" k (+ k 1))))
     (def lead (fn (_ k z) (if (if (= k 0) z #f) " " (digit k))))
-    (def up (fn (self v idx) (if (>= v 100000) (self (%ps-div v 1024) (+ idx 1)) (pair v idx))))
+    (def up (fn (self v idx) (if (>= v 100000) (self (ps-div v 1024) (+ idx 1)) (pair v idx))))
     (if (<= n 99999)
-      (let ((u (%ps-div n 10)) (v (% n 10)))
-        (def a (lead (%ps-div u 1000) #t))
-        (def b (lead (% (%ps-div u 100) 10) (str=? a " ")))
-        (def c (lead (% (%ps-div u 10) 10) (str=? b " ")))
+      (let ((u (ps-div n 10)) (v (% n 10)))
+        (def a (lead (ps-div u 1000) #t))
+        (def b (lead (% (ps-div u 100) 10) (str=? a " ")))
+        (def c (lead (% (ps-div u 10) 10) (str=? b " ")))
         (def d (lead (% u 10) (str=? c " ")))
         (string-concat (list a b c d (digit v))))
-      (let ((r (up (%ps-div (* n 10) 1024) 1)))
-        (def u (%ps-div (first r) 10))
+      (let ((r (up (ps-div (* n 10) 1024) 1)))
+        (def u (ps-div (first r) 10))
         (def unit (substring " mgtpezy" (rest r) (+ (rest r) 1)))
         (if (>= u 100)
-          (let ((a (lead (%ps-div u 1000) #t)))
-            (def b (lead (% (%ps-div u 100) 10) (str=? a " ")))
-            (string-concat (list a b (lead (% (%ps-div u 10) 10) (str=? b " ")) (digit (% u 10)) unit)))
-          (let ((a (lead (%ps-div u 10) #t)))
+          (let ((a (lead (ps-div u 1000) #t)))
+            (def b (lead (% (ps-div u 100) 10) (str=? a " ")))
+            (string-concat (list a b (lead (% (ps-div u 10) 10) (str=? b " ")) (digit (% u 10)) unit)))
+          (let ((a (lead (ps-div u 10) #t)))
             (string-concat (list a (lead (% u 10) (str=? a " ")) "." (digit (% (first r) 10)) unit))))))))
 
 ; fmt_100percent_8: VALUE of TOTAL as " NN.N% ", seven characters
 (def %top-percent
   (fn (_ value total)
     (if (>= value total) "  100% "
-      (let ((v (%ps-div (%top-u32 (* 1000 value)) total)))
-        (def t (%ps-div v 100))
+      (let ((v (ps-div (%top-u32 (* 1000 value)) total)))
+        (def t (ps-div v 100))
         (def r (% v 100))
-        (string-concat (list " " (if (= t 0) " " (cu-int->str t)) (cu-int->str (%ps-div r 10))
+        (string-concat (list " " (if (= t 0) " " (cu-int->str t)) (cu-int->str (ps-div r 10))
                              "." (cu-int->str (% r 10)) "% "))))))
 
 ; "%3u.%c": tenths, the last digit after the point
 (def %top-tenths
   (fn (_ v plus)
     (if plus (string-append (cu-pad-left "99" 3) ".+")
-      (string-concat (list (cu-pad-left (cu-int->str (%ps-div v 10)) 3) "." (cu-int->str (% v 10)))))))
+      (string-concat (list (cu-pad-left (cu-int->str (ps-div v 10)) 3) "." (cu-int->str (% v 10)))))))
 
 ; --- the screen ---------------------------------------------------------------
 
@@ -349,7 +349,7 @@
 (def %top-mem
   (fn (_)
     (def m (host-memory))
-    (def kb (fn (_ k) (let ((v (Assoc get k m))) (if (null? v) 0 (%ps-div v 1024)))))
+    (def kb (fn (_ k) (let ((v (Assoc get k m))) (if (null? v) 0 (ps-div v 1024)))))
     (pair (string-concat
             (list "Mem: " (cu-int->str (- (kb (lit total)) (kb (lit free)))) "K used, "
                   (cu-int->str (kb (lit free))) "K free, "
@@ -455,15 +455,15 @@
 ; scan and the ticks the processes used, TOTAL-PCPU
 (def %top-scales-of
   (fn (_ total-kb busy total total-pcpu)
-    (def down (fn (self s sh limit) (if (>= s limit) (self (%ps-div s 4) (- sh 2) limit) (pair s sh))))
+    (def down (fn (self s sh limit) (if (>= s limit) (self (ps-div s 4) (- sh 2) limit) (pair s sh))))
     (def up (fn (self s sh) (if (< s 1073741824) (self (%top-u32 (* s 4)) (+ sh 2)) (pair s sh))))
-    (def m (down (%ps-div 2097152000 (if (= total-kb 0) 1 total-kb)) 21 512))
+    (def m (down (ps-div 2097152000 (if (= total-kb 0) 1 total-kb)) 21 512))
     (def pcpu-total (if (< total-pcpu busy) busy total-pcpu))
     (def c0 (let ((s (%top-u32 (* 64000 (%top-u16 busy))))) (up (if (= s 0) 1 s) 6)))
     (def tmp (%top-u32 (* (%top-u16 total) pcpu-total)))
-    (def c (down (if (= tmp 0) (first c0) (%ps-div (first c0) tmp)) (rest c0) 1024))
-    (list (first m) (rest m) (%ps-div (<< 1 (rest m)) 20)
-          (first c) (rest c) (%ps-div (<< 1 (rest c)) 20))))
+    (def c (down (if (= tmp 0) (first c0) (ps-div (first c0) tmp)) (rest c0) 1024))
+    (list (first m) (rest m) (ps-div (<< 1 (rest m)) 20)
+          (first c) (rest c) (ps-div (<< 1 (rest c)) 20))))
 
 ; a row's %RSS and %CPU in tenths, from its kilobytes, its ticks and the scales
 (def %top-shares
@@ -480,10 +480,10 @@
     (def col (string-concat
                (list (%top-ppu (first e) (cu-nth 1 e) (%top-user (cu-nth 4 e))) " "
                      (cu-nth 5 e) "  " (%top-five (cu-nth 2 e))
-                     (%top-tenths pmem (> (%ps-div pmem 10) 99))
+                     (%top-tenths pmem (> (ps-div pmem 10) 99))
                      " " (if (null? cpu) "   " (cu-pad-left (cu-int->str cpu) 3))
                      (%top-tenths pcpu #f) " ")))
-    (string-append col (%ps-args (host-args (first e)) (cu-nth 6 e)))))
+    (string-append col (ps-args (host-args (first e)) (cu-nth 6 e)))))
 
 ; --- the memory view ----------------------------------------------------------
 
@@ -494,14 +494,14 @@
   (fn (_)
     ; the walk needs a process's pid and name alone: the table's records go
     ; before it starts, so the live set the sweeps measure from is small
-    (def ids (map (fn (_ p) (pair (Assoc get (lit pid) p) (Assoc get (lit comm) p))) (%ps-sorted (host-processes))))
+    (def ids (map (fn (_ p) (pair (Assoc get (lit pid) p) (Assoc get (lit comm) p))) (ps-sorted (host-processes))))
     (cu-heap-collect)
     (set! %top-floor (%top-live))
     (def row
       (fn (_ id)
         (def pid (first id))
         (def m (host-maps pid))
-        (def kb (fn (_ k) (%ps-div (Assoc get k m) 1024)))
+        (def kb (fn (_ k) (ps-div (Assoc get k m) 1024)))
         (if (null? m) ()
           (let ((ro (kb (lit mapped-ro))) (rw (kb (lit mapped-rw)))
                 (sc (kb (lit shared-clean))) (sd (kb (lit shared-dirty)))
@@ -523,7 +523,7 @@
 (def %top-mem-screen
   (fn (_)
     (def m (host-memory))
-    (def kb (fn (_ k) (let ((v (Assoc get k m))) (if (null? v) 0 (%ps-div v 1024)))))
+    (def kb (fn (_ k) (let ((v (Assoc get k m))) (if (null? v) 0 (ps-div v 1024)))))
     (def n (fn (_ k) (cu-int->str (kb k))))
     ; the column header with the sort column marked ^ (_ reversed)
     (def mark (if %top-inverted #\_ #\^))
@@ -560,7 +560,7 @@
   (fn (_ e)
     (def pid (cu-int->str (first e)))
     (def five (fn (_ k) (string-append (%top-five (cu-nth k e)) " ")))
-    (def four (fn (_ k) (string-append (%ps-four (cu-nth k e) " mgtpezy") " ")))
+    (def four (fn (_ k) (string-append (ps-four (cu-nth k e) " mgtpezy") " ")))
     (def p (string-append (cu-pad-left pid 5) " "))
     (def lead
       (match
@@ -568,7 +568,7 @@
         ((= (byte-len p) 7) (string-concat (list p (four 2) (five 3))))
         (#t (string-concat (list p (five 2) (five 3))))))
     (string-concat (list lead (five 4) (five 5) (five 6) (five 7) (five 8)
-                         (%ps-args (host-args (first e)) (cu-nth 1 e))))))
+                         (ps-args (host-args (first e)) (cu-nth 1 e))))))
 
 ; --- the keys -----------------------------------------------------------------
 
@@ -582,7 +582,7 @@
 (def %top-key-loop
   (fn (self wait)
     (def k (%top-read-key wait))
-    (def page (%ps-div %top-lines 2))
+    (def page (ps-div %top-lines 2))
     (def scrolled
       (fn (_ ofs)
         (def n (length %top-rows))

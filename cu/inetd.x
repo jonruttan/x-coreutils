@@ -519,7 +519,7 @@
 (def %in-daytime
   (fn (_)
     (def now (%in-now))
-    (string-append (%cu-date-fmt "%a %b %e %H:%M:%S %Y" (%cu-date-split now #f) now) "\r\n")))
+    (string-append (cu-date-fmt "%a %b %e %H:%M:%S %Y" (cu-date-split now #f) now) "\r\n")))
 
 ; a stream builtin on the connection FD
 (def %in-stream-builtin
@@ -781,7 +781,7 @@
     (set! %in-queue (let ((q (Opts value o "-q"))) (if (null? q) 128 (%in-count q))))
     (set! %in-conf (match ((not (null? ops)) (first ops)) ((= %in-uid 0) "/etc/inetd.conf") (#t ())))
     (when (null? %in-conf) (%in-die "non-root must specify config file"))
-    (unless (Opts on? o "-f") (%hd-daemonize))
+    (unless (Opts on? o "-f") (hd-daemonize))
     (set! %in-stderr? (Opts on? o "-e"))
     (unless %in-stderr? (cu-ptr-call (%in-c "openlog") %in-ident 9 24))
     (when (= %in-uid 0)
@@ -791,7 +791,7 @@
     (guard (_ ())
       (let ((fd (File open %in-pidfile (list (lit wronly) (lit creat) (lit trunc)) 438)))
         (do (file-write fd (string-append (cu-int->str (sys-getpid)) "\n")) (file-close fd))))
-    (set! %in-sigs (map %ts-signal-number (list "CHLD" "HUP" "ALRM" "TERM" "INT")))
+    (set! %in-sigs (map ts-signal-number (list "CHLD" "HUP" "ALRM" "TERM" "INT")))
     (map (fn (_ n) (Sys catch-signal n)) %in-sigs)
     (sys-signal 13 cu-sig-ign)
     (%in-reread!)

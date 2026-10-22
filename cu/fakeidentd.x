@@ -143,7 +143,7 @@
     (def wait? (Opts on? o "-w"))
     (def fiw? (if (Opts on? o "-f") #t (if inetd? #t wait?)))
     (unless fiw?
-      (do (%hd-daemonize)
+      (do (hd-daemonize)
           (cu-ptr-call (%in-c "openlog") "fakeidentd" 1 24)
           (set! %fi-syslog? #t)))
     (if inetd? (%fi-inetd stdin-thunk)

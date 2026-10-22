@@ -57,7 +57,7 @@
       (let ((s (file-lstat-full src)) (d (file-lstat-full dst)))
         (if (null? s) #t
           (if (null? d) #t
-            (> (%cu-stat-get s (lit mtime)) (%cu-stat-get d (lit mtime)))))))))
+            (> (cu-stat-get s (lit mtime)) (cu-stat-get d (lit mtime)))))))))
 
 ; --- cat ----------------------------------------------------------------------
 
@@ -222,7 +222,7 @@
     (if (not (%cp-preserve? o)) ()
       (let ((st (file-lstat-full src)))
         (if (null? st) ()
-          (do (file-chmod dst (bit-and (%cu-stat-get st (lit mode)) 4095))
+          (do (file-chmod dst (bit-and (cu-stat-get st (lit mode)) 4095))
               (file-utimes dst)))))))
 
 ; a name a link is about to be written to: symlink refuses one that is taken,
@@ -255,7 +255,7 @@
               (string-concat
                 (list "cp: cannot stat '" src "': " (file-err-text st) "\n")))
             1)
-        (let ((file-type (%cu-stat-get st (lit file-type))))
+        (let ((file-type (cu-stat-get st (lit file-type))))
           (match
             ((eq? file-type (lit dir))
               (if (not (%cp-recursive? o))
@@ -264,9 +264,9 @@
                         (list "cp: omitting directory '" src "'\n")))
                     1)
                 (do (if (file-exists? dst) () (file-mkdir dst))
-                    (let ((r (%cu-walk-status src
-                               (fn (_ n) (self (%cu-path-join src n)
-                                           (%cu-path-join dst n) o #f)))))
+                    (let ((r (cu-walk-status src
+                               (fn (_ n) (self (cu-path-join src n)
+                                           (cu-path-join dst n) o #f)))))
                       (do (%cp-preserve! src dst o) r)))))
             ((file-dir? dst)
               (do (file-write 2
@@ -306,7 +306,7 @@
 (def %cp-target
   (fn (_ dst name o)
     (if (Opts on? o "-T") dst
-      (if (file-dir? dst) (%cu-path-join dst (%cu-basename-of name)) dst))))
+      (if (file-dir? dst) (cu-path-join dst (cu-basename-of name)) dst))))
 
 (def cu-cp
   (fn (_ argv stdin-thunk)
@@ -314,7 +314,7 @@
     (def ops (Opts operands o))
     (if (< (length ops) 2)
       (cu-missing-file-operand "cp" ops)
-      (let ((dst (%cu-last ops)) (srcs (%cu-drop-last ops)))
+      (let ((dst (cu-last ops)) (srcs (cu-drop-last ops)))
         (if (if (> (length srcs) 1) (not (file-dir? dst)) #f)
           (do (file-write 2
                 (string-concat
@@ -363,7 +363,7 @@
     (def ops (Opts operands o))
     (if (< (length ops) 2)
       (cu-missing-file-operand "mv" ops)
-      (let ((dst (%cu-last ops)) (srcs (%cu-drop-last ops)))
+      (let ((dst (cu-last ops)) (srcs (cu-drop-last ops)))
         (let ((go (fn (self ss st)
                     (if (null? ss) st
                       (let ((target (%cp-target dst (first ss) o)))
@@ -390,7 +390,7 @@
           (if (if (%rm-told? o "-f") (eq? (file-err-sym st) (lit enoent)) #f)
             0
             (%rm-cannot path (file-err-text st))))
-        ((eq? (%cu-stat-get st (lit file-type)) (lit dir))
+        ((eq? (cu-stat-get st (lit file-type)) (lit dir))
           (if (%rm-recursive? o) (%rm-dir self path o st)
             (%rm-cannot path "Is a directory")))
         ((not (%rm-may? o path st)) 0)
@@ -404,13 +404,13 @@
 ; about, and its removal fails as not empty.
 (def %rm-dir
   (fn (_ one path o st)
-    (let ((names (file-or-err (fn (_) (%cu-walk-names path)))))
+    (let ((names (file-or-err (fn (_) (cu-walk-names path)))))
       (match
         ((Err err? names) (%rm-cannot path (file-err-text names)))
         ((not (%rm-may-enter? o path names)) 0)
         (#t
-          (let ((r (%cu-walk-worst names
-                     (fn (_ n) (one (%cu-path-join path n) o)) 0)))
+          (let ((r (cu-walk-worst names
+                     (fn (_ n) (one (cu-path-join path n) o)) 0)))
             (match
               ((> r 0) r)
               ((not (%rm-may? o path st)) 0)
@@ -439,7 +439,7 @@
 ; what rm calls a path, in the file-type words the coreutils share
 (def %rm-file-type-words
   (fn (_ st)
-    (let ((file-type (%cu-stat-get st (lit file-type))))
+    (let ((file-type (cu-stat-get st (lit file-type))))
       (match
         ((eq? file-type (lit dir)) "directory")
         ((eq? file-type (lit link)) "symbolic link")
@@ -447,7 +447,7 @@
         ((eq? file-type (lit socket)) "socket")
         ((eq? file-type (lit char)) "character special file")
         ((eq? file-type (lit block)) "block special file")
-        ((= (%cu-stat-get st (lit size)) 0) "regular empty file")
+        ((= (cu-stat-get st (lit size)) 0) "regular empty file")
         (#t "regular file")))))
 
 ; the removal made, and said under -v -- SAID is how -v begins the line -- or
@@ -486,14 +486,14 @@
     ; the flags: asking (Opts on? o "-m") is always false.  Its presence
     ; is its value being there.
     (def m (Opts value o "-m"))
-    (def mode (if (null? m) () (%cu-octal->int m)))
+    (def mode (if (null? m) () (cu-octal->int m)))
     (def stamp! (fn (_ path) (if (null? mode) () (file-chmod path mode))))
     (def go
       (fn (self os st)
         (match
           ((null? os) st)
           (p?
-            (do (%cu-mkdir-p! (first os)) (stamp! (first os))
+            (do (cu-mkdir-p! (first os)) (stamp! (first os))
                 (self (rest os) st)))
           ((file-exists? (first os))
             (do (file-write 2
@@ -514,7 +514,7 @@
 
 (def %rmdir-parents!
   (fn (self path)
-    (let ((parent (%cu-dirname-of path)))
+    (let ((parent (cu-dirname-of path)))
       (if (if (string=? parent "/") #t (string=? parent ".")) ()
         (if (%rmdir-try parent) (self parent) ())))))
 
@@ -548,16 +548,16 @@
     (if (null? ops)
       (do (file-write 2 "ln: usage: ln [-sfnbtv] TARGET... [NAME]\n") 1)
       (let ((targets (if (null? dir)
-                       (if (null? (rest ops)) ops (%cu-drop-last ops))
+                       (if (null? (rest ops)) ops (cu-drop-last ops))
                        ops))
             (into (if (null? dir)
-                    (if (null? (rest ops)) "." (%cu-last ops))
+                    (if (null? (rest ops)) "." (cu-last ops))
                     dir))
             (here? (if (null? dir) (null? (rest ops)) #f)))
         (if (if (if (null? dir) (> (length ops) 2) #t)
               (not (%ln-dir? into o)) #f)
           (%ln-fails (list (%ln-not-dir into o (not (null? dir)))))
-          (%cu-walk-worst targets
+          (cu-walk-worst targets
             (fn (_ t) (%ln-one t (%ln-name t into here? o) o))
             0))))))
 
@@ -591,8 +591,8 @@
 (def %ln-name
   (fn (_ t into here? o)
     (match
-      (here? (%cu-basename-of t))
-      ((%ln-dir? into o) (%cu-path-join into (%cu-basename-of t)))
+      (here? (cu-basename-of t))
+      ((%ln-dir? into o) (cu-path-join into (cu-basename-of t)))
       (#t into))))
 
 ; One link, NAME to T: a symbolic one under -s, a hard one otherwise -- which

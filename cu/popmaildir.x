@@ -192,7 +192,7 @@
     (def r (guard (e e) (file-rename name target)))
     (def why (match ((Err err? r) (%wget-err-text r))
                     ((not (number? r)) ())
-                    ((< r 0) (%tar-why (lit rename) name))
+                    ((< r 0) (tar-why (lit rename) name))
                     (#t ())))
     (if (null? why) #t
       (do (file-write 2 (string-concat (list "popmaildir: can't move '" name "' to '" target "': " why "\n")))
@@ -202,7 +202,7 @@
 ; DELIVERY; DELE unless KEEP?, then new/NAME.  #f stops the run.
 (def %pm-fetch
   (fn (_ k retr delivery keep? suffix)
-    (def name (string-concat (list "tmp/" (let ((t (%si-now))) (cu-int->str (+ (* (first t) 1000000) (rest t)))) suffix)))
+    (def name (string-concat (list "tmp/" (let ((t (si-now))) (cu-int->str (+ (* (first t) 1000000) (rest t)))) suffix)))
     (%pm-check (retr k))
     (if (not (null? delivery))
       ; busybox skips DELE and the move whatever the program answers
@@ -210,7 +210,7 @@
         (do (%pm-copy (first d)) (sys-close (first d)) (sys-wait (rest d)) #t))
       (let ((fd (let ((r (guard (e e) (File open name (list (lit wronly) (lit creat) (lit trunc)) 438))))
                   (match ((Err err? r) (%pm-die (string-concat (list "can't open '" name "': " (%wget-err-text r)))))
-                         ((< r 0) (%pm-die (string-concat (list "can't open '" name "': " (%tar-why (lit open) name)))))
+                         ((< r 0) (%pm-die (string-concat (list "can't open '" name "': " (tar-why (lit open) name)))))
                          (#t r)))))
         (do (%pm-copy fd)
             (file-close fd)
@@ -245,12 +245,12 @@
     (set-first! %mm-in ())
     (def cred (if (Opts on? o "-s") () (%pm-cred)))
     (when (< (Sys chdir (first ops)) 0)
-      (%pm-die (string-concat (list "can't change directory to '" (first ops) "': " (%tar-why (lit chdir) (first ops))))))
+      (%pm-die (string-concat (list "can't change directory to '" (first ops) "': " (tar-why (lit chdir) (first ops))))))
     (unless (null? (rest ops)) (%pm-helper! (rest ops)))
     (def greeting (%pm-check ()))
     (unless (Opts on? o "-s") (%pm-login! greeting cred (Opts on? o "-a")))
     (def n (%pm-atoi (%pm-check "STAT")))
-    (def suffix (string-concat (list "." (cu-int->str (sys-getpid)) "." (%cu-uname-field (sys-uname) (lit nodename)))))
+    (def suffix (string-concat (list "." (cu-int->str (sys-getpid)) "." (cu-uname-field (sys-uname) (lit nodename)))))
     (def retr (if (Opts on? o "-T")
                 (fn (_ k) (string-concat (list "TOP " (cu-int->str k) " " (cu-int->str lines))))
                 (fn (_ k) (string-append "RETR " (cu-int->str k)))))

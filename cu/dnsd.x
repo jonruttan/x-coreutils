@@ -42,7 +42,7 @@
     (let go ((labels (rest (Str8 split "." s))) (acc ()))
       (if (null? labels) acc
         (go (rest labels)
-            (append acc (pair (byte-len (first labels)) (%cu-bytes (first labels) 0 (byte-len (first labels))))))))))
+            (append acc (pair (byte-len (first labels)) (cu-bytes (first labels) 0 (byte-len (first labels))))))))))
 
 ; --- the config file ---------------------------------------------------------------
 
@@ -148,7 +148,7 @@
 
 (def %dn-question
   (fn (_ entries ttl bs n)
-    (def after (let go ((xs (%cu-nthrest 12 bs)) (acc ()))
+    (def after (let go ((xs (cu-nthrest 12 bs)) (acc ()))
                  (if (if (null? xs) #t (= (first xs) 0)) (reverse acc) (go (rest xs) (pair (first xs) acc)))))
     (def qname after)
     (def query-len (+ (length qname) 1 4))
@@ -175,14 +175,14 @@
     (when (if %dn-verbose? (not (null? err)) #f)
       (%dn-say (string-concat (list err ", " (if %dn-quiet-s? "dropping query" "sending error reply")))))
     (if (if (not (null? err)) %dn-quiet-s? #f) ()
-      (append (%cu-take bs 2)
+      (append (cu-take bs 2)
               (%dn-u16 (bit-or (%dn-word bs 2) flags))
               (%dn-u16 1)
               (if (null? err) (%dn-u16 1) (list (cu-nth 6 bs) (cu-nth 7 bs)))
               (list 0 0 0 0)
-              (%cu-take (%cu-nthrest 12 bs) query-len)
+              (cu-take (cu-nthrest 12 bs) query-len)
               (if (not (null? err)) ()
-                (append (%cu-take (%cu-nthrest 12 bs) query-len)
+                (append (cu-take (cu-nthrest 12 bs) query-len)
                         (list (% (%wget-div ttl 16777216) 256) (% (%wget-div ttl 65536) 256)
                               (% (%wget-div ttl 256) 256) (% ttl 256))
                         (%dn-u16 rlen)
@@ -220,7 +220,7 @@
     (set! %dn-quiet-s? (Opts on? o "-s"))
     (def ttl (let ((t (Opts value o "-t"))) (if (null? t) 120 (%dn-range t 1 4294967295))))
     (def port (let ((p (Opts value o "-p"))) (if (null? p) 53 (%dn-range p 1 65535))))
-    (when (Opts on? o "-d") (do (%hd-daemonize) (set! %dn-quiet? #t)))
+    (when (Opts on? o "-d") (do (hd-daemonize) (set! %dn-quiet? #t)))
     (def entries (%dn-conf (let ((c (Opts value o "-c"))) (if (null? c) "/etc/dnsd.conf" c))))
     (def addr (let ((i (Opts value o "-i"))) (if (null? i) "0.0.0.0" i)))
     (when (null? (%dn-dotted addr)) (%dn-die (string-concat (list "bad address '" addr "'"))))
@@ -244,7 +244,7 @@
         (if (if (< n 12) #t (> n 512))
           (%dn-say (string-concat (list "packet size " (cu-int->str n) ", ignored")))
           (do (when %dn-verbose? (%dn-say "got UDP packet"))
-              (let ((reply (%dn-process entries ttl (%cu-bytes (first (first got)) 0 n))))
+              (let ((reply (%dn-process entries ttl (cu-bytes (first (first got)) 0 n))))
                 (unless (null? reply)
                   (net-send-to-run fd (pair (bytes->str reply) (length reply)) (first (rest got)) (rest (rest got)))))))))
     (self fd entries ttl)))

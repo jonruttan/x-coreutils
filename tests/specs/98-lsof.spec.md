@@ -64,9 +64,9 @@ status 0
 Darwin names only a file; a socket or pipe has the kernel's handle for it.
 
 ```cu
-(list (%lsof-target (list (pair 'fd 5) (pair 'type 'socket) (pair 'name ()) (pair 'id 99)))
-      (%lsof-target (list (pair 'fd 6) (pair 'type 'kqueue) (pair 'name ()) (pair 'id ())))
-      (%lsof-target (list (pair 'fd 7) (pair 'type 'file) (pair 'name "/etc/hosts") (pair 'id ()))))
+(list (lsof-target (list (pair 'fd 5) (pair 'type 'socket) (pair 'name ()) (pair 'id 99)))
+      (lsof-target (list (pair 'fd 6) (pair 'type 'kqueue) (pair 'name ()) (pair 'id ())))
+      (lsof-target (list (pair 'fd 7) (pair 'type 'file) (pair 'name "/etc/hosts") (pair 'id ()))))
 ```
 ---
     ("socket:[99]" "kqueue" "/etc/hosts")

@@ -122,7 +122,7 @@ status 1
 ### every pass writes over the same bytes, so three leave the size one does
 
 ```cu
-(do (mk) (run (list "shred" "-n" "1" (w "s1")) "") (run (list "shred" (w "s2")) "") (display (if (= (%cu-stat-get (file-stat-full (w "s1")) (lit size)) (%cu-stat-get (file-stat-full (w "s2")) (lit size))) "the same size\n" "a different size\n")))
+(do (mk) (run (list "shred" "-n" "1" (w "s1")) "") (run (list "shred" (w "s2")) "") (display (if (= (cu-stat-get (file-stat-full (w "s1")) (lit size)) (cu-stat-get (file-stat-full (w "s2")) (lit size))) "the same size\n" "a different size\n")))
 ```
 ---
 ```output

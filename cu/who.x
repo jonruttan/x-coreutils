@@ -13,6 +13,18 @@
 ; resort.  `id -u` and friends need no name at all.
 
 ; the name for a uid: the system's, then the environment, then the number itself
+(module cu/who)
+
+(import cu/cli cu-operands cu-opts cu-usage)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth
+  cu-stdin-to-command! file-stat-full file-write filter host-users host-utmp
+  length map reverse string-append string-concat string=? substring sys-chroot
+  sys-cpu-count sys-exec sys-getegid sys-getenv sys-geteuid sys-getgid
+  sys-getgroups sys-getuid sys-group-name sys-nice sys-uname sys-user-group
+  sys-user-groups sys-user-id sys-user-name)
+(import cu/text cu-join-with cu-num-prefix cu-pad-left cu-pad-right
+  cu-pad-zero)
+
 (def %cu-user-name
   (fn (_ uid)
     (let ((p (sys-user-name uid)))
@@ -22,13 +34,13 @@
             (let ((l (sys-getenv "LOGNAME")))
               (if (not (null? l)) l (cu-int->str uid)))))))))
 
-(def %cu-whoami
+(def cu-whoami
   (fn (_ argv stdin-thunk)
     (cu-operands "whoami" argv 0 0
       (fn (_) (do (display (string-append (%cu-user-name (sys-geteuid)) "\n")) 0)))))
 
 ; logname is the LOGIN name -- the real uid, not the effective one
-(def %cu-logname
+(def cu-logname
   (fn (_ argv stdin-thunk)
     (cu-operands "logname" argv 0 0
       (fn (_)
@@ -65,7 +77,7 @@
                  (if (if (< i end) (if (= (byte-at s i) 32) #t (= (byte-at s i) 9)) #f)
                    (self (+ i 1)) i)))
     (let ((i (blank 0)))
-      (%cu-chown-number
+      (cu-chown-number
         (substring s (if (if (< i end) (= (byte-at s i) 43) #f) (+ i 1) i) end)))))
 
 ; the groups a line of them shows, as id -G and groups show them: the real
@@ -101,7 +113,7 @@
 ; groups [USER]...: the groups of the calling process, by name, or of each USER
 ; after its name and a colon.  A USER is a name -- groups reads no uid -- and
 ; one that is no user is said and passed over.
-(def %cu-groups
+(def cu-groups
   (fn (_ ops stdin-thunk)
     (def line
       (fn (_ who) (cu-join-with (map %cu-group-shown (%cu-group-line who)) " ")))
@@ -127,7 +139,7 @@
 ; as id refuses them.  With no USER, the calling process; each USER, on a line
 ; of its own, is a name or a uid, and one that is neither is said and passed
 ; over.
-(def %cu-id
+(def cu-id
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "id" argv))
     (def n? (Opts on? o "-n"))
@@ -150,7 +162,7 @@
     (if (null? ops) st
       (let ((who (%cu-named-user (first ops) #t)))
         (self (rest ops) field n? r?
-          (%cu-max-status st
+          (cu-max-status st
             (if (null? who)
               (do (file-write 2
                     (string-concat (list "id: '" (first ops) "': no such user\n")))
@@ -204,11 +216,11 @@
 
 ; --- uname, arch, nproc -------------------------------------------------------
 
-(def %cu-uname-field
+(def cu-uname-field
   (fn (_ u key)
     (let ((e (Assoc entry key u))) (if (null? e) "unknown" (rest e)))))
 
-(def %cu-uname
+(def cu-uname
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "uname" argv))
     (cu-operands "uname" (Opts operands o) 0 0 (fn (_) (%cu-uname-run o)))))
@@ -220,7 +232,7 @@
     (def want
       (fn (_ flag key)
         (if (if a? #t (Opts on? o flag))
-          (list (%cu-uname-field u key)) ())))
+          (list (cu-uname-field u key)) ())))
     ; -p -i -o have no door: the processor type and the "operating system"
     ; string are sysctl and a busybox compile-time constant. They answer
     ; `unknown`, as uname does when it cannot tell.
@@ -237,18 +249,18 @@
     (do (display
           (string-append
             (cu-join-with
-              (if (null? parts) (list (%cu-uname-field u (lit sysname))) parts)
+              (if (null? parts) (list (cu-uname-field u (lit sysname))) parts)
               " ")
             "\n"))
         0)))
 
 ; arch is GNU's uname.c built another way, and refuses an operand as uname does
-(def %cu-arch
+(def cu-arch
   (fn (_ argv stdin-thunk)
     (cu-operands "arch" argv 0 0
       (fn (_)
         (do (display
-              (string-append (%cu-uname-field (sys-uname) (lit machine)) "\n"))
+              (string-append (cu-uname-field (sys-uname) (lit machine)) "\n"))
             0)))))
 
 ; nproc: the processors this process may use, which the OpenMP variables
@@ -288,7 +300,7 @@
                   ((= (byte-at s after) 44) (first read))  ; ,
                   (#t 0))))))))))
 
-(def %cu-nproc
+(def cu-nproc
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "nproc" argv))
     (cu-operands "nproc" (Opts operands o) 0 0 (fn (_) (%cu-nproc-run o)))))
@@ -314,7 +326,7 @@
 
 ; nice [-n N] COMMAND: the increment applies to THIS process, which
 ; then becomes the command
-(def %cu-nice
+(def cu-nice
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "nice" argv))
     (def inc (let ((v (Opts value o "-n")))
@@ -327,7 +339,7 @@
           (sys-exec (first cmd) (rest cmd))
           127))))
 
-(def %cu-chroot
+(def cu-chroot
   (fn (_ argv stdin-thunk)
     (if (null? argv)
       (do (file-write 2 "chroot: missing operand\n") 1)
@@ -347,9 +359,9 @@
 ; the utmpx database's (host-users, cu/prims.x): each of type USER_PROCESS
 ; with a user name, and with who -a every entry with a user name, whatever
 ; its type (host-utmp).  w is who with its header; users prints the names alone.
-(def %cu-who (fn (_ argv stdin-thunk) (%wh-run "who" argv)))
-(def %cu-w (fn (_ argv stdin-thunk) (%wh-run "w" argv)))
-(def %cu-users (fn (_ argv stdin-thunk) (%wh-run "users" argv)))
+(def cu-who (fn (_ argv stdin-thunk) (%wh-run "who" argv)))
+(def cu-w (fn (_ argv stdin-thunk) (%wh-run "w" argv)))
+(def cu-users (fn (_ argv stdin-thunk) (%wh-run "users" argv)))
 
 (def %wh-run
   (fn (_ applet argv)
@@ -386,10 +398,10 @@
               (if (if (> (byte-len tty) 0) (= (byte-at tty 0) #\/) #f) tty
                 (string-append "/dev/" tty))))
     (if (null? st) "?"
-      (let ((t (- (date-now-unix) (%cu-stat-get st (lit atime)))))
+      (let ((t (- (date-now-unix) (cu-stat-get st (lit atime)))))
         (if (if (>= t 0) (< t 86400) #f)
-          (string-concat (list (cu-pad-zero (cu-int->str (%ps-div t 3600)) 2) ":"
-                               (cu-pad-zero (cu-int->str (%ps-div (% t 3600) 60)) 2)))
+          (string-concat (list (cu-pad-zero (cu-int->str (ps-div t 3600)) 2) ":"
+                               (cu-pad-zero (cu-int->str (ps-div (% t 3600) 60)) 2)))
           "old")))))
 
 ; ctime's fields from the month to the seconds, as `ctime(&t) + 4` shows
@@ -400,6 +412,9 @@
     (def d (Date local t))
     (def two (fn (_ k) (cu-pad-zero (cu-int->str (Assoc get k d)) 2)))
     (string-concat
-      (list (cu-nth (- (Assoc get (lit month) d) 1) %cu-date-mon-abbr)
+      (list (cu-nth (- (Assoc get (lit month) d) 1) cu-date-mon-abbr)
             (cu-pad-left (cu-int->str (Assoc get (lit day) d)) 3) " "
             (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second))))))
+
+(provide cu/who cu-arch cu-chroot cu-groups cu-id cu-logname cu-nice cu-nproc
+  cu-uname cu-uname-field cu-users cu-w cu-who cu-whoami)

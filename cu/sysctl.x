@@ -14,6 +14,15 @@
 ; lines from FILEs, /etc/sysctl.conf by default.  An unknown key is said
 ; unless -e.
 
+(module cu/sysctl)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-at byte-len cu-lines cu-sweep-lines cu-sweep-tick!
+  file-close file-dir? file-err-sym file-err-text file-exists? file-list-dir
+  file-open-err file-open-read file-open-write file-or-err file-read-all
+  file-read-to-end file-write map reverse string-append string-concat string=?
+  substring)
+
 (def %sy-root "/proc/sys/")
 
 (def %sy-say (fn (_ msg) (file-write 2 (string-append "sysctl: " msg "\n"))))
@@ -22,7 +31,7 @@
 ; A tab stands in for the dots on the way, as no key holds one.
 (def %sy-swap
   (fn (_ s)
-    (if (= (%dp-find s 0 #\.) -1) (Str8 replace "/" "." s)
+    (if (= (dp-find s 0 #\.) -1) (Str8 replace "/" "." s)
       (Str8 replace "\t" "/" (Str8 replace "/" "." (Str8 replace "." "\t" s))))))
 
 ; sysctl_dots_to_slashes: NAME, a key up to its =, as the path of a file
@@ -32,11 +41,11 @@
 ; eth0.100 stays one name where net/ipv4/conf/eth0.100 is a directory.
 (def %sy-path
   (fn (_ name)
-    (def eq (let ((i (%dp-find name 0 #\=))) (if (< i 0) (byte-len name) i)))
+    (def eq (let ((i (dp-find name 0 #\=))) (if (< i 0) (byte-len name) i)))
     (def key (substring name 0 eq))
     (def tail (substring name eq (byte-len name)))
-    (def slash (%dp-find key 0 #\/))
-    (def dot (%dp-find key 0 #\.))
+    (def slash (dp-find key 0 #\/))
+    (def dot (dp-find key 0 #\.))
     (if (if (>= slash 0) (if (>= dot 0) (< dot slash) #f) #f)
       (string-append (%sy-swap key) tail)
       (string-append (%sy-dots key) tail))))
@@ -70,7 +79,7 @@
   (fn (_ o setting)
     ; a key read or written leaves tens of thousands of objects
     (cu-sweep-tick! cu-sweep-lines)
-    (def eq (%dp-find setting 0 #\=))
+    (def eq (dp-find setting 0 #\=))
     (def writing (if (>= eq 0) #t (Opts on? o "-w")))
     (def name (if (>= eq 0) (substring setting 0 eq) setting))
     (def out (%sy-swap (if writing name setting)))
@@ -108,7 +117,7 @@
 (def %sy-lines
   (fn (self text lead)
     (unless (= (byte-len text) 0)
-      (let ((nl (%dp-find text 0 #\newline)))
+      (let ((nl (dp-find text 0 #\newline)))
         (if (< nl 0) (file-write 1 (string-append lead text))
           (do (file-write 1 (string-append lead (substring text 0 (+ nl 1))))
               (self (substring text (+ nl 1) (byte-len text)) lead)))))))
@@ -117,7 +126,7 @@
 ; or one setting; #t where every one went well
 (def %sy-walk
   (fn (self o path)
-    (if (if (Opts on? o "-w") #f (if (>= (%dp-find path 0 #\=) 0) #f (file-dir? (string-append %sy-root path))))
+    (if (if (Opts on? o "-w") #f (if (>= (dp-find path 0 #\=) 0) #f (file-dir? (string-append %sy-root path))))
       ; File list-dir answers the entries last first; the kernel's order is the
       ; other way round
       (let ((names (reverse (guard (_ ()) (file-list-dir (string-append %sy-root path))))))
@@ -134,24 +143,24 @@
       (if (Err err? text)
         (do (%sy-say (string-concat (list file ": " (file-err-text text)))) #f)
         (do (map (fn (_ line)
-                   (let ((t (%sy-trim line)))
+                   (let ((t (sy-trim line)))
                      (unless (if (= (byte-len t) 0) #t (if (= (byte-at t 0) #\#) #t (= (byte-at t 0) #\;)))
-                       (let ((eq (%dp-find t 0 #\=)))
+                       (let ((eq (dp-find t 0 #\=)))
                          (unless (< eq 0)
-                           (%sy-setting o (string-append (%sy-path (%sy-trim (substring t 0 eq))) "="
-                                                         (%sy-trim (substring t (+ eq 1) (byte-len t))))))))))
+                           (%sy-setting o (string-append (%sy-path (sy-trim (substring t 0 eq))) "="
+                                                         (sy-trim (substring t (+ eq 1) (byte-len t))))))))))
                  (cu-lines text))
             #t)))))
 
 (def %sy-space? (fn (_ c) (if (= c #\space) #t (= c #\tab))))
 
-(def %sy-trim
+(def sy-trim
   (fn (_ s)
     (def a (let go ((i 0)) (if (if (< i (byte-len s)) (%sy-space? (byte-at s i)) #f) (go (+ i 1)) i)))
     (def b (let go ((j (byte-len s))) (if (if (> j a) (%sy-space? (byte-at s (- j 1))) #f) (go (- j 1)) j)))
     (substring s a b)))
 
-(def %cu-sysctl
+(def cu-sysctl
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "sysctl" argv))
     (def ops (Opts operands o))
@@ -162,3 +171,5 @@
       (#t (let go ((ks ops) (ok #t))
             (if (null? ks) (if ok 0 1)
               (go (rest ks) (if (%sy-walk o (%sy-path (first ks))) ok #f))))))))
+
+(provide cu/sysctl cu-sysctl sy-trim)

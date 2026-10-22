@@ -43,8 +43,8 @@
     (def text (guard (e (Err raise (lit io) (string-concat (list "can't read '" pem "': " (%wget-err-text e))) ()))
                 (file-read-all pem)))
     (def session (Tls13 accept 0 1 (list (pair (lit pem) text))))
-    (def prog (%sc-run-prog %ss-say argv))
-    (%sc-copy session 0 (first prog) (rest prog) #t #t)
+    (def prog (sc-run-prog %ss-say argv))
+    (sc-copy session 0 (first prog) (rest prog) #t #t)
     0))
 
 (provide cu/sslserver cu-ssl-server)

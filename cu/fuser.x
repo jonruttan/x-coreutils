@@ -19,13 +19,21 @@
 ; gzip takes its digits, since a dash and a digit reads to the parse as a
 ; number.  (SIGNO FAMILIES ARGV): SIGNO nil when no word names one, FAMILIES
 ; the digits given (#\4, #\6), ARGV the words left for the parse.
-(def %fu-args
+(module cu/fuser)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims append byte-at byte-len cu-int->str cu-sigkill file-stat-full
+  file-write filter host-files-of host-holders host-processes map reverse
+  set-first! string-append string-concat substring sys-getpid)
+(import cu/text cu-num-prefix)
+
+(def fu-args
   (fn (_ argv)
     (def digit? (fn (_ c) (if (= c #\4) #t (= c #\6))))
     ; WORD's bytes past the dash when it is a cluster with a 4 or a 6 in it
     (def cluster
       (fn (_ w)
-        (def bs (if (> (byte-len w) 1) (if (= (byte-at w 0) #\-) (rest (%gz-word-bytes w)) ()) ()))
+        (def bs (if (> (byte-len w) 1) (if (= (byte-at w 0) #\-) (rest (gz-word-bytes w)) ()) ()))
         (if (if (null? bs) #t (= (first bs) #\-)) () (if (List any? digit? bs) bs ()))))
     (def go
       (fn (self ws sig fams acc)
@@ -37,8 +45,8 @@
                 (let ((left (filter (fn (_ c) (not (digit? c))) bs)))
                   (self (rest ws) sig (append (filter digit? bs) fams)
                         (if (null? left) acc (pair (bytes->str (pair #\- left)) acc)))))
-              ((if (null? sig) (not (null? (%pg-signal-word ws))) #f)
-                (self (rest ws) (%pg-signal-word ws) fams acc))
+              ((if (null? sig) (not (null? (pg-signal-word ws))) #f)
+                (self (rest ws) (pg-signal-word ws) fams acc))
               (#t (self (rest ws) sig fams (pair w acc))))))))
     (go argv () () ())))
 
@@ -57,7 +65,7 @@
     (def digits (fn (self i) (if (if (< i n) (if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f) #f) (self (+ i 1)) i)))
     (def d (digits 0))
     (if (if (> d 0) (if (< d n) (= (byte-at s d) #\/) #f) #f)
-      (let ((name (%pg-head (substring s (+ d 1) n) 4)))
+      (let ((name (pg-head (substring s (+ d 1) n) 4)))
         (def hit (List find (fn (_ p) (str=? (first p) name)) %fu-protocols))
         (if (null? hit) () (pair (cu-num-prefix (substring s 0 d)) (rest hit))))
       ())))
@@ -97,9 +105,9 @@
         (List any? (fn (_ w) (if (%fu-same? (first w) (first id)) (if mount? #t (%fu-same? (rest w) (rest id))) #f)) ids)))
     (filter (fn (_ pid) (do (%top-sweep-if-due!) (List any? hit? (host-files-of pid (list (lit fd)))))) pids)))
 
-(def %cu-fuser
+(def cu-fuser
   (fn (_ argv stdin-thunk)
-    (def args (%fu-args argv))
+    (def args (fu-args argv))
     (def signo (if (null? (first args)) cu-sigkill (first args)))
     (def o (cu-opts "fuser" argv))
     (def ops (Opts operands o))
@@ -118,7 +126,7 @@
           ((not (null? port)) (self (rest ops) (pair (pair (lit port) port) acc)))
           ((null? (file-stat-full (first ops)))
             (do (file-write 2 (string-concat (list "fuser: can't stat '" (first ops) "': "
-                                                   (%tar-why (lit stat) (first ops)) "\n")))
+                                                   (tar-why (lit stat) (first ops)) "\n")))
                 #f))
           (#t (self (rest ops) (pair (pair (lit file) (first ops)) acc))))))))
 
@@ -131,7 +139,7 @@
     (def ports (filter (fn (_ w) (eq? (first w) (lit port))) wanted))
     (def pids (if (null? ports) ()
                 (filter (fn (_ pid) (not (= pid me)))
-                  (map (fn (_ p) (Assoc get (lit pid) p)) (%ps-sorted (host-processes))))))
+                  (map (fn (_ p) (Assoc get (lit pid) p)) (ps-sorted (host-processes))))))
     (def ids (List flat-map (fn (_ w) (let ((p (rest w))) (%fu-sockets fams pids (first p) (first (rest p)) (first (rest (rest p)))))) ports))
     (def held
       (List flat-map (fn (_ w) (if (eq? (first w) (lit file)) (host-holders (rest w) mount?) ())) wanted))
@@ -147,7 +155,7 @@
     (map (fn (_ pid)
            (do (if (if (Opts on? o "-k") (< (sys-kill pid signo) 0) #f)
                  (do (file-write 2 (string-concat (list "fuser: kill pid " (cu-int->str pid) ": "
-                                                        (%tar-why (lit kill) (cu-int->str pid)) "\n")))
+                                                        (tar-why (lit kill) (cu-int->str pid)) "\n")))
                      (set-first! failed #t))
                  ())
                (if (Opts on? o "-s") () (display (string-append (cu-int->str pid) " ")))))
@@ -156,3 +164,5 @@
       ((null? pids) 1)
       (#t (do (if (Opts on? o "-s") () (display "\n"))
               (if (first failed) 1 0))))))
+
+(provide cu/fuser cu-fuser fu-args)

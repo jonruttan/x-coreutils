@@ -141,7 +141,7 @@ same
 ### a regular file has no device type; %D is %d in hex; a birth precedes a modify
 
 ```cu
-(do (def w (words (cu-sf (list "stat" "-c" "%t %T %r %R %d %D %W %Y %f" "/tmp/x-cu-st/f")))) (display (cu-join-with (%cu-take w 4) " ")) (newline) (display (if (string=? (cu-hexs (cu-num-prefix (cu-nth 4 w))) (cu-nth 5 w)) "hex" "no")) (newline) (display (if (<= (cu-num-prefix (cu-nth 6 w)) (cu-num-prefix (cu-nth 7 w))) "ordered" "no")) (newline) (display (cu-nth 8 w)))
+(do (def w (words (cu-sf (list "stat" "-c" "%t %T %r %R %d %D %W %Y %f" "/tmp/x-cu-st/f")))) (display (cu-join-with (cu-take w 4) " ")) (newline) (display (if (string=? (cu-hexs (cu-num-prefix (cu-nth 4 w))) (cu-nth 5 w)) "hex" "no")) (newline) (display (if (<= (cu-num-prefix (cu-nth 6 w)) (cu-num-prefix (cu-nth 7 w))) "ordered" "no")) (newline) (display (cu-nth 8 w)))
 ```
 ---
 ```output
@@ -154,7 +154,7 @@ ordered
 ### the default block names the device as major,minor and pads the inode
 
 ```cu
-(do (def l3 (cu-nth 2 (cu-lines (cu-sf (list "stat" "/tmp/x-cu-st/f"))))) (display (substring l3 0 8)) (newline) (display (if (null? (filter (fn (_ w) (string=? w "Inode:")) (cu-words-line l3))) "no" "Inode:")) (newline) (display (%cu-last (cu-words-line l3))))
+(do (def l3 (cu-nth 2 (cu-lines (cu-sf (list "stat" "/tmp/x-cu-st/f"))))) (display (substring l3 0 8)) (newline) (display (if (null? (filter (fn (_ w) (string=? w "Inode:")) (cu-words-line l3))) "no" "Inode:")) (newline) (display (cu-last (cu-words-line l3))))
 ```
 ---
 ```output
@@ -192,7 +192,7 @@ File:|ID:|Block|Blocks:|Inodes:
 ### df -T puts the type stat -f names after the filesystem
 
 ```cu
-(do (def out (cu-sf (list "df" "-T" "/tmp/x-cu-st"))) (def hdr (first (cu-lines out))) (def row (cu-nth 1 (cu-lines out))) (display (cu-join-with (%cu-take (cu-words-line hdr) 3) " ")) (newline) (display (if (string=? (cu-nth 1 (cu-words-line row)) (first (words (cu-sf (list "stat" "-f" "-c" "%T" "/tmp/x-cu-st"))))) "same type" "differ")) (newline) (display (cu-join-with (%cu-take (cu-words-line (first (cu-lines (cu-sf (list "df" "/tmp/x-cu-st"))))) 2) " ")))
+(do (def out (cu-sf (list "df" "-T" "/tmp/x-cu-st"))) (def hdr (first (cu-lines out))) (def row (cu-nth 1 (cu-lines out))) (display (cu-join-with (cu-take (cu-words-line hdr) 3) " ")) (newline) (display (if (string=? (cu-nth 1 (cu-words-line row)) (first (words (cu-sf (list "stat" "-f" "-c" "%T" "/tmp/x-cu-st"))))) "same type" "differ")) (newline) (display (cu-join-with (cu-take (cu-words-line (first (cu-lines (cu-sf (list "df" "/tmp/x-cu-st"))))) 2) " ")))
 ```
 ---
 ```output
@@ -214,7 +214,7 @@ Filesystem 1K-blocks
 ### fixtures
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-mt && mkdir -p /tmp/x-cu-mt/deep/er")) (def cu-mt (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-mt/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-mt/.cap")))))) (def lines (fn (_ argv) (filter (fn (_ l) (> (byte-len l) 0)) (cu-lines (cu-mt argv))))) (def last-word (fn (_ l) (%cu-last (cu-words-line l)))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-mt && mkdir -p /tmp/x-cu-mt/deep/er")) (def cu-mt (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-mt/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-mt/.cap")))))) (def lines (fn (_ argv) (filter (fn (_ l) (> (byte-len l) 0)) (cu-lines (cu-mt argv))))) (def last-word (fn (_ l) (cu-last (cu-words-line l)))) (display "made"))
 ```
 ---
     made
@@ -245,7 +245,7 @@ no dashes
 ### an operand is reported on the mount it sits on, not by its own path
 
 ```cu
-(do (def row (cu-nth 1 (lines (list "df" "/tmp/x-cu-mt/deep/er")))) (def on (last-word row)) (display (if (string=? on "/tmp/x-cu-mt/deep/er") "the path" "a mount point")) (newline) (display (if (string=? (substring (%cu-realpath-of "/tmp/x-cu-mt/deep/er") 0 (byte-len on)) on) "which contains it" "elsewhere")))
+(do (def row (cu-nth 1 (lines (list "df" "/tmp/x-cu-mt/deep/er")))) (def on (last-word row)) (display (if (string=? on "/tmp/x-cu-mt/deep/er") "the path" "a mount point")) (newline) (display (if (string=? (substring (cu-realpath-of "/tmp/x-cu-mt/deep/er") 0 (byte-len on)) on) "which contains it" "elsewhere")))
 ```
 ---
 ```output

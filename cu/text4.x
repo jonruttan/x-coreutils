@@ -51,7 +51,7 @@
       (def cut (if (= from 0) after-fields (substring after-fields from end)))
       (def sized (if (< width 0) cut
                    (if (> width (byte-len cut)) cut (substring cut 0 width))))
-      (if fold? (%sort-fold sized) sized))))
+      (if fold? (sort-fold sized) sized))))
 
 ; -d prints only what repeated, -u only what did not; neither is both
 (def %uniq-show?
@@ -150,7 +150,7 @@
 (def %nl-format
   (fn (_ style width)
     (match
-      ((string=? style "ln") (fn (_ n) (%cu-pad (cu-int->str n) width #t)))
+      ((string=? style "ln") (fn (_ n) (cu-pad (cu-int->str n) width #t)))
       ((string=? style "rz") (fn (_ n) (cu-pad-zero (cu-int->str n) width)))
       (#t (fn (_ n) (cu-pad-left (cu-int->str n) width))))))
 

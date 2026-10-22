@@ -10,7 +10,7 @@ starting mode.
 ### a scratch directory, and readers that set a mode and show what came of it
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-md && mkdir -p /tmp/x-cu-md")) (def shown (fn (_ p st) (do (display (%cu-oct->str (bit-and (%cu-stat-get (file-stat-full p) (lit mode)) 4095))) (display " status ") (display st) (newline)))) (def mf (fn (_ start mode) (do (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -f /tmp/x-cu-md/f && : > /tmp/x-cu-md/f && chmod " start " /tmp/x-cu-md/f")))) (shown "/tmp/x-cu-md/f" (cu-run (list "chmod" mode "/tmp/x-cu-md/f") ""))))) (def md (fn (_ start mode) (do (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -rf /tmp/x-cu-md/d && mkdir /tmp/x-cu-md/d && chmod " start " /tmp/x-cu-md/d")))) (shown "/tmp/x-cu-md/d" (cu-run (list "chmod" mode "/tmp/x-cu-md/d") ""))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-md && mkdir -p /tmp/x-cu-md")) (def shown (fn (_ p st) (do (display (cu-oct->str (bit-and (cu-stat-get (file-stat-full p) (lit mode)) 4095))) (display " status ") (display st) (newline)))) (def mf (fn (_ start mode) (do (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -f /tmp/x-cu-md/f && : > /tmp/x-cu-md/f && chmod " start " /tmp/x-cu-md/f")))) (shown "/tmp/x-cu-md/f" (cu-run (list "chmod" mode "/tmp/x-cu-md/f") ""))))) (def md (fn (_ start mode) (do (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -rf /tmp/x-cu-md/d && mkdir /tmp/x-cu-md/d && chmod " start " /tmp/x-cu-md/d")))) (shown "/tmp/x-cu-md/d" (cu-run (list "chmod" mode "/tmp/x-cu-md/d") ""))))) (display "made"))
 ```
 ---
     made
@@ -121,7 +121,7 @@ The umask is this run's, so the case says what it means rather than a number:
 a+w grants w to everyone, and +w grants only what the umask leaves.
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -f /tmp/x-cu-md/f && : > /tmp/x-cu-md/f && chmod 644 /tmp/x-cu-md/f")) (cu-run (list "chmod" "+w" "/tmp/x-cu-md/f") "") (display (= (bit-and (%cu-stat-get (file-stat-full "/tmp/x-cu-md/f") (lit mode)) 4095) (bit-or 420 (bit-and 146 (bit-xor (bit-and (sys-umask) 511) 4095))))) (newline) (proc-run (list "/bin/sh" "-c" "chmod 644 /tmp/x-cu-md/f")) (cu-run (list "chmod" "a+w" "/tmp/x-cu-md/f") "") (display (%cu-oct->str (bit-and (%cu-stat-get (file-stat-full "/tmp/x-cu-md/f") (lit mode)) 4095))) (newline))
+(do (proc-run (list "/bin/sh" "-c" "rm -f /tmp/x-cu-md/f && : > /tmp/x-cu-md/f && chmod 644 /tmp/x-cu-md/f")) (cu-run (list "chmod" "+w" "/tmp/x-cu-md/f") "") (display (= (bit-and (cu-stat-get (file-stat-full "/tmp/x-cu-md/f") (lit mode)) 4095) (bit-or 420 (bit-and 146 (bit-xor (bit-and (sys-umask) 511) 4095))))) (newline) (proc-run (list "/bin/sh" "-c" "chmod 644 /tmp/x-cu-md/f")) (cu-run (list "chmod" "a+w" "/tmp/x-cu-md/f") "") (display (cu-oct->str (bit-and (cu-stat-get (file-stat-full "/tmp/x-cu-md/f") (lit mode)) 4095))) (newline))
 ```
 ---
 ```output

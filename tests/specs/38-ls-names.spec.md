@@ -25,7 +25,7 @@ A device number is packed as the platform packs it, so it is made from its
 major and minor here.
 
 ```cu
-(do (def lsf-dev (fn (_ ma mi) (if os-darwin? (+ (* ma 16777216) mi) (+ (* ma 256) mi)))) (def lsf (fn (_ name ty mode ino blocks uid gid size rdev) (list name "/nowhere" (list (pair (lit file-type) ty) (pair (lit mode) mode) (pair (lit ino) ino) (pair (lit blocks) blocks) (pair (lit nlink) 1) (pair (lit uid) uid) (pair (lit gid) gid) (pair (lit size) size) (pair (lit rdev) rdev) (pair (lit mtime) 981173100))))) (def lsf-all (list (lsf "big" (lit file) 420 2 16 77777 88888 5000 0) (lsf "noname" (lit file) 420 3 0 77777 88888 0 0) (lsf "wide" (lit file) 420 4 0 1234567890 4321 0 0))) (def lsf-devs (list (lsf "null" (lit char) 438 5 0 0 0 0 (lsf-dev 1 3)) (lsf "sda" (lit block) 420 6 0 0 0 0 (lsf-dev 8 0)))) (def lsf-show (fn (_ flags es) (let ((o (cu-opts "ls" flags))) (do (map (fn (_ e) (do (display (%ls-cell e o (date-now-unix))) (newline))) es) ())))) (display "made"))
+(do (def lsf-dev (fn (_ ma mi) (if os-darwin? (+ (* ma 16777216) mi) (+ (* ma 256) mi)))) (def lsf (fn (_ name ty mode ino blocks uid gid size rdev) (list name "/nowhere" (list (pair (lit file-type) ty) (pair (lit mode) mode) (pair (lit ino) ino) (pair (lit blocks) blocks) (pair (lit nlink) 1) (pair (lit uid) uid) (pair (lit gid) gid) (pair (lit size) size) (pair (lit rdev) rdev) (pair (lit mtime) 981173100))))) (def lsf-all (list (lsf "big" (lit file) 420 2 16 77777 88888 5000 0) (lsf "noname" (lit file) 420 3 0 77777 88888 0 0) (lsf "wide" (lit file) 420 4 0 1234567890 4321 0 0))) (def lsf-devs (list (lsf "null" (lit char) 438 5 0 0 0 0 (lsf-dev 1 3)) (lsf "sda" (lit block) 420 6 0 0 0 0 (lsf-dev 8 0)))) (def lsf-show (fn (_ flags es) (let ((o (cu-opts "ls" flags))) (do (map (fn (_ e) (do (display (ls-cell e o (date-now-unix))) (newline))) es) ())))) (display "made"))
 ```
 ---
     made
@@ -134,7 +134,7 @@ halves; elsewhere ls says them as `MAJOR, MINOR`.
 ### each id is looked up once in a run
 
 ```cu
-(do (set-first! %ls-user-cell ()) (cap (list "ls" "-l" (ln "f") "/etc/hosts" (ln "f") "/etc/hosts")) (display (= (length (first %ls-user-cell)) (if (string=? (said ".fu") (said ".hu")) 1 2))))
+(do (set-first! ls-user-cell ()) (cap (list "ls" "-l" (ln "f") "/etc/hosts" (ln "f") "/etc/hosts")) (display (= (length (first ls-user-cell)) (if (string=? (said ".fu") (said ".hu")) 1 2))))
 ```
 ---
     #t
