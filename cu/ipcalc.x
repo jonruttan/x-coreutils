@@ -36,9 +36,9 @@
 (def %ic-ntoa
   (fn (_ v)
     (string-concat
-      (list (cu-int->str (% (%wget-div v 16777216) 256)) "."
-            (cu-int->str (% (%wget-div v 65536) 256)) "."
-            (cu-int->str (% (%wget-div v 256) 256)) "."
+      (list (cu-int->str (% (wget-div v 16777216) 256)) "."
+            (cu-int->str (% (wget-div v 65536) 256)) "."
+            (cu-int->str (% (wget-div v 256) 256)) "."
             (cu-int->str (% v 256))))))
 
 ; the netmask of an address's class: C for 11..., B for 10..., A for 0...
@@ -49,10 +49,10 @@
            (#t 4278190080))))
 
 (def %ic-prefix-mask
-  (fn (_ n) (let go ((k n) (bit 2147483648) (m 0)) (if (= k 0) m (go (- k 1) (%wget-div bit 2) (+ m bit))))))
+  (fn (_ n) (let go ((k n) (bit 2147483648) (m 0)) (if (= k 0) m (go (- k 1) (wget-div bit 2) (+ m bit))))))
 
 (def %ic-popcount
-  (fn (_ v) (let go ((v v) (n 0)) (if (= v 0) n (go (%wget-div v 2) (+ n (% v 2)))))))
+  (fn (_ v) (let go ((v v) (n 0)) (if (= v 0) n (go (wget-div v 2) (+ n (% v 2)))))))
 
 ; xatoul_range: S as 0..32 or the run ends as busybox's ends it
 (def %ic-prefix
@@ -68,13 +68,13 @@
   (fn (_ ip)
     (def f (cu-dlsym (cu-dlopen () 1) "gethostbyaddr"))
     (def buf (str-make-raw 4))
-    (cu-ptr-set! (cu-str->ptr buf) 0 (% (%wget-div ip 16777216) 256) 1)
-    (cu-ptr-set! (cu-str->ptr buf) 1 (% (%wget-div ip 65536) 256) 1)
-    (cu-ptr-set! (cu-str->ptr buf) 2 (% (%wget-div ip 256) 256) 1)
+    (cu-ptr-set! (cu-str->ptr buf) 0 (% (wget-div ip 16777216) 256) 1)
+    (cu-ptr-set! (cu-str->ptr buf) 1 (% (wget-div ip 65536) 256) 1)
+    (cu-ptr-set! (cu-str->ptr buf) 2 (% (wget-div ip 256) 256) 1)
     (cu-ptr-set! (cu-str->ptr buf) 3 (% ip 256) 1)
     (def r (if (null? f) 0 (cu-ptr-call f (cu-str->ptr buf) 4 2)))
     (if (= r 0) ()
-      (%wget-lower (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0)))))))
+      (wget-lower (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0)))))))
 
 (def cu-ipcalc
   (fn (_ argv stdin-thunk)
@@ -96,7 +96,7 @@
 (def %ic-run
   (fn (_ on? ops)
     (def arg (first ops))
-    (def slash (%wget-index arg #\/ 0))
+    (def slash (wget-index arg #\/ 0))
     (def ipstr (if (null? slash) arg (substring arg 0 slash)))
     (def pstr (if (null? slash) "" (substring arg (+ slash 1) (byte-len arg))))
     (def pmask (if (= (byte-len pstr) 0) () (%ic-prefix-mask (%ic-prefix pstr))))

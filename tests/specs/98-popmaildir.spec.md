@@ -24,7 +24,7 @@ a message file shown as tmp/NAME or new/NAME.
   (def pm-f (fn (_ n) (string-append "/tmp/x-cu-pop/" n)))
   (def pm-lines (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def pm-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))

@@ -57,7 +57,7 @@
                     %dl-file (rest (Assoc entry (lit values) o)))))
         (let ((fd (file-open-or-err file-open-read file)))
           (if (Err err? fd)
-            (do (file-write 2 (string-concat (list "dumpleases: can't open '" file "': " (%wget-err-text fd) "\n"))) 1)
+            (do (file-write 2 (string-concat (list "dumpleases: can't open '" file "': " (wget-err-text fd) "\n"))) 1)
             (%dl-show fd (%dl-on? o "-a" "--absolute") (%dl-on? o "-d" "--decimal"))))))))
 
 (def %dl-show
@@ -94,9 +94,9 @@
 ; [D days ]HH:MM:SS
 (def %dl-left
   (fn (_ s)
-    (def d (%wget-div s 86400))
+    (def d (wget-div s 86400))
     (def r (% s 86400))
     (string-append (if (> d 0) (string-append (cu-int->str d) " days ") "")
-                   (string-concat (list (%dl-2 (%wget-div r 3600)) ":" (%dl-2 (%wget-div (% r 3600) 60)) ":" (%dl-2 (% r 60)))))))
+                   (string-concat (list (%dl-2 (wget-div r 3600)) ":" (%dl-2 (wget-div (% r 3600) 60)) ":" (%dl-2 (% r 60)))))))
 
 (provide cu/dumpleases cu-dumpleases)

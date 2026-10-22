@@ -49,7 +49,7 @@
 (def %pm-getline
   (fn (_)
     (let go ((acc ()))
-      (let ((c (%mm-getc)))
+      (let ((c (mm-getc)))
         (match ((null? c) (if (null? acc) () (bytes->str (reverse acc))))
                ((= c #\newline) (bytes->str (reverse acc)))
                (#t (go (pair c acc))))))))
@@ -59,7 +59,7 @@
 (def %pm-get-crlf
   (fn (_)
     (let go ((acc ()))
-      (let ((c (%mm-getc)))
+      (let ((c (mm-getc)))
         (match ((null? c) (if (null? acc) () (bytes->str (reverse acc))))
                ((if (= c #\newline) (if (pair? acc) (= (first acc) #\return) #f) #f) (bytes->str (reverse (pair c acc))))
                (#t (go (pair c acc))))))))
@@ -82,15 +82,15 @@
     (set! %pm-alarm? #f)
     (if (match ((null? answer) #f) ((= (byte-len answer) 0) #f) (#t (= (byte-at answer 0) #\+)))
       (%pm-skip4 answer)
-      (do (%sm-helper-check)
+      (do (sm-helper-check)
           (%pm-die (string-concat (list (if (null? msg) "(null)" msg) " failed, reply was: " (if (null? answer) "(null)" answer))))))))
 
 ; atoi: the leading number of S, past spaces and a plus
 (def %pm-atoi
   (fn (_ s)
     (def n (byte-len s))
-    (def i (let go ((i 0)) (if (if (< i n) (%sm-space? (byte-at s i)) #f) (go (+ i 1)) i)))
-    (%sm-atoi (substring s (if (if (< i n) (= (byte-at s i) #\+) #f) (+ i 1) i) n))))
+    (def i (let go ((i 0)) (if (if (< i n) (sm-space? (byte-at s i)) #f) (go (+ i 1)) i)))
+    (sm-atoi (substring s (if (if (< i n) (= (byte-at s i) #\+) #f) (+ i 1) i) n))))
 
 ; --- the login --------------------------------------------------------------------
 
@@ -104,8 +104,8 @@
         (let ((r (guard (_ (pair "" 0)) (file-read-run 0 1))))
           (def b (if (= (rest r) 0) () (cu-ptr-ref (cu-str->ptr (first r)) 0 1)))
           (match ((null? b) (if (null? acc) () (bytes->str (reverse acc))))
-                 ((%wget-memv b (list #\newline #\return)) (bytes->str (reverse acc)))
-                 ((%wget-memv b (list 8 127)) (go (if (null? acc) acc (rest acc))))
+                 ((wget-memv b (list #\newline #\return)) (bytes->str (reverse acc)))
+                 ((wget-memv b (list 8 127)) (go (if (null? acc) acc (rest acc))))
                  (#t (go (pair b acc)))))))
     (Term restore! 0 saved)
     (file-write 1 "\n")
@@ -125,7 +125,7 @@
 (def %pm-login!
   (fn (_ buf cred apop?)
     (if (match ((not apop?) #f) ((= (byte-len buf) 0) #f) (#t (= (byte-at buf 0) #\<)))
-      (let ((gt (%wget-index buf #\> 0)))
+      (let ((gt (wget-index buf #\> 0)))
         (let ((stamp (if (null? gt) buf (substring buf 0 (+ gt 1)))))
           (%pm-check (string-concat (list "APOP " (first cred) " " (cu-md5 (string-append stamp (rest cred))))))))
       (do (%pm-check (string-append "USER " (first cred)))
@@ -148,11 +148,11 @@
                 (sys-exit 127)))))
     (sys-close (first to))
     (sys-close (rest from))
-    (set! %sm-helper pid)
+    (sm-helper-pid! pid)
     (set! %pm-rd (first from))
     (set! %pm-wr (rest to))
-    (set! %mm-thunk (%pm-source (fn (_ k) (guard (_ (pair "" 0)) (file-read-run %pm-rd 4096)))))
-    (set-first! %mm-in ())))
+    (mm-source! (%pm-source (fn (_ k) (guard (_ (pair "" 0)) (file-read-run %pm-rd 4096)))))
+    (set-first! mm-in ())))
 
 ; popen(PROG, "w"): sh -c PROG on a pipe, $FILENAME set, its stdout the
 ; server's as busybox's is; (FD . PID)
@@ -190,7 +190,7 @@
   (fn (_ name)
     (def target (string-append "new" (substring name 3 (byte-len name))))
     (def r (guard (e e) (file-rename name target)))
-    (def why (match ((Err err? r) (%wget-err-text r))
+    (def why (match ((Err err? r) (wget-err-text r))
                     ((not (number? r)) ())
                     ((< r 0) (tar-why (lit rename) name))
                     (#t ())))
@@ -209,7 +209,7 @@
       (let ((d (%pm-deliver delivery name)))
         (do (%pm-copy (first d)) (sys-close (first d)) (sys-wait (rest d)) #t))
       (let ((fd (let ((r (guard (e e) (File open name (list (lit wronly) (lit creat) (lit trunc)) 438))))
-                  (match ((Err err? r) (%pm-die (string-concat (list "can't open '" name "': " (%wget-err-text r)))))
+                  (match ((Err err? r) (%pm-die (string-concat (list "can't open '" name "': " (wget-err-text r)))))
                          ((< r 0) (%pm-die (string-concat (list "can't open '" name "': " (tar-why (lit open) name)))))
                          (#t r)))))
         (do (%pm-copy fd)
@@ -240,9 +240,9 @@
     (set! %pm-wr 1)
     (set! %pm-rd 0)
     (set! %pm-alarm? #f)
-    (set! %sm-helper -1)
-    (set! %mm-thunk (%pm-source stdin-thunk))
-    (set-first! %mm-in ())
+    (sm-helper-pid! -1)
+    (mm-source! (%pm-source stdin-thunk))
+    (set-first! mm-in ())
     (def cred (if (Opts on? o "-s") () (%pm-cred)))
     (when (< (Sys chdir (first ops)) 0)
       (%pm-die (string-concat (list "can't change directory to '" (first ops) "': " (tar-why (lit chdir) (first ops))))))

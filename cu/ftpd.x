@@ -65,7 +65,7 @@
 (def %fd-log
   (fn (_ s)
     (let go ((i 0))
-      (if (if (< i (byte-len s)) (not (%wget-memv (byte-at s i) (list 13 10 0))) #f)
+      (if (if (< i (byte-len s)) (not (wget-memv (byte-at s i) (list 13 10 0))) #f)
         (go (+ i 1))
         (%fd-say (substring s 0 i))))))
 
@@ -76,7 +76,7 @@
 ; escape_text: each BYTE in S doubled
 (def %fd-double
   (fn (_ s byte)
-    (if (null? (%wget-index s byte 0)) s
+    (if (null? (wget-index s byte 0)) s
       (bytes->str (let go ((i (- (byte-len s) 1)) (acc ()))
                     (if (< i 0) acc
                       (go (- i 1) (if (= (byte-at s i) byte) (pair byte (pair byte acc)) (pair (byte-at s i) acc)))))))))
@@ -85,7 +85,7 @@
 (def %fd-write
   (fn (_ code text)
     (def body (string-append code (%fd-double text 255)))
-    (def s (string-append (if (null? (%wget-index body 10 0)) body
+    (def s (string-append (if (null? (wget-index body 10 0)) body
                             (bytes->str (map (fn (_ b) (if (= b 10) 0 b)) (cu-bytes body 0 (byte-len body)))))
                           "\r\n"))
     (%fd-send s)
@@ -113,7 +113,7 @@
 ; with 421, and the end of input with nothing read ends it with 0
 (def %fd-getline
   (fn (self)
-    (def crlf (%wget-find %fd-inbuf "\r\n"))
+    (def crlf (wget-find %fd-inbuf "\r\n"))
     (match
       ((not (null? crlf)) (%fd-take (+ crlf 2)))
       ((>= (byte-len %fd-inbuf) 8192) (%fd-take 8192))
@@ -136,7 +136,7 @@
 ; dropped -- and a NUL read as LF
 (def %fd-unescape
   (fn (_ s)
-    (if (if (null? (%wget-index s 255 0)) (null? (%wget-index s 0 0)) #f) s
+    (if (if (null? (wget-index s 255 0)) (null? (wget-index s 0 0)) #f) s
       (bytes->str
         (let go ((bs (cu-bytes s 0 (byte-len s))) (acc ()))
           (match ((null? bs) (reverse acc))
@@ -159,7 +159,7 @@
               n))
     (def cmd (%fd-unescape (substring raw 0 n1)))
     (when (> %fd-verbose 1) (%fd-log cmd))
-    (def sp (%wget-index cmd #\space 0))
+    (def sp (wget-index cmd #\space 0))
     (set! %fd-arg (if (null? sp) () (substring cmd (+ sp 1) (byte-len cmd))))
     (def word (if (null? sp) cmd (substring cmd 0 sp)))
     (def k (byte-len word))
@@ -187,7 +187,7 @@
         (let ((c (guard (_ -1) (net-accept %fd-pasv))))
           (do (when (< c 0) (%fd-err 425)) c))
         (guard (e (%fd-die (string-concat (list "can't connect to remote host (" (first %fd-port) "): "
-                                                 (%wget-err-text e)))))
+                                                 (wget-err-text e)))))
           (net-connect (first %fd-port) (rest %fd-port)))))
     (%fd-cleanup)
     (when (>= fd 0) (%fd-write "150" msg))
@@ -239,7 +239,7 @@
   (fn (_)
     (def port (%fd-passive))
     (%fd-raw (string-concat (list "227 PASV ok (" (Str8 replace "." "," %fd-local-ip) ","
-                                  (cu-int->str (%wget-div port 256)) "," (cu-int->str (% port 256)) ")\r\n")))))
+                                  (cu-int->str (wget-div port 256)) "," (cu-int->str (% port 256)) ")\r\n")))))
 
 (def %fd-epsv-cmd
   (fn (_) (%fd-raw (string-concat (list "229 EPSV ok (|||" (cu-int->str (%fd-passive)) "|)\r\n")))))
@@ -249,10 +249,10 @@
   (fn (_)
     (%fd-cleanup)
     (def raw %fd-arg)
-    (def c2 (if (null? raw) () (%wget-last-index raw #\,)))
-    (def lo (if (null? c2) () (%wget-digits (substring raw (+ c2 1) (byte-len raw)))))
-    (def c1 (if (null? lo) () (%wget-last-index (substring raw 0 c2) #\,)))
-    (def hi (if (null? c1) () (%wget-digits (substring raw (+ c1 1) c2))))
+    (def c2 (if (null? raw) () (wget-last-index raw #\,)))
+    (def lo (if (null? c2) () (wget-digits (substring raw (+ c2 1) (byte-len raw)))))
+    (def c1 (if (null? lo) () (wget-last-index (substring raw 0 c2) #\,)))
+    (def hi (if (null? c1) () (wget-digits (substring raw (+ c1 1) c2))))
     (if (if (null? hi) #t (if (> lo 255) #t (> hi 255)))
       (%fd-err 500)
       (do (set! %fd-port (pair (first (net-peer %fd-in)) (+ (* hi 256) lo))) (%fd-ok 200)))))
@@ -260,7 +260,7 @@
 (def %fd-rest-cmd
   (fn (_)
     (set! %fd-rest (if (null? %fd-arg) 0
-                     (let ((n (%wget-digits %fd-arg)))
+                     (let ((n (wget-digits %fd-arg)))
                        (if (null? n) (%fd-die (string-concat (list "invalid number '" %fd-arg "'"))) n))))
     (%fd-ok 350)))
 
@@ -291,7 +291,7 @@
 (def %fd-ls
   (fn (_ opts)
     (def arg (if (if (null? %fd-arg) #f (Str8 starts? "-" %fd-arg))
-               (let ((sp (%wget-index %fd-arg #\space 0))) (if (null? sp) () (substring %fd-arg (+ sp 1) (byte-len %fd-arg))))
+               (let ((sp (wget-index %fd-arg #\space 0))) (if (null? sp) () (substring %fd-arg (+ sp 1) (byte-len %fd-arg))))
                %fd-arg))
     (def p (sys-pipe))
     (def pid (sys-fork))
@@ -312,7 +312,7 @@
 (def %fd-lines
   (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
 
@@ -522,7 +522,7 @@
 
 (def %fd-num
   (fn (_ s)
-    (let ((n (%wget-digits s)))
+    (let ((n (wget-digits s)))
       (if (null? n) (Err raise (lit net) (string-concat (list "invalid number '" s "'")) ()) n))))
 
 (def %fd-main

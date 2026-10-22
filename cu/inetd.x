@@ -89,14 +89,14 @@
 ; xatoi_positive: S as a count, or the run ends naming it
 (def in-count
   (fn (_ s)
-    (let ((n (%wget-digits s)))
+    (let ((n (wget-digits s)))
       (if (null? n) (%in-die (string-concat (list "invalid number '" s "'"))) n))))
 
 ; bb_strtou: S as a whole decimal number, or nil
 (def in-strtou
   (fn (_ s)
     (if (if (> (byte-len s) 0) (>= (byte-at s 0) #\0) #f)
-      (let ((n (%wget-digits s))) (if (null? n) () (if (> n 4294967295) () n)))
+      (let ((n (wget-digits s))) (if (null? n) () (if (> n 4294967295) () n)))
       ())))
 
 ; --- a service ---------------------------------------------------------------------
@@ -141,7 +141,7 @@
     (let go ((i 0) (lineno 0) (acc ()) (pending ""))
       (if (>= i n)
         (reverse (if (> (byte-len pending) 0) (pair (pair lineno pending) acc) acc))
-        (let ((nl (%wget-index text #\newline i)))
+        (let ((nl (wget-index text #\newline i)))
           (def end (if (null? nl) n nl))
           (def line (string-append pending (substring text i end)))
           (def next (if (null? nl) n (+ nl 1)))
@@ -176,7 +176,7 @@
   (fn (_ s c)
     (let go ((i (- (byte-len s) 1))) (match ((< i 0) ()) ((= (byte-at s i) c) i) (#t (go (- i 1)))))))
 
-(def %in-first-index (fn (_ s c) (%wget-index s c 0)))
+(def %in-first-index (fn (_ s c) (wget-index s c 0)))
 
 (def %in-socktype
   (fn (_ w)
@@ -728,9 +728,9 @@
       (do (let ((s (List find (fn (_ s) (= (%in-get s %in-wait) pid)) %in-list))
                 (raw (cu-ptr-ref (cu-str->ptr st) 0 4)))
             (unless (null? s)
-              (do (match ((if (= (% raw 128) 0) (> (% (%wget-div raw 256) 256) 0) #f)
+              (do (match ((if (= (% raw 128) 0) (> (% (wget-div raw 256) 256) 0) #f)
                            (%in-say (string-concat (list (%in-get s %in-program) ": exit status "
-                                                         (cu-int->str (% (%wget-div raw 256) 256))))))
+                                                         (cu-int->str (% (wget-div raw 256) 256))))))
                          ((if (> (% raw 128) 0) (not (= (% raw 128) 127)) #f)
                            (%in-say (string-concat (list (%in-get s %in-program) ": exit signal "
                                                          (cu-int->str (% raw 128))))))

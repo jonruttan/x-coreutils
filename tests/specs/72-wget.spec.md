@@ -666,7 +666,7 @@ failure nor Http's report of a head it could not read: wget lets it through
 with its own message rather than calling it "error getting response".
 
 ```cu
-(do (import x/sys/socket) (def wf-p (Socket tcp-listen 0)) (def wf-port (Socket local-port wf-p)) (Socket close wf-p) (def wf-refused (guard (e e) (net-connect "127.0.0.1" wf-port))) (def wf-tls (guard (e e) (Err raise (lit io) "Tls: handshake failed" -1))) (def wf-head (guard (e e) (Err raise (lit value) "Http: bad response: no header terminator" ()))) (def wf-other (guard (e e) (Err raise (lit value) "no such static member open" ()))) (write (list (%whois-after (%wget-open-failure wf-refused "127.0.0.1") "can't connect to remote host (127.0.0.1): ") (%wget-open-failure wf-tls "1.2.3.4") (%wget-open-failure wf-head "1.2.3.4") (%wget-open-failure wf-other "1.2.3.4"))))
+(do (import x/sys/socket) (def wf-p (Socket tcp-listen 0)) (def wf-port (Socket local-port wf-p)) (Socket close wf-p) (def wf-refused (guard (e e) (net-connect "127.0.0.1" wf-port))) (def wf-tls (guard (e e) (Err raise (lit io) "Tls: handshake failed" -1))) (def wf-head (guard (e e) (Err raise (lit value) "Http: bad response: no header terminator" ()))) (def wf-other (guard (e e) (Err raise (lit value) "no such static member open" ()))) (write (list (whois-after (wget-open-failure wf-refused "127.0.0.1") "can't connect to remote host (127.0.0.1): ") (wget-open-failure wf-tls "1.2.3.4") (wget-open-failure wf-head "1.2.3.4") (wget-open-failure wf-other "1.2.3.4"))))
 ```
 ---
     ("Connection refused" "error getting response" "error getting response" ())

@@ -119,11 +119,16 @@
 (import cu/tsort cu-tsort ts-space?)
 (import cu/strings cu-range-number cu-strings-applet)
 (import cu/cal cal-sum cal/ cu-cal)
-(include-once "./net.x")
+(import cu/net cu-dial cu-dial-host cu-wget cu-whois net-die wget-beg wget-die
+  wget-digits wget-div wget-err-op wget-err-text wget-find wget-index
+  wget-last-index wget-last-part wget-lower wget-memv wget-name-port wget-on?
+  wget-open-failure wget-out! wget-out-fd! wget-path wget-pm-init!
+  wget-pm-update! wget-quiet? wget-restart-failed! wget-retrieve wget-sanitize
+  wget-say wget-show? wget-times wget-user whois-after whois-trim)
 (import cu/nc cu-nc cu-netcat nc-count nc-flags nc-values)
 (import cu/dns cu-nslookup ns-bytes ns-drop ns-hex ns-name ns-u16)
 (import cu/tftp cu-tftp cu-tftpd tftp-bytes)
-(include-once "./ftp.x")
+(import cu/ftp cu-ftpget cu-ftpput wget-ftp-hop)
 (import cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
   cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
   cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-in? dp-skip-in dp-skip-ws
@@ -145,8 +150,10 @@
 (import cu/fakeidentd cu-fakeidentd)
 (import cu/telnet cu-telnet tn-port tn-run tn-str-bytes)
 (import cu/telnetd cu-telnetd td-ptr->int)
-(include-once "./mime.x")
-(include-once "./sendmail.x")
+(import cu/mime cu-makemime cu-reformime mm-b64 mm-ci= mm-getc mm-gets mm-in
+  mm-source!)
+(import cu/sendmail cu-sendmail sm-atoi sm-helper-check sm-helper-pid!
+  sm-space?)
 (import cu/popmaildir cu-popmaildir)
 (import cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-sha1-bytes nt-unhex
   nt-zeros)

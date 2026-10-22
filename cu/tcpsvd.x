@@ -60,7 +60,7 @@
 ; xatou: S as a count, or the run ends naming it
 (def %ts-count
   (fn (_ s)
-    (let ((n (%wget-digits s)))
+    (let ((n (wget-digits s)))
       (if (null? n) (%ts-die (string-concat (list "invalid number '" s "'"))) n))))
 
 ; the decimal digits S starts with: (N . END)
@@ -74,12 +74,12 @@
 ; bb_lookup_port: digits up to 65535, else a service's port for the protocol
 (def %ts-port
   (fn (_ s)
-    (def n (%wget-digits s))
+    (def n (wget-digits s))
     (if (if (null? n) #f (<= n 65535)) n
       (let ((sv (cu-ptr-call (%ts-c "getservbyname") s (if %ts-tcp "tcp" "udp"))))
         (if (= sv 0) (%ts-die (string-concat (list "bad port '" s "'")))
           (let ((p (cu-ptr-ref (cu-int->ptr sv) 16 4)))
-            (+ (* (% p 256) 256) (% (%wget-div p 256) 256))))))))
+            (+ (* (% p 256) 256) (% (wget-div p 256) 256))))))))
 
 ; a length cell for a sockaddr, 16
 (def %ts-len16
@@ -95,7 +95,7 @@
     (def buf (str-make-raw 4))
     (let go ((i 0) (parts (Str8 split "." quad)))
       (unless (null? parts)
-        (do (cu-ptr-set! (cu-str->ptr buf) i (%wget-digits (first parts)) 1) (go (+ i 1) (rest parts)))))
+        (do (cu-ptr-set! (cu-str->ptr buf) i (wget-digits (first parts)) 1) (go (+ i 1) (rest parts)))))
     (def r (cu-ptr-call (%ts-c "gethostbyaddr") (cu-str->ptr buf) 4 2))
     (if (= r 0) () (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0))))))
 
@@ -119,7 +119,7 @@
 
 (def %ts-listen
   (fn (_ quad port backlog)
-    (guard (e (if (eq? (Err label e) (lit io)) (%ts-die (string-append "bind: " (%wget-err-text e))) (error e)))
+    (guard (e (if (eq? (Err label e) (lit io)) (%ts-die (string-append "bind: " (wget-err-text e))) (error e)))
       (if %ts-tcp (Socket tcp-listen-on quad port backlog) (%ts-udp-bind quad port)))))
 
 ; -u: xsetgid then xsetuid, the supplementary groups left as they are
@@ -160,7 +160,7 @@
     (when (> %ts-verbose 0)
       (%ts-say (string-concat (list "end " (cu-int->str pid) " "
         (if (= (% raw 128) 0)
-          (string-append "exit " (cu-int->str (% (%wget-div raw 256) 256)))
+          (string-append "exit " (cu-int->str (% (wget-div raw 256) 256)))
           (string-append "signal " (cu-int->str (% raw 128))))))))
     (%ts-status)))
 

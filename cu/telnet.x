@@ -326,7 +326,7 @@
       (let ((n (in-strtou s)))
         (if (if (null? n) #f (<= n 65535)) n
           (let ((p (in-servport s "tcp")))
-            (if (null? p) (%net-die (string-concat (list "bad port '" s "'"))) p)))))))
+            (if (null? p) (net-die (string-concat (list "bad port '" s "'"))) p)))))))
 
 (def %tn-main
   (fn (_ o host port-arg)
@@ -335,9 +335,9 @@
                       (if (null? l) (if (Opts on? o "-a") (sys-getenv "USER") ()) l)))
     (def port (tn-port port-arg))
     (def ip (let ((q (guard (_ ()) (net-resolve host))))
-              (if (null? q) (%net-die (string-concat (list "bad address '" host "'"))) q)))
+              (if (null? q) (net-die (string-concat (list "bad address '" host "'"))) q)))
     (set! %tn-net (guard (e (if (eq? (Err label e) (lit io))
-                              (%net-die (string-concat (list "can't connect to remote host (" ip "): " (%wget-err-text e))))
+                              (net-die (string-concat (list "can't connect to remote host (" ip "): " (wget-err-text e))))
                               (error e)))
                     (net-connect ip port)))
     (cu-stdin-to-command!)

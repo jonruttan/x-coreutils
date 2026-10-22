@@ -40,7 +40,7 @@
   (fn (_ pem argv)
     (cu-stdin-to-command!)
     (sys-signal 13 cu-sig-ign)
-    (def text (guard (e (Err raise (lit io) (string-concat (list "can't read '" pem "': " (%wget-err-text e))) ()))
+    (def text (guard (e (Err raise (lit io) (string-concat (list "can't read '" pem "': " (wget-err-text e))) ()))
                 (file-read-all pem)))
     (def session (Tls13 accept 0 1 (list (pair (lit pem) text))))
     (def prog (sc-run-prog %ss-say argv))

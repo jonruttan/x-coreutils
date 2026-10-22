@@ -20,6 +20,18 @@
 ; time, as busybox's stdio reads it: a base64 part ends at a -, and the rest of
 ; that boundary line is the start of the next part's header.
 
+(module cu/mime)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/inetd in-c in-call in-errtext in-exec)
+(import cu/perm cu-basename-of)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-ptr-call
+  cu-ptr-ref cu-sig-ign cu-str->ptr file-close file-err-text file-open-or-err
+  file-open-read file-read-run file-write length map reverse set-first!
+  string-append string-concat string=? substring sys-close sys-dup2 sys-exit
+  sys-fork sys-getpid sys-pipe sys-setenv sys-signal sys-time-ms sys-wait)
+(import cu/telnet tn-run)
+
 (def %mm-charset "us-ascii")
 
 ; P without its trailing slashes -- bb_get_last_path_component_strip takes them
@@ -41,7 +53,7 @@
 (def %mm-b64-char (fn (_ v) (substring %mm-alphabet v (+ v 1))))
 
 ; bb_uuencode's base64 of BYTES, padded
-(def %mm-b64
+(def mm-b64
   (fn (_ bytes)
     (let go ((l bytes) (acc ()))
       (if (null? l) (string-concat (reverse acc))
@@ -67,32 +79,34 @@
 ; --- stdin, a byte at a time --------------------------------------------------------
 
 ; the bytes of stdin not yet taken: (BUFFER . POS . COUNT) in a cell
-(def %mm-in (list ()))
+(def mm-in (list ()))
 (def %mm-thunk ())
+; sendmail and popmaildir hand the message source over with this
+(def mm-source! (fn (_ thunk) (set! %mm-thunk thunk)))
 
-(def %mm-getc
+(def mm-getc
   (fn (_)
-    (def s (first %mm-in))
+    (def s (first mm-in))
     (if (if (null? s) #f (< (cu-nth 1 s) (cu-nth 2 s)))
       (let ((b (cu-ptr-ref (cu-str->ptr (first s)) (cu-nth 1 s) 1)))
-        (do (set-first! %mm-in (list (first s) (+ (cu-nth 1 s) 1) (cu-nth 2 s))) b))
+        (do (set-first! mm-in (list (first s) (+ (cu-nth 1 s) 1) (cu-nth 2 s))) b))
       (let ((r (%mm-thunk (lit chunk))))
         (def run (if (pair? r) r (pair r (byte-len r))))
         (if (= (rest run) 0) ()
-          (do (set-first! %mm-in (list (first run) 0 (rest run))) (%mm-getc)))))))
+          (do (set-first! mm-in (list (first run) 0 (rest run))) (mm-getc)))))))
 
 ; xmalloc_fgets: the next line with its newline, or nil at the end
-(def %mm-gets
+(def mm-gets
   (fn (_)
     (let go ((acc ()))
-      (let ((c (%mm-getc)))
+      (let ((c (mm-getc)))
         (match ((null? c) (if (null? acc) () (bytes->str (reverse acc))))
                ((= c #\newline) (bytes->str (reverse (pair c acc))))
                (#t (go (pair c acc))))))))
 
 ; --- makemime ----------------------------------------------------------------------
 
-(def %cu-makemime
+(def cu-makemime
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "makemime" argv))
     (def out (let ((f (Opts value o "-o"))) (if (null? f) 1 (guard (_ -1) (File open f (list (lit wronly) (lit creat) (lit trunc)) 438)))))
@@ -101,7 +115,7 @@
     (def charset (let ((c (Opts value o "-C"))) (if (null? c) %mm-charset c)))
     (def files (let ((ops (Opts operands o))) (if (null? ops) (list "-") ops)))
     (set! %mm-thunk stdin-thunk)
-    (set-first! %mm-in ())
+    (set-first! mm-in ())
     (map (fn (_ h) (say (string-append h "\n"))) (Opts values o "-a"))
     (def r (fn (_) (in-call (cu-ptr-call (in-c "random")))))
     (def boundary (string-concat (list (cu-int->str (r)) "-" (cu-int->str (r)) "-" (cu-int->str (r)))))
@@ -126,14 +140,14 @@
           (let go ()
             (let ((piece (%mm-read57 fd)))
               (if (null? piece) (do (unless (eq? fd (lit stdin)) (file-close fd)) ())
-                (do (say "\n") (say (%mm-b64 piece)) (go)))))))))
+                (do (say "\n") (say (mm-b64 piece)) (go)))))))))
 
 ; up to 57 bytes of FD (or stdin), nil at its end
 (def %mm-read57
   (fn (_ fd)
     (let go ((n 0) (acc ()))
       (if (= n 57) (reverse acc)
-        (let ((c (if (eq? fd (lit stdin)) (%mm-getc) (%mm-fd-getc fd))))
+        (let ((c (if (eq? fd (lit stdin)) (mm-getc) (%mm-fd-getc fd))))
           (if (null? c) (if (null? acc) () (reverse acc)) (go (+ n 1) (pair c acc))))))))
 
 ; a file read a piece at a time, a byte handed out at a time
@@ -148,12 +162,12 @@
 
 ; --- reformime ---------------------------------------------------------------------
 
-(def %cu-reformime
+(def cu-reformime
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "reformime" argv))
     (if (if (Opts on? o "-X") (not (null? (Opts value o "-x"))) #f) (cu-usage "reformime")
       (do (set! %mm-thunk stdin-thunk)
-          (set-first! %mm-in ())
+          (set-first! mm-in ())
           (sys-signal 13 0)
           (guard (e (if (eq? (Err label e) (lit net))
                       (do (file-write 2 (string-concat (list "reformime: " (e msg) "\n"))) 1)
@@ -169,7 +183,7 @@
 (def %mm-header
   (fn (_)
     (let go ((acc ()) (last 0))
-      (let ((c (%mm-getc)))
+      (let ((c (mm-getc)))
         (match ((null? c) (if (null? acc) () (bytes->str (reverse acc))))
                ((= c #\return) (go acc last))
                ((if (= c #\newline) (= last #\newline) #f) (bytes->str (reverse acc)))
@@ -182,7 +196,7 @@
     (def n (byte-len header))
     (def start
       (let go ((i 0) (s 0))
-        (let ((nl (%wget-index header #\newline i)))
+        (let ((nl (wget-index header #\newline i)))
           (if (null? nl) s
             (let ((p (+ nl 1)))
               (go p (if (%mm-ci-prefix? header p "Content-Type:") p s)))))))
@@ -195,21 +209,21 @@
 
 (def %mm-lower (fn (_ c) (if (if (>= c #\A) (<= c #\Z) #f) (+ c 32) c)))
 
-(def %mm-ci=
+(def mm-ci=
   (fn (_ a b)
     (if (not (= (byte-len a) (byte-len b))) #f
       (let go ((i 0)) (if (>= i (byte-len a)) #t (if (= (%mm-lower (byte-at a i)) (%mm-lower (byte-at b i))) (go (+ i 1)) #f))))))
 
 (def %mm-ci-prefix?
   (fn (_ s at prefix)
-    (if (> (+ at (byte-len prefix)) (byte-len s)) #f (%mm-ci= (substring s at (+ at (byte-len prefix))) prefix))))
+    (if (> (+ at (byte-len prefix)) (byte-len s)) #f (mm-ci= (substring s at (+ at (byte-len prefix))) prefix))))
 
 ; find_token: the word after KEY, or DEFAULT
 (def %mm-token
   (fn (_ tokens key dflt)
     (let go ((l tokens))
       (match ((null? l) dflt)
-             ((%mm-ci= (first l) key) (if (null? (rest l)) dflt (first (rest l))))
+             ((mm-ci= (first l) key) (if (null? (rest l)) dflt (first (rest l))))
              (#t (go (rest l)))))))
 
 ; parse: the parts under BOUNDARY, each written to PREFIX + its filename or
@@ -221,8 +235,8 @@
         (let ((tokens (%mm-tokens header)))
           (if (null? tokens) 0
             (let ((type (%mm-token tokens "Content-Type:" "text/plain")))
-              (if (if (>= (byte-len type) 10) (%mm-ci= (substring type 0 10) "multipart/") #f)
-                (do (unless (%mm-ci= (substring type 10 (byte-len type)) "mixed")
+              (if (if (>= (byte-len type) 10) (mm-ci= (substring type 0 10) "multipart/") #f)
+                (do (unless (mm-ci= (substring type 10 (byte-len type)) "mixed")
                       (%mm-die (string-concat (list "no support of content type '" type "'"))))
                     (let ((b (%mm-token tokens "boundary" ())))
                       (when (null? b) (%mm-die "not found: 'boundary'"))
@@ -246,12 +260,12 @@
                 (%mm-prog-sink prog type charset encoding filename)))
     (def end
       (match
-        ((%mm-ci= encoding "base64") (do (%mm-read-base64 (first sink)) ()))
-        ((if (%mm-ci= encoding "7bit") #f (not (%mm-ci= encoding "8bit")))
+        ((mm-ci= encoding "base64") (do (%mm-read-base64 (first sink)) ()))
+        ((if (mm-ci= encoding "7bit") #f (not (mm-ci= encoding "8bit")))
           (do ((rest sink) #f)
               (%mm-die (string-concat (list "encoding '" encoding "' not supported")))))
         (#t (let go ()
-              (let ((line (%mm-gets)))
+              (let ((line (mm-gets)))
                 (match ((null? line) ())
                        ((%mm-boundary? line boundary) line)
                        (#t (do (%mm-write (first sink) line) (go)))))))))
@@ -311,7 +325,7 @@
       (def got
         (let read ((acc carry) (n (length carry)))
           (if (>= n 80) (pair (reverse acc) #f)
-            (let ((ch (%mm-getc)))
+            (let ((ch (mm-getc)))
               (match ((if (null? ch) #t (= ch #\-)) (pair (reverse acc) (if (null? acc) (lit done) #t)))
                      ((<= ch 32) (pair (reverse acc) #f))
                      (#t (read (pair ch acc) (+ n 1))))))))
@@ -342,3 +356,6 @@
                   (def kept (List take (- 3 pads) b))
                   (if (> pads 0) (pair (append (reverse out) kept) (rest l))
                     (go (rest l) () (append (reverse b) out)))))))))))
+
+(provide cu/mime cu-makemime cu-reformime mm-b64 mm-ci= mm-getc mm-gets mm-in
+  mm-source!)

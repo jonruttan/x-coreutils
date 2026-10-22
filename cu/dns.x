@@ -47,11 +47,11 @@
 ; busybox's xatou_range: VAL's digits within LO..HI, or the run ends
 (def %ns-number
   (fn (_ val lo hi)
-    (def n (%wget-digits val))
+    (def n (wget-digits val))
     (match
-      ((null? n) (%net-die (string-concat (list "invalid number '" val "'"))))
+      ((null? n) (net-die (string-concat (list "invalid number '" val "'"))))
       ((if (< n lo) #t (> n hi))
-        (%net-die (string-concat (list "number " val " is not in "
+        (net-die (string-concat (list "number " val " is not in "
           (cu-int->str lo) ".." (cu-int->str hi) " range"))))
       (#t n))))
 
@@ -61,7 +61,7 @@
     (def up (%ns-upper val))
     (let go ((ts %ns-types))
       (match
-        ((null? ts) (%net-die (string-concat (list "invalid query type \"" val "\""))))
+        ((null? ts) (net-die (string-concat (list "invalid query type \"" val "\""))))
         ((string=? (first (first ts)) up) (rest (first ts)))
         (#t (go (rest ts)))))))
 
@@ -85,7 +85,7 @@
       ((not (= (byte-at (first argv) 0) #\-)) (pair (reverse types) argv))
       (#t
         (let ((arg (substring (first argv) 1 (byte-len (first argv)))))
-          (let ((eq (%wget-index arg #\= 0)))
+          (let ((eq (wget-index arg #\= 0)))
             (let ((name (if (null? eq) arg (substring arg 0 eq)))
                   (val (if (null? eq) "" (substring arg (+ eq 1) (byte-len arg)))))
               (match
@@ -102,7 +102,7 @@
 
 ; TYPES with T added once
 (def %ns-add-type
-  (fn (_ types t) (if (%wget-memv t types) types (pair t types))))
+  (fn (_ types t) (if (wget-memv t types) types (pair t types))))
 
 ; --- names and queries -------------------------------------------------------------
 
@@ -142,7 +142,7 @@
     (list name
           (if (null? wire) ()
             (append (list 0 0 1 32 0 1 0 0 0 0 0 0)
-                    (append wire (list (%wget-div type 256) (% type 256) 0 1))))
+                    (append wire (list (wget-div type 256) (% type 256) 0 1))))
           #f)))
 
 ; the dotted quad S's four numbers, or nil
@@ -150,7 +150,7 @@
   (fn (_ s)
     (def parts (%ns-split s #\.))
     (if (= (length parts) 4)
-      (let ((ns (map (fn (_ p) (if (> (byte-len p) 3) () (%wget-digits p))) parts)))
+      (let ((ns (map (fn (_ p) (if (> (byte-len p) 3) () (wget-digits p))) parts)))
         (if (null? (filter (fn (_ n) (if (null? n) #t (> n 255))) ns)) ns ()))
       ())))
 
@@ -166,7 +166,7 @@
 ; S's eight 16-bit groups when it reads as an IPv6 address, or nil
 (def %ns-ipv6
   (fn (_ s)
-    (def dc (%wget-find s "::"))
+    (def dc (wget-find s "::"))
     (def group (fn (_ g)
       (if (if (> (byte-len g) 0) (<= (byte-len g) 4) #f)
         (let go ((i 0) (v 0))
@@ -207,11 +207,11 @@
           ; a v4-mapped address reverses as its IPv4
           (let ((a (first (rest (rest (rest (rest (rest (rest v6))))))))
                 (b (first (rest (rest (rest (rest (rest (rest (rest v6))))))))))
-            (string-append (join (list (% b 256) (%wget-div b 256) (% a 256) (%wget-div a 256)))
+            (string-append (join (list (% b 256) (wget-div b 256) (% a 256) (wget-div a 256)))
                            "in-addr.arpa"))
           (string-append
             (string-concat
-              (map (fn (_ n) (list->string (list (%ns-hexch (% n 16)) #\. (%ns-hexch (%wget-div n 16)) #\.)))
+              (map (fn (_ n) (list->string (list (%ns-hexch (% n 16)) #\. (%ns-hexch (wget-div n 16)) #\.)))
                    (reverse (%ns-nibbles v6))))
             "ip6.arpa")))
       ((not (null? v4)) (string-append (join (reverse v4)) "in-addr.arpa"))
@@ -222,7 +222,7 @@
   (fn (_ groups)
     (let go ((gs groups) (acc ()))
       (if (null? gs) (reverse acc)
-        (go (rest gs) (pair (% (first gs) 256) (pair (%wget-div (first gs) 256) acc)))))))
+        (go (rest gs) (pair (% (first gs) 256) (pair (wget-div (first gs) 256) acc)))))))
 
 (def %ns-hexch (fn (_ n) (integer->char (if (< n 10) (+ n #\0) (+ n 87)))))
 
@@ -230,7 +230,7 @@
 ; else the name itself, as busybox's add_query_with_search
 (def %ns-with-search
   (fn (_ type host search)
-    (if (if (= type 12) #t (if (null? search) #t (not (null? (%wget-index host #\. 0)))))
+    (if (if (= type 12) #t (if (null? search) #t (not (null? (wget-index host #\. 0)))))
       (list (%ns-query host type))
       (map (fn (_ d) (%ns-query (string-append host (string-append "." d)) type))
            (filter (fn (_ d) (> (byte-len d) 0)) (%ns-split-blanks search))))))
@@ -255,8 +255,8 @@
             (if (if (null? words) #t (null? (rest words)))
               (go (rest ls) servers search has-search)
               (let ((key (first words))
-                    (arg (%whois-trim (substring (first ls)
-                            (+ (%wget-find (first ls) (first words)) (byte-len (first words)))
+                    (arg (whois-trim (substring (first ls)
+                            (+ (wget-find (first ls) (first words)) (byte-len (first words)))
                             (byte-len (first ls))))))
                 (match
                   ((string=? key "nameserver") (go (rest ls) (pair (first (rest words)) servers) search has-search))
@@ -266,18 +266,18 @@
     (def search0
       (if (null? (first (rest st)))
         (let ((h (Assoc get (lit nodename) (sys-uname))))
-          (let ((d (%wget-index h #\. 0))) (if (null? d) () (substring h (+ d 1) (byte-len h)))))
+          (let ((d (wget-index h #\. 0))) (if (null? d) () (substring h (+ d 1) (byte-len h)))))
         (first (rest st))))
     (pair (first st) (if (if (null? search0) #f (string=? search0 ".")) () search0))))
 
 ; a server's (NAME IP PORT): NAME's own ":PORT" overrides -port
 (def %ns-server
   (fn (_ name)
-    (def colon (%wget-last-index name #\:))
-    (def port (if (null? colon) () (%wget-digits (substring name (+ colon 1) (byte-len name)))))
+    (def colon (wget-last-index name #\:))
+    (def port (if (null? colon) () (wget-digits (substring name (+ colon 1) (byte-len name)))))
     (def host (if (null? port) name (substring name 0 colon)))
     (def ip (guard (_ ()) (net-resolve host)))
-    (when (null? ip) (%net-die (string-concat (list "bad address '" name "'"))))
+    (when (null? ip) (net-die (string-concat (list "bad address '" name "'"))))
     (list name ip (if (null? port) %ns-port port))))
 
 ; --- the exchange: busybox's send_queries ---------------------------------------------
@@ -305,7 +305,7 @@
   (fn (_ server queries)
     (def fd (net-udp-connect (first (rest server)) (first (rest (rest server)))))
     (def timeout (* %ns-timeout 1000))
-    (def interval (%wget-div timeout %ns-retry))
+    (def interval (wget-div timeout %ns-retry))
     (def tstart (sys-time-ms))
     (def r (%ns-loop fd server queries timeout interval tstart tstart #t 0 (* 2 (length queries)) #f))
     (net-close fd)
@@ -538,7 +538,7 @@
 (def %ns-hex-group
   (fn (_ g)
     (if (= g 0) "0"
-      (list->string (let go ((v g) (acc ())) (if (= v 0) acc (go (%wget-div v 16) (pair (%ns-hexch (% v 16)) acc))))))))
+      (list->string (let go ((v g) (acc ())) (if (= v 0) acc (go (wget-div v 16) (pair (%ns-hexch (% v 16)) acc))))))))
 
 ; --- the applet ------------------------------------------------------------------
 
@@ -576,7 +576,7 @@
         ((null? types) (append (%ns-with-search 1 host search) (%ns-with-search 28 host search)))
         (#t (%ns-flatten
               (map (fn (_ t) (%ns-with-search t host search))
-                   (filter (fn (_ t) (%wget-memv t types)) (map (fn (_ e) (rest e)) %ns-types)))))))
+                   (filter (fn (_ t) (wget-memv t types)) (map (fn (_ e) (rest e)) %ns-types)))))))
     (%ns-set-ids queries)
     (def answered (%ns-each-server servers queries))
     (if (not answered)
@@ -596,7 +596,7 @@
       (unless (null? qs)
         (do (unless (null? (first (rest (first qs))))
               (let ((bs (first (rest (first qs)))))
-                (do (set-first! bs (% (%wget-div id 256) 256))
+                (do (set-first! bs (% (wget-div id 256) 256))
                     (set-first! (rest bs) (% id 256)))))
             (go (rest qs) (+ id 1)))))))
 

@@ -19,7 +19,7 @@ shown as LPORT, a peer's as RPORT and a pid as PID.
   (def ts-f (fn (_ n) (string-append "/tmp/x-cu-ts/" n)))
   (def ts-lines (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def ts-free-port (fn (_)

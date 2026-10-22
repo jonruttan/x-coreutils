@@ -21,7 +21,7 @@ got, in hex.
   (def tn-f (fn (_ n) (string-append "/tmp/x-cu-telnet/" n)))
   (def tn-lines (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def tn-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
@@ -47,7 +47,7 @@ got, in hex.
     (let ((pid (sys-fork)))
       (if (> pid 0) pid
         (do (map sys-unsetenv (list "COLUMNS" "LINES" "USER" "TERM"))
-            (map (fn (_ kv) (let ((eq (%wget-index kv #\= 0)))
+            (map (fn (_ kv) (let ((eq (wget-index kv #\= 0)))
                               (sys-setenv (substring kv 0 eq) (substring kv (+ eq 1) (byte-len kv)))))
                  (filter (fn (_ w) (> (byte-len w) 0)) (Str8 split " " env)))
             (sys-close in-write) (unless (null? l) (Socket close l))

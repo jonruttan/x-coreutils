@@ -137,7 +137,7 @@
 (def %nt-be (fn (_ v i k) (let go ((j 0) (acc 0)) (if (= j k) acc (go (+ j 1) (+ (* acc 256) (vec-ref v (+ i j))))))))
 ; a uint32 read in the host's order, as %08x prints a raw field
 (def %nt-le32 (fn (_ v i) (+ (vec-ref v i) (* 256 (vec-ref v (+ i 1))) (* 65536 (vec-ref v (+ i 2))) (* 16777216 (vec-ref v (+ i 3))))))
-(def nt-be-bytes (fn (_ n k) (let go ((j 0) (n n) (acc ())) (if (= j k) acc (go (+ j 1) (%wget-div n 256) (pair (% n 256) acc))))))
+(def nt-be-bytes (fn (_ n k) (let go ((j 0) (n n) (acc ())) (if (= j k) acc (go (+ j 1) (wget-div n 256) (pair (% n 256) acc))))))
 
 (def %nt-lfp->d
   (fn (_ v i)
@@ -206,11 +206,11 @@
 (def %nt-resolve
   (fn (_ org)
     (def bracket? (Str8 starts? "[" org))
-    (def close (if bracket? (%wget-index org #\] 0) ()))
+    (def close (if bracket? (wget-index org #\] 0) ()))
     (def last (in-index-of org #\:))
     (def colon (match (bracket? (if (null? close) () (if (< (+ close 1) (byte-len org)) (+ close 1) ())))
                       ((null? last) ())
-                      ((= (%wget-index org #\: 0) last) last)
+                      ((= (wget-index org #\: 0) last) last)
                       (#t ())))
     (def host (match (bracket? (if (null? close) "" (substring org 1 close)))
                      ((null? colon) org)
@@ -485,7 +485,7 @@
           () %nt-peers)))
     (def pv (vec-build (length points) (fn (_ i) (cu-nth i points))))
     (def n (length points))
-    (def cands (%wget-div n 3))
+    (def cands (wget-div n 3))
     (if (= cands 0)
       (do (when (>= %nt-verbose 3) (%nt-say "no valid datapoints, no peer selected")) ())
       (%nt-intersect pv n cands 0))))
@@ -645,7 +645,7 @@
     (def us (%nt-imax -500000 (nt-imin 500000 (%nt-trunc (%nt* offset 1000000)))))
     (def freqhold
       (match ((= %nt-freqhold 0) 0)
-            (#t (do (when (< %nt-freqhold 0) (set! %nt-freqhold (+ 11 (%nt-iabs (%wget-div (if (< us 0) (- us 32767) us) 32768)))))
+            (#t (do (when (< %nt-freqhold 0) (set! %nt-freqhold (+ 11 (%nt-iabs (wget-div (if (< us 0) (- us 32767) us) 32768)))))
                     (set! %nt-freqhold (- %nt-freqhold 1))
                     128))))
     (def status (+ 1 freqhold (if (= (& %nt-status 64) 0) 0 16) (if (= (& %nt-status 128) 0) 0 32)))
@@ -663,7 +663,7 @@
       (%nt-say (string-concat (list "adjtimex:" (%nt-dec rc) " freq:" (%nt-dec freq) " offset:" (%nt-sdec (%nt-tx t 8))
                                     " esterror:" (%nt-dec (%nt-tx t 32)) " maxerror:" (%nt-dec (%nt-tx t 24))
                                     " status:0x" (cu-hexs (cu-ptr-ref tp 40 4))))))
-    (set! %nt-drift (if (< freq 0) (- 0 (%wget-div (- 0 freq) 65536)) (%wget-div freq 65536)))
+    (set! %nt-drift (if (< freq 0) (- 0 (wget-div (- 0 freq) 65536)) (wget-div freq 65536)))
     (when (>= %nt-verbose 2)
       (%nt-say (string-concat (list "update from:" (%np p %np-dotted) " offset:" (%nt-sf offset) " delay:" (%nt-f (%np p %np-raw-delay))
                                     " jitter:" (%nt-f %nt-djitter) " clock drift:" (%nt-sf3 (%nt/ freq 65536)) "ppm tc:"
@@ -717,7 +717,7 @@
           ((< size 0)
             (unless (= (Err errno-of -1) (if os-darwin? 35 11))
               (%nt-die (string-concat (list "recv(" (%np p %np-dotted) ") error: " (%nt-why (lit recv)))))))
-          ((not (%wget-memv size (list 48 68 72)))
+          ((not (wget-memv size (list 48 68 72)))
             (%nt-say (string-concat (list "malformed packet received from " (%np p %np-dotted) ": size " (%nt-u size)))))
           ((if (null? (%np p %np-key)) #f
              (not (equal? (%nt-hash (%np p %np-key) (%nt-vec->list m 0 48))
@@ -806,7 +806,7 @@
     (match
       ((< size 0)
         (unless (= (Err errno-of -1) (if os-darwin? 35 11)) (%nt-die (string-append "recv: " (%nt-why (lit recv))))))
-      ((not (%wget-memv size (list 48 68 72)))
+      ((not (wget-memv size (list 48 68 72)))
         (%nt-say (string-concat (list "malformed packet received from " (%nt-dotted sa) ": size " (%nt-u size)))))
       (#t (let ((m (%nt-bytes buf size)))
             (let ((mode (& (vec-ref m 0) 7)))
@@ -858,7 +858,7 @@
 (def %nt-config-lines
   (fn (_ file shown)
     (def text (guard (e e) (if (string=? file "-") (file-read-all 0) (file-read-all file))))
-    (match ((Err err? text) (do (%nt-say (string-concat (list shown ": " (%wget-err-text text)))) ()))
+    (match ((Err err? text) (do (%nt-say (string-concat (list shown ": " (wget-err-text text)))) ()))
            ((null? text) (do (%nt-say (string-concat (list shown ": " (tar-why (lit open) shown)))) ()))
            (#t (in-lines text)))))
 
@@ -879,7 +879,7 @@
   (fn (_ lineno t)
     (def type (cu-nth 1 t))
     (def md5? (string=? (Str8 downcase (substring type 0 1)) "m"))
-    (unless (if md5? #t (if (>= (byte-len type) 3) (%mm-ci= (substring type 0 3) "sha") #f))
+    (unless (if md5? #t (if (>= (byte-len type) 3) (mm-ci= (substring type 0 3) "sha") #f))
       (%nt-die "only MD5 and SHA1 keys supported"))
     (def key (cu-nth 2 t))
     (def bad (fn (_) (%nt-die (string-append "malformed key at line " (%nt-u lineno)))))
@@ -918,7 +918,7 @@
   (fn (_ arg keys)
     (if (Str8 starts? "keyno:" arg)
       (let ((rest (substring arg 6 (byte-len arg))))
-        (let ((c (%wget-index rest #\: 0)))
+        (let ((c (wget-index rest #\: 0)))
           (if (null? c) (Err raise (lit usage) "" ())
             (%nt-add-peer! (substring rest (+ c 1) (byte-len rest))
                            (%nt-find-key keys (%nt-range (substring rest 0 c) 1 65535))))))
@@ -1069,10 +1069,10 @@
         (do (say-poll timeout) (%nt-poll-for fds (* timeout 1000)))))
     (%nt-now!)
     (if (null? ready) (when (null? (%nt-signal)) (%nt-idle!))
-      (do (when (if (>= %nt-listen 0) (%wget-memv %nt-listen ready) #f)
+      (do (when (if (>= %nt-listen 0) (wget-memv %nt-listen ready) #f)
             (do (%nt-client-query!) (%nt-now!)))
           (map (fn (_ p)
-                 (when (if (>= (%np p %np-fd) 0) (%wget-memv (%np p %np-fd) ready) #f)
+                 (when (if (>= (%np p %np-fd) 0) (wget-memv (%np p %np-fd) ready) #f)
                    (do (when (if %nt-q? (not %nt-alarm-long?) #f)
                          (do (set! %nt-alarm-long? #t) (set! %nt-alarm-at (%nt+ %nt-cur 50))))
                        (%nt-peer-reply! p)

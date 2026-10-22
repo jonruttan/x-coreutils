@@ -24,7 +24,7 @@ from busybox in Podman.
     (let go ((i (- (rest run) 1)) (acc ()))
       (if (< i 0) (string-concat acc)
         (let ((b (& (byte-at (first run) i) 255)))
-          (go (- i 1) (pair (string-concat (list (substring h (%wget-div b 16) (+ (%wget-div b 16) 1))
+          (go (- i 1) (pair (string-concat (list (substring h (wget-div b 16) (+ (wget-div b 16) 1))
                                                  (substring h (% b 16) (+ (% b 16) 1))
                                                  (if (null? acc) "" " ")))
                             acc)))))))

@@ -50,16 +50,16 @@
 ; the words split on spaces and tabs, the second taking the rest of the line
 (def %dn-tokens
   (fn (_ line)
-    (def hash (%wget-index line #\# 0))
+    (def hash (wget-index line #\# 0))
     (def text (%dn-trim (if (null? hash) line (substring line 0 hash))))
-    (def sp (let go ((i 0)) (if (if (< i (byte-len text)) (not (%wget-memv (byte-at text i) (list #\space #\tab))) #f) (go (+ i 1)) i)))
+    (def sp (let go ((i 0)) (if (if (< i (byte-len text)) (not (wget-memv (byte-at text i) (list #\space #\tab))) #f) (go (+ i 1)) i)))
     (if (= (byte-len text) 0) ()
       (if (= sp (byte-len text)) (list text)
         (list (substring text 0 sp) (%dn-trim (substring text sp (byte-len text))))))))
 
 (def %dn-trim
   (fn (_ s)
-    (def ws? (fn (_ c) (%wget-memv c (list #\space #\tab #\return))))
+    (def ws? (fn (_ c) (wget-memv c (list #\space #\tab #\return))))
     (def a (let go ((i 0)) (if (if (< i (byte-len s)) (ws? (byte-at s i)) #f) (go (+ i 1)) i)))
     (def b (let go ((i (byte-len s))) (if (if (> i a) (ws? (byte-at s (- i 1))) #f) (go (- i 1)) i)))
     (substring s a b)))
@@ -96,7 +96,7 @@
 (def %dn-lines
   (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
 
@@ -134,7 +134,7 @@
 
 ; --- a packet -------------------------------------------------------------------------
 
-(def %dn-u16 (fn (_ n) (list (% (%wget-div n 256) 256) (% n 256))))
+(def %dn-u16 (fn (_ n) (list (% (wget-div n 256) 256) (% n 256))))
 (def %dn-word (fn (_ bs i) (+ (* 256 (cu-nth i bs)) (cu-nth (+ i 1) bs))))
 
 ; process_packet: the reply's bytes, or nil when none is sent
@@ -183,8 +183,8 @@
               (cu-take (cu-nthrest 12 bs) query-len)
               (if (not (null? err)) ()
                 (append (cu-take (cu-nthrest 12 bs) query-len)
-                        (list (% (%wget-div ttl 16777216) 256) (% (%wget-div ttl 65536) 256)
-                              (% (%wget-div ttl 256) 256) (% ttl 256))
+                        (list (% (wget-div ttl 16777216) 256) (% (wget-div ttl 65536) 256)
+                              (% (wget-div ttl 256) 256) (% ttl 256))
                         (%dn-u16 rlen)
                         found))))))
 
@@ -195,7 +195,7 @@
 ; xatou_range: S as a number from LO to HI, or the run ends naming it
 (def %dn-range
   (fn (_ s lo hi)
-    (def n (%wget-digits s))
+    (def n (wget-digits s))
     (match ((null? n) (%dn-die (string-concat (list "invalid number '" s "'"))))
            ((if (< n lo) #t (> n hi))
              (%dn-die (string-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range"))))
@@ -232,8 +232,8 @@
 (def %dn-dotted
   (fn (_ s)
     (let ((parts (Str8 split "." s)))
-      (if (if (= (length parts) 4) (List all? (fn (_ p) (let ((n (%wget-digits p))) (if (null? n) #f (<= n 255)))) parts) #f)
-        (map %wget-digits parts)
+      (if (if (= (length parts) 4) (List all? (fn (_ p) (let ((n (wget-digits p))) (if (null? n) #f (<= n 255)))) parts) #f)
+        (map wget-digits parts)
         ()))))
 
 (def %dn-serve

@@ -58,7 +58,7 @@
       (let go ((i 1))
         (match
           ((= i (- n 1)) #t)
-          ((%wget-memv (byte-at s i) (list #\n #\u #\v #\l #\k #\z)) (go (+ i 1)))
+          ((wget-memv (byte-at s i) (list #\n #\u #\v #\l #\k #\z)) (go (+ i 1)))
           (#t #f)))
       #f)))
 
@@ -96,7 +96,7 @@
 
 ; a port as busybox's bb_lookup_port reads one: digits, or nil
 (def %nc-port
-  (fn (_ s) (if (null? s) 0 (%wget-digits s))))
+  (fn (_ s) (if (null? s) 0 (wget-digits s))))
 
 ; --- the run's state -----------------------------------------------------------
 
@@ -115,12 +115,12 @@
   (fn (_ dir off bs)
     (def hex (fn (_ n) (integer->char (if (< n 10) (+ n #\0) (+ n 87)))))
     (def h8 (let go ((v off) (k 8) (acc ()))
-              (if (= k 0) acc (go (%wget-div v 16) (- k 1) (pair (hex (% v 16)) acc)))))
+              (if (= k 0) acc (go (wget-div v 16) (- k 1) (pair (hex (% v 16)) acc)))))
     (string-concat
       (list (bytes->str (list dir)) " " (list->string h8) " "
             (string-concat
-              (map (fn (_ b) (list->string (list (hex (%wget-div b 16)) (hex (% b 16)) #\space))) bs))
-            (%wget-times (* 3 (- 16 (length bs))) #\space)
+              (map (fn (_ b) (list->string (list (hex (wget-div b 16)) (hex (% b 16)) #\space))) bs))
+            (wget-times (* 3 (- 16 (length bs))) #\space)
             "# "
             (list->string (map (fn (_ b) (if (if (> b 31) (< b 127) #f) (integer->char b) #\.)) bs))
             "\n"))))
@@ -221,7 +221,7 @@
     (guard (e (do (when (if (> %nc-verbose 1) #t
                           (if (> %nc-verbose 0) (not (eq? (file-err-sym e) (lit econnrefused))) #f))
                     (file-write 2 (string-concat
-                      (list %nc-name ": " host " (" ip ":" (cu-int->str port) "): " (%wget-err-text e) "\n"))))
+                      (list %nc-name ": " host " (" ip ":" (cu-int->str port) "): " (wget-err-text e) "\n"))))
                   ()))
       (net-connect ip port))))
 
@@ -229,8 +229,8 @@
   (fn (_ o ops prog)
     (def listen? (Opts on? o "-l"))
     (def lport (%nc-port (Opts value o "-p")))
-    (def w (let ((v (Opts value o "-w"))) (if (null? v) 0 (%wget-digits v))))
-    (def interval (let ((v (Opts value o "-i"))) (if (null? v) 0 (%wget-digits v))))
+    (def w (let ((v (Opts value o "-w"))) (if (null? v) 0 (wget-digits v))))
+    (def interval (let ((v (Opts value o "-i"))) (if (null? v) 0 (wget-digits v))))
     (def wait-ms (if (> w 0) (* w 1000) -1))
     (set! %nc-verbose (+ (nc-count o "-v") 0))
     (set! %nc-wrote-net 0)
@@ -245,9 +245,9 @@
             (do (net-close lfd) c)))
         (let ((host (first ops)) (port (%nc-port (if (null? (rest ops)) () (first (rest ops))))))
           (do (when (null? port)
-                (%net-die (string-concat (list "bad port '" (first (rest ops)) "'"))))
+                (net-die (string-concat (list "bad port '" (first (rest ops)) "'"))))
               (let ((ip (guard (_ ()) (net-resolve host))))
-                (do (when (null? ip) (%net-die (string-concat (list "bad address '" host "'"))))
+                (do (when (null? ip) (net-die (string-concat (list "bad address '" host "'"))))
                     (let ((fd (%nc-connect-or-fail host ip port)))
                       (do (when (if (> %nc-verbose 0) (not (null? fd)) #f)
                             (file-write 2 (string-concat

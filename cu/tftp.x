@@ -43,7 +43,7 @@
     (match
       ((null? argv) ())
       ((if (if (> (byte-len (first argv)) 0) (= (byte-at (first argv) 0) #\-) #f)
-           (if (not (null? (%wget-index (first argv) #\c 0))) (not (null? (rest argv))) #f) #f)
+           (if (not (null? (wget-index (first argv) #\c 0))) (not (null? (rest argv))) #f) #f)
         (match
           ((string=? (first (rest argv)) "get") (pair "-g" (pair "-r" (rest (rest argv)))))
           ((string=? (first (rest argv)) "put") (pair "-p" (pair "-r" (rest (rest argv)))))
@@ -53,7 +53,7 @@
 ; busybox's tftp_blksize_check: 24 to MAX, or nil after "bad blocksize"
 (def %tftp-blksize
   (fn (_ s max)
-    (def n (%wget-digits s))
+    (def n (wget-digits s))
     (if (if (null? n) #t (if (< n 24) #t (> n max)))
       (do (%tftp-say (string-concat (list "bad blocksize '" s "'"))) ())
       n)))
@@ -63,7 +63,7 @@
 ; S's bytes then a NUL
 (def %tftp-cstr (fn (_ s) (append (tftp-bytes s 0 (byte-len s)) (list 0))))
 
-(def %tftp-u16 (fn (_ n) (list (% (%wget-div n 256) 256) (% n 256))))
+(def %tftp-u16 (fn (_ n) (list (% (wget-div n 256) 256) (% n 256))))
 
 (def %tftp-run (fn (_ bs) (pair (bytes->str bs) (length bs))))
 
@@ -97,7 +97,7 @@
           (let ((next (+ (+ i (byte-len s)) 1)))
             (match
               ((> next (rest run)) ())
-              (name? (go next #f (string=? (%wget-lower s) option)))
+              (name? (go next #f (string=? (wget-lower s) option)))
               (found s)
               (#t (go next #t #f)))))))))
 
@@ -128,13 +128,13 @@
 (def %tftp-progress-init!
   (fn (_ name)
     (do (set! %tftp-progress #t)
-        (%wget-pm-init! name)
-        (%wget-pm-update! 0 %tftp-pos %tftp-size #f))))
+        (wget-pm-init! name)
+        (wget-pm-update! 0 %tftp-pos %tftp-size #f))))
 
 (def %tftp-progress-done!
   (fn (_)
     (when %tftp-progress
-      (do (%wget-pm-update! 0 %tftp-pos %tftp-size #f)
+      (do (wget-pm-update! 0 %tftp-pos %tftp-size #f)
           (file-write 2 "\n")))))
 
 ; the next packet from the server, or nil once the wait has passed: the first
@@ -157,13 +157,13 @@
 (def %tftp-exchange
   (fn (_ bs bufsize)
     (do (%tftp-send bs)
-        (when %tftp-progress (%wget-pm-update! 0 %tftp-pos %tftp-size #f))
+        (when %tftp-progress (wget-pm-update! 0 %tftp-pos %tftp-size #f))
         (let wait ((ms 100) (left 12))
           (let ((r (%tftp-receive ms bufsize)))
             (match
               ((null? r)
                 (if (= left 1) ()
-                  (do (%tftp-send bs) (wait (if (> (+ ms (%wget-div ms 2)) 2000) 2000 (+ ms (%wget-div ms 2))) (- left 1)))))
+                  (do (%tftp-send bs) (wait (if (> (+ ms (wget-div ms 2)) 2000) 2000 (+ ms (wget-div ms 2))) (- left 1)))))
               ((< (rest r) 4) (wait ms left))
               (#t r)))))))
 
@@ -194,7 +194,7 @@
           (let ((bs (if (null? b) blksize (%tftp-blksize b 65564))))
             (if (null? bs) (%tftp-fail-option)
               (do (when (if (not (null? t)) (= %tftp-size 0) #f)
-                    (let ((n (%wget-digits t)))
+                    (let ((n (wget-digits t)))
                       (when (if (null? n) #f (> n 0))
                         (do (set! %tftp-size n) (%tftp-progress-init! remote)))))
                   (if get? (%tftp-get-loop 0 bs local)
@@ -241,7 +241,7 @@
             (if (= (- (rest r) 4) blksize)
               (%tftp-get-loop n blksize local)
               (do (%tftp-send (append (%tftp-u16 4) (%tftp-u16 n)))
-                  (when %tftp-progress (%wget-pm-update! 0 %tftp-pos %tftp-size #f))
+                  (when %tftp-progress (wget-pm-update! 0 %tftp-pos %tftp-size #f))
                   #t))))
       (#t
         (let ((again (%tftp-receive 100 (+ blksize 4))))
@@ -301,15 +301,15 @@
     (def remote (if (null? r) l r))
     (def local
       (if (null? r) l
-        (if (null? l) (let ((s (%wget-last-index r #\/))) (if (null? s) r (substring r (+ s 1) (byte-len r)))) l)))
+        (if (null? l) (let ((s (wget-last-index r #\/))) (if (null? s) r (substring r (+ s 1) (byte-len r)))) l)))
     (if (if (null? remote) #t (null? ops)) (cu-usage "tftp")
       (%tftp-start get? blksize remote (if (string=? local "-") () local)
-                   (first ops) (if (null? (rest ops)) 69 (%wget-digits (first (rest ops))))))))
+                   (first ops) (if (null? (rest ops)) 69 (wget-digits (first (rest ops))))))))
 
 (def %tftp-start
   (fn (_ get? blksize remote local host port)
     (def ip (guard (_ ()) (net-resolve host)))
-    (when (null? ip) (%net-die (string-concat (list "bad address '" host "'"))))
+    (when (null? ip) (net-die (string-concat (list "bad address '" host "'"))))
     (set! %tftp-progress #f) (set! %tftp-pos 0) (set! %tftp-size 0)
     (set! %tftp-answered #f) (set! %tftp-peer (pair ip port)) (set! %tftp-local-fd -1)
     (unless get?
@@ -317,7 +317,7 @@
         (if (null? local) 0
           (let ((fd (file-open-or-err file-open-read local)))
             (if (Err err? fd)
-              (%net-die (string-concat (list "can't open '" local "': " (file-err-text fd))))
+              (net-die (string-concat (list "can't open '" local "': " (file-err-text fd))))
               fd)))))
     (unless (if get? #t (< %tftp-local-fd 1))
       (let ((size (Assoc get (lit size) (file-stat local))))
@@ -383,8 +383,8 @@
     (def mode-at (+ 3 (byte-len file)))
     (def mode (if (< mode-at (rest r)) (%tftp-text r mode-at) ()))
     (match
-      ((if (Str8 starts? "." file) #t (not (null? (%wget-find file "/.")))) (pair 0 "dot in file name"))
-      ((if (null? mode) #t (not (string=? (%wget-lower mode) "octet"))) (pair 0 "mode is not 'octet'"))
+      ((if (Str8 starts? "." file) #t (not (null? (wget-find file "/.")))) (pair 0 "dot in file name"))
+      ((if (null? mode) #t (not (string=? (wget-lower mode) "octet"))) (pair 0 "mode is not 'octet'"))
       (#t (%tftpd-check-options r op write-refused? file (+ mode-at (byte-len mode) 1))))))
 
 (def %tftpd-check-options
@@ -405,7 +405,7 @@
           (let ((next (+ (+ i (byte-len s)) 1)))
             (match
               ((> next (rest r)) ())
-              (name? (go next #f (string=? (%wget-lower s) option)))
+              (name? (go next #f (string=? (wget-lower s) option)))
               (found s)
               (#t (go next #t #f)))))))))
 
