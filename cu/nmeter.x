@@ -19,6 +19,14 @@
 ; sample is taken and thrown away, as busybox's is, to set each rate's last
 ; count.
 
+(module cu/nmeter)
+
+(import cu/cli cu-opts cu-refuse-option cu-usage)
+(import cu/prims byte-at byte-len cu-int->str cu-nth file-write filter
+  host-counters host-cpu host-disks host-interfaces host-interrupts host-tasks
+  map reverse string-append string-concat substring)
+(import cu/text cu-pad-zero)
+
 (def %nm-scale (fn (_ n) (%vm-four n " kmgtpezy")))
 (def %nm-marks (fn (_ k) (%str-make-raw-of k #\?)))
 
@@ -30,7 +38,7 @@
 (def %nm-delta (fn (_ now old) (if (< now old) 0 (- now old))))
 
 ; A sample: the records each field reads from, fetched once a line
-(def %nm-sample
+(def nm-sample
   (fn (_)
     (list (pair (lit cpu) (host-cpu)) (pair (lit memory) (host-memory))
           (pair (lit counters) (host-counters)) (pair (lit tasks) (host-tasks))
@@ -199,7 +207,7 @@
 ; The fields of FMT, and whether a line ends in a carriage return:
 ; (FIELDS . CR), or nil where the format is not one nmeter reads.  A field is
 ; (LABEL READ . STATE).
-(def %nm-parse
+(def nm-parse
   (fn (_ fmt)
     (def n (byte-len fmt))
     (def at (fn (_ i) (byte-at fmt i)))
@@ -272,7 +280,7 @@
 
 ; One line over sample S: (TEXT . FIELDS), each field's state brought up to S.
 ; A clock field's state is the first line's time, kept.
-(def %nm-line
+(def nm-line
   (fn (_ fields s)
     (def go
       (fn (self fs acc out)
@@ -285,13 +293,13 @@
 
 ; --- nmeter --------------------------------------------------------------------
 
-(def %cu-nmeter
+(def cu-nmeter
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "nmeter" argv))
     (def ops (Opts operands o))
     (def d (Opts value o "-d"))
     (def delta (if (null? d) 1000000 (let ((v (%nm-xatoi d))) (if (null? v) () (* v 1000)))))
-    (def parsed (if (null? ops) () (%nm-parse (first ops))))
+    (def parsed (if (null? ops) () (nm-parse (first ops))))
     (match
       ((not (null? (Opts unknown o))) (cu-refuse-option "nmeter" (Opts unknown o)))
       ((null? delta) (do (file-write 2 (string-concat (list "nmeter: invalid number '" d "'\n"))) 1))
@@ -316,19 +324,21 @@
   (fn (_ fields end delta)
     (def nz (if (> delta 0) delta 1))
     (def seconds (not (= (% 1000000 nz) 0)))
-    (def primed (rest (%nm-line fields (%nm-sample))))
+    (def primed (rest (nm-line fields (nm-sample))))
     (def us (fn (_ t) (if seconds (% (+ (* (first t) 1000000) (rest t)) nz) (% (rest t) nz))))
     (if (>= delta 0)
       (let ((t (Sys time-of-day))) (%vm-wait (if (> delta 1000000) 1000000 (- delta (% (rest t) nz))))))
-    (def first-sample (%nm-sample))
+    (def first-sample (nm-sample))
     (def t0 (Assoc get (lit time) first-sample))
     (set! %nm-t0 (if (> delta 0) (pair (first t0) (- (rest t0) (% (rest t0) delta))) t0))
     (def go
       (fn (self fields s)
-        (def r (%nm-line fields s))
+        (def r (nm-line fields s))
         (file-write 1 (string-append (first r) end))
         (if (>= delta 0)
           (let ((rem (- delta (us (Sys time-of-day)))))
             (%vm-wait (if (< rem (%ps-div delta 128)) (+ rem delta) rem))))
-        (self (rest r) (%nm-sample))))
+        (self (rest r) (nm-sample))))
     (go primed first-sample)))
+
+(provide cu/nmeter cu-nmeter nm-line nm-parse nm-sample)

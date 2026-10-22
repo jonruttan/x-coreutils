@@ -16,6 +16,16 @@
 ; fields and -s chars, cut to -w, folded when -i asks.  The options are read
 ; here and not per line -- each read costs thousands of objects, and nothing
 ; is collected while an applet runs.
+(module cu/text4)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-len cu-int->str cu-lines cu-nth cu-sweep-at
+  cu-sweep-lines cu-words-line file-close file-err-text file-open-or-err
+  file-open-write file-write length reverse string-append string-concat
+  string=? substring)
+(import cu/text cu-first-unopened cu-fold-lines-said cu-join-with
+  cu-num-prefix cu-pad-left cu-pad-zero cu-say cu-says cu-says-read)
+
 (def %uniq-key
   (fn (_ o)
     (def skip-f (let ((v (Opts value o "-f")))
@@ -54,7 +64,7 @@
 ; opens.  IN is opened before OUT, as uniq opens them, so an IN that will not
 ; open leaves OUT uncreated; OUT is truncated before IN is read, so the same
 ; file for both comes out empty.
-(def %cu-uniq
+(def cu-uniq
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "uniq" argv))
     (def ops (Opts operands o))
@@ -144,7 +154,7 @@
       ((string=? style "rz") (fn (_ n) (cu-pad-zero (cu-int->str n) width)))
       (#t (fn (_ n) (cu-pad-left (cu-int->str n) width))))))
 
-(def %cu-nl
+(def cu-nl
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "nl" argv))
     (def sep (let ((v (Opts value o "-s"))) (if (null? v) "\t" v)))
@@ -179,3 +189,5 @@
       (cu-fold-lines-said ops stdin-thunk (cu-says "nl")
         (fn (_ block n) (go (cu-lines block) n 0))
         start))))
+
+(provide cu/text4 cu-nl cu-uniq)

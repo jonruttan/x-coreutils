@@ -19,6 +19,15 @@
 ; 64-bit Linux and Darwin.  ru_maxrss is in kilobytes on Linux and in bytes
 ; on Darwin, and %M prints it as the kernel gives it, as busybox does.
 
+(module cu/time)
+
+(import cu/cli cu-opts)
+(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-nth
+  cu-ptr-call cu-stdin-to-command! file-close file-err-text file-open-or-err
+  file-write reverse str-make-raw string-append string-concat string=?
+  sys-exec-or-err sys-exit sys-fork sys-getenv sys-signal)
+(import cu/text cu-join-with cu-pad-zero)
+
 (def %tm-str->ptr (prim-ref (lit str) (lit ->ptr)))
 (def %tm-ptr->int (prim-ref (lit ptr) (lit ->int)))
 (def %tm-c-wait4 ())
@@ -227,7 +236,7 @@
         1)))
 
 ; time [-vpa] [-o FILE] [-f FMT] PROG ARGS
-(def %cu-time
+(def cu-time
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "time" argv))
     (def command (Opts operands o))
@@ -261,3 +270,5 @@
                   (if (= (%tm-signal-of (first run)) 0)
                     (%tm-exit-of (first run))
                     (%tm-signal-of (first run))))))))))
+
+(provide cu/time cu-time)

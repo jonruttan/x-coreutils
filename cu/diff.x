@@ -24,6 +24,15 @@
 ; one space, -i folds a word as it is read. -t and -T are not lexical and stay
 ; below: they shape a line on the way out, and a reader base reads.
 
+(module cu/diff)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-at byte-len cu-int->str cu-lines cu-nth file-dir?
+  file-read-all file-write length map reverse set-first! string-append
+  string-concat string=? substring vec-make vec-ref vec-set!)
+(import cu/text cu-file-pieces cu-first-unopened cu-join-with cu-num-prefix
+  cu-run-nul? cu-say cu-says cu-text-from cu-with-sources)
+
 (def %cu-diff-lcs
   (fn (_ av bv n m)
     ; lcs[i][j] = LCS of a[i..], b[j..]; filled bottom-up
@@ -319,7 +328,7 @@
                     hs))))
             status))))))
 
-(def %cu-diff-str
+(def cu-diff-str
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "diff" argv))
     (def paths (Opts operands o))
@@ -466,7 +475,7 @@
       (list "Binary files " (first ops) " and " (first (rest ops))
             " differ\n"))))
 
-(def %cu-diff-dir
+(def cu-diff-dir
   (fn (self o flags a b start)
     (def recurse? (Opts on? o "-r"))
     (def absent? (Opts on? o "-N"))
@@ -550,7 +559,7 @@
 ; Two paths, no fewer and no more.  There is no GNU build here to measure;
 ; BSD's refuses a wrong count with a usage line and 2, diff's trouble, and so
 ; does this one, naming its own options.
-(def %cu-diff
+(def cu-diff
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "diff" argv))
     (if (= (length (Opts operands o)) 2)
@@ -570,7 +579,7 @@
     ; a walk; one of them names the entry inside it that matches the other's
     ; name.
     (if (if (file-dir? pa) (file-dir? pb) #f)
-      (let ((d (%cu-diff-dir o (%cu-diff-flags argv) pa pb (Opts value o "-S"))))
+      (let ((d (cu-diff-dir o (%cu-diff-flags argv) pa pb (Opts value o "-S"))))
         (do (display (first d)) (rest d)))
       (%cu-diff-files o argv stdin-thunk
         (if (file-dir? pa) (%cu-diff-path pa (%cu-diff-tail pb)) pa)
@@ -597,3 +606,5 @@
       ((if (Opts on? o "-s") (not differ?) #f)
         (do (display (%cu-diff-pair-text ops "are identical")) 0))
       (#t (do (display (first r)) (rest r))))))
+
+(provide cu/diff cu-diff cu-diff-dir cu-diff-str)

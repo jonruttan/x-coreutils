@@ -14,6 +14,17 @@
 
 ; the escapes od -c spells; everything printable is itself, everything
 ; else is three octal digits
+(module cu/encode)
+
+(import cu/cli cu-opts)
+(import cu/prims bit-and bit-shl bit-xor byte-at byte-len cu% cu& cu* cu+ cu-
+  cu-b->s cu-hexs cu-int->str cu-lines cu-nth cu-run-bytes cu-sweep-at
+  cu-sweep-lines cu-sweep-steps cu/ cu< cu<< cu>> file-close file-err-text
+  file-open-or-err file-open-write file-stat-full file-write filter length map
+  reverse set-first! string-append string-concat string=? substring sys-umask)
+(import cu/text cu-enough cu-fold-said cu-gather-said cu-join-with
+  cu-num-prefix cu-pad-left cu-pad-zero cu-run-join cu-run-part cu-says)
+
 (def %cu-od-char
   (fn (_ b)
     (match
@@ -297,7 +308,7 @@
               (pair (substring a 0 2) acc)))
           (self (rest as) (pair a acc)))))))
 
-(def %cu-od
+(def cu-od
   (fn (_ argv stdin-thunk)
     (def st (%cu-od-scan (%cu-od-normalize argv ()) ()))
     (def ops
@@ -359,7 +370,7 @@
 ; uuencode [FILE] NAME: one operand or two.  There is no GNU build here to
 ; measure; BSD's refuses any other count with a usage line and 1, and so does
 ; this one, naming its own options.
-(def %cu-uuencode
+(def cu-uuencode
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "uuencode" argv))
     (def n (length (Opts operands o)))
@@ -471,7 +482,7 @@
 ; writes, where busybox writes the file the begin line names; that
 ; default predates -o and stays, since the applet protocol is a
 ; standard-output one and the begin line's name is rarely meant here.
-(def %cu-uudecode
+(def cu-uudecode
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "uudecode" argv))
     (def out (let ((v (Opts value o "-o"))) (if (null? v) "-" v)))
@@ -542,3 +553,5 @@
                       (+ k 1))))))))
     (if b64? (%cu-b64-decode-to (cu-join-with body "\n") put #t)
       (go (filter (fn (_ l) (> (byte-len l) 0)) body) () 0 0))))
+
+(provide cu/encode cu-od cu-uudecode cu-uuencode)

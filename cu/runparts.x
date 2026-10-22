@@ -20,6 +20,16 @@
 ; closed on exec: the child writes why its exec failed into it, and the
 ; parent reads nothing there when the exec went through.
 
+(module cu/runparts)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
+  cu-ptr-call cu-string-type cu-type-of file-err-text file-list-dir
+  file-read-fd file-stat-full file-write filter length map reverse
+  string-append string-concat sys-close sys-exec-or-err sys-exit sys-fork
+  sys-wait)
+(import cu/text cu-msort cu-str<)
+
 (def %rp-c-access ())
 (def %rp-c-umask ())
 
@@ -100,7 +110,7 @@
       (#t (first r)))))
 
 ; run-parts [-a ARG]... [-u UMASK] [--reverse] [--test] [--exit-on-error] [--list] DIRECTORY
-(def %cu-run-parts
+(def cu-run-parts
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "run-parts" argv))
     (def ops (Opts operands o))
@@ -140,3 +150,5 @@
                                                          (file-err-text names) "\n")))
                       0))
                 (#t (each (if (Opts on? o "--reverse") (reverse names) names) 0)))))))))
+
+(provide cu/runparts cu-run-parts)

@@ -17,6 +17,14 @@
 ; exclude each other.  The name's unprintable bytes show as ?, as busybox
 ; shows them without a UTF-8 locale.
 
+(module cu/dumpleases)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims cu-hexs cu-int->str cu-ptr-ref cu-str->ptr file-open-or-err
+  file-open-read file-read-run file-write length map reverse string-append
+  string-concat string=?)
+(import cu/text cu-join-with cu-pad-right cu-pad-zero)
+
 (def %dl-file "/var/lib/misc/udhcpd.leases")
 
 ; a flag given in either spelling
@@ -38,7 +46,7 @@
 (def %dl-hex2 (fn (_ b) (cu-pad-zero (cu-hexs b) 2)))
 (def %dl-2 (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
 
-(def %cu-dumpleases
+(def cu-dumpleases
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "dumpleases" argv))
     (if (match ((not (null? (Opts operands o))) #t)
@@ -90,3 +98,5 @@
     (def r (% s 86400))
     (string-append (if (> d 0) (string-append (cu-int->str d) " days ") "")
                    (string-concat (list (%dl-2 (%wget-div r 3600)) ":" (%dl-2 (%wget-div (% r 3600) 60)) ":" (%dl-2 (% r 60)))))))
+
+(provide cu/dumpleases cu-dumpleases)

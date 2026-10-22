@@ -14,6 +14,15 @@
 ; socket, found through /proc/PID/fd.  -r is route's table, in netstat's
 ; columns unless -e.
 
+(module cu/netstat)
+
+(import cu/cli cu-opts)
+(import cu/prims append byte-at byte-len cu-int->str cu-lines file-list-dir
+  file-or-err file-read-unsized file-readlink file-write filter length
+  libc-strerror map reverse str-make-raw string-append string-concat string=?
+  substring)
+(import cu/text cu-num-prefix cu-pad-left)
+
 (def %nst-say (fn (_ msg) (file-write 2 (string-append "netstat: " msg "\n"))))
 
 (def %nst-tcp-states
@@ -201,7 +210,7 @@
            ((List ref 1 st) "(only servers)")
            (#t "(w/o servers)"))))
 
-(def %cu-netstat
+(def cu-netstat
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "netstat" argv))
     (def on? (fn (_ f) (Opts on? o f)))
@@ -233,3 +242,5 @@
       (do (unless (rest r)
             (%nst-say (if (null? (first r)) "can't scan /proc - are you root?" "showing only processes with your user ID")))
           (first r)))))
+
+(provide cu/netstat cu-netstat)

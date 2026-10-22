@@ -19,6 +19,16 @@
 
 ; --- the command line ------------------------------------------------------------
 
+(module cu/dns)
+
+(import cu/cli cu-usage)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth file-err-text
+  file-exists? file-open-err file-read-all file-read-run file-write filter
+  integer->char length list->string map net-close net-resolve net-udp-connect
+  reverse set-first! string-append string-concat string=? substring sys-poll
+  sys-time-ms sys-uname vec-build vec-ref)
+(import cu/text cu-member-s?)
+
 (def %ns-port 53)
 (def %ns-retry 2)
 (def %ns-timeout 5)
@@ -114,12 +124,12 @@
             ((if (= i l1) #t (= (byte-at name i) #\.))
               (let ((n (- i start)))
                 (if (> (- n 1) 61) ()
-                  (let ((acc2 (append (reverse (%ns-bytes name start i)) (pair n acc))))
+                  (let ((acc2 (append (reverse (ns-bytes name start i)) (pair n acc))))
                     (if (= i l1) (reverse (pair 0 acc2)) (go (+ i 1) (+ i 1) acc2))))))
             (#t (go (+ i 1) start acc))))))))
 
 ; S's bytes from A to B, as a list
-(def %ns-bytes
+(def ns-bytes
   (fn (_ s a b)
     (let go ((i (- b 1)) (acc ()))
       (if (< i a) acc (go (- i 1) (pair (& (byte-at s i) 255) acc))))))
@@ -161,7 +171,7 @@
       (if (if (> (byte-len g) 0) (<= (byte-len g) 4) #f)
         (let go ((i 0) (v 0))
           (if (= i (byte-len g)) v
-            (let ((h (%ns-hex (byte-at g i)))) (if (< h 0) () (go (+ i 1) (+ (* v 16) h))))))
+            (let ((h (ns-hex (byte-at g i)))) (if (< h 0) () (go (+ i 1) (+ (* v 16) h))))))
         ())))
     (def groups (fn (_ part) (if (= (byte-len part) 0) () (map group (%ns-split part #\:)))))
     (def all
@@ -174,7 +184,7 @@
 
 (def %ns-zeros (fn (self n) (if (<= n 0) () (pair 0 (self (- n 1))))))
 
-(def %ns-hex
+(def ns-hex
   (fn (_ c)
     (match
       ((if (>= c #\0) (<= c #\9) #f) (- c #\0))
@@ -328,7 +338,7 @@
       (file-write 1 (string-concat
         (list "Server:\t\t" (first server) "\nAddress:\t" (first (rest server)) ":"
               (cu-int->str (first (rest (rest server)))) "\n\n"))))
-    (def bs (%ns-bytes (first r) 0 (rest r)))
+    (def bs (ns-bytes (first r) 0 (rest r)))
     (def q (if (< (length bs) 4) () (%ns-match queries (first bs) (first (rest bs)))))
     (def rcode (if (null? q) 0 (& (first (rest (rest (rest bs)))) 15)))
     (match
@@ -370,12 +380,12 @@
 
 ; byte I of the list BS, as a vector would answer it
 (def %ns-at (fn (_ v i) (vec-ref v i)))
-(def %ns-u16 (fn (_ v i) (+ (* 256 (vec-ref v i)) (vec-ref v (+ i 1)))))
-(def %ns-u32 (fn (_ v i) (+ (* 65536 (%ns-u16 v i)) (%ns-u16 v (+ i 2)))))
+(def ns-u16 (fn (_ v i) (+ (* 256 (vec-ref v i)) (vec-ref v (+ i 1)))))
+(def %ns-u32 (fn (_ v i) (+ (* 65536 (ns-u16 v i)) (ns-u16 v (+ i 2)))))
 
 ; dn_expand: the name at I as dotted text, and how many bytes it takes there
 ; -- (TEXT . LENGTH), or nil for a name that runs off the end or loops
-(def %ns-name
+(def ns-name
   (fn (_ v n i)
     (let go ((j i) (parts ()) (len ()) (hops 0))
       (match
@@ -407,9 +417,9 @@
     (def v (vec-build n (let ((l bs)) (fn (_ i) (let ((b (first l))) (do (set! l (rest l)) b))))))
     (%ns-print-aa v)
     (if (< n 12) -1
-      (let ((after-q (%ns-skip-questions v n 12 (%ns-u16 v 4))))
+      (let ((after-q (%ns-skip-questions v n 12 (ns-u16 v 4))))
         (if (null? after-q) -1
-          (%ns-answers v n after-q 0 (%ns-u16 v 6)))))))
+          (%ns-answers v n after-q 0 (ns-u16 v 6)))))))
 
 (def %ns-print-aa
   (fn (_ v)
@@ -421,7 +431,7 @@
 (def %ns-skip-questions
   (fn (self v n i k)
     (if (= k 0) i
-      (let ((nm (%ns-name v n i)))
+      (let ((nm (ns-name v n i)))
         (if (if (null? nm) #t (> (+ (+ i (rest nm)) 4) n)) ()
           (self v n (+ (+ i (rest nm)) 4) (- k 1)))))))
 
@@ -429,10 +439,10 @@
 (def %ns-answers
   (fn (self v n i k count)
     (if (= k count) k
-      (let ((nm (%ns-name v n i)))
+      (let ((nm (ns-name v n i)))
         (if (if (null? nm) #t (> (+ (+ i (rest nm)) 10) n)) -1
           (let ((at (+ i (rest nm))))
-            (let ((type (%ns-u16 v at)) (rdlen (%ns-u16 v (+ at 8))) (rd (+ at 10)))
+            (let ((type (ns-u16 v at)) (rdlen (ns-u16 v (+ at 8))) (rd (+ at 10)))
               (if (> (+ rd rdlen) n) -1
                 (if (< (%ns-print-rr v n (first nm) type rd rdlen) 0) -1
                   (self v n (+ rd rdlen) (+ k 1) count))))))))))
@@ -442,7 +452,7 @@
   (fn (_ v n name type rd rdlen)
     (def say (fn (_ parts) (do (file-write 1 (string-concat parts)) 0)))
     (def named (fn (_ fmt-mid at)
-      (let ((d (%ns-name v n at)))
+      (let ((d (ns-name v n at)))
         (if (null? d) -1 (say (list name fmt-mid (first d) "\n"))))))
     (match
       ((= type 1)
@@ -459,9 +469,9 @@
       ((= type 12) (named "\tname = " rd))
       ((= type 15)
         (if (< rdlen 2) (do (file-write 1 "MX record too short\n") -1)
-          (let ((d (%ns-name v n (+ rd 2))))
+          (let ((d (ns-name v n (+ rd 2))))
             (if (null? d) -1
-              (say (list name "\tmail exchanger = " (cu-int->str (%ns-u16 v rd)) " " (first d) "\n"))))))
+              (say (list name "\tmail exchanger = " (cu-int->str (ns-u16 v rd)) " " (first d) "\n"))))))
       ((= type 16)
         (if (< rdlen 1) -1
           (let ((k (vec-ref v rd)))
@@ -473,18 +483,18 @@
                          "\"\n"))))))
       ((= type 33)
         (if (< rdlen 6) -1
-          (let ((d (%ns-name v n (+ rd 6))))
+          (let ((d (ns-name v n (+ rd 6))))
             (if (null? d) -1
-              (say (list name "\tservice = " (cu-int->str (%ns-u16 v rd)) " "
-                         (cu-int->str (%ns-u16 v (+ rd 2))) " " (cu-int->str (%ns-u16 v (+ rd 4)))
+              (say (list name "\tservice = " (cu-int->str (ns-u16 v rd)) " "
+                         (cu-int->str (ns-u16 v (+ rd 2))) " " (cu-int->str (ns-u16 v (+ rd 4)))
                          " " (first d) "\n"))))))
       ((= type 6) (%ns-print-soa v n name rd rdlen))
       (#t 0))))
 
 (def %ns-print-soa
   (fn (_ v n name rd rdlen)
-    (def origin (if (< rdlen 20) () (%ns-name v n rd)))
-    (def mail (if (null? origin) () (%ns-name v n (+ rd (rest origin)))))
+    (def origin (if (< rdlen 20) () (ns-name v n rd)))
+    (def mail (if (null? origin) () (ns-name v n (+ rd (rest origin)))))
     (if (null? mail) -1
       (let ((at (+ (+ rd (rest origin)) (rest mail))))
         (do (file-write 1 (string-concat
@@ -500,7 +510,7 @@
 ; longest run of two or more zero groups as ::
 (def %ns-ntop6
   (fn (_ v i)
-    (def groups (let go ((k 7) (acc ())) (if (< k 0) acc (go (- k 1) (pair (%ns-u16 v (+ i (* 2 k))) acc)))))
+    (def groups (let go ((k 7) (acc ())) (if (< k 0) acc (go (- k 1) (pair (ns-u16 v (+ i (* 2 k))) acc)))))
     (def best (%ns-zero-run groups 0 -1 0 -1 0))
     (def hex (fn (_ g) (%ns-hex-group g)))
     (def bs (first best))
@@ -509,7 +519,7 @@
       (%ns-join-colon (map hex groups))
       (string-concat
         (list (%ns-join-colon (map hex (%ns-take bs groups))) "::"
-              (%ns-join-colon (map hex (%ns-drop (+ bs bl) groups))))))))
+              (%ns-join-colon (map hex (ns-drop (+ bs bl) groups))))))))
 
 ; the longest run of zeros in GS: (START . LENGTH), the first of the longest
 (def %ns-zero-run
@@ -522,7 +532,7 @@
       (#t (self (rest gs) (+ i 1) -1 0 best-start best-len)))))
 
 (def %ns-take (fn (self n l) (if (<= n 0) () (pair (first l) (self (- n 1) (rest l))))))
-(def %ns-drop (fn (self n l) (if (<= n 0) l (self (- n 1) (rest l)))))
+(def ns-drop (fn (self n l) (if (<= n 0) l (self (- n 1) (rest l)))))
 (def %ns-join-colon
   (fn (_ ss) (if (null? ss) "" (string-concat (pair (first ss) (map (fn (_ s) (string-append ":" s)) (rest ss)))))))
 (def %ns-hex-group
@@ -532,7 +542,7 @@
 
 ; --- the applet ------------------------------------------------------------------
 
-(def %cu-nslookup
+(def cu-nslookup
   (fn (_ argv stdin-thunk)
     (set! %ns-port 53) (set! %ns-retry 2) (set! %ns-timeout 5)
     (set! %ns-debug #f) (set! %ns-exit 0)
@@ -596,3 +606,5 @@
     (if (null? servers) #f
       (if (> (%ns-send-queries (first servers) queries) 0) #t
         (self (rest servers) queries)))))
+
+(provide cu/dns cu-nslookup ns-bytes ns-drop ns-hex ns-name ns-u16)

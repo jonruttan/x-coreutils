@@ -25,6 +25,17 @@
 ; The archive is read a piece at a time through tar's reader (cu/tar.x),
 ; which a seek starts afresh.
 
+(module cu/unzip)
+
+(import cu/cli cu-usage)
+(import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-ptr-call
+  cu-str->ptr cu-sweep-tick! file-chmod file-close file-err-text
+  file-lstat-full file-open-err file-open-read file-open-wronly file-stat-full
+  file-symlink file-write filter length map reverse str-make-raw string-append
+  string-concat string=? substring sys-getcwd vec-build vec-ref vec-set!)
+(import cu/text cu-fd-chunks cu-pad-left cu-pad-zero cu-run-text
+  cu-stdin-pieces)
+
 (import x/codec/inflate)
 (import x/codec/crc32)
 
@@ -565,7 +576,7 @@
 (def %uz-count (fn (_ flags cs) (length (filter (fn (_ f) (%uz-in? f cs)) flags))))
 
 ; unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]
-(def %cu-unzip
+(def cu-unzip
   (fn (_ argv stdin-thunk)
     (guard (e (if (eq? (cu-err-label e) (lit unzip))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
@@ -666,3 +677,5 @@
         (%uz-make-links! u)
         (if (if (vec-ref u 6) (<= quiet 1) #f) (%uz-totals! u tot) ())
         0)))
+
+(provide cu/unzip cu-unzip)

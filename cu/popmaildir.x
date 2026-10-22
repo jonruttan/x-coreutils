@@ -17,6 +17,15 @@
 ; on the server.  A reply not "+" ends the run, "COMMAND failed, reply was:
 ; REPLY".  -b -d -m -V -c -R -Z and -L are taken and ignored.
 
+(module cu/popmaildir)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims append byte-at byte-len cu-int->str cu-ptr-ref cu-str->ptr
+  file-close file-read-run file-rename file-write map reverse set-first!
+  string-append string-concat string=? substring sys-close sys-dup2 sys-exit
+  sys-fork sys-getpid sys-isatty sys-pipe sys-poll sys-setenv sys-signal
+  sys-uname sys-wait)
+
 (def %pm-wr 1)                  ; the server, written
 (def %pm-rd 0)                  ; the server, polled for -t
 (def %pm-timeout 0)
@@ -210,7 +219,7 @@
 
 ; --- the applet ----------------------------------------------------------------------
 
-(def %cu-popmaildir
+(def cu-popmaildir
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "popmaildir" argv))
     (def ops (Opts operands o))
@@ -250,3 +259,5 @@
         (when (%pm-fetch k retr delivery (Opts on? o "-k") suffix) (go (- k 1)))))
     (%pm-check "QUIT")
     0))
+
+(provide cu/popmaildir cu-popmaildir)

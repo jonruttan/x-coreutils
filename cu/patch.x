@@ -15,6 +15,17 @@
 ; without it; -R applies the patch backwards; -N passes over a hunk already
 ; applied; -E removes a file the patch empties; --dry-run writes nothing.
 
+(module cu/patch)
+
+(import cu/cli cu-opts)
+(import cu/prims append bit-xor byte-at byte-len cu-dlopen cu-dlsym
+  cu-err-label cu-int->str cu-ptr->str cu-ptr-call cu-ptr-set! cu-str->ptr
+  cu-sweep-lines cu-sweep-tick! file-chmod file-close file-err-text
+  file-open-err file-rename file-stat-full file-unlink file-write length map
+  reverse str-make-raw string-append string-concat string=? substring
+  vec-build vec-make vec-ref vec-set!)
+(import cu/text cu-fd-chunks cu-num-prefix cu-pieces cu-run-from cu-run-text)
+
 (def %pt-die (fn (_ msg) (Err raise (lit patch) (string-append "patch: " msg) ())))
 
 (def %pt-why
@@ -297,7 +308,7 @@
             1)))))
 
 ; patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
-(def %cu-patch
+(def cu-patch
   (fn (_ argv stdin-thunk)
     (guard (e (if (eq? (cu-err-label e) (lit patch))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
@@ -384,3 +395,5 @@
                     2)))
           (do (%pg! 5 (+ (if (null? (%pg 5)) 0 (%pg 5)) 1))
               (if (= st 0) 0 2))))))
+
+(provide cu/patch cu-patch)

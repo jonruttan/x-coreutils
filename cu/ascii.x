@@ -15,6 +15,13 @@
 
 ; --- ascii --------------------------------------------------------------------
 
+(module cu/ascii)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-at cu-int->str cu-nth cu-sweep! cu-sweep-steps
+  file-err-text file-write map string-append string-concat vec-build vec-ref)
+(import cu/text cu-fold-pieces cu-pad-left cu-pad-zero cu-pieces)
+
 (def %ascii-names
   (list "NUL" "SOH" "STX" "ETX" "EOT" "ENQ" "ACK" "BEL" "BS " "HT " "NL " "VT "
         "FF " "CR " "SO " "SI " "DLE" "DC1" "DC2" "DC3" "DC4" "NAK" "SYN" "ETB"
@@ -41,7 +48,7 @@
             (%ascii-cell (+ i 112) 5 (if (= i 15) "DEL" (ch (+ i 112))))
             "\n"))))
 
-(def %cu-ascii
+(def cu-ascii
   (fn (_ argv stdin-thunk)
     (do (file-write 1
           (string-concat
@@ -76,7 +83,7 @@
 ; crc32 [FILE]...: each file's CRC, and its name; with none, standard
 ; input's, unnamed.  A file that will not open is said and passed; one that
 ; will not read ends the run.
-(def %cu-crc32
+(def cu-crc32
   (fn (_ argv stdin-thunk)
     (def ops (Opts operands (cu-opts "crc32" argv)))
     (def one
@@ -115,8 +122,10 @@
   (fn (_) (do (file-write 2 "Usage: uuidgen\n\nGenerate a random UUID\n") 1)))
 
 ; uuidgen [-r]: -r, a random UUID, is the only kind
-(def %cu-uuidgen
+(def cu-uuidgen
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "uuidgen" argv))
     (if (pair? (Opts operands o)) (%uuidgen-usage)
       (do (file-write 1 (string-append ((Random hw) uuid) "\n")) 0))))
+
+(provide cu/ascii cu-ascii cu-crc32 cu-uuidgen)

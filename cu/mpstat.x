@@ -20,6 +20,14 @@
 ; --- a sample ----------------------------------------------------------------
 
 ; A CPU record's ticks: user nice system idle iowait irq softirq steal guest
+(module cu/mpstat)
+
+(import cu/cli cu-opts cu-refuse-option cu-usage)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth file-write filter
+  host-counters host-cpu host-cpus host-interrupts length map reverse
+  string-append string-concat substring)
+(import cu/text cu-member-s? cu-pad-right)
+
 (def %mp-ticks
   (fn (_ r)
     (map (fn (_ k) (%vm-ticks (Assoc get k r))) (lit (user nice system idle iowait irq softirq steal guest)))))
@@ -201,7 +209,7 @@
 
 ; --- mpstat ------------------------------------------------------------------
 
-(def %cu-mpstat
+(def cu-mpstat
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "mpstat" argv))
     (def ops (Opts operands o))
@@ -283,3 +291,5 @@
         (def last (go first-sample count))
         (file-write 1 (%mp-report first-sample last "Average:" "Average:" shows bitmap only n interval))
         0))))
+
+(provide cu/mpstat cu-mpstat)

@@ -14,6 +14,15 @@
 ;
 ; [c*] with no count is one c, which is all it needs to be: a SET2 shorter than
 ; SET1 already repeats its last byte, which is what the form asks for.
+(module cu/trcut)
+
+(import cu/cli cu-extra-operand cu-missing-operand cu-opts)
+(import cu/prims append byte-at byte-len cu-b->s cu-lines cu-nth cu-run-bytes
+  cu-sweep! cu-sweep-steps file-write filter length map reverse string-concat
+  string=? substring)
+(import cu/text cu-fold-lines-said cu-fold-stdin cu-join-with cu-map-swept
+  cu-member-s? cu-num-prefix cu-print-lines cu-says cu-split-byte)
+
 (def %cu-tr-set
   (fn (_ s) (%cu-tr-ranges (%cu-tr-items s 0 ()))))
 
@@ -189,7 +198,7 @@
         (self (rest names))
         (first names)))))
 
-(def %cu-tr
+(def cu-tr
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "tr" argv))
     (def del? (Opts on? o "-d"))
@@ -319,7 +328,7 @@
 ; rather than ignored: this cut is byte-oriented, so a character is a byte,
 ; and "do not split a multibyte character" cannot fail when nothing is
 ; multibyte.
-(def %cu-cut
+(def cu-cut
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "cut" argv))
     (def ops (Opts operands o))
@@ -377,3 +386,5 @@
           (cu-fold-lines-said ops stdin-thunk (cu-says "cut")
             (fn (_ block s) (do (put-lines (cu-lines block)) s))
             ()))))))
+
+(provide cu/trcut cu-cut cu-tr)

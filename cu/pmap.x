@@ -16,6 +16,13 @@
 ; the line busybox's read_cmdline makes of ARGS for pmap: the arguments joined
 ; by spaces, less the empty ones at the end (cmdline's trailing NULs), a
 ; control byte as ?, cut to its 4095-byte buffer
+(module cu/pmap)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims byte-len cu-heap-collect cu-hexs cu-int->str host-args
+  host-process host-regions reverse string-append string-concat substring)
+(import cu/text cu-join-with cu-pad-left cu-pad-zero)
+
 (def %pmap-cmdline
   (fn (_ args)
     (%ps-resolve!)
@@ -85,7 +92,7 @@
                   (#t (display (string-concat (list " total " (%pmap-col (first t) 17) "K\n")))))
                 0)))))))
 
-(def %cu-pmap
+(def cu-pmap
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "pmap" argv))
     (def x (Opts on? o "-x"))
@@ -98,3 +105,5 @@
             (if (null? pid) 1
               (self (rest ops) (if (= (%pmap-report pid x quiet) 0) st 42)))))))
     (if (null? (Opts operands o)) (cu-usage "pmap") (go (Opts operands o) 0))))
+
+(provide cu/pmap cu-pmap)

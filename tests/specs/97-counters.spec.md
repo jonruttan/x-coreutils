@@ -230,7 +230,7 @@ Average:       1      0.00    241.94     80.65      0.00|
 ### a line over the fixture's second sample: each reading as busybox shows it
 
 ```cu
-(do (sample "a") (def p (%nm-parse "c[%c] C[%[c20]] n[%[neth0]] lo[%[nlo]] x[%[nnope]] m[%m] md[%[md]] mw[%[mw]] mf[%[mf]] mt[%[mt]] s[%s] f[%f] i[%i] i16[%16i] i9[%9i] x[%x] p[%p] pn[%[pn]] b[%b] 100%%")) (def primed (rest (%nm-line (first p) (%nm-sample)))) (sample "b") (def r (first (%nm-line primed (%nm-sample)))) (back) (list r (rest p)))
+(do (sample "a") (def p (nm-parse "c[%c] C[%[c20]] n[%[neth0]] lo[%[nlo]] x[%[nnope]] m[%m] md[%[md]] mw[%[mw]] mf[%[mf]] mt[%[mt]] s[%s] f[%f] i[%i] i16[%16i] i9[%9i] x[%x] p[%p] pn[%[pn]] b[%b] 100%%")) (def primed (rest (nm-line (first p) (nm-sample)))) (sample "b") (def r (first (nm-line primed (nm-sample)))) (back) (list r (rest p)))
 ```
 ---
     ("c[SSUUUUU...] C[SSSUUUUUUUUUUDI.....] n[*976k  97k] lo[  100  100] x[??????????] m[338m] md[4.2m] mw[ 56k] mf[ 15g] mt[ 15g] s[1.0g] f[4096] i[120k] i16[ 750] i9[   0] x[ 44k] p[   7] pn[ 460] b[2.2m 512k] 100%" #f)
@@ -238,7 +238,7 @@ Average:       1      0.00    241.94     80.65      0.00|
 ### on this machine: a line over two samples, a tenth of a second apart
 
 ```cu
-(do (def p (%nm-parse "%c|%m|%s|%f|%x|%[pn]|%b|%t")) (def primed (rest (%nm-line (first p) (%nm-sample)))) (sys-usleep 100000) (def l (first (%nm-line primed (%nm-sample)))) (list (byte-len l) (not (null? (re-search (re-compile "^[SUNDIi.?]{10}\\|[ 0-9.][0-9.kmgt ]{3}\\|[ 0-9.][0-9.kmgt ]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|.... ....\\|[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$") l)))))
+(do (def p (nm-parse "%c|%m|%s|%f|%x|%[pn]|%b|%t")) (def primed (rest (nm-line (first p) (nm-sample)))) (sys-usleep 100000) (def l (first (nm-line primed (nm-sample)))) (list (byte-len l) (not (null? (re-search (re-compile "^[SUNDIi.?]{10}\\|[ 0-9.][0-9.kmgt ]{3}\\|[ 0-9.][0-9.kmgt ]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|.... ....\\|[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$") l)))))
 ```
 ---
     (54 #t)
@@ -246,7 +246,7 @@ Average:       1      0.00    241.94     80.65      0.00|
 ### %r ends the line in a carriage return; %t and %T are clocks to PREC places
 
 ```cu
-(do (def p (%nm-parse "a%rb %3t %T")) (list (length (first p)) (rest p) (first (first (first p))) (first (first (rest (first p))))))
+(do (def p (nm-parse "a%rb %3t %T")) (list (length (first p)) (rest p) (first (first (first p))) (first (first (rest (first p))))))
 ```
 ---
     (2 #t "ab " " ")

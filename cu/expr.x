@@ -23,6 +23,12 @@
 
 ; an atom is (LABEL DATA STAR?): ch/any/cls take a byte, gopen/gclose
 ; mark the capture, eol anchors the end.
+(module cu/expr)
+
+(import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-nth
+  file-write length reverse string-append string-concat string=? substring)
+(import cu/text cu-num-prefix cu-str<)
+
 (def %cu-re-label (fn (_ a) (cu-nth 0 a)))
 (def %cu-re-data (fn (_ a) (cu-nth 1 a)))
 (def %cu-re-star? (fn (_ a) (cu-nth 2 a)))
@@ -351,12 +357,12 @@
               (self (%cu-expr-colon v (first r2)) (rest r2)))))))
     (go (first r) (rest r))))
 
-; expr's syntax error, WHAT, raised for %cu-expr to say, with status 2
+; expr's syntax error, WHAT, raised for cu-expr to say, with status 2
 (def %cu-expr-syntax
   (fn (_ what)
     (Err raise (lit cu) (string-append "expr: syntax error: " what) ())))
 
-; the same where WHAT is after the last argument, which %cu-expr names
+; the same where WHAT is after the last argument, which cu-expr names
 (def %cu-expr-at-end
   (fn (_ what)
     (Err raise (lit cu-at-end) (string-append "expr: syntax error: " what) ())))
@@ -434,7 +440,7 @@
 ; An expression that will not parse, or divides by zero, is said as GNU's
 ; expr says it, with status 2: an argument left over past the whole of it is
 ; unexpected, and what the parse raised at the end names the last argument.
-(def %cu-expr
+(def cu-expr
   (fn (_ argv stdin-thunk)
     (def said
       (fn (_ e end?)
@@ -457,3 +463,5 @@
                 (list "unexpected argument '" (first (rest r)) "'")))
             (do (display (string-append (first r) "\n"))
                 (if (%cu-expr-true? (first r)) 0 1))))))))
+
+(provide cu/expr cu-expr)

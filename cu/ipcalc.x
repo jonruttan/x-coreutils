@@ -12,6 +12,14 @@
 ; NETMASK=, BROADCAST=, NETWORK=, PREFIX= and HOSTNAME= lines in that order
 ; for -m, -b, -n, -p and -h.  -s keeps the errors to the status.
 
+(module cu/ipcalc)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims bit-and bit-or bit-xor byte-at byte-len cu-dlopen cu-dlsym
+  cu-int->ptr cu-int->str cu-nth cu-ptr->str cu-ptr-call cu-ptr-set!
+  cu-ptr-word cu-str->ptr file-write length net-aton str-make-raw
+  string-append string-concat substring)
+
 (def %ic-silent #f)
 
 (def %ic-die
@@ -68,7 +76,7 @@
     (if (= r 0) ()
       (%wget-lower (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0)))))))
 
-(def %cu-ipcalc
+(def cu-ipcalc
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "ipcalc" argv))
     (def on? (fn (_ short long) (if (Opts on? o short) #t (Opts on? o long))))
@@ -119,3 +127,5 @@
       (if (if (< j (byte-len s)) (if (>= (byte-at s j) #\0) (<= (byte-at s j) #\9) #f) #f)
         (go (+ j 1) (+ (* n 10) (- (byte-at s j) #\0)))
         (pair (if (= j 0) () n) j)))))
+
+(provide cu/ipcalc cu-ipcalc)

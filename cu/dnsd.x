@@ -18,6 +18,15 @@
 ; strcasecmp's folding of every byte, the lengths too.  -d daemonizes and, as
 ; busybox then logs to syslog, says nothing more.
 
+(module cu/dnsd)
+
+(import cu/cli cu-opts)
+(import cu/prims append bit-and bit-or byte-at byte-len cu-int->str cu-nth
+  cu-sweep-lines cu-sweep-tick! file-close file-err-text file-open-or-err
+  file-open-read file-read-all file-write length map net-aton
+  net-recv-from-run net-send-to-run net-udp-open reverse string-append
+  string-concat substring)
+
 (def %dn-verbose? #f)
 (def %dn-quiet? #f)            ; -d: what busybox sends to syslog is not said
 (def %dn-say
@@ -197,7 +206,7 @@
     (let ((fd (net-udp-open addr port #f)))
       (if (Err err? fd) (%dn-die (string-append "bind: " (file-err-text fd))) fd))))
 
-(def %cu-dnsd
+(def cu-dnsd
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "dnsd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
@@ -239,3 +248,5 @@
                 (unless (null? reply)
                   (net-send-to-run fd (pair (bytes->str reply) (length reply)) (first (rest got)) (rest (rest got)))))))))
     (self fd entries ttl)))
+
+(provide cu/dnsd cu-dnsd)

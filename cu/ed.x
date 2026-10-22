@@ -20,6 +20,15 @@
 ; last line read without one), how many, the current line, changed?, the
 ; marks, the file's name, the string last searched for, the prompt, -s, the
 ; command lines' reader.
+(module cu/ed)
+
+(import cu/cli cu-opts)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-sweep-lines
+  cu-sweep-tick! file-close file-err-text file-open-err file-write filter
+  length map reverse string-append string-concat string=? substring vec-build
+  vec-make vec-ref vec-set!)
+(import cu/text cu-pieces cu-run-text)
+
 (def %ed ())
 (def %eg (fn (_ i) (vec-ref %ed i)))
 (def %eg! (fn (_ i v) (vec-set! %ed i v)))
@@ -414,7 +423,7 @@
 ; --- the applet ------------------------------------------------------------------
 
 ; ed [-p PROMPT] [-s] [FILE]
-(def %cu-ed
+(def cu-ed
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "ed" argv))
     (def p (Opts value o "-p"))
@@ -435,3 +444,5 @@
         (let ((l (%ed-gets 1024)))
           (if (null? l) ()
             (if (%ed-command (%ed-trim l)) (do (cu-sweep-tick! cu-sweep-lines) (self)) ()))))))
+
+(provide cu/ed cu-ed)

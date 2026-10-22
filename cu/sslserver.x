@@ -15,9 +15,15 @@
 ; key RSA or Ed25519; busybox's speaks TLS 1.2 with an RSA key, so a client
 ; that takes only 1.2 is refused here.
 
+(module cu/sslserver)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims cu-sig-ign cu-stdin-to-command! file-read-all file-write
+  string-concat sys-signal)
+
 (import x/net/tls13)
 
-(def %cu-ssl-server
+(def cu-ssl-server
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "ssl_server" argv))
     (def ops (Opts operands o))
@@ -40,3 +46,5 @@
     (def prog (%sc-run-prog %ss-say argv))
     (%sc-copy session 0 (first prog) (rest prog) #t #t)
     0))
+
+(provide cu/sslserver cu-ssl-server)

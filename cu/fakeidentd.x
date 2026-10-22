@@ -15,6 +15,14 @@
 ; -f, leaves the terminal first.  A connection quiet for 20 seconds is closed
 ; unanswered, as is a -i query, by busybox's alarm.
 
+(module cu/fakeidentd)
+
+(import cu/cli cu-opts)
+(import cu/prims append byte-at byte-len cu-nth cu-ptr-call cu-sig-ign
+  cu-str->ptr cu-sweep-lines cu-sweep-tick! file-write filter map net-aton
+  net-sockaddr net-stdin-socket str-make-raw string-append string-concat
+  substring sys-close sys-poll sys-signal)
+
 (def %fi-limit 59)
 (def %fi-timeout 20)
 (def %fi-user "nobody")
@@ -119,7 +127,7 @@
 
 ; --- the applet ---------------------------------------------------------------------
 
-(def %cu-fakeidentd
+(def cu-fakeidentd
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "fakeidentd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
@@ -143,3 +151,5 @@
           (if wait?
             (let ((fd (net-stdin-socket))) (%fi-serve (if (null? fd) 0 fd) %fi-timeout))
             (%fi-serve (%fi-bind (Opts value o "-b")) 0))))))
+
+(provide cu/fakeidentd cu-fakeidentd)

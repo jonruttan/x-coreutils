@@ -14,6 +14,14 @@
 ; group the input ends inside is `truncated input`.  -i is taken and changes
 ; nothing.  One file at most; `-` and none are standard input.
 
+(module cu/base32)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-at byte-len cu-nth cu-sweep-lines cu-sweep-tick!
+  file-err-text file-write length map reverse string-append string-concat
+  substring vec-make vec-ref vec-set!)
+(import cu/text cu-fold-one)
+
 (def %b32-alphabet "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
 
 ; --- encoding -------------------------------------------------------------
@@ -162,7 +170,7 @@
         1)))
 
 ; base32 [-d] [-w COL] [FILE]
-(def %cu-base32
+(def cu-base32
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "base32" argv))
     (def ops (Opts operands o))
@@ -182,3 +190,5 @@
       ((null? col) 1)
       ((Opts on? o "-d") (said (%b32-decode name stdin-thunk)))
       (#t (said (%b32-encode name stdin-thunk col))))))
+
+(provide cu/base32 cu-base32)

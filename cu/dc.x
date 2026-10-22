@@ -21,6 +21,15 @@
 ; An error is said, under the file's name and line where a file is read, and
 ; ends dc with status 1.
 
+(module cu/dc)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr-set!
+  cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text file-write filter
+  length map reverse str-make-raw string-append string-concat string=?
+  substring sys-getenv vec-build vec-make vec-ref vec-set!)
+(import cu/text cu-num-prefix cu-pad-zero cu-pieces cu-run-text)
+
 (def %dc-big+ (fn (_ a b) (Bigint + a b)))
 (def %dc-big- (fn (_ a b) (Bigint - a b)))
 (def %dc-big* (fn (_ a b) (Bigint * a b)))
@@ -874,7 +883,7 @@
           (%dc-cluster again w (+ i 1) more))))))
 
 ; dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...
-(def %cu-dc
+(def cu-dc
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "dc" argv))
     (do (set! %dc (vec-build 13 (fn (_ i) (match ((= i 3) 0) ((= i 4) 10) ((= i 5) 10) ((= i 6) 0) ((= i 7) (%dc-line-len))
@@ -895,3 +904,5 @@
                 (map %dc-file files)
                 (if (if (null? scripts) (null? files) #f) (%dc-process (%dc-stdin)) ())
                 0))))))
+
+(provide cu/dc cu-dc)

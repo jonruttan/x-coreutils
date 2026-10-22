@@ -25,6 +25,13 @@
 
 ; ARG quoted for the shell: in single quotes, a quote as '\''; for tcsh a
 ; newline as \n and a ! or blank backslashed outside the quotes too
+(module cu/getopt)
+
+(import cu/cli cu-opts)
+(import cu/prims append byte-at byte-len cu-nth file-write filter map reverse
+  string-append string-concat string=? substring sys-getenv vec-build vec-ref)
+(import cu/text cu-member-s?)
+
 (def %go-quote
   (fn (_ arg tcsh)
     (def n (byte-len arg))
@@ -260,7 +267,7 @@
           (cu-nth 1 r)))))
 
 ; getopt [OPTIONS] [--] OPTSTRING PARAMS
-(def %cu-getopt
+(def cu-getopt
   (fn (_ argv stdin-thunk)
     (def compatible (not (null? (sys-getenv "GETOPT_COMPATIBLE"))))
     (match
@@ -306,3 +313,5 @@
                 (match ((on "-u" "--unquoted") (lit none)) (tcsh (lit tcsh)) (#t (lit sh))))
               (if (null? optstr) (rest ops) ops)
               (on "-Q" "--quiet-output")))))))
+
+(provide cu/getopt cu-getopt)

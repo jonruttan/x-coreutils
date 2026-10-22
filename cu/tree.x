@@ -18,6 +18,13 @@
 ; after it is looked for from there.  The walk keeps the same place by its
 ; path, the way chdir would.
 
+(module cu/tree)
+
+(import cu/prims byte-at byte-len cu-int->str cu-sweep-lines cu-sweep-tick!
+  file-list-dir file-lstat-file-type file-readlink file-write string-append
+  string-concat)
+(import cu/text cu-msort cu-str<)
+
 (def %tree-utf8 (fn (_ bs) (bytes->str bs)))
 ; the box characters: a bar, a branch, a corner, and the line between
 (def %tree-bar (string-append (%tree-utf8 (list 226 148 130)) "   "))
@@ -74,7 +81,7 @@
             (do (file-write 1 (string-append d "\n"))
                 (%set-first! (rest counts) (+ (first (rest counts)) 1))))))))
 
-(def %cu-tree
+(def cu-tree
   (fn (_ argv stdin-thunk)
     (def counts (list 0 0))
     (def go
@@ -87,3 +94,5 @@
             (list "\n" (cu-int->str (first counts)) " directories, "
                   (cu-int->str (first (rest counts))) " files\n")))
         0)))
+
+(provide cu/tree cu-tree)

@@ -25,6 +25,15 @@
 ; Where the keys come from and where the screen goes are swappable, so a spec
 ; can type at it and read back what it drew.
 
+(module cu/more)
+
+(import cu/cli cu-opts cu-string-stdin)
+(import cu/prims byte-at byte-len cu-b->s cu-int->str cu-stdin-to-command!
+  cu-sweep! cu-sweep-bytes file-close file-open-or-err file-open-read
+  file-read-fd file-stat-full file-write reverse set-first! string-append
+  string-concat string=? sys-exec sys-isatty)
+(import cu/text cu-enough cu-fold-one cu-fold-said cu-pad-left cu-say cu-says)
+
 (import x/repl/term)
 
 ; --- the doors --------------------------------------------------------------
@@ -223,7 +232,7 @@
     (let ((t (Str8 replace "\n" (string-append %more-cr "\n") s)))
       (file-write 1 t))))
 
-(def %cu-more
+(def cu-more
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "more" argv))
     (def ops (Opts operands o))
@@ -246,7 +255,7 @@
 ; A run with typed KEYS, a string, against a ROWS by COLS window, the file
 ; operands ARGV and standard input STDIN.  Answers (STATUS . DRAWN), DRAWN
 ; everything written to the screen, newlines as more writes them.
-(def %more-typed
+(def more-typed
   (fn (_ argv stdin keys rows cols)
     (def drawn (list ()))
     (def i (list 0))
@@ -264,7 +273,7 @@
 ; --- clear, reset -------------------------------------------------------------
 
 ; busybox's clear: the cursor home, and the screen cleared from there
-(def %cu-clear
+(def cu-clear
   (fn (_ argv stdin-thunk)
     (do (file-write 1 (string-concat (list %more-esc "[H" %more-esc "[J"))) 0)))
 
@@ -277,7 +286,7 @@
   (string-concat (list %more-esc "c" %more-esc "(B" %more-esc "[m" %more-esc "[J"
                        %more-esc "[?25h")))
 
-(def %cu-reset
+(def cu-reset
   (fn (_ argv stdin-thunk)
     (if (sys-isatty 1)
       (do (file-write 1 %reset-codes)
@@ -285,3 +294,5 @@
           (sys-exec "stty" (list "sane"))
           0)
       0)))
+
+(provide cu/more cu-clear cu-more cu-reset more-typed)

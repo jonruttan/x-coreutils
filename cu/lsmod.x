@@ -11,6 +11,13 @@
 ; size, use count and users, the last without its trailing comma.
 
 ; a line's first four words, split at spaces and tabs
+(module cu/lsmod)
+
+(import cu/prims byte-at byte-len char->integer cu-lines file-or-err
+  file-read-unsized file-write length map reverse string-append string-concat
+  substring)
+(import cu/text cu-pad-left cu-pad-right)
+
 (def %lm-words
   (fn (_ line)
     (def end (byte-len line))
@@ -39,7 +46,7 @@
         (go (+ i 1) (+ (* n 10) (- (char->integer (byte-at s i)) 48)))
         n))))
 
-(def %cu-lsmod
+(def cu-lsmod
   (fn (_ argv stdin-thunk)
     (let ((text (file-or-err (fn (_) (file-read-unsized "/proc/modules")))))
       (do (file-write 1 (string-append (cu-pad-right "Module" 24) "Size  Used by" (%lm-taint)))
@@ -56,3 +63,5 @@
                                                "\n")))))))
                  (cu-lines text)))
           0))))
+
+(provide cu/lsmod cu-lsmod)

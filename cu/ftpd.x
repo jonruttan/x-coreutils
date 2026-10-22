@@ -21,6 +21,20 @@
 ; not even why a run ended.  -S, busybox's syslog, is accepted and says
 ; nothing.
 
+(module cu/ftpd)
+
+(import cu/cli cu-opts cu-run cu-usage)
+(import cu/prims append bit-and byte-at byte-len cu-dlopen cu-dlsym
+  cu-int->str cu-ptr->str cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
+  cu-sweep-lines cu-sweep-tick! file-close file-err-text file-mkdir
+  file-open-read file-open-wronly file-read-run file-rename file-rmdir
+  file-seek file-stat file-unlink file-write map net-accept net-close
+  net-connect net-peer net-sock-addr net-stdin-socket reverse str-make-raw
+  string-append string-concat string=? substring sys-chroot sys-close sys-dup2
+  sys-exit sys-fork sys-getcwd sys-getpid sys-pipe sys-poll sys-signal
+  sys-signals sys-user-group sys-user-id)
+(import cu/text cu-pad-zero)
+
 (def %fd-verbose 0)
 (def %fd-say? #f)              ; -v: anything said goes to stderr
 (def %fd-name "ftpd")
@@ -498,7 +512,7 @@
 
 ; --- the applet -------------------------------------------------------------------
 
-(def %cu-ftpd
+(def cu-ftpd
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "ftpd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
@@ -546,3 +560,5 @@
     (unless (null? user) (%fd-become user))
     (%fd-loop)
     0))
+
+(provide cu/ftpd cu-ftpd)

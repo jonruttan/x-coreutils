@@ -22,6 +22,19 @@
 ; A question on stderr, answered yes or no.  With no terminal to answer it the
 ; answer is no and the question is left standing, unended, as the tools leave
 ; it when their input ends.
+(module cu/fs)
+
+(import cu/cli cu-last-given cu-missing-file-operand cu-opts)
+(import cu/prims append bit-and byte-at byte-len cu-b->s cu-int->str cu-lines
+  cu-sweep! cu-sweep-bytes cu-sweep-lines cu-sweep-tick! file-chmod file-copy
+  file-dir? file-err-sym file-err-text file-exists? file-link
+  file-lstat-file-type file-lstat-full file-lstat-wide file-mkdir file-or-err
+  file-read-fd file-readlink file-rename file-rmdir file-stat-wide
+  file-symlink file-unlink file-utimes file-write length reverse set-first!
+  string-append string-concat string=? sys-isatty)
+(import cu/text cu-fold-lines-said cu-fold-said cu-map-swept cu-pad-left
+  cu-put-each cu-says)
+
 (def %fs-ask
   (fn (_ question)
     (do (file-write 2 question)
@@ -103,7 +116,7 @@
 
 ; the ranges of a piece of COUNT bytes from START on, 4,096 bytes to a range,
 ; as (FROM . TO)
-(def %cat-ranges
+(def cat-ranges
   (fn (self count start acc)
     (if (>= start count) (reverse acc)
       (let ((stop (if (> (+ start 4096) count) count (+ start 4096))))
@@ -132,7 +145,7 @@
 ; many bytes' rendering rather than the whole text's.  -n and -b take whole
 ; lines, and the numbering goes on from one block of them to the next (-b
 ; wins).
-(def %cu-cat
+(def cu-cat
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "cat" argv))
     (def ops (Opts operands o))
@@ -157,7 +170,7 @@
             (do (if (null? render) (file-write-run 1 p)
                   (cu-put-each
                     (cu-map-swept (fn (_ c) (render (first p) (first c) (rest c)))
-                      (%cat-ranges (rest p) 0 ()))))
+                      (cat-ranges (rest p) 0 ()))))
                 s))
           ())
         (cu-fold-lines-said ops stdin-thunk says
@@ -295,7 +308,7 @@
     (if (Opts on? o "-T") dst
       (if (file-dir? dst) (%cu-path-join dst (%cu-basename-of name)) dst))))
 
-(def %cu-cp
+(def cu-cp
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "cp" argv))
     (def ops (Opts operands o))
@@ -344,7 +357,7 @@
         ; across devices rename refuses: copy, then drop the original
         (do (file-copy src dst) (file-unlink src) 0)))))
 
-(def %cu-mv
+(def cu-mv
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "mv" argv))
     (def ops (Opts operands o))
@@ -453,7 +466,7 @@
           (string-concat (list "rm: cannot remove '" path "': " why "\n")))
         1)))
 
-(def %cu-rm
+(def cu-rm
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "rm" argv))
     (def go
@@ -465,7 +478,7 @@
 
 ; --- mkdir, rmdir -------------------------------------------------------------
 
-(def %cu-mkdir
+(def cu-mkdir
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "mkdir" argv))
     (def p? (Opts on? o "-p"))
@@ -505,7 +518,7 @@
       (if (if (string=? parent "/") #t (string=? parent ".")) ()
         (if (%rmdir-try parent) (self parent) ())))))
 
-(def %cu-rmdir
+(def cu-rmdir
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "rmdir" argv))
     (def p? (Opts on? o "-p"))
@@ -525,7 +538,7 @@
 
 ; TARGET... [NAME]: one target and no name makes the link here; several, or
 ; -t DIR, make them in a directory, which a NAME that is not one refuses.
-(def %cu-ln
+(def cu-ln
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "ln" argv))
     (def ops (Opts operands o))
@@ -620,3 +633,5 @@
 (def %ln-fails
   (fn (_ line)
     (do (file-write 2 (string-concat (append line (list "\n")))) 1)))
+
+(provide cu/fs cat-ranges cu-cat cu-cp cu-ln cu-mkdir cu-mv cu-rm cu-rmdir)

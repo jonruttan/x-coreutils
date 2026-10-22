@@ -25,6 +25,19 @@
 ; end, unless --quiet.
 
 ; the run ends: MSG said under cpio's name, and the status 1
+(module cu/cpio)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-nth
+  cu-ptr-call cu-sweep-lines cu-sweep-tick! file-chmod file-chown file-close
+  file-err-text file-link file-lstat-file-type file-lstat-full file-open-err
+  file-readlink file-set-times file-stat-full file-symlink file-unlink
+  file-write filter map reverse str-make-raw string-append string-concat
+  string=? substring sys-close sys-exit sys-fork sys-getcwd sys-group-id
+  sys-pipe sys-user-group sys-user-id sys-user-name sys-wait vec-build
+  vec-make vec-ref vec-set!)
+(import cu/text cu-fd-chunks cu-num-prefix cu-pad-zero cu-pieces)
+
 (def %cp-die (fn (_ msg) (Err raise (lit cpio) (string-append "cpio: " msg) ())))
 
 (def %cp-say (fn (_ msg) (file-write 2 (string-concat (list "cpio: " msg "\n")))))
@@ -453,7 +466,7 @@
                       (pair uid gid))))))))))))
 
 ; cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...
-(def %cu-cpio
+(def cu-cpio
   (fn (_ argv stdin-thunk)
     (guard (e (if (eq? (cu-err-label e) (lit cpio))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
@@ -538,3 +551,5 @@
                                  (%cp-extract-run o on owner (cu-fd-chunks (first p) "-") (rest operands)
                                    (lit extract)))))
                         (do (Sys chdir home) (sys-wait pid) r)))))))))))
+
+(provide cu/cpio cu-cpio)
