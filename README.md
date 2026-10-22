@@ -276,7 +276,8 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
     cu/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
     cu/options.x      each applet's option declaration and help text
-    cu/cli.x          the applet table, the option parse, cu-run, cu-main
+    cu/applets.x      Applets, the class whose statics are the applets, filled in by the files that carry them
+    cu/cli.x          the option parse, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
 
 <p align="center"><img src="docs/bitwise-mark.svg" alt="Bitwise" width="96"></p>

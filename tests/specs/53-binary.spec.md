@@ -59,7 +59,7 @@ piece to its file as well.
 ### wc counts every byte and the newlines among them; cat -v shows a NUL, and tr reads one
 
 ```cu
-(do (into "w1" (list "wc" "-c" (bp "rnd")) ()) (into "w2" (list "wc" "-l" (bp "rnd")) ()) (sys "w3" "wc -l < rnd") (display (list (%cu-num-prefix (file-read-all (bp "w1"))) (= (%cu-num-prefix (file-read-all (bp "w2"))) (%cu-num-prefix (file-read-all (bp "w3")))))) (newline) (%cu-dispatch %cu-cat "cat" (list "-v") (let ((given (list #f))) (fn (_ . how) (if (first given) "" (do (set-first! given #t) (%cu-run-bytes (list 97 0 98 10) 4)))))) (%cu-dispatch %cu-tr "tr" (list "\\000" "x") (let ((given (list #f))) (fn (_ . how) (if (first given) "" (do (set-first! given #t) (%cu-run-bytes (list 97 0 98 10) 4)))))) (display ""))
+(do (into "w1" (list "wc" "-c" (bp "rnd")) ()) (into "w2" (list "wc" "-l" (bp "rnd")) ()) (sys "w3" "wc -l < rnd") (display (list (%cu-num-prefix (file-read-all (bp "w1"))) (= (%cu-num-prefix (file-read-all (bp "w2"))) (%cu-num-prefix (file-read-all (bp "w3")))))) (newline) (%cu-dispatch (%cu-find-applet "cat") "cat" (list "-v") (let ((given (list #f))) (fn (_ . how) (if (first given) "" (do (set-first! given #t) (%cu-run-bytes (list 97 0 98 10) 4)))))) (%cu-dispatch (%cu-find-applet "tr") "tr" (list "\\000" "x") (let ((given (list #f))) (fn (_ . how) (if (first given) "" (do (set-first! given #t) (%cu-run-bytes (list 97 0 98 10) 4)))))) (display ""))
 ```
 ---
 ```output

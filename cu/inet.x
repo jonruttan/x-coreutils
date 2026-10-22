@@ -166,4 +166,3 @@
       (if (= (%in-call (%cu-ptr-call (%in-c "inet_pton") 10 name (%cu-str->ptr tmp))) 1)
         (do (map (fn (_ k) (%inet-set! buf (+ at k) (%cu-ptr-ref (%cu-str->ptr tmp) k 1) 1)) (List range 0 16)) #t)
         #f))))
-

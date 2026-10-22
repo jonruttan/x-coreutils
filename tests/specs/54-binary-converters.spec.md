@@ -78,7 +78,7 @@ Three pieces: a NUL; a NUL and `A`; a NUL.
 What comes before the NUL is put out, and the status is 1.
 
 ```cu
-(do (into "b3" (list "base64" "-d" (bp "b1s")) ()) (display (list (same "b3" "rnd"))) (newline) (display (%cu-dispatch %cu-base64 "base64" (list "-d") (runs-of (list (%cu-run-bytes (list 81 85 74 68 0 82 69 86 71) 9))))))
+(do (into "b3" (list "base64" "-d" (bp "b1s")) ()) (display (list (same "b3" "rnd"))) (newline) (display (%cu-dispatch (%cu-find-applet "base64") "base64" (list "-d") (runs-of (list (%cu-run-bytes (list 81 85 74 68 0 82 69 86 71) 9))))))
 ```
 ---
 ```output

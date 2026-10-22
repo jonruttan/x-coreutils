@@ -84,7 +84,7 @@
   (fn (_ xs) (if (null? xs) "" (%cu-join-with xs " "))))
 
 (def %mx-names
-  (%cu-msort (map (fn (_ e) (first e)) %cu-applets)
+  (%cu-msort (Applets names)
     (fn (_ a b) (%cu-str< a b))))
 
 ; one row: applet | busybox | ours | missing | coverage.  Answers the

@@ -30,7 +30,7 @@ each line ends at the newline 10 bytes into a block of 256, and the last
 has no newline.
 
 ```cu
-(do (cu-run (list "split" "-b" "10000" (bp "pat") (bp "b")) "") (sys "cat baa bab bac bad > b-all") (display (list (sizes "b" (list "aa" "ab" "ac" "ad")) (file-exists? (bp "bae")) (same "b-all" "pat"))) (newline) (cu-run (list "split" "-l" "50" (bp "pat") (bp "l")) "") (sys "cat laa lab lac > l-all") (display (list (sizes "l" (list "aa" "ab" "ac")) (file-exists? (bp "lad")) (same "l-all" "pat"))) (newline) (%cu-dispatch %cu-split "split" (list "-b" "5000" "-" (bp "p")) (pipe-of "pat")) (sys "cat paa pab pac pad pae paf pag > p-all") (display (list (sizes "p" (list "aa" "ab" "ac" "ad" "ae" "af" "ag")) (same "p-all" "pat"))))
+(do (cu-run (list "split" "-b" "10000" (bp "pat") (bp "b")) "") (sys "cat baa bab bac bad > b-all") (display (list (sizes "b" (list "aa" "ab" "ac" "ad")) (file-exists? (bp "bae")) (same "b-all" "pat"))) (newline) (cu-run (list "split" "-l" "50" (bp "pat") (bp "l")) "") (sys "cat laa lab lac > l-all") (display (list (sizes "l" (list "aa" "ab" "ac")) (file-exists? (bp "lad")) (same "l-all" "pat"))) (newline) (%cu-dispatch (%cu-find-applet "split") "split" (list "-b" "5000" "-" (bp "p")) (pipe-of "pat")) (sys "cat paa pab pac pad pae paf pag > p-all") (display (list (sizes "p" (list "aa" "ab" "ac" "ad" "ae" "af" "ag")) (same "p-all" "pat"))))
 ```
 ---
 ```output

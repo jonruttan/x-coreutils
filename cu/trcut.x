@@ -377,4 +377,3 @@
           (%cu-fold-lines-said ops stdin-thunk (%cu-says "cut")
             (fn (_ block s) (do (put-lines (%cu-lines block)) s))
             ()))))))
-

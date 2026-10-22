@@ -7,6 +7,7 @@
 ; @license MIT No Attribution (MIT-0)
 
 (import cu/prims)
+(import cu/applets)
 
 (provide cu/base cu-version cu-run cu-argv cu-main cu-sha256
   %cu-repl-print)

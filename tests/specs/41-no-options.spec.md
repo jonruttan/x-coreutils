@@ -105,7 +105,7 @@ The runners exec, so what each would hand its command is read off the
 dispatch, with an applet that answers what it was given.
 
 ```cu
-(let ((given (fn (_ args thunk) args))) (display (list (%cu-dispatch given "nohup" (list "echo" "-n" "hi") (fn (_) "")) (%cu-dispatch given "nohup" (list "--" "echo" "-n" "hi") (fn (_) "")) (%cu-dispatch given "chroot" (list "/" "ls" "-d" "/") (fn (_) "")))))
+(let ((given (fn (_ cls args thunk) args))) (display (list (%cu-dispatch given "nohup" (list "echo" "-n" "hi") (fn (_) "")) (%cu-dispatch given "nohup" (list "--" "echo" "-n" "hi") (fn (_) "")) (%cu-dispatch given "chroot" (list "/" "ls" "-d" "/") (fn (_) "")))))
 ```
 ---
     ((echo -n hi) (echo -n hi) (/ ls -d /))

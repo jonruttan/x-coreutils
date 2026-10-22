@@ -397,4 +397,3 @@
                   ((not (null? (%cu-date-plus ops))) (%cu-date-plus ops))
                   (#t "%a %b %e %H:%M:%S %Z %Y"))))
           (do (display (string-append (%cu-date-fmt fmt d secs) "\n")) 0))))))
-
