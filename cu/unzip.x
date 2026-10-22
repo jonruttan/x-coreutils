@@ -72,7 +72,7 @@
 ; N bytes into a buffer of their own; short, the run ends
 (def %uz-read!
   (fn (_ u n)
-    (def buf (%str-make-raw (+ n 1)))
+    (def buf (str-make-raw (+ n 1)))
     (if (< (%tar-fill! (%uz-rd u) buf 0 n) n) (%uz-die "short read") buf)))
 
 ; past N bytes: sought over in a file, read through on standard input
@@ -104,7 +104,7 @@
     (if (< size 0) #f
       (let ((end (if (> size 65536) (- size 65536) 0)))
         (do (%uz-seek! u end)
-            (let ((buf (%str-make-raw 65537)))
+            (let ((buf (str-make-raw 65537)))
               (let ((n (%tar-fill! (%uz-rd u) buf 0 65536)))
                 (%uz-scan-end buf n end))))))))
 
@@ -178,7 +178,7 @@
         ((= magic %uz-cdf-magic) ())
         ((= magic %uz-dd-magic) (do (%uz-skip! u 12) (again u cdf)))
         ((not (= magic %uz-local-magic))
-          (%uz-die (string-append "invalid zip magic " (%cu-pad-zero (%dp-udigits magic 16 #t) 8))))
+          (%uz-die (string-append "invalid zip magic " (cu-pad-zero (%dp-udigits magic 16 #t) 8))))
         (#t (let ((z (%uz-header (%uz-read! u 26))))
               (if (= (& (%uz-flags z) 8) 0) (pair z (pair 438 511))
                 (%uz-die "zip flag 8 (streaming) is not supported"))))))))
@@ -209,7 +209,7 @@
 
 ; --- listing ------------------------------------------------------------------------
 
-(def %uz-2 (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
+(def %uz-2 (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
 
 ; the member's date and time, mm-dd-yyyy hh:mm
 (def %uz-when
@@ -217,7 +217,7 @@
     (def d (vec-ref z 3))
     (def t (vec-ref z 2))
     (string-concat
-      (list (%uz-2 (& (>> d 5) 15)) "-" (%uz-2 (& d 31)) "-" (%cu-pad-zero (%cu-int->str (+ (>> d 9) 1980)) 4) " "
+      (list (%uz-2 (& (>> d 5) 15)) "-" (%uz-2 (& d 31)) "-" (cu-pad-zero (cu-int->str (+ (>> d 9) 1980)) 4) " "
             (%uz-2 (>> t 11)) ":" (%uz-2 (& (>> t 5) 63))))))
 
 ; how much of USIZE compression saved, in percent; nothing where it grew
@@ -231,35 +231,35 @@
       ((= (%uz-method z) 0) "Stored")
       ((= (%uz-method z) 8)
         (string-append "Defl:" (substring "NXFS" (& (>> (%uz-flags z) 1) 3) (+ (& (>> (%uz-flags z) 1) 3) 1))))
-      (#t (%cu-pad-left (%cu-int->str (%uz-method z)) 6)))))
+      (#t (cu-pad-left (cu-int->str (%uz-method z)) 6)))))
 
 ; member Z's line, NAME its name; its sizes counted into the totals
 (def %uz-list!
   (fn (_ u z name tot)
     (do (%uz-print u
           (if (= (%uz-verbose u) 0)
-            (string-concat (list (%cu-pad-left (%cu-int->str (%uz-size z)) 9) "  " (%uz-when z) "   "
+            (string-concat (list (cu-pad-left (cu-int->str (%uz-size z)) 9) "  " (%uz-when z) "   "
                                  (%tar-printable name) "\n"))
-            (string-concat (list (%cu-pad-left (%cu-int->str (%uz-size z)) 8) "  " (%uz-method-name z)
-                                 (%cu-pad-left (%cu-int->str (%uz-csize z)) 9)
-                                 (%cu-pad-left (%cu-int->str (%uz-ratio (%uz-size z) (%uz-csize z))) 4) "% "
-                                 (%uz-when z) " " (%cu-pad-zero (%dp-udigits (%uz-crc z) 16 #f) 8) "  "
+            (string-concat (list (cu-pad-left (cu-int->str (%uz-size z)) 8) "  " (%uz-method-name z)
+                                 (cu-pad-left (cu-int->str (%uz-csize z)) 9)
+                                 (cu-pad-left (cu-int->str (%uz-ratio (%uz-size z) (%uz-csize z))) 4) "% "
+                                 (%uz-when z) " " (cu-pad-zero (%dp-udigits (%uz-crc z) 16 #f) 8) "  "
                                  (%tar-printable name) "\n"))))
         (vec-set! tot 0 (+ (vec-ref tot 0) (%uz-size z)))
         (vec-set! tot 1 (+ (vec-ref tot 1) (%uz-csize z))))))
 
 (def %uz-totals!
   (fn (_ u tot)
-    (def files (string-append (%cu-int->str (vec-ref tot 2)) " files\n"))
+    (def files (string-append (cu-int->str (vec-ref tot 2)) " files\n"))
     (%uz-print u
       (if (= (%uz-verbose u) 0)
-        (string-concat (list " --------" (%cu-pad-left "" 21) "-------\n"
-                             (%cu-pad-left (%cu-int->str (vec-ref tot 0)) 9) (%cu-pad-left "" 21) files))
-        (string-concat (list "--------          ------- ----" (%cu-pad-left "" 28) "----\n"
-                             (%cu-pad-left (%cu-int->str (vec-ref tot 0)) 8)
-                             (%cu-pad-left (%cu-int->str (vec-ref tot 1)) 17)
-                             (%cu-pad-left (%cu-int->str (%uz-ratio (vec-ref tot 0) (vec-ref tot 1))) 4) "%"
-                             (%cu-pad-left "" 28) files))))))
+        (string-concat (list " --------" (cu-pad-left "" 21) "-------\n"
+                             (cu-pad-left (cu-int->str (vec-ref tot 0)) 9) (cu-pad-left "" 21) files))
+        (string-concat (list "--------          ------- ----" (cu-pad-left "" 28) "----\n"
+                             (cu-pad-left (cu-int->str (vec-ref tot 0)) 8)
+                             (cu-pad-left (cu-int->str (vec-ref tot 1)) 17)
+                             (cu-pad-left (cu-int->str (%uz-ratio (vec-ref tot 0) (vec-ref tot 1))) 4) "%"
+                             (cu-pad-left "" 28) files))))))
 
 ; --- the data -----------------------------------------------------------------------
 
@@ -276,7 +276,7 @@
             ((not (= (first r) (%uz-crc z))) (%uz-die "crc error"))
             ((if (= (%uz-size z) 4294967295) #f (not (= (rest r) (%uz-size z)))) (%uz-say "bad length"))
             (#t ()))))
-      (#t (%uz-die (string-append "unsupported method " (%cu-int->str (%uz-method z))))))))
+      (#t (%uz-die (string-append "unsupported method " (cu-int->str (%uz-method z))))))))
 
 ; Z's compressed bytes inflated to FD a buffer at a time; (CRC . LENGTH).
 ; Bad data is said in busybox's words, and the run ends.
@@ -284,7 +284,7 @@
   (fn (_ u z fd)
     (def rd (%uz-rd u))
     (def s (Inflate stream))
-    (def out (%str-make-raw %uz-room))
+    (def out (str-make-raw %uz-room))
     ; the CRC, the length, how much of OUT is filled, the input left
     (def st (vec-build 4 (fn (_ i) (if (= i 3) (%uz-csize z) 0))))
     (def emit!
@@ -299,7 +299,7 @@
       (fn (self r at n)
         (unless (= n 0)
           (let ((k (%tar-min (- %uz-room (vec-ref st 2)) n)))
-            (do (%gz-copy (%gz-at (%cu-str->ptr out) (vec-ref st 2)) (%gz-at (%cu-str->ptr r) at) k)
+            (do (%gz-copy (%gz-at (cu-str->ptr out) (vec-ref st 2)) (%gz-at (cu-str->ptr r) at) k)
                 (vec-set! st 2 (+ (vec-ref st 2) k))
                 (when (= (vec-ref st 2) %uz-room) (emit!))
                 (self r (+ at k) (- n k)))))))
@@ -310,13 +310,13 @@
           (if (null? p) (bad "unexpected end of file")
             (let ((at (vec-ref rd 2)))
               (let ((n (%tar-min (- (rest p) at) (vec-ref st 3))))
-                (let ((r (guard (e (if (eq? (%cu-err-label e) (lit value)) (bad "corrupted data") (error e)))
+                (let ((r (guard (e (if (eq? (cu-err-label e) (lit value)) (bad "corrupted data") (error e)))
                            (Inflate feed s (first p) at n))))
                   (do (vec-set! rd 2 (+ at n))
                       (vec-set! rd 3 (+ (vec-ref rd 3) n))
                       (vec-set! st 3 (- (vec-ref st 3) n))
                       (take! (first r) 0 (first (rest r)))
-                      (if (Inflate done? s) (emit!) (do (%cu-sweep-tick! 0) (self)))))))))))
+                      (if (Inflate done? s) (emit!) (do (cu-sweep-tick! 0) (self)))))))))))
     (do (go)
         (%uz-skip! u (vec-ref st 3))
         (pair (vec-ref st 0) (vec-ref st 1)))))
@@ -373,7 +373,7 @@
     (def n (byte-len path))
     (def one
       (fn (_ p)
-        (if (>= (Sys %sign-fold (%cu-ptr-call %tar-c-mkdir p 511)) 0) ()
+        (if (>= (Sys %sign-fold (cu-ptr-call %tar-c-mkdir p 511)) 0) ()
           (let ((why (%tar-why (lit mkdir) p)))
             (if (eq? (%uz-type-of p) 16384) ()
               (%uz-die (string-concat (list "can't create directory '" p "': " why))))))))
@@ -410,7 +410,7 @@
         ((null? there)
           (do (if (= (%uz-quiet u) 0) (%uz-print u (string-append "   creating: " (%tar-printable name) "\n")) ())
               (%uz-leading-dirs! name)
-              (if (< (Sys %sign-fold (%cu-ptr-call %tar-c-mkdir name 511)) 0)
+              (if (< (Sys %sign-fold (cu-ptr-call %tar-c-mkdir name 511)) 0)
                 (%uz-die (string-concat (list "can't create directory '" name "': " (%tar-why (lit mkdir) name))))
                 (if (guard (e #f) (do (file-chmod name (& mode 4095)) #t)) ()
                   (%uz-say (string-concat (list "can't set permissions of directory '" name "': "
@@ -472,7 +472,7 @@
               (do (vec-set! u 16 (substring text 79 (byte-len text))) (substring text 0 79)))
             (#t
               (let ((p (stdin-thunk (lit chunk))))
-                (let ((more (if (pair? p) (%cu-run-text p) p)))
+                (let ((more (if (pair? p) (cu-run-text p) p)))
                   (if (= (byte-len more) 0)
                     (if (= (byte-len text) 0) (%uz-die "can't read standard input")
                       (do (vec-set! u 16 "") text))
@@ -567,7 +567,7 @@
 ; unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]
 (def %cu-unzip
   (fn (_ argv stdin-thunk)
-    (guard (e (if (eq? (%cu-err-label e) (lit unzip))
+    (guard (e (if (eq? (cu-err-label e) (lit unzip))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
                 (error e)))
       (%uz-run argv stdin-thunk))))
@@ -578,7 +578,7 @@
     (def flags (first a))
     (def src (first (rest a)))
     (do (%tar-resolve!)
-        (if (null? src) (%cu-usage "unzip")
+        (if (null? src) (cu-usage "unzip")
           (%uz-open src stdin-thunk
             (fn (_ name fd reader)
               (%uz-go flags name fd reader stdin-thunk
@@ -589,12 +589,12 @@
 ; it -- and handed to K as its name, descriptor and reader
 (def %uz-open
   (fn (_ src stdin-thunk k)
-    (if (string=? src "-") (k src () (%tar-reader (%cu-stdin-pieces stdin-thunk)))
+    (if (string=? src "-") (k src () (%tar-reader (cu-stdin-pieces stdin-thunk)))
       (let ((try (fn (self names)
                    (if (null? names) (%uz-die (string-append "can't open " (string-append src "[.zip]")))
                      (let ((fd (file-open-read (first names))))
                        (if (< fd 0) (self (rest names))
-                         (k (first names) fd (%tar-reader (%cu-fd-chunks fd (first names))))))))))
+                         (k (first names) fd (%tar-reader (cu-fd-chunks fd (first names))))))))))
         (try (list src (string-append src ".zip") (string-append src ".ZIP")))))))
 
 (def %uz-go
@@ -636,7 +636,7 @@
   (fn (_ dir thunk)
     (if (null? dir) (thunk)
       (let ((home (sys-getcwd)))
-        (do (%cu-ptr-call %tar-c-mkdir dir 511)
+        (do (cu-ptr-call %tar-c-mkdir dir 511)
             (if (< (Sys chdir dir) 0)
               (%uz-die (string-concat (list "can't change directory to '" dir "': " (%tar-why (lit chdir) dir))))
               (let ((r (guard (e (do (Sys chdir home) (error e))) (thunk))))
@@ -660,7 +660,7 @@
                       (let ((m (%uz-next-member u cdf)))
                         (if (null? m) ()
                           (do (%uz-member! u (first m) (rest m) tot)
-                              (%cu-sweep-tick! 0)
+                              (cu-sweep-tick! 0)
                               (self)))))))
             (go)))
         (%uz-make-links! u)

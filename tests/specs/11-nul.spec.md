@@ -17,7 +17,7 @@ which is not the harness's.
 ### fixtures
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-z && mkdir -p /tmp/x-cu-z/d && printf 'pear\\000apple\\000fig\\000' > /tmp/x-cu-z/f0 && printf 'b\\000a\\000b\\000' > /tmp/x-cu-z/dup0 && printf 'no-trailer-a\\000no-trailer-b' > /tmp/x-cu-z/part0 && printf 'secret data' > /tmp/x-cu-z/s && : > '/tmp/x-cu-z/d/a b' && : > /tmp/x-cu-z/d/c && cd /tmp/x-cu-z/d && find . -type f -print0 > /tmp/x-cu-z/find0")) (def cu-z (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-z/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-z/.cap")))))) (def fields (fn (_ p) (%cu-delim-fields (list p) (fn (_) "") 0))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-z && mkdir -p /tmp/x-cu-z/d && printf 'pear\\000apple\\000fig\\000' > /tmp/x-cu-z/f0 && printf 'b\\000a\\000b\\000' > /tmp/x-cu-z/dup0 && printf 'no-trailer-a\\000no-trailer-b' > /tmp/x-cu-z/part0 && printf 'secret data' > /tmp/x-cu-z/s && : > '/tmp/x-cu-z/d/a b' && : > /tmp/x-cu-z/d/c && cd /tmp/x-cu-z/d && find . -type f -print0 > /tmp/x-cu-z/find0")) (def cu-z (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-z/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-z/.cap")))))) (def fields (fn (_ p) (cu-delim-fields (list p) (fn (_) "") 0))) (display "made"))
 ```
 ---
     made
@@ -106,7 +106,7 @@ same size
 ### shred -z fills the blocks it covered with zeros
 
 ```cu
-(do (cu-run (list "shred" "-n" "1" "-z" "/tmp/x-cu-z/s") "") (display (cu-run (list "stat" "-c" "%s" "/tmp/x-cu-z/s") "")) (def fd (file-open-read "/tmp/x-cu-z/s")) (def buf (%str-make-raw 32)) (def n (File read fd buf 32)) (file-close fd) (def allzero (fn (self i) (if (>= i n) #t (if (= (byte-at buf i) 0) (self (+ i 1)) #f)))) (display (if (allzero 0) "all zero" "not zero")))
+(do (cu-run (list "shred" "-n" "1" "-z" "/tmp/x-cu-z/s") "") (display (cu-run (list "stat" "-c" "%s" "/tmp/x-cu-z/s") "")) (def fd (file-open-read "/tmp/x-cu-z/s")) (def buf (str-make-raw 32)) (def n (File read fd buf 32)) (file-close fd) (def allzero (fn (self i) (if (>= i n) #t (if (= (byte-at buf i) 0) (self (+ i 1)) #f)))) (display (if (allzero 0) "all zero" "not zero")))
 ```
 ---
 ```output

@@ -65,8 +65,8 @@
       ((if (> v hi) #t (< v lo))
         (do (file-write 2
               (string-concat
-                (list applet ": number " s " is not in " (%cu-int->str lo) ".."
-                      (%cu-int->str hi) " range\n")))
+                (list applet ": number " s " is not in " (cu-int->str lo) ".."
+                      (cu-int->str hi) " range\n")))
             ()))
       (#t v))))
 
@@ -112,7 +112,7 @@
                      (if (if (< i (byte-len line)) (not (= (byte-at line i) #\#)) #f)
                        (%cu-dump-add (substring line i (byte-len line)))
                        ())))
-                 (%cu-lines text))
+                 (cu-lines text))
             #t)))))
 
 (def %cu-hd
@@ -126,7 +126,7 @@
 ; -x's two-byte hex less one space.
 (def %cu-hexdump
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "hexdump" argv))
+    (def o (cu-opts "hexdump" argv))
     (def on (Assoc get (lit on) o))
     (def n-arg (Opts value o "-n"))
     (def s-arg (Opts value o "-s"))
@@ -189,10 +189,10 @@
           (if i? (%cu-dump-add "\" \"") (%cu-dump-add "\"%08_ax: \"")))
         (match
           ((if (< bytes 1) #t (>= bytes cols))
-            (%cu-dump-add (string-concat (list (%cu-int->str cols) "/1 \"%02x\""))))
+            (%cu-dump-add (string-concat (list (cu-int->str cols) "/1 \"%02x\""))))
           ((= bytes 1)
             (%cu-dump-add
-              (string-concat (list (%cu-int->str cols) (if i? "/1 \" 0x%02x,\"" "/1 \"%02x \"")))))
+              (string-concat (list (cu-int->str cols) (if i? "/1 \" 0x%02x,\"" "/1 \"%02x \"")))))
           (#t
             (%cu-dump-add
               (string-concat
@@ -202,12 +202,12 @@
         (if (if p? #t i?)
           (do (%cu-dump-add "\"\n\"") (%cu-dump-xxd-eof! "\n"))
           (%cu-dump-add
-            (string-concat (list "\"  \"" (%cu-int->str cols) "/1 \"%_p\"\"\n\"")))))))
+            (string-concat (list "\"  \"" (cu-int->str cols) "/1 \"%_p\"\"\n\"")))))))
 
 ; xxd [-ri] [-ps] [-g N] [-c N] [-l LEN] [-s OFS] [-o OFS] [FILE]
 (def %cu-xxd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "xxd" argv))
+    (def o (cu-opts "xxd" argv))
     (def ops (Opts operands o))
     (def p? (if (Opts on? o "-p") #t (Opts on? o "-ps")))
     (def num
@@ -217,7 +217,7 @@
     (def len (num "-l" 0 %hx-int-max %hx-uint-max -1))
     (def skip (if (null? len) () (num "-s" 0 %hx-off-max %hx-off-max 0)))
     (match
-      ((> (length ops) 1) (%cu-usage "xxd"))
+      ((> (length ops) 1) (cu-usage "xxd"))
       ((null? skip) 1)
       ((Opts on? o "-r") (%xxd-reverse p? (if (null? ops) "-" (first ops)) skip stdin-thunk))
       (#t (%xxd-dump o ops p? len skip stdin-thunk)))))
@@ -251,7 +251,7 @@
               (do (if (if named (= st 0) #f)
                     (file-write 1 (string-concat
                                     (list "};\nunsigned int " (%xxd-c-name (first ops)) "_len = "
-                                          (%cu-int->str (%cu-dump-address)) ";\n")))
+                                          (cu-int->str (%cu-dump-address)) ";\n")))
                     ())
                   st)))))))
 
@@ -269,13 +269,13 @@
             (if (>= nl 0)
               (do (%set-first! held (substring t (+ nl 1) (byte-len t)))
                   (substring t 0 nl))
-              (if (%cu-nth 1 held)
+              (if (cu-nth 1 held)
                 (if (= (byte-len t) 0) ()
                   (do (%set-first! held "") t))
                 (let ((p (src)))
                   (if (if (Err err? p) #t (= (rest p) 0))
                     (do (%set-first! (rest held) #t) (self))
-                    (do (%set-first! held (string-append t (%cu-run-text p))) (self))))))))))
+                    (do (%set-first! held (string-append t (cu-run-text p))) (self))))))))))
     next))
 
 ; busybox's reverse: a dump read back, the offset at each line's start (not
@@ -382,7 +382,7 @@
 
 (def %xxd-reverse
   (fn (_ p? name skip stdin-thunk)
-    (def src (%cu-pieces name stdin-thunk))
+    (def src (cu-pieces name stdin-thunk))
     (if (Err err? src)
       (do (file-write 2 (string-concat (list "xxd: can't open '" name "': "
                                              (file-err-text src) "\n")))

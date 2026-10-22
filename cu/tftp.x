@@ -63,8 +63,8 @@
     (append (%tftp-u16 op)
       (append (%tftp-cstr remote)
         (append (%tftp-cstr "octet")
-          (append (if (= blksize 512) () (append (%tftp-cstr "blksize") (%tftp-cstr (%cu-int->str blksize))))
-                  (append (%tftp-cstr "tsize") (%tftp-cstr (%cu-int->str size)))))))))
+          (append (if (= blksize 512) () (append (%tftp-cstr "blksize") (%tftp-cstr (cu-int->str blksize))))
+                  (append (%tftp-cstr "tsize") (%tftp-cstr (cu-int->str size)))))))))
 
 ; byte I of a run
 (def %tftp-at (fn (_ run i) (& (byte-at (first run) i) 255)))
@@ -196,8 +196,8 @@
   (fn (_ r)
     (def code (%tftp-word r 2))
     (def text (if (if (> (rest r) 4) (not (= (%tftp-at r 4) 0)) #f) (%tftp-text r 4)
-                (if (<= code 8) (%cu-nth code %tftp-errors) "")))
-    (%tftp-say (string-concat (list "server error: (" (%cu-int->str code) ") " text)))
+                (if (<= code 8) (cu-nth code %tftp-errors) "")))
+    (%tftp-say (string-concat (list "server error: (" (cu-int->str code) ") " text)))
     #f))
 
 ; an OACK whose block size busybox refuses: error 8 to the server
@@ -226,7 +226,7 @@
             (file-write-run %tftp-local-fd
               (%tftp-run (let take ((k (- (rest r) 1)) (acc ())) (if (< k 4) acc (take (- k 1) (pair (%tftp-at r k) acc))))))
             (set! %tftp-pos (+ %tftp-pos (- (rest r) 4)))
-            (%cu-sweep! 1)
+            (cu-sweep! 1)
             (if (= (- (rest r) 4) blksize)
               (%tftp-get-loop n blksize local)
               (do (%tftp-send (append (%tftp-u16 4) (%tftp-u16 n)))
@@ -244,7 +244,7 @@
   (fn (_ n blksize)
     (def block (%tftp-read-block %tftp-local-fd blksize))
     (set! %tftp-pos (+ %tftp-pos (length block)))
-    (%cu-sweep! 1)
+    (cu-sweep! 1)
     (%tftp-put-wait (append (%tftp-u16 3) (append (%tftp-u16 n) block)) n blksize
                     (< (length block) blksize))))
 
@@ -274,9 +274,9 @@
     (def get? (Opts on? o "-g"))
     (def put? (Opts on? o "-p"))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option "tftp" (Opts unknown o)))
-      ((if get? put? #f) (%cu-usage "tftp"))
-      ((not (if get? #t put?)) (%cu-usage "tftp"))
+      ((not (null? (Opts unknown o))) (cu-refuse-option "tftp" (Opts unknown o)))
+      ((if get? put? #f) (cu-usage "tftp"))
+      ((not (if get? #t put?)) (cu-usage "tftp"))
       (#t
         (let ((blksize (%tftp-blksize (let ((b (Opts value o "-b"))) (if (null? b) "512" b)) 65564)))
           (if (null? blksize) 1
@@ -291,7 +291,7 @@
     (def local
       (if (null? r) l
         (if (null? l) (let ((s (%wget-last-index r #\/))) (if (null? s) r (substring r (+ s 1) (byte-len r)))) l)))
-    (if (if (null? remote) #t (null? ops)) (%cu-usage "tftp")
+    (if (if (null? remote) #t (null? ops)) (cu-usage "tftp")
       (%tftp-start get? blksize remote (if (string=? local "-") () local)
                    (first ops) (if (null? (rest ops)) 69 (%wget-digits (first (rest ops))))))))
 
@@ -343,8 +343,8 @@
 (def %tftpd-libc ())
 (def %tftpd-c
   (fn (_ name)
-    (when (null? %tftpd-libc) (set! %tftpd-libc (%cu-dlopen () 1)))
-    (%cu-dlsym %tftpd-libc name)))
+    (when (null? %tftpd-libc) (set! %tftpd-libc (cu-dlopen () 1)))
+    (cu-dlsym %tftpd-libc name)))
 
 ; the answering socket: bound to OUR address, which the listener may hold too,
 ; and connected to PEER -- xbind's failure the end of the run
@@ -352,7 +352,7 @@
   (fn (_ our peer)
     (def fd (net-udp-open (first our) (rest our) #t))
     (when (Err err? fd) (%tftpd-die (string-append "bind: " (file-err-text fd))))
-    (%cu-ptr-call (%tftpd-c "connect") fd (%cu-str->ptr (net-sockaddr (first peer) (rest peer))) 16)
+    (cu-ptr-call (%tftpd-c "connect") fd (cu-str->ptr (net-sockaddr (first peer) (rest peer))) 16)
     fd))
 
 (def %tftpd-die (fn (_ msg) (Err raise (lit net) msg ())))
@@ -403,10 +403,10 @@
 
 (def %cu-tftpd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "tftpd" argv))
+    (def o (cu-opts "tftpd" argv))
     (set! %tftp-name "tftpd")
     (def fd (net-stdin-socket))
-    (if (null? fd) (%cu-usage "tftpd")
+    (if (null? fd) (cu-usage "tftpd")
       (guard (e (if (eq? (Err label e) (lit net))
                   (do (%tftp-say (e msg)) 1)
                   (error e)))
@@ -434,7 +434,7 @@
           (%tftp-send (%tftpd-error-packet (first checked) (rest checked)))
           1)
       (do (unless (null? user) (%tftpd-become user))
-          (%tftpd-serve (= (%tftp-word (first got) 0) 1) (first checked) (%cu-nth 1 checked) (%cu-nth 2 checked)
+          (%tftpd-serve (= (%tftp-word (first got) 0) 1) (first checked) (cu-nth 1 checked) (cu-nth 2 checked)
                         (Opts on? o "-c"))))))
 
 ; change_identity: initgroups, setgid, setuid -- each failure the end of the run
@@ -444,9 +444,9 @@
     (def fail? (fn (_ r what)
       (let ((e (%ss-call r (lit call) what)))
         (unless (null? e) (%tftpd-die (string-concat (list what ": " (file-err-text e))))))))
-    (fail? (%cu-ptr-call (%tftpd-c "initgroups") user gid) "can't set groups")
-    (fail? (%cu-ptr-call (%tftpd-c "setgid") gid) "setgid")
-    (fail? (%cu-ptr-call (%tftpd-c "setuid") (sys-user-id user)) "setuid")))
+    (fail? (cu-ptr-call (%tftpd-c "initgroups") user gid) "can't set groups")
+    (fail? (cu-ptr-call (%tftpd-c "setgid") gid) "setgid")
+    (fail? (cu-ptr-call (%tftpd-c "setuid") (sys-user-id user)) "setuid")))
 
 ; FILE, a request's name, with each byte below a space as ?
 (def %tftpd-sanitize
@@ -478,8 +478,8 @@
     (if (if (= blksize 512) (not tsize?) #f)
       (if rrq? (%tftp-put-loop 1 512) (%tftp-get-loop 0 512 file))
       (let ((oack (append (%tftp-u16 6)
-                    (append (if (= blksize 512) () (append (%tftp-cstr "blksize") (%tftp-cstr (%cu-int->str blksize))))
-                            (if tsize? (append (%tftp-cstr "tsize") (%tftp-cstr (%cu-int->str (Assoc get (lit size) (file-stat file))))) ())))))
+                    (append (if (= blksize 512) () (append (%tftp-cstr "blksize") (%tftp-cstr (cu-int->str blksize))))
+                            (if tsize? (append (%tftp-cstr "tsize") (%tftp-cstr (cu-int->str (Assoc get (lit size) (file-stat file))))) ())))))
         (if rrq? (%tftp-put-wait oack 0 blksize #f)
           (let ((r (%tftp-exchange oack (+ blksize 4))))
             (if (null? r) (do (%tftp-say "timeout") #f) (%tftp-get-data r 1 blksize file))))))))

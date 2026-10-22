@@ -59,7 +59,7 @@
     (if (if (> d 0) (if (< d n) (= (byte-at s d) #\/) #f) #f)
       (let ((name (%pg-head (substring s (+ d 1) n) 4)))
         (def hit (List find (fn (_ p) (str=? (first p) name)) %fu-protocols))
-        (if (null? hit) () (pair (%cu-num-prefix (substring s 0 d)) (rest hit))))
+        (if (null? hit) () (pair (cu-num-prefix (substring s 0 d)) (rest hit))))
       ())))
 
 ; two numbers, either of them nil, the same: = reads only integers
@@ -101,9 +101,9 @@
   (fn (_ argv stdin-thunk)
     (def args (%fu-args argv))
     (def signo (if (null? (first args)) cu-sigkill (first args)))
-    (def o (%cu-opts "fuser" argv))
+    (def o (cu-opts "fuser" argv))
     (def ops (Opts operands o))
-    (if (null? ops) (%cu-usage "fuser")
+    (if (null? ops) (cu-usage "fuser")
       (let ((ws (%fu-wanted ops ())))
         (if (eq? ws #f) 1 (%fu-act o (%fu-found o (first (rest args)) ws) signo))))))
 
@@ -146,11 +146,11 @@
     (def failed (list #f))
     (map (fn (_ pid)
            (do (if (if (Opts on? o "-k") (< (sys-kill pid signo) 0) #f)
-                 (do (file-write 2 (string-concat (list "fuser: kill pid " (%cu-int->str pid) ": "
-                                                        (%tar-why (lit kill) (%cu-int->str pid)) "\n")))
+                 (do (file-write 2 (string-concat (list "fuser: kill pid " (cu-int->str pid) ": "
+                                                        (%tar-why (lit kill) (cu-int->str pid)) "\n")))
                      (set-first! failed #t))
                  ())
-               (if (Opts on? o "-s") () (display (string-append (%cu-int->str pid) " ")))))
+               (if (Opts on? o "-s") () (display (string-append (cu-int->str pid) " ")))))
          pids)
     (match
       ((null? pids) 1)

@@ -42,8 +42,8 @@
 
 (def %in-c
   (fn (_ name)
-    (when (null? %in-libc) (set! %in-libc (%cu-dlopen () 1)))
-    (%cu-dlsym %in-libc name)))
+    (when (null? %in-libc) (set! %in-libc (cu-dlopen () 1)))
+    (cu-dlsym %in-libc name)))
 
 (def %in-call (fn (_ r) (Sys %sign-fold r)))
 
@@ -67,7 +67,7 @@
     (unless %in-quiet?
       (if %in-stderr?
         (file-write 2 (string-concat (list "inetd: " msg "\n")))
-        (%cu-ptr-call (%in-c "syslog") 3 (%in-percent msg))))))
+        (cu-ptr-call (%in-c "syslog") 3 (%in-percent msg))))))
 
 (def %in-die (fn (_ msg) (Err raise (lit net) msg ())))
 
@@ -175,7 +175,7 @@
 ; sets the host the lines after it default to.
 (def %in-parse
   (fn (_ lineno tokens)
-    (def err (fn (_) (do (%in-say (string-concat (list "parse error on line " (%cu-int->str lineno) ", line is ignored"))) ())))
+    (def err (fn (_) (do (%in-say (string-concat (list "parse error on line " (cu-int->str lineno) ", line is ignored"))) ())))
     (def t0 (first tokens))
     (def colon (%in-index-of t0 #\:))
     (def host (if (null? colon) %in-default-host (substring t0 0 colon)))
@@ -190,8 +190,8 @@
     (def s (vec-make %in-fields ()))
     (%in-set! s %in-host host)
     (%in-set! s %in-service service)
-    (%in-set! s %in-type (%in-socktype (%cu-nth 1 tokens)))
-    (def proto (%cu-nth 2 tokens))
+    (%in-set! s %in-type (%in-socktype (cu-nth 1 tokens)))
+    (def proto (cu-nth 2 tokens))
     (%in-set! s %in-proto proto)
     (def six? (if (> (byte-len proto) 0) (= (byte-at proto (- (byte-len proto) 1)) #\6) #f))
     (def base (if six? (substring proto 0 (- (byte-len proto) 1)) proto))
@@ -206,7 +206,7 @@
 
 (def %in-parse-wait
   (fn (_ err s tokens)
-    (def w (%cu-nth 3 tokens))
+    (def w (cu-nth 3 tokens))
     (def dot (%in-first-index w #\.))
     (def max (if (null? dot) %in-max (%in-strtou (substring w (+ dot 1) (byte-len w)))))
     (def word (if (null? dot) w (substring w 0 dot)))
@@ -218,11 +218,11 @@
 
 (def %in-parse-prog
   (fn (_ err s tokens)
-    (def u (%cu-nth 4 tokens))
+    (def u (cu-nth 4 tokens))
     (def sep (let ((d (%in-first-index u #\.))) (if (null? d) (%in-first-index u #\:) d)))
     (%in-set! s %in-user (if (null? sep) u (substring u 0 sep)))
     (%in-set! s %in-group (if (null? sep) () (substring u (+ sep 1) (byte-len u))))
-    (def prog (%cu-nth 5 tokens))
+    (def prog (cu-nth 5 tokens))
     (%in-set! s %in-program prog)
     (def service (%in-get s %in-service))
     (def internal? (if (string=? prog "internal")
@@ -315,20 +315,20 @@
 
 (def %in-zeroed
   (fn (_ n)
-    (let ((s (%str-make-raw n)))
-      (do (let go ((i 0)) (when (< i n) (do (%cu-ptr-set! (%cu-str->ptr s) i 0 1) (go (+ i 1))))) s))))
+    (let ((s (str-make-raw n)))
+      (do (let go ((i 0)) (when (< i n) (do (cu-ptr-set! (cu-str->ptr s) i 0 1) (go (+ i 1))))) s))))
 
 ; a sockaddr_in6 for the 16 bytes ADDR (nil: any) and PORT, as (BYTES . LEN) --
 ; a raw buffer's byte-len stops at its first zero byte, so the length goes with it
 (def %in-sockaddr6
   (fn (_ addr port)
     (def s (%in-zeroed 28))
-    (def p (%cu-str->ptr s))
-    (if os-darwin? (do (%cu-ptr-set! p 0 28 1) (%cu-ptr-set! p 1 30 1)) (%cu-ptr-set! p 0 10 1))
-    (%cu-ptr-set! p 2 (/ (- port (% port 256)) 256) 1)
-    (%cu-ptr-set! p 3 (% port 256) 1)
+    (def p (cu-str->ptr s))
+    (if os-darwin? (do (cu-ptr-set! p 0 28 1) (cu-ptr-set! p 1 30 1)) (cu-ptr-set! p 0 10 1))
+    (cu-ptr-set! p 2 (/ (- port (% port 256)) 256) 1)
+    (cu-ptr-set! p 3 (% port 256) 1)
     (unless (null? addr)
-      (let go ((i 0)) (when (< i 16) (do (%cu-ptr-set! p (+ 8 i) (%cu-ptr-ref (%cu-str->ptr addr) i 1) 1) (go (+ i 1))))))
+      (let go ((i 0)) (when (< i 16) (do (cu-ptr-set! p (+ 8 i) (cu-ptr-ref (cu-str->ptr addr) i 1) 1) (go (+ i 1))))))
     (pair s 28)))
 
 ; a sockaddr_un for PATH, cut to what sun_path holds: (BYTES . LEN)
@@ -336,10 +336,10 @@
   (fn (_ path)
     (def size (if os-darwin? 106 110))
     (def s (%in-zeroed size))
-    (def p (%cu-str->ptr s))
-    (if os-darwin? (do (%cu-ptr-set! p 0 size 1) (%cu-ptr-set! p 1 1 1)) (%cu-ptr-set! p 0 1 1))
+    (def p (cu-str->ptr s))
+    (if os-darwin? (do (cu-ptr-set! p 0 size 1) (cu-ptr-set! p 1 1 1)) (cu-ptr-set! p 0 1 1))
     (let go ((i 0)) (when (if (< i (byte-len path)) (< i (- size 3)) #f)
-                      (do (%cu-ptr-set! p (+ 2 i) (byte-at path i) 1) (go (+ i 1)))))
+                      (do (cu-ptr-set! p (+ 2 i) (byte-at path i) 1) (go (+ i 1)))))
     (pair s size)))
 
 ; host_and_af2sockaddr: HOST's address in FAMILY with PORT, or nil said as
@@ -351,7 +351,7 @@
         (let ((q (if (null? (net-aton host)) (guard (_ ()) (net-resolve host)) host)))
           (if (null? q) () (pair (net-sockaddr q port) 16)))
         (let ((buf (%in-zeroed 16)))
-          (if (= (%in-call (%cu-ptr-call (%in-c "inet_pton") (%in-af fam) host (%cu-str->ptr buf))) 1)
+          (if (= (%in-call (cu-ptr-call (%in-c "inet_pton") (%in-af fam) host (cu-str->ptr buf))) 1)
             (%in-sockaddr6 buf port) ()))))
     (when (null? a) (%in-say (string-concat (list "bad address '" host "'"))))
     a))
@@ -362,27 +362,27 @@
       (if (not (= (rest a) (rest b))) #f
         (let go ((i 0))
           (if (>= i (rest a)) #t
-            (if (= (%cu-ptr-ref (%cu-str->ptr (first a)) i 1) (%cu-ptr-ref (%cu-str->ptr (first b)) i 1)) (go (+ i 1)) #f)))))))
+            (if (= (cu-ptr-ref (cu-str->ptr (first a)) i 1) (cu-ptr-ref (cu-str->ptr (first b)) i 1)) (go (+ i 1)) #f)))))))
 
 ; --- sockets ---------------------------------------------------------------------------------
 
 (def %in-reuse!
   (fn (_ fd)
-    (let ((one (%str-make-raw 4)))
-      (do (%cu-ptr-set! (%cu-str->ptr one) 0 1 4)
-          (%cu-ptr-call (%in-c "setsockopt") fd (if os-darwin? 65535 1) (if os-darwin? 4 2) (%cu-str->ptr one) 4)))))
+    (let ((one (str-make-raw 4)))
+      (do (cu-ptr-set! (cu-str->ptr one) 0 1 4)
+          (cu-ptr-call (%in-c "setsockopt") fd (if os-darwin? 65535 1) (if os-darwin? 4 2) (cu-str->ptr one) 4)))))
 
 ; a datagram socket also takes SO_REUSEPORT on Darwin, where SO_REUSEADDR
 ; alone does not let the socket a nowait child holds share its address
 (def %in-reuse-port!
   (fn (_ fd)
     (when os-darwin?
-      (let ((one (%str-make-raw 4)))
-        (do (%cu-ptr-set! (%cu-str->ptr one) 0 1 4)
-            (%cu-ptr-call (%in-c "setsockopt") fd 65535 512 (%cu-str->ptr one) 4))))))
+      (let ((one (str-make-raw 4)))
+        (do (cu-ptr-set! (cu-str->ptr one) 0 1 4)
+            (cu-ptr-call (%in-c "setsockopt") fd 65535 512 (cu-str->ptr one) 4))))))
 
 (def %in-bind
-  (fn (_ fd addr) (%in-call (%cu-ptr-call (%in-c "bind") fd (%cu-str->ptr (first addr)) (rest addr)))))
+  (fn (_ fd addr) (%in-call (cu-ptr-call (%in-c "bind") fd (cu-str->ptr (first addr)) (rest addr)))))
 
 (def %in-close!
   (fn (_ s)
@@ -397,7 +397,7 @@
 ; listening; a failure said and tried again in a minute
 (def %in-open!
   (fn (_ s)
-    (def fd (%in-call (%cu-ptr-call (%in-c "socket") (%in-af (%in-get s %in-family)) (%in-get s %in-type) 0)))
+    (def fd (%in-call (cu-ptr-call (%in-c "socket") (%in-af (%in-get s %in-family)) (%in-get s %in-type) 0)))
     (if (< fd 0) (%in-say (string-append "socket: " (%in-errtext fd)))
       (do (%in-reuse! fd)
           (when (%in-dgram? s) (%in-reuse-port! fd))
@@ -407,7 +407,7 @@
               (do (%in-say (string-concat (list (%in-name s) ": bind: " (%in-errtext r))))
                   (sys-close fd)
                   (%in-rearm!))
-              (do (when (%in-stream? s) (%cu-ptr-call (%in-c "listen") fd %in-queue))
+              (do (when (%in-stream? s) (cu-ptr-call (%in-c "listen") fd %in-queue))
                   (%in-set! s %in-fd fd)
                   (%in-set! s %in-watched #t))))))))
 
@@ -424,7 +424,7 @@
 (def %in-reread!
   (fn (_)
     (set! %in-default-host "*")
-    (def text (guard (e (if (eq? (%cu-err-label e) (lit io))
+    (def text (guard (e (if (eq? (cu-err-label e) (lit io))
                           (do (%in-say (string-concat (list %in-conf ": " (file-err-text e)))) ())
                           (error e)))
                 (file-read-all %in-conf)))
@@ -483,19 +483,19 @@
 ; a datagram taken without waiting: (DATA COUNT SOCKADDR LEN), or nil
 (def %in-recvfrom
   (fn (_ fd n)
-    (def buf (%str-make-raw n))
+    (def buf (str-make-raw n))
     (def sa (%in-zeroed 128))
-    (def len (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr len) 0 128 4)
-    (def r (%in-call (%cu-ptr-call (%in-c "recvfrom") fd (%cu-str->ptr buf) n %in-dontwait
-                                   (%cu-str->ptr sa) (%cu-str->ptr len))))
-    (if (< r 0) () (list buf r sa (%cu-ptr-ref (%cu-str->ptr len) 0 4)))))
+    (def len (str-make-raw 4))
+    (cu-ptr-set! (cu-str->ptr len) 0 128 4)
+    (def r (%in-call (cu-ptr-call (%in-c "recvfrom") fd (cu-str->ptr buf) n %in-dontwait
+                                   (cu-str->ptr sa) (cu-str->ptr len))))
+    (if (< r 0) () (list buf r sa (cu-ptr-ref (cu-str->ptr len) 0 4)))))
 
 (def %in-sendto
   (fn (_ fd data n from)
-    (%cu-ptr-call (%in-c "sendto") fd (%cu-str->ptr data) n 0 (%cu-str->ptr (%cu-nth 2 from)) (%cu-nth 3 from))))
+    (cu-ptr-call (%in-c "sendto") fd (cu-str->ptr data) n 0 (cu-str->ptr (cu-nth 2 from)) (cu-nth 3 from))))
 
-(def %in-eat (fn (_ fd) (%cu-ptr-call (%in-c "recv") fd (%cu-str->ptr (%str-make-raw 256)) 256 %in-dontwait)))
+(def %in-eat (fn (_ fd) (cu-ptr-call (%in-c "recv") fd (cu-str->ptr (str-make-raw 256)) 256 %in-dontwait)))
 
 ; the bytes ' ' through '~', and a chargen line: 72 of them from POS, around
 ; the ring, and CRLF
@@ -542,7 +542,7 @@
   (fn (_ name fd)
     (match
       ((string=? name "echo")
-        (let ((d (%in-recvfrom fd 12288))) (unless (null? d) (when (> (%cu-nth 1 d) 0) (%in-sendto fd (first d) (%cu-nth 1 d) d)))))
+        (let ((d (%in-recvfrom fd 12288))) (unless (null? d) (when (> (cu-nth 1 d) 0) (%in-sendto fd (first d) (cu-nth 1 d) d)))))
       ((string=? name "discard") (%in-eat fd))
       ((string=? name "chargen")
         (let ((d (%in-recvfrom fd 74)))
@@ -569,9 +569,9 @@
     (def vec (%in-zeroed (* 8 (+ (length strs) 1))))
     (let go ((i 0) (l strs))
       (unless (null? l)
-        (do (%cu-ptr-set! (%cu-str->ptr vec) (* 8 i) (ptr->int (%cu-str->ptr (first l))) 8) (go (+ i 1) (rest l)))))
+        (do (cu-ptr-set! (cu-str->ptr vec) (* 8 i) (ptr->int (cu-str->ptr (first l))) 8) (go (+ i 1) (rest l)))))
     (def p (string-append prog %in-nul))
-    (%in-call (%cu-ptr-call (%in-c "execvp") (%cu-str->ptr p) (%cu-str->ptr vec)))))
+    (%in-call (cu-ptr-call (%in-c "execvp") (cu-str->ptr p) (cu-str->ptr vec)))))
 
 ; a child's end: for a datagram service, the datagram that started it eaten
 (def %in-exit1
@@ -583,12 +583,12 @@
 ; the user it runs as, PROG
 (def %in-child
   (fn (_ s ctrl new-udp)
-    (%cu-ptr-call (%in-c "setsid"))
+    (cu-ptr-call (%in-c "setsid"))
     (when (>= new-udp 0)
       (do (sys-close new-udp)
           (let ((d (%in-peek ctrl)))
             (if (null? d) (%in-exit1 s ctrl)
-              (%cu-ptr-call (%in-c "connect") ctrl (%cu-str->ptr (%cu-nth 2 d)) (%cu-nth 3 d))))))
+              (cu-ptr-call (%in-c "connect") ctrl (cu-str->ptr (cu-nth 2 d)) (cu-nth 3 d))))))
     (def user (%in-get s %in-user))
     (def group (%in-get s %in-group))
     (def uid (sys-user-id user))
@@ -615,10 +615,10 @@
 (def %in-peek
   (fn (_ fd)
     (def sa (%in-zeroed 128))
-    (def len (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr len) 0 128 4)
-    (def r (%in-call (%cu-ptr-call (%in-c "recvfrom") fd 0 0 (+ 2 %in-dontwait) (%cu-str->ptr sa) (%cu-str->ptr len))))
-    (if (< r 0) () (list "" 0 sa (%cu-ptr-ref (%cu-str->ptr len) 0 4)))))
+    (def len (str-make-raw 4))
+    (cu-ptr-set! (cu-str->ptr len) 0 128 4)
+    (def r (%in-call (cu-ptr-call (%in-c "recvfrom") fd 0 0 (+ 2 %in-dontwait) (cu-str->ptr sa) (cu-str->ptr len))))
+    (if (< r 0) () (list "" 0 sa (cu-ptr-ref (cu-str->ptr len) 0 4)))))
 
 ; another user's identity -- initgroups, setgid, setuid -- or, for this
 ; user, the group alone
@@ -626,14 +626,14 @@
   (fn (_ user uid gid)
     (if (not (= uid %in-uid))
       (let ((g (if (null? gid) (sys-user-group user) gid)))
-        (do (%cu-ptr-call (%in-c "initgroups") user g)
-            (%cu-ptr-call (%in-c "setgid") g)
-            (%cu-ptr-call (%in-c "setuid") uid)))
+        (do (cu-ptr-call (%in-c "initgroups") user g)
+            (cu-ptr-call (%in-c "setgid") g)
+            (cu-ptr-call (%in-c "setuid") uid)))
       (unless (null? gid)
-        (let ((buf (%str-make-raw 4)))
-          (do (%cu-ptr-set! (%cu-str->ptr buf) 0 gid 4)
-              (%cu-ptr-call (%in-c "setgid") gid)
-              (%cu-ptr-call (%in-c "setgroups") 1 (%cu-str->ptr buf))))))))
+        (let ((buf (str-make-raw 4)))
+          (do (cu-ptr-set! (cu-str->ptr buf) 0 gid 4)
+              (cu-ptr-call (%in-c "setgid") gid)
+              (cu-ptr-call (%in-c "setgroups") 1 (cu-str->ptr buf))))))))
 
 ; --- a service ready -----------------------------------------------------------------------------
 
@@ -661,12 +661,12 @@
     (def nowait? (= (%in-get s %in-wait) 0))
     (def accepted
       (if (if nowait? (%in-stream? s) #f)
-        (let ((c (%in-call (%cu-ptr-call (%in-c "accept") fd 0 0))))
+        (let ((c (%in-call (cu-ptr-call (%in-c "accept") fd 0 0))))
           (do (when (< c 0) (%in-say (string-concat (list "accept (for " (%in-get s %in-service) "): " (%in-errtext c))))) c))
         -1))
     (def new-udp
       (if (if nowait? (if (%in-dgram? s) (not (eq? (%in-get s %in-family) (lit unix))) #f) #f)
-        (let ((u (%in-call (%cu-ptr-call (%in-c "socket") (%in-af (%in-get s %in-family)) 2 0))))
+        (let ((u (%in-call (cu-ptr-call (%in-c "socket") (%in-af (%in-get s %in-family)) 2 0))))
           (if (< u 0) -2
             (do (%in-reuse! u) (%in-reuse-port! u)
                 (if (< (%in-bind u (%in-get s %in-addr)) 0) (do (sys-close u) -2) u))))
@@ -707,18 +707,18 @@
 ; failed, and the service watched again
 (def %in-reap!
   (fn (self)
-    (def st (%str-make-raw 4))
-    (def pid (%in-call (%cu-ptr-call (%in-c "waitpid") -1 (%cu-str->ptr st) 1)))
+    (def st (str-make-raw 4))
+    (def pid (%in-call (cu-ptr-call (%in-c "waitpid") -1 (cu-str->ptr st) 1)))
     (when (> pid 0)
       (do (let ((s (List find (fn (_ s) (= (%in-get s %in-wait) pid)) %in-list))
-                (raw (%cu-ptr-ref (%cu-str->ptr st) 0 4)))
+                (raw (cu-ptr-ref (cu-str->ptr st) 0 4)))
             (unless (null? s)
               (do (match ((if (= (% raw 128) 0) (> (% (%wget-div raw 256) 256) 0) #f)
                            (%in-say (string-concat (list (%in-get s %in-program) ": exit status "
-                                                         (%cu-int->str (% (%wget-div raw 256) 256))))))
+                                                         (cu-int->str (% (%wget-div raw 256) 256))))))
                          ((if (> (% raw 128) 0) (not (= (% raw 128) 127)) #f)
                            (%in-say (string-concat (list (%in-get s %in-program) ": exit signal "
-                                                         (%cu-int->str (% raw 128))))))
+                                                         (cu-int->str (% raw 128))))))
                          (#t ()))
                   (%in-set! s %in-wait 1)
                   (when (>= (%in-get s %in-fd) 0) (%in-set! s %in-watched #t)))))
@@ -743,7 +743,7 @@
 
 (def %in-signals!
   (fn (_)
-    (def take (fn (_ i) (Sys take-signal (%cu-nth i %in-sigs))))
+    (def take (fn (_ i) (Sys take-signal (cu-nth i %in-sigs))))
     (when (if (take 3) #t (take 4)) (%in-quit!))
     (when (take 0) (%in-reap!))
     (when (take 1) (%in-reread!))
@@ -751,7 +751,7 @@
 
 (def %in-loop
   (fn (self)
-    (%cu-sweep-tick! %cu-sweep-lines)
+    (cu-sweep-tick! cu-sweep-lines)
     (%in-signals!)
     (def watched (filter (fn (_ s) (if (%in-get s %in-watched) (>= (%in-get s %in-fd) 0) #f)) %in-list))
     (def ready (sys-poll (map (fn (_ s) (pair (%in-get s %in-fd) (list (lit in)))) watched) 500))
@@ -767,7 +767,7 @@
 
 (def %cu-inetd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "inetd" argv))
+    (def o (cu-opts "inetd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
                 (do (file-write 2 (string-concat (list "inetd: " (e msg) "\n"))) 1)
                 (error e)))
@@ -783,14 +783,14 @@
     (when (null? %in-conf) (%in-die "non-root must specify config file"))
     (unless (Opts on? o "-f") (%hd-daemonize))
     (set! %in-stderr? (Opts on? o "-e"))
-    (unless %in-stderr? (%cu-ptr-call (%in-c "openlog") %in-ident 9 24))
+    (unless %in-stderr? (cu-ptr-call (%in-c "openlog") %in-ident 9 24))
     (when (= %in-uid 0)
-      (let ((buf (%str-make-raw 4)))
-        (do (%cu-ptr-set! (%cu-str->ptr buf) 0 (sys-getgid) 4)
-            (%cu-ptr-call (%in-c "setgroups") 1 (%cu-str->ptr buf)))))
+      (let ((buf (str-make-raw 4)))
+        (do (cu-ptr-set! (cu-str->ptr buf) 0 (sys-getgid) 4)
+            (cu-ptr-call (%in-c "setgroups") 1 (cu-str->ptr buf)))))
     (guard (_ ())
       (let ((fd (File open %in-pidfile (list (lit wronly) (lit creat) (lit trunc)) 438)))
-        (do (file-write fd (string-append (%cu-int->str (sys-getpid)) "\n")) (file-close fd))))
+        (do (file-write fd (string-append (cu-int->str (sys-getpid)) "\n")) (file-close fd))))
     (set! %in-sigs (map %ts-signal-number (list "CHLD" "HUP" "ALRM" "TERM" "INT")))
     (map (fn (_ n) (Sys catch-signal n)) %in-sigs)
     (sys-signal 13 cu-sig-ign)

@@ -130,7 +130,7 @@ The columns between the mode and the name are a machine's facts -- links,
 ids, a clock -- so the line is judged by its ends.
 
 ```cu
-(do (def out (cu-out (list "ls" "-l" "/tmp/x-cu-ls"))) (def ls (%cu-lines out)) (display (substring (first ls) 0 6)) (newline) (display (substring (first (rest ls)) 0 10)) (newline) (def link-line (first (filter (fn (_ l) (> (byte-len l) 0)) (filter (fn (_ l) (string=? (%cu-last (%cu-words-line l)) "b.txt")) (filter (fn (_ l) (= (byte-at l 0) 108)) ls))))) (display (%cu-join-with (%cu-nthrest (- (length (%cu-words-line link-line)) 3) (%cu-words-line link-line)) " ")))
+(do (def out (cu-out (list "ls" "-l" "/tmp/x-cu-ls"))) (def ls (cu-lines out)) (display (substring (first ls) 0 6)) (newline) (display (substring (first (rest ls)) 0 10)) (newline) (def link-line (first (filter (fn (_ l) (> (byte-len l) 0)) (filter (fn (_ l) (string=? (%cu-last (cu-words-line l)) "b.txt")) (filter (fn (_ l) (= (byte-at l 0) 108)) ls))))) (display (cu-join-with (%cu-nthrest (- (length (cu-words-line link-line)) 3) (cu-words-line link-line)) " ")))
 ```
 ---
 ```output
@@ -142,7 +142,7 @@ link -> b.txt
 ### -i and -s prefix every line; -h abbreviates a size; a missing operand is loud
 
 ```cu
-(do (def il (first (%cu-lines (cu-out (list "ls" "-i" "/tmp/x-cu-ls/b.txt"))))) (display (if (> (%cu-num-prefix il) 0) "inode" "none")) (newline) (def hl (first (%cu-lines (cu-out (list "ls" "-lh" "/tmp/x-cu-ls/big.log"))))) (display (if (null? (filter (fn (_ w) (string=? w "4.9K")) (%cu-words-line hl))) "bytes" "4.9K")) (newline) (display (cu-run (list "ls" "/tmp/x-cu-ls/nope") "")))
+(do (def il (first (cu-lines (cu-out (list "ls" "-i" "/tmp/x-cu-ls/b.txt"))))) (display (if (> (cu-num-prefix il) 0) "inode" "none")) (newline) (def hl (first (cu-lines (cu-out (list "ls" "-lh" "/tmp/x-cu-ls/big.log"))))) (display (if (null? (filter (fn (_ w) (string=? w "4.9K")) (cu-words-line hl))) "bytes" "4.9K")) (newline) (display (cu-run (list "ls" "/tmp/x-cu-ls/nope") "")))
 ```
 ---
 ```output
@@ -463,7 +463,7 @@ xyz
 
 ### the guard and the applet cannot disagree about a flag
 
-Both go through `%cu-opts` against the one row in `cu/cli.x`, so a flag
+Both go through `cu-opts` against the one row in `cu/cli.x`, so a flag
 the guard admits is a flag the applet reads.  These three spellings
 each broke a DIFFERENT hand-rolled reader before the library: a
 cluster, an attached value, and a value flag read as a flag.
@@ -610,8 +610,8 @@ for both prints it twice, which is what asking for both means.
 Sorted back, the range is exactly itself.
 
 ```cu
-(display (%cu-join-with
-  (%cu-msort (%cu-shuf-range "1-5") %cu-str<) ","))
+(display (cu-join-with
+  (cu-msort (%cu-shuf-range "1-5") cu-str<) ","))
 ```
 ---
     1,2,3,4,5
@@ -620,7 +620,7 @@ Sorted back, the range is exactly itself.
 
 ```cu
 (do (cu-run (list "shuf" "-i" "1-4" "-o" "/tmp/x-cu-opt-shuf") "")
-    (display (length (%cu-lines (file-read-all "/tmp/x-cu-opt-shuf"))))
+    (display (length (cu-lines (file-read-all "/tmp/x-cu-opt-shuf"))))
     (file-unlink "/tmp/x-cu-opt-shuf"))
 ```
 ---
@@ -644,11 +644,11 @@ Sorted back, the range is exactly itself.
               (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1)
                   (file-close fd)
                   (file-read-all "/tmp/x-cu-opt-env"))))))
-    (def all (%cu-lines (cap (list "env"))))
-    (def minus (%cu-lines (cap (list "env" "-u" "PATH"))))
+    (def all (cu-lines (cap (list "env"))))
+    (def minus (cu-lines (cap (list "env" "-u" "PATH"))))
     (display (- (length all) (length minus)))
     (display (%cu-dd-has?
-      (map (fn (_ e) (first (%cu-split-byte e 61))) minus) "PATH"))
+      (map (fn (_ e) (first (cu-split-byte e 61))) minus) "PATH"))
     (file-unlink "/tmp/x-cu-opt-env"))
 ```
 ---
@@ -795,7 +795,7 @@ bGQ=
 ### fixtures
 
 ```cu
-(do (def cu-out (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-fm/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-fm/.cap")))))) (def %cu-first-line (fn (_ s) (first (%cu-lines s)))) (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-fm && mkdir -p /tmp/x-cu-fm/sub && printf 'a\nb\nc\nd\ne\n' > /tmp/x-cu-fm/five && printf x > /tmp/x-cu-fm/sub/one")) (display "made"))
+(do (def cu-out (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-fm/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-fm/.cap")))))) (def %cu-first-line (fn (_ s) (first (cu-lines s)))) (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-fm && mkdir -p /tmp/x-cu-fm/sub && printf 'a\nb\nc\nd\ne\n' > /tmp/x-cu-fm/five && printf x > /tmp/x-cu-fm/sub/one")) (display "made"))
 ```
 ---
     made
@@ -863,7 +863,7 @@ with the caller's name written back as USER; what the words are is
 21-chown's business.
 
 ```cu
-(display (let ((u (%cu-int->str (sys-geteuid))) (un (let ((n (sys-user-name (sys-geteuid)))) (if (null? n) (%cu-int->str (sys-geteuid)) n)))) (Str8 replace (string-append "retained as " un) "retained as USER" (cu-out (list "chown" "-R" "-v" u "/tmp/x-cu-fm/sub")))))
+(display (let ((u (cu-int->str (sys-geteuid))) (un (let ((n (sys-user-name (sys-geteuid)))) (if (null? n) (cu-int->str (sys-geteuid)) n)))) (Str8 replace (string-append "retained as " un) "retained as USER" (cu-out (list "chown" "-R" "-v" u "/tmp/x-cu-fm/sub")))))
 ```
 ---
 ```output
@@ -889,7 +889,7 @@ unknown
 ### df counts blocks, or inodes under -i, in the unit -m and -B choose
 
 ```cu
-(do (def row (fn (_ flag) (%cu-nth 1 (%cu-words-line (first (rest (%cu-lines (cu-out (list "df" flag "/tmp"))))))))) (display (if (> (%cu-num-prefix (row "-k")) (%cu-num-prefix (row "-m"))) "k>m" "wrong")) (newline) (display (%cu-join-with (%cu-words-line (first (%cu-lines (cu-out (list "df" "-i" "/tmp"))))) " ")))
+(do (def row (fn (_ flag) (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" flag "/tmp"))))))))) (display (if (> (cu-num-prefix (row "-k")) (cu-num-prefix (row "-m"))) "k>m" "wrong")) (newline) (display (cu-join-with (cu-words-line (first (cu-lines (cu-out (list "df" "-i" "/tmp"))))) " ")))
 ```
 ---
 ```output
@@ -907,7 +907,7 @@ so it holds on any machine: the `-h` field must be what `%ls-human` makes
 of the `-k` count scaled to bytes.
 
 ```cu
-(do (def kb (%cu-num-prefix (cu-out (list "du" "-k" "-s" "/tmp/x-cu-fm")))) (display (if (string=? (cu-out (list "du" "-h" "-s" "/tmp/x-cu-fm")) (string-concat (list (%ls-human (* 1024 kb)) "\t/tmp/x-cu-fm\n"))) "du-h-scaled" "du-h-wrong")) (newline) (def hsize (%cu-nth 1 (%cu-words-line (first (rest (%cu-lines (cu-out (list "df" "-h" "/tmp")))))))) (def kb (%cu-num-prefix (%cu-nth 1 (%cu-words-line (first (rest (%cu-lines (cu-out (list "df" "-k" "/tmp"))))))))) (display (if (string=? hsize (%ls-human (* 1024 kb))) "df-h-scaled" "df-h-wrong")))
+(do (def kb (cu-num-prefix (cu-out (list "du" "-k" "-s" "/tmp/x-cu-fm")))) (display (if (string=? (cu-out (list "du" "-h" "-s" "/tmp/x-cu-fm")) (string-concat (list (%ls-human (* 1024 kb)) "\t/tmp/x-cu-fm\n"))) "du-h-scaled" "du-h-wrong")) (newline) (def hsize (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" "-h" "/tmp")))))))) (def kb (cu-num-prefix (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" "-k" "/tmp"))))))))) (display (if (string=? hsize (%ls-human (* 1024 kb))) "df-h-scaled" "df-h-wrong")))
 ```
 ---
 ```output

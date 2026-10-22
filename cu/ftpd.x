@@ -38,8 +38,8 @@
 
 (def %fd-c
   (fn (_ name)
-    (when (null? %fd-libc) (set! %fd-libc (%cu-dlopen () 1)))
-    (%cu-dlsym %fd-libc name)))
+    (when (null? %fd-libc) (set! %fd-libc (cu-dlopen () 1)))
+    (cu-dlsym %fd-libc name)))
 
 ; bb_error_msg: said only when -v put stderr in the log mode
 (def %fd-say
@@ -79,13 +79,13 @@
 
 (def %fd-ok
   (fn (_ code)
-    (def s (string-append (%cu-int->str code) " Operation successful\r\n"))
+    (def s (string-append (cu-int->str code) " Operation successful\r\n"))
     (%fd-send s)
     (when (> %fd-verbose 1) (%fd-log s))))
 
 (def %fd-err
   (fn (_ code)
-    (def s (string-append (%cu-int->str code) " Error\r\n"))
+    (def s (string-append (cu-int->str code) " Error\r\n"))
     (%fd-send s)
     (when (> %fd-verbose 0) (%fd-log s))))
 
@@ -225,10 +225,10 @@
   (fn (_)
     (def port (%fd-passive))
     (%fd-raw (string-concat (list "227 PASV ok (" (Str8 replace "." "," %fd-local-ip) ","
-                                  (%cu-int->str (%wget-div port 256)) "," (%cu-int->str (% port 256)) ")\r\n")))))
+                                  (cu-int->str (%wget-div port 256)) "," (cu-int->str (% port 256)) ")\r\n")))))
 
 (def %fd-epsv-cmd
-  (fn (_) (%fd-raw (string-concat (list "229 EPSV ok (|||" (%cu-int->str (%fd-passive)) "|)\r\n")))))
+  (fn (_) (%fd-raw (string-concat (list "229 EPSV ok (|||" (cu-int->str (%fd-passive)) "|)\r\n")))))
 
 ; PORT h1,h2,h3,h4,p1,p2: the peer's own address, at the port the last two name
 (def %fd-port-cmd
@@ -266,7 +266,7 @@
     (unless (= offset 0) (file-seek fd offset))
     (def size (Assoc get (lit size) (file-stat %fd-arg)))
     (def remote (%fd-data (string-concat (list " Opening BINARY connection for " %fd-arg
-                                               " (" (%cu-int->str size) " bytes)"))))
+                                               " (" (cu-int->str size) " bytes)"))))
     (when (>= remote 0)
       (do (if (%fd-copy fd remote) (do (net-close remote) (%fd-ok 226)) (do (net-close remote) (%fd-err 451)))))
     (file-close fd)))
@@ -327,14 +327,14 @@
       (%fd-err 550)
       (let ((st (file-stat %fd-arg)))
         (%fd-raw (string-concat (list "213 "
-          (if size? (%cu-int->str (Assoc get (lit size) st)) (%fd-stamp (Assoc get (lit mtime) st)))
+          (if size? (cu-int->str (Assoc get (lit size) st)) (%fd-stamp (Assoc get (lit mtime) st)))
           "\r\n")))))))
 
 ; YYYYMMDDhhmmss in UTC
 (def %fd-stamp
   (fn (_ secs)
     (def d (Date from-unix secs))
-    (def f (fn (_ k w) (%cu-pad-zero (%cu-int->str (Assoc get k d)) w)))
+    (def f (fn (_ k w) (cu-pad-zero (cu-int->str (Assoc get k d)) w)))
     (string-concat (list (f (lit year) 4) (f (lit month) 2) (f (lit day) 2)
                          (f (lit hour) 2) (f (lit minute) 2) (f (lit second) 2)))))
 
@@ -355,12 +355,12 @@
 ; mkstemp's uniq.XXXXXX: (FD . NAME)
 (def %fd-mkstemp
   (fn (_)
-    (def t (%str-make-raw 12))
+    (def t (str-make-raw 12))
     (let go ((i 0) (bs (%cu-bytes "uniq.XXXXXX" 0 11)))
-      (unless (null? bs) (do (%cu-ptr-set! (%cu-str->ptr t) i (first bs) 1) (go (+ i 1) (rest bs)))))
-    (%cu-ptr-set! (%cu-str->ptr t) 11 0 1)
-    (def fd (Sys %sign-fold (%cu-ptr-call (%fd-c "mkstemp") (%cu-str->ptr t))))
-    (pair fd (%cu-ptr->str (%cu-str->ptr t)))))
+      (unless (null? bs) (do (cu-ptr-set! (cu-str->ptr t) i (first bs) 1) (go (+ i 1) (rest bs)))))
+    (cu-ptr-set! (cu-str->ptr t) 11 0 1)
+    (def fd (Sys %sign-fold (cu-ptr-call (%fd-c "mkstemp") (cu-str->ptr t))))
+    (pair fd (cu-ptr->str (cu-str->ptr t)))))
 
 ; handle_upload_common: STOR, APPE (append?) and STOU (unique?)
 (def %fd-upload
@@ -444,7 +444,7 @@
 
 (def %fd-loop
   (fn (self)
-    (%cu-sweep-tick! %cu-sweep-lines)
+    (cu-sweep-tick! cu-sweep-lines)
     (when (%fd-dispatch (%fd-command)) (self))))
 
 ; --- the login --------------------------------------------------------------------
@@ -492,15 +492,15 @@
     (def fail? (fn (_ r what)
       (let ((e (%ss-call r (lit call) what)))
         (unless (null? e) (%fd-die (string-concat (list what ": " (file-err-text e))))))))
-    (fail? (%cu-ptr-call (%fd-c "initgroups") user gid) "can't set groups")
-    (fail? (%cu-ptr-call (%fd-c "setgid") gid) "setgid")
-    (fail? (%cu-ptr-call (%fd-c "setuid") uid) "setuid")))
+    (fail? (cu-ptr-call (%fd-c "initgroups") user gid) "can't set groups")
+    (fail? (cu-ptr-call (%fd-c "setgid") gid) "setgid")
+    (fail? (cu-ptr-call (%fd-c "setuid") uid) "setuid")))
 
 ; --- the applet -------------------------------------------------------------------
 
 (def %cu-ftpd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ftpd" argv))
+    (def o (cu-opts "ftpd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
                 (do (file-write 2 (string-concat (list "ftpd: " (e msg) "\n"))) 1)
                 (error e)))
@@ -521,12 +521,12 @@
     (def abs (let ((t (Opts value o "-T"))) (if (null? t) 3600 (%fd-num t))))
     (when (if (> abs 0) (> %fd-timeout abs) #f) (set! %fd-timeout abs))
     (def in (net-stdin-socket))
-    (if (null? in) (%cu-usage "ftpd")
+    (if (null? in) (cu-usage "ftpd")
       (do (set! %fd-in in)
           (set! %fd-local-ip (first (net-sock-addr in)))
           (set! %fd-say? (> v 0))
           (when (if (> v 0) #t (> vs 0))
-            (set! %fd-name (string-concat (list "ftpd[" (%cu-int->str (sys-getpid)) "]"))))
+            (set! %fd-name (string-concat (list "ftpd[" (cu-int->str (sys-getpid)) "]"))))
           (%fd-serve o)))))
 
 (def %fd-serve

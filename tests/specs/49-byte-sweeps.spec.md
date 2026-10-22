@@ -27,7 +27,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 7,990, and 235 are 3,995.
 
 ```cu
-(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def mk (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair (%cu-int->str (+ 100 (% (* n 7919) 900))) (pair " alpha beta\tx\n" acc)))))) (def in16k (mk 941 ())) (def in8k (mk 470 ())) (def in4k (mk 235 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (%cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display (list (byte-len in16k) (byte-len in8k) (byte-len in4k))))
+(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def mk (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair (cu-int->str (+ 100 (% (* n 7919) 900))) (pair " alpha beta\tx\n" acc)))))) (def in16k (mk 941 ())) (def in8k (mk 470 ())) (def in4k (mk 235 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display (list (byte-len in16k) (byte-len in8k) (byte-len in4k))))
 ```
 ---
     (15997 7990 3995)

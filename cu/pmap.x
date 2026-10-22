@@ -21,11 +21,11 @@
     (%ps-resolve!)
     (def trim
       (fn (self r) (if (if (pair? r) (= (byte-len (first r)) 0) #f) (self (rest r)) r)))
-    (def s (%ps-printable (%cu-join-with (reverse (trim (reverse args))) " ")))
+    (def s (%ps-printable (cu-join-with (reverse (trim (reverse args))) " ")))
     (if (> (byte-len s) 4095) (substring s 0 4095) s)))
 
 (def %pmap-kib (fn (_ n) (if (null? n) 0 (/ (- n (% n 1024)) 1024))))
-(def %pmap-col (fn (_ n w) (%cu-pad-left (%cu-int->str n) w)))
+(def %pmap-col (fn (_ n w) (cu-pad-left (cu-int->str n) w)))
 
 ; ADDR as busybox's %016llx: Host gives an address's 64 bits as a signed
 ; integer, so one in the top half (x86-64's [vsyscall]) is negative and
@@ -33,9 +33,9 @@
 (def %pmap-address
   (fn (_ addr)
     (if (< addr 0)
-      (string-append (%cu-pad-zero (%cu-hexs (& (>> addr 32) 4294967295)) 8)
-                     (%cu-pad-zero (%cu-hexs (& addr 4294967295)) 8))
-      (%cu-pad-zero (%cu-hexs addr) 16))))
+      (string-append (cu-pad-zero (cu-hexs (& (>> addr 32) 4294967295)) 8)
+                     (cu-pad-zero (cu-hexs (& addr 4294967295)) 8))
+      (cu-pad-zero (cu-hexs addr) 16))))
 
 ; one region's row; SIZE is its KiB
 (def %pmap-row
@@ -56,7 +56,7 @@
 (def %pmap-report
   (fn (_ pid x quiet)
     (if (null? (host-process pid)) 42
-      (do (display (string-concat (list (%cu-int->str pid) ": " (%pmap-cmdline (host-args pid)) "\n")))
+      (do (display (string-concat (list (cu-int->str pid) ": " (%pmap-cmdline (host-args pid)) "\n")))
           (if (if x (not quiet) #f)
             (display "Address\t\t  Kbytes     PSS   Dirty    Swap  Mode  Mapping\n") ())
           (let ((rs (host-regions pid)))
@@ -66,7 +66,7 @@
                 (if (null? left) (list size pss dirty swap)
                   (let ((r (first left)))
                     (def n (%pmap-kib (Assoc get (lit size) r)))
-                    (if (= (% k 32) 31) (%cu-heap-collect) ())
+                    (if (= (% k 32) 31) (cu-heap-collect) ())
                     (if (= n 0) () (display (%pmap-row r n x)))
                     (self (rest left) (+ k 1) (+ size n)
                       (+ pss (%pmap-kib (Assoc get (lit pss) r)))
@@ -87,7 +87,7 @@
 
 (def %cu-pmap
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "pmap" argv))
+    (def o (cu-opts "pmap" argv))
     (def x (Opts on? o "-x"))
     (def quiet (Opts on? o "-q"))
     ; busybox's xatoi_positive: a bad pid ends the run there, with 1
@@ -97,4 +97,4 @@
           (let ((pid (%cu-range-number "pmap" (first ops) 0 2147483647)))
             (if (null? pid) 1
               (self (rest ops) (if (= (%pmap-report pid x quiet) 0) st 42)))))))
-    (if (null? (Opts operands o)) (%cu-usage "pmap") (go (Opts operands o) 0))))
+    (if (null? (Opts operands o)) (cu-usage "pmap") (go (Opts operands o) 0))))

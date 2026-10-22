@@ -38,20 +38,20 @@
 ; addattr_l: REQ with the attribute, or as it was where it would pass MAX
 (def %ip-add
   (fn (_ req type bytes)
-    (def len (%ip-align (+ (%cu-nth 3 req) 4 (length bytes))))
-    (if (> len (%cu-nth 2 req)) req
-      (list (first req) (%cu-nth 1 req) (%cu-nth 2 req) len (pair (%ip-rta type bytes) (%cu-nth 4 req))))))
+    (def len (%ip-align (+ (cu-nth 3 req) 4 (length bytes))))
+    (if (> len (cu-nth 2 req)) req
+      (list (first req) (cu-nth 1 req) (cu-nth 2 req) len (pair (%ip-rta type bytes) (cu-nth 4 req))))))
 
 ; the request's bytes, with BODY and SEQ
 (def %ip-req-bytes
   (fn (_ req body seq)
-    (append (%ip-le (%cu-nth 3 req) 4) (%ip-le (first req) 2) (%ip-le (%cu-nth 1 req) 2) (%ip-le seq 4) (%ip-le 0 4)
-            body (List flatten (reverse (%cu-nth 4 req))))))
+    (append (%ip-le (cu-nth 3 req) 4) (%ip-le (first req) 2) (%ip-le (cu-nth 1 req) 2) (%ip-le seq 4) (%ip-le 0 4)
+            body (List flatten (reverse (cu-nth 4 req))))))
 
 ; a raw buffer holding BYTES
 (def %ip-buf
   (fn (_ bytes)
-    (let ((b (%str-make-raw (if (null? bytes) 1 (length bytes)))))
+    (let ((b (str-make-raw (if (null? bytes) 1 (length bytes)))))
       (do (map (fn (_ e) (%inet-set! b (first e) (rest e) 1)) (%ip-indexed bytes)) b))))
 
 ; rtnl_talk: the request sent with NLM_F_ACK and the kernel's answer read;
@@ -59,32 +59,32 @@
 (def %ip-talk
   (fn (_ f fd bytes seq)
     (def out (%ip-buf bytes))
-    (%inet-set! out 6 (| (%cu-ptr-ref (%cu-str->ptr out) 6 2) 4) 2)
-    (let ((r (%in-call (%cu-ptr-call (%in-c "write") fd (%cu-str->ptr out) (length bytes)))))
+    (%inet-set! out 6 (| (cu-ptr-ref (cu-str->ptr out) 6 2) 4) 2)
+    (let ((r (%in-call (cu-ptr-call (%in-c "write") fd (cu-str->ptr out) (length bytes)))))
       (if (< r 0) (do (%ip-say f (string-append "can't talk to rtnetlink: " (libc-strerror (Err errno-of r)))) -1)
-        (%ip-answer f fd seq (%str-make-raw 8192))))))
+        (%ip-answer f fd seq (str-make-raw 8192))))))
 
 (def %ip-answer
   (fn (_ f fd seq buf)
-    (let ((n (%in-call (%cu-ptr-call (%in-c "recv") fd (%cu-str->ptr buf) 8192 0))))
+    (let ((n (%in-call (cu-ptr-call (%in-c "recv") fd (cu-str->ptr buf) 8192 0))))
       (match
         ((< n 0) (do (%ip-say f (string-append "OVERRUN: " (libc-strerror (Err errno-of n)))) (%ip-answer f fd seq buf)))
         ((= n 0) (do (%ip-say f "EOF on netlink") -1))
-        (#t (let ((r (%ip-acks f (%cu-str->ptr buf) n seq))) (if (null? r) (%ip-answer f fd seq buf) r)))))))
+        (#t (let ((r (%ip-acks f (cu-str->ptr buf) n seq))) (if (null? r) (%ip-answer f fd seq buf) r)))))))
 
 ; the answers in the N bytes at P: 0 or -1 for the one to SEQ, nil where none is
 (def %ip-acks
   (fn (_ f p n seq)
     (let go ((o 0))
-      (let ((len (if (> (+ o 16) n) 0 (%cu-ptr-ref p o 4))))
+      (let ((len (if (> (+ o 16) n) 0 (cu-ptr-ref p o 4))))
         (match
           ((> (+ o 16) n) ())
-          ((if (< len 16) #t (> (+ o len) n)) (%ip-die f (string-concat (list "malformed message: len=" (%cu-int->str len) "!"))))
-          ((not (= (%cu-ptr-ref p (+ o 8) 4) seq)) (go (+ o (%ip-align len))))
-          ((not (= (%cu-ptr-ref p (+ o 4) 2) 2)) (do (%ip-say f "unexpected reply!") (go (+ o (%ip-align len)))))
+          ((if (< len 16) #t (> (+ o len) n)) (%ip-die f (string-concat (list "malformed message: len=" (cu-int->str len) "!"))))
+          ((not (= (cu-ptr-ref p (+ o 8) 4) seq)) (go (+ o (%ip-align len))))
+          ((not (= (cu-ptr-ref p (+ o 4) 2) 2)) (do (%ip-say f "unexpected reply!") (go (+ o (%ip-align len)))))
           ((< len 36) (do (%ip-say f "ERROR truncated") -1))
-          ((= (%cu-ptr-ref p (+ o 16) 4) 0) 0)
-          (#t (do (%ip-say f (string-append "RTNETLINK answers: " (libc-strerror (- 0 (%inet-int32 (%cu-ptr-ref p (+ o 16) 4)))))) -1)))))))
+          ((= (cu-ptr-ref p (+ o 16) 4) 0) 0)
+          (#t (do (%ip-say f (string-append "RTNETLINK answers: " (libc-strerror (- 0 (%inet-int32 (cu-ptr-ref p (+ o 16) 4)))))) -1)))))))
 
 ; ll_init_map: the links dumped, as each verb does before it asks
 (def %ip-init-map (fn (_ f fd) (%ip-dump f fd 18 0 1 %ip-link-of)))
@@ -330,20 +330,20 @@
 (def %ip-send-check
   (fn (_ fd bytes)
     (def out (%ip-buf bytes))
-    (def r (%in-call (%cu-ptr-call (%in-c "write") fd (%cu-str->ptr out) (length bytes))))
+    (def r (%in-call (cu-ptr-call (%in-c "write") fd (cu-str->ptr out) (length bytes))))
     (if (< r 0) (Err errno-of r)
-      (let ((resp (%str-make-raw 1024)))
-        (let ((n (%in-call (%cu-ptr-call (%in-c "recv") fd (%cu-str->ptr resp) 1024 66))))
+      (let ((resp (str-make-raw 1024)))
+        (let ((n (%in-call (cu-ptr-call (%in-c "recv") fd (cu-str->ptr resp) 1024 66))))
           (match ((< n 0) (if (= (Err errno-of n) 11) () (Err errno-of n)))
-                 (#t (%ip-peek-error (%cu-str->ptr resp) n))))))))
+                 (#t (%ip-peek-error (cu-str->ptr resp) n))))))))
 
 (def %ip-peek-error
   (fn (_ p n)
     (let go ((o 0))
-      (let ((len (if (> (+ o 16) n) 0 (%cu-ptr-ref p o 4))))
+      (let ((len (if (> (+ o 16) n) 0 (cu-ptr-ref p o 4))))
         (match
           ((if (< len 16) #t (> (+ o len) n)) ())
-          ((= (%cu-ptr-ref p (+ o 4) 2) 2) (- 0 (%inet-int32 (%cu-ptr-ref p (+ o 16) 4))))
+          ((= (cu-ptr-ref p (+ o 4) 2) 2) (- 0 (%inet-int32 (cu-ptr-ref p (+ o 16) 4))))
           (#t (go (+ o (%ip-align len)))))))))
 
 ; the messages that delete those whose bytes MS holds, in batches of busybox's
@@ -376,26 +376,26 @@
     (when (null? ws) (%ip-die f0 "flush requires an argument"))
     (when (= (%ip-get f0 (lit preferred)) 17) (%ip-die f0 "can't flush link addresses"))
     (let ((f (%ip-filter f0 ws)))
-      (let ((r (%ip-flush-round f 0))) (do (%cu-ptr-call (%in-c "close") (%ip-get f (lit fd))) r)))))
+      (let ((r (%ip-flush-round f 0))) (do (cu-ptr-call (%in-c "close") (%ip-get f (lit fd))) r)))))
 
 ; --- ip link set ------------------------------------------------------------------
 
 ; get_ctl_fd: a datagram socket for the SIOCSIF ioctls
 (def %ip-ctl-fd
   (fn (_ f)
-    (let ((fd (%in-call (%cu-ptr-call (%in-c "socket") 2 2 0))))
+    (let ((fd (%in-call (cu-ptr-call (%in-c "socket") 2 2 0))))
       (if (>= fd 0) fd
-        (let ((fd2 (%in-call (%cu-ptr-call (%in-c "socket") 17 2 0))))
+        (let ((fd2 (%in-call (cu-ptr-call (%in-c "socket") 17 2 0))))
           (if (>= fd2 0) fd2
-            (let ((fd3 (%in-call (%cu-ptr-call (%in-c "socket") 10 2 0))))
+            (let ((fd3 (%in-call (cu-ptr-call (%in-c "socket") 10 2 0))))
               (if (< fd3 0) (%ip-die f (string-append "socket: " (libc-strerror (Err errno-of fd3)))) fd3))))))))
 
 ; xioctl: REQ on FD with the ifreq R, the run ended as busybox's ends it where it fails
 (def %ip-xioctl
   (fn (_ f fd req r)
-    (let ((n (%in-call (%cu-ptr-call (%in-c "ioctl") fd req (%cu-str->ptr r)))))
+    (let ((n (%in-call (cu-ptr-call (%in-c "ioctl") fd req (cu-str->ptr r)))))
       (when (< n 0)
-        (%ip-die f (string-concat (list "ioctl 0x" (%cvt req %cu-string-type 16) " failed: " (libc-strerror (Err errno-of n)))))))))
+        (%ip-die f (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n)))))))))
 
 ; an ifreq naming DEV with N bytes of V at 16, set by REQ on a control socket
 (def %ip-ifreq-set
@@ -404,7 +404,7 @@
     (def r (%if-req dev))
     (%inet-set! r 16 v n)
     (%ip-xioctl f fd req r)
-    (%cu-ptr-call (%in-c "close") fd)))
+    (cu-ptr-call (%in-c "close") fd)))
 
 ; do_chflags: FLAGS under MASK, set where they differ
 (def %ip-chflags
@@ -416,7 +416,7 @@
     (unless (= (& (^ cur flags) mask) 0)
       (%inet-set! r 16 (| (& cur (^ mask 65535)) (& mask flags)) 2)
       (%ip-xioctl f fd 35092 r))
-    (%cu-ptr-call (%in-c "close") fd)))
+    (cu-ptr-call (%in-c "close") fd)))
 
 ; do_changename
 (def %ip-rename
@@ -425,12 +425,12 @@
     (def r (%if-req dev))
     (map (fn (_ k) (%inet-set! r (+ 16 k) (char->integer (byte-at new k)) 1)) (List range 0 (if (> (byte-len new) 16) 16 (byte-len new))))
     (%ip-xioctl f fd 35107 r)
-    (%cu-ptr-call (%in-c "close") fd)))
+    (cu-ptr-call (%in-c "close") fd)))
 
 ; get_address: DEV's hardware type and address length, from a packet socket bound to it
 (def %ip-hw-of
   (fn (_ f dev)
-    (def fd (%in-call (%cu-ptr-call (%in-c "socket") 17 2 0)))
+    (def fd (%in-call (cu-ptr-call (%in-c "socket") 17 2 0)))
     (when (< fd 0) (%ip-die f (string-append "socket: " (libc-strerror (Err errno-of fd)))))
     (def r (%if-req dev))
     (%ip-xioctl f fd 35123 r)
@@ -438,13 +438,13 @@
     (%inet-set! me 0 17 2)
     (%inet-set! me 2 24576 2)
     (%inet-set! me 4 (%if-ref r 16 4) 4)
-    (let ((b (%in-call (%cu-ptr-call (%in-c "bind") fd (%cu-str->ptr me) 20))))
+    (let ((b (%in-call (cu-ptr-call (%in-c "bind") fd (cu-str->ptr me) 20))))
       (when (< b 0) (%ip-die f (string-append "bind: " (libc-strerror (Err errno-of b))))))
     (def len (%inet-zeros 4))
     (%inet-set! len 0 20 4)
-    (%cu-ptr-call (%in-c "getsockname") fd (%cu-str->ptr me) (%cu-str->ptr len))
-    (%cu-ptr-call (%in-c "close") fd)
-    (pair (%cu-ptr-ref (%cu-str->ptr me) 8 2) (%cu-ptr-ref (%cu-str->ptr me) 11 1))))
+    (cu-ptr-call (%in-c "getsockname") fd (cu-str->ptr me) (cu-str->ptr len))
+    (cu-ptr-call (%in-c "close") fd)
+    (pair (cu-ptr-ref (cu-str->ptr me) 8 2) (cu-ptr-ref (cu-str->ptr me) 11 1))))
 
 ; parse_address then set_address: LLA as DEV's hardware address
 (def %ip-set-hw
@@ -454,13 +454,13 @@
     (when (not (pair? a)) (Err raise (lit ip-exit1) "lladdr" ()))
     (unless (= (first a) (rest hw))
       (%ip-die f (string-concat (list "wrong address (" (if (>= (%dp-find lla 0 #\.) 0) lla (first (Str8 split ":" lla)))
-                                      ") length: expected " (%cu-int->str (rest hw)) " bytes"))))
+                                      ") length: expected " (cu-int->str (rest hw)) " bytes"))))
     (def r (%if-req dev))
     (%inet-set! r 16 (first hw) 2)
     (map (fn (_ e) (%inet-set! r (+ 18 (first e)) (rest e) 1)) (%ip-indexed (rest a)))
     (def fd (%ip-ctl-fd f))
     (%ip-xioctl f fd 35108 r)
-    (%cu-ptr-call (%in-c "close") fd)))
+    (cu-ptr-call (%in-c "close") fd)))
 
 ; set_master and set_netns: an RTM_NEWLINK with the one attribute, the run ended where the kernel refuses it
 (def %ip-link-attr
@@ -470,7 +470,7 @@
     (def req (%ip-add (%ip-req 16 1 1056 16) type (%ip-le v 4)))
     (def body (append (list (%ip-get f (lit preferred)) 0) (%ip-le 0 2) (%ip-le index 4) (%ip-le 0 8)))
     (when (< (%ip-talk f fd (%ip-req-bytes req body 2) 2) 0) (Err raise (lit ip) "talk" ()))
-    (%cu-ptr-call (%in-c "close") fd)))
+    (cu-ptr-call (%in-c "close") fd)))
 
 (def %ip-set-words (list "up" "down" "name" "mtu" "qlen" "multicast" "arp" "promisc" "address" "netns" "master" "nomaster" "dev"))
 
@@ -550,9 +550,9 @@
             (match
               ((= k 0) (go (rest a) (pair (pair 1 (%ip-le (%ip-unsigned f (first a) "id" 65535) 2)) acc) flags mask))
               ((= k 1) (go (rest a) (pair (pair 5 (%ip-vlan-proto f (first a))) acc) flags mask))
-              (#t (let ((bit (%cu-nth (- k 2) (list 1 2 8 4))))
+              (#t (let ((bit (cu-nth (- k 2) (list 1 2 8 4))))
                     (go (rest a) acc
-                        (if (%ip-on-off f (%cu-nth k %ip-vlan-words) (first a)) (| flags bit) (& flags (^ bit 4294967295)))
+                        (if (%ip-on-off f (cu-nth k %ip-vlan-words) (first a)) (| flags bit) (& flags (^ bit 4294967295)))
                         (| mask bit)))))))))))
 
 ; the protocol's bytes, network order, from its name lowercased
@@ -590,7 +590,7 @@
           (match
             ((= k 2) (let ((a (%ip-next f ws))) (pair (%ip-put s (lit type) (first a)) (rest a))))
             ((if (= k 0) #t (if (= k 1) #t (= k 4)))
-              (let ((a (%ip-next f ws))) (go (rest a) (%ip-put s (%cu-nth k (list (lit link) (lit name) () () (lit address))) (first a)))))
+              (let ((a (%ip-next f ws))) (go (rest a) (%ip-put s (cu-nth k (list (lit link) (lit name) () () (lit address))) (first a)))))
             (#t (let ((a (if (= k 3)
                            (do (unless (null? (%ip-get s (lit dev))) (%ip-duparg f (first ws) "dev")) (%ip-next f ws))
                            ws)))

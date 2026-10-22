@@ -23,15 +23,15 @@
   (fn (_ s)
     (let ((b (net-aton s)))
       (if (null? b) ()
-        (+ (* (first b) 16777216) (* (%cu-nth 1 b) 65536) (* (%cu-nth 2 b) 256) (%cu-nth 3 b))))))
+        (+ (* (first b) 16777216) (* (cu-nth 1 b) 65536) (* (cu-nth 2 b) 256) (cu-nth 3 b))))))
 
 (def %ic-ntoa
   (fn (_ v)
     (string-concat
-      (list (%cu-int->str (% (%wget-div v 16777216) 256)) "."
-            (%cu-int->str (% (%wget-div v 65536) 256)) "."
-            (%cu-int->str (% (%wget-div v 256) 256)) "."
-            (%cu-int->str (% v 256))))))
+      (list (cu-int->str (% (%wget-div v 16777216) 256)) "."
+            (cu-int->str (% (%wget-div v 65536) 256)) "."
+            (cu-int->str (% (%wget-div v 256) 256)) "."
+            (cu-int->str (% v 256))))))
 
 ; the netmask of an address's class: C for 11..., B for 10..., A for 0...
 (def %ic-class-mask
@@ -58,28 +58,28 @@
 ; gethostbyaddr's name for IP, lower case, or nil
 (def %ic-host-name
   (fn (_ ip)
-    (def f (%cu-dlsym (%cu-dlopen () 1) "gethostbyaddr"))
-    (def buf (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr buf) 0 (% (%wget-div ip 16777216) 256) 1)
-    (%cu-ptr-set! (%cu-str->ptr buf) 1 (% (%wget-div ip 65536) 256) 1)
-    (%cu-ptr-set! (%cu-str->ptr buf) 2 (% (%wget-div ip 256) 256) 1)
-    (%cu-ptr-set! (%cu-str->ptr buf) 3 (% ip 256) 1)
-    (def r (if (null? f) 0 (%cu-ptr-call f (%cu-str->ptr buf) 4 2)))
+    (def f (cu-dlsym (cu-dlopen () 1) "gethostbyaddr"))
+    (def buf (str-make-raw 4))
+    (cu-ptr-set! (cu-str->ptr buf) 0 (% (%wget-div ip 16777216) 256) 1)
+    (cu-ptr-set! (cu-str->ptr buf) 1 (% (%wget-div ip 65536) 256) 1)
+    (cu-ptr-set! (cu-str->ptr buf) 2 (% (%wget-div ip 256) 256) 1)
+    (cu-ptr-set! (cu-str->ptr buf) 3 (% ip 256) 1)
+    (def r (if (null? f) 0 (cu-ptr-call f (cu-str->ptr buf) 4 2)))
     (if (= r 0) ()
-      (%wget-lower (%cu-ptr->str (%cu-int->ptr (%cu-ptr-word (%cu-int->ptr r) 0)))))))
+      (%wget-lower (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0)))))))
 
 (def %cu-ipcalc
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ipcalc" argv))
+    (def o (cu-opts "ipcalc" argv))
     (def on? (fn (_ short long) (if (Opts on? o short) #t (Opts on? o long))))
     (def ops (Opts operands o))
     (set! %ic-silent (on? "-s" "--silent"))
     (def any? (if (on? "-m" "--netmask") #t (on? "-h" "--hostname")))
     (match
-      ((if (null? ops) #t (> (length ops) 2)) (%cu-usage "ipcalc"))
+      ((if (null? ops) #t (> (length ops) 2)) (cu-usage "ipcalc"))
       ((if (if (on? "-b" "--broadcast") #f (if (on? "-n" "--network") #f (not (on? "-p" "--prefix"))))
          (if (not any?) #t (= (length ops) 2)) #f)
-        (%cu-usage "ipcalc"))
+        (cu-usage "ipcalc"))
       (#t (guard (e (if (eq? (Err label e) (lit net))
                       (do (unless %ic-silent (file-write 2 (string-concat (list "ipcalc: " (e msg) "\n")))) 1)
                       (error e)))
@@ -105,7 +105,7 @@
     (when (on? "-b" "--broadcast")
       (file-write 1 (string-concat (list "BROADCAST=" (%ic-ntoa (bit-or net (bit-xor mask %cu-m32))) "\n"))))
     (when (on? "-n" "--network") (file-write 1 (string-concat (list "NETWORK=" (%ic-ntoa net) "\n"))))
-    (when (on? "-p" "--prefix") (file-write 1 (string-concat (list "PREFIX=" (%cu-int->str (%ic-popcount mask)) "\n"))))
+    (when (on? "-p" "--prefix") (file-write 1 (string-concat (list "PREFIX=" (cu-int->str (%ic-popcount mask)) "\n"))))
     (when (on? "-h" "--hostname")
       (let ((h (%ic-host-name ip)))
         (if (null? h) (%ic-die (string-concat (list "can't find hostname for " ipstr ": Unknown host")))

@@ -168,11 +168,11 @@
     (def row (let go ((rs %hd-reasons)) (if (null? rs) (list code "" ()) (if (= (first (first rs)) code) (first rs) (go (rest rs))))))
     (def reason (first (rest row)))
     (def info (first (rest (rest row))))
-    (when (> %hd-verbose 0) (%hd-log (string-append "response:" (%cu-int->str code))))
+    (when (> %hd-verbose 0) (%hd-log (string-append "response:" (cu-int->str code))))
     (def now (date-now-unix))
     (def head
       (string-concat
-        (list "HTTP/1.1 " (%cu-int->str code) " " reason "\r\n"
+        (list "HTTP/1.1 " (cu-int->str code) " " reason "\r\n"
               "Date: " (%hd-http-date now) "\r\n"
               "Connection: close\r\n"
               (if (if (= code 200) (null? %hd-mime-found) #f) ""
@@ -194,19 +194,19 @@
                                 %hd-file-size)))
                     (string-concat
                       (list (if (= code 206)
-                              (string-concat (list "Content-Range: bytes " (%cu-int->str %hd-range-start) "-"
-                                                   (%cu-int->str %hd-range-end) "/" (%cu-int->str %hd-file-size) "\r\n"))
+                              (string-concat (list "Content-Range: bytes " (cu-int->str %hd-range-start) "-"
+                                                   (cu-int->str %hd-range-end) "/" (cu-int->str %hd-file-size) "\r\n"))
                               "")
                             "Accept-Ranges: bytes\r\n"
                             "Last-Modified: " (%hd-http-date %hd-last-mod) "\r\n"
                             "ETag: " %hd-etag "\r\n"
-                            "Content-Length: " (%cu-int->str size) "\r\n"))))
+                            "Content-Length: " (cu-int->str size) "\r\n"))))
                 (if %hd-gzip "Content-Encoding: gzip\r\n" "")
                 "\r\n"
                 (if (null? info) ""
                   (string-concat
-                    (list "<HTML><HEAD><TITLE>" (%cu-int->str code) " " reason "</TITLE></HEAD>\n"
-                          "<BODY><H1>" (%cu-int->str code) " " reason "</H1>\n"
+                    (list "<HTML><HEAD><TITLE>" (cu-int->str code) " " reason "</TITLE></HEAD>\n"
+                          "<BODY><H1>" (cu-int->str code) " " reason "</H1>\n"
                           info "\n"
                           "</BODY></HTML>\n")))))))))
 
@@ -296,7 +296,7 @@
           (when (> (rest r) 0)
             (let ((n (if (if (>= left 0) (< left (rest r)) #f) left (rest r))))
               (do (file-write-run 1 (pair (first r) n))
-                  (%cu-sweep! 1)
+                  (cu-sweep! 1)
                   (go (if (>= left 0) (- left n) -1))))))))
     (file-close fd)
     (%hd-finish)))
@@ -432,7 +432,7 @@
         (#t ())))
     (if (null? found) #f
       (do (map (fn (_ l) (%hd-conf-line l found first? path))
-                    (%cu-lines (file-read-all found)))
+                    (cu-lines (file-read-all found)))
           #t))))
 
 (def %hd-conf-line
@@ -538,7 +538,7 @@
 (def %hd-passwd-field
   (fn (_ file user)
     (if (not (%t-permitted? file 4)) ()
-      (let go ((ls (%cu-lines (file-read-all file))))
+      (let go ((ls (cu-lines (file-read-all file))))
         (if (null? ls) ()
           (let ((l (first ls)) (c (%wget-index (first ls) #\: 0)))
             (if (if (null? c) #f (string=? (substring l 0 c) user))
@@ -610,7 +610,7 @@
     (when (if (= (byte-len url0) 0) #t (not (= (byte-at url0 0) #\/))) (%hd-fail 400))
     ; GET, HEAD and POST; any other method is a 400, as busybox's copy of it
     ; measures its length as nothing
-    (unless (%cu-member-s? method (list "GET" "HEAD" "POST")) (%hd-fail 400))
+    (unless (cu-member-s? method (list "GET" "HEAD" "POST")) (%hd-fail 400))
     (def q (%wget-index url0 #\? 0))
     (set! %hd-query (if (null? q) () (substring url0 (+ q 1) (byte-len url0))))
     (def decoded (%hd-pct-decode (if (null? q) url0 (substring url0 0 q)) #t))
@@ -640,7 +640,7 @@
     (unless (null? %hd-moved) (%hd-fail 302))
     (unless (null? cgi)
       (%hd-send-cgi (if (eq? cgi (lit index)) "/cgi-bin/index.cgi" url) url method))
-    (unless (%cu-member-s? method (list "GET" "HEAD")) (%hd-fail 501))
+    (unless (cu-member-s? method (list "GET" "HEAD")) (%hd-fail 501))
     (%hd-send-file target #t)))
 
 ; the stat: the script to run -- normal under cgi-bin/, index for
@@ -836,7 +836,7 @@
               (pair "SERVER_PROTOCOL" "HTTP/1.1")
               (pair "GATEWAY_INTERFACE" "CGI/1.1"))
         (%hd-remote-env)
-        (if (> %hd-post-len 0) (list (pair "CONTENT_LENGTH" (%cu-int->str %hd-post-len))) ())
+        (if (> %hd-post-len 0) (list (pair "CONTENT_LENGTH" (cu-int->str %hd-post-len))) ())
         (if (null? %hd-remote-user) () (list (pair "REMOTE_USER" %hd-remote-user) (pair "AUTH_TYPE" "Basic")))))
     (def from (sys-pipe))
     (def to (sys-pipe))
@@ -959,7 +959,7 @@
   (fn (self fd)
     (let ((r (file-read-run fd 8192)))
       (when (> (rest r) 0)
-        (do (file-write-run 1 r) (%cu-sweep! 1) (self fd))))))
+        (do (file-write-run 1 r) (cu-sweep! 1) (self fd))))))
 
 ; S from I to its first byte that is not plain text
 (def %hd-printable
@@ -997,7 +997,7 @@
   (fn (_)
     (when (> (sys-fork) 0) (sys-exit 0))
     (%ss-resolve!)
-    (%cu-ptr-call %ss-c-setsid)
+    (cu-ptr-call %ss-c-setsid)
     (let ((fd (File open "/dev/null" (lit rdwr))))
       (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
           (when (> fd 2) (file-close fd))))))
@@ -1030,7 +1030,7 @@
         (do (set! %hd-remote-ip (let ((r (%hd-scan-ip (first p) 0))) (if (null? r) 0 (first r))))
             (set! %hd-rmt (string-concat
               (list (if listener? (string-concat (list "[::ffff:" (first p) "]")) (first p))
-                    ":" (%cu-int->str (rest p)))))
+                    ":" (cu-int->str (rest p)))))
             (when (> %hd-verbose 0)
               (set! %hd-name %hd-rmt)))))))
 
@@ -1041,7 +1041,7 @@
   (fn (_ s)
     (string-concat
       (map (fn (_ c)
-             (if (%hd-alnum? c) (bytes->str (list c)) (string-concat (list "&#" (%cu-int->str c) ";"))))
+             (if (%hd-alnum? c) (bytes->str (list c)) (string-concat (list "&#" (cu-int->str c) ";"))))
            (%tftp-bytes s 0 (byte-len s))))))
 
 (def %hd-alnum?
@@ -1053,7 +1053,7 @@
 
 (def %cu-httpd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "httpd" argv))
+    (def o (cu-opts "httpd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
                 (do (file-write 2 (string-concat (list "httpd: " (e msg) "\n"))) 1)
                 (error e)))
@@ -1167,12 +1167,12 @@
 ; setuid -- each failure the end of the run, named as busybox names it
 (def %hd-drop!
   (fn (_ ug)
-    (def lib (%cu-dlopen () 1))
+    (def lib (cu-dlopen () 1))
     (def fail? (fn (_ r sym)
       (let ((e (%ss-call r (lit call) sym)))
         (unless (null? e) (%hd-die (string-concat (list sym ": " (file-err-text e))))))))
-    (def buf (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr buf) 0 (rest ug) 4)
-    (fail? (%cu-ptr-call (%cu-dlsym lib "setgroups") 1 (%cu-str->ptr buf)) "setgroups")
-    (fail? (%cu-ptr-call (%cu-dlsym lib "setgid") (rest ug)) "setgid")
-    (fail? (%cu-ptr-call (%cu-dlsym lib "setuid") (first ug)) "setuid")))
+    (def buf (str-make-raw 4))
+    (cu-ptr-set! (cu-str->ptr buf) 0 (rest ug) 4)
+    (fail? (cu-ptr-call (cu-dlsym lib "setgroups") 1 (cu-str->ptr buf)) "setgroups")
+    (fail? (cu-ptr-call (cu-dlsym lib "setgid") (rest ug)) "setgid")
+    (fail? (cu-ptr-call (cu-dlsym lib "setuid") (first ug)) "setuid")))

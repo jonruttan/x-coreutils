@@ -438,7 +438,7 @@ shows what head printed, then how many pieces it asked for.
 ### -n 2 of an input with no end asks for one piece
 
 ```cu
-(do (def endless (fn (_ piece) (let ((taken (list 0))) (list (fn (_ . how) (if (null? how) (error "head asked for the whole input") (do (set-first! taken (+ (first taken) 1)) piece))) taken)))) (def feed (fn (_ l) (let ((left (list l)) (taken (list 0))) (list (fn (_ . how) (if (null? how) (error "head asked for the whole input") (if (null? (first left)) "" (let ((p (first (first left)))) (do (set-first! left (rest (first left))) (set-first! taken (+ (first taken) 1)) p))))) taken)))) (def from (fn (_ argv src) (do (%cu-dispatch (%cu-find-applet "head") "head" argv (first src)) (display (list (first (first (rest src)))))))) (from (list "-n" "2") (endless "y\ny\ny\n")))
+(do (def endless (fn (_ piece) (let ((taken (list 0))) (list (fn (_ . how) (if (null? how) (error "head asked for the whole input") (do (set-first! taken (+ (first taken) 1)) piece))) taken)))) (def feed (fn (_ l) (let ((left (list l)) (taken (list 0))) (list (fn (_ . how) (if (null? how) (error "head asked for the whole input") (if (null? (first left)) "" (let ((p (first (first left)))) (do (set-first! left (rest (first left))) (set-first! taken (+ (first taken) 1)) p))))) taken)))) (def from (fn (_ argv src) (do (cu-dispatch (cu-find-applet "head") "head" argv (first src)) (display (list (first (first (rest src)))))))) (from (list "-n" "2") (endless "y\ny\ny\n")))
 ```
 ---
 ```output
@@ -484,7 +484,7 @@ Each run shows what tail printed, then how many pieces it asked for.  In the
 fourth, the last two lines begin in the piece before the last.
 
 ```cu
-(do (def tfrom (fn (_ argv src) (do (%cu-dispatch (%cu-find-applet "tail") "tail" argv (first src)) (display (list (first (first (rest src)))))))) (tfrom (list "-n" "+2") (feed (list "a\nb" "c\nd\n"))) (newline) (tfrom (list "-c" "+3") (feed (list "ab" "cdef"))) (newline) (tfrom (list "-n" "2") (feed (list "1\n2" "\n3\n4" "\n5"))) (newline) (tfrom (list "-n" "2") (feed (list "a\nb" "\nc\n"))) (tfrom (list "-c" "3") (feed (list "abc" "def" "gh"))))
+(do (def tfrom (fn (_ argv src) (do (cu-dispatch (cu-find-applet "tail") "tail" argv (first src)) (display (list (first (first (rest src)))))))) (tfrom (list "-n" "+2") (feed (list "a\nb" "c\nd\n"))) (newline) (tfrom (list "-c" "+3") (feed (list "ab" "cdef"))) (newline) (tfrom (list "-n" "2") (feed (list "1\n2" "\n3\n4" "\n5"))) (newline) (tfrom (list "-n" "2") (feed (list "a\nb" "\nc\n"))) (tfrom (list "-c" "3") (feed (list "abc" "def" "gh"))))
 ```
 ---
 ```output

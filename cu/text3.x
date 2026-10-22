@@ -23,12 +23,12 @@
     (def buf
       (%cu-yes-copies
         (string-append
-          (if (null? argv) "y" (%cu-join-with argv " "))
+          (if (null? argv) "y" (cu-join-with argv " "))
           "\n")))
     (def go
       (fn (self i)
         (if (< (file-write 1 buf) 0) 0
-          (do (%cu-sweep-at i %cu-sweep-steps) (self (+ i 1))))))
+          (do (cu-sweep-at i cu-sweep-steps) (self (+ i 1))))))
     (go 1)))
 
 ; LINE doubled until another doubling would pass 8,192 bytes: a dozen appends
@@ -72,7 +72,7 @@
           (if (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f)
             (self (+ i 1)) #f))))
     (if (if (< i1 end) (digits? i1) #f)
-      (%cu-num-prefix (substring s i1 end))
+      (cu-num-prefix (substring s i1 end))
       ())))
 
 ; the factors PS as factor puts them: each on its own, or under -h a factor
@@ -82,8 +82,8 @@
     (if (null? ps) ""
       (let ((k (if h? (%cu-factor-run ps (first ps) 0) 1)))
         (string-append " "
-          (string-append (%cu-int->str (first ps))
-            (string-append (if (> k 1) (string-append "^" (%cu-int->str k)) "")
+          (string-append (cu-int->str (first ps))
+            (string-append (if (> k 1) (string-append "^" (cu-int->str k)) "")
               (self (%cu-nthrest k ps) h?))))))))
 
 ; how many of PS, from the start, are P
@@ -102,7 +102,7 @@
               (list "factor: '" s "' is not a valid positive integer\n")))
           #f)
       (do (display
-            (string-append (%cu-int->str n)
+            (string-append (cu-int->str n)
               (string-append ":"
                 (string-append (%cu-factor-spelt (%cu-factor-of n) h?) "\n"))))
           #t))))
@@ -112,14 +112,14 @@
 ; still factored, and the status is 1
 (def %cu-factor
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "factor" argv))
+    (def o (cu-opts "factor" argv))
     (def h? (Opts on? o "-h"))
     (def each
       (fn (self ws st)
         (if (null? ws) st
           (self (rest ws) (if (%cu-factor-line (first ws) h?) st 1)))))
     (if (null? (Opts operands o))
-      (each (%cu-words-line (%cu-join-with (%cu-lines (stdin-thunk)) " ")) 0)
+      (each (cu-words-line (cu-join-with (cu-lines (stdin-thunk)) " ")) 0)
       (each (Opts operands o) 0))))
 
 ; --- expand / unexpand --------------------------------------------------------
@@ -145,21 +145,21 @@
                 (let ((gap (- w (% col w))))
                   (self (+ i 1) (+ col gap) lead? (pair (%cu-spaces gap) acc))))
               ((= b 32) (self (+ i 1) (+ col 1) lead? (pair " " acc)))
-              (#t (self (+ i 1) (+ col 1) #f (pair (%cu-b->s b) acc))))))))
+              (#t (self (+ i 1) (+ col 1) #f (pair (cu-b->s b) acc))))))))
     (go 0 0 #t ())))
 
 (def %cu-expand
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "expand" argv))
-    (def w (%cu-num-prefix (Opts value o "-t" "8")))
+    (def o (cu-opts "expand" argv))
+    (def w (cu-num-prefix (Opts value o "-t" "8")))
     (def init? (Opts on? o "-i"))
     ; each block of whole lines expanded and put out as it is read
     (rest
-      (%cu-fold-lines-said (Opts operands o) stdin-thunk (%cu-says "expand")
+      (cu-fold-lines-said (Opts operands o) stdin-thunk (cu-says "expand")
         (fn (_ block s)
-          (do (%cu-print-lines
-                (%cu-map-swept (fn (_ l) (%cu-expand-line l w init?))
-                  (%cu-lines block)))
+          (do (cu-print-lines
+                (cu-map-swept (fn (_ l) (%cu-expand-line l w init?))
+                  (cu-lines block)))
               s))
         ()))))
 
@@ -200,7 +200,7 @@
           (let ((b (byte-at s i)))
             (match
               ((not (if (= b 32) #t (= b 9)))
-                (self (+ i 1) (+ col 1) #f (pair (%cu-b->s b) acc)))
+                (self (+ i 1) (+ col 1) #f (pair (cu-b->s b) acc)))
               ((if all? #t lead?)
                 (let ((r (run-end i col 0)))
                   (def to (first (rest r)))
@@ -216,19 +216,19 @@
 ; whatever else was given, and in whichever order.
 (def %cu-unexpand
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "unexpand" argv))
-    (def w (%cu-num-prefix (Opts value o "-t" "8")))
+    (def o (cu-opts "unexpand" argv))
+    (def w (cu-num-prefix (Opts value o "-t" "8")))
     (def all? (match
                 ((Opts on? o "-f") #f)
                 ((Opts on? o "-a") #t)
                 (#t (not (null? (Opts value o "-t"))))))
     ; each block of whole lines respelled and put out as it is read
     (rest
-      (%cu-fold-lines-said (Opts operands o) stdin-thunk (%cu-says "unexpand")
+      (cu-fold-lines-said (Opts operands o) stdin-thunk (cu-says "unexpand")
         (fn (_ block s)
-          (do (%cu-print-lines
-                (%cu-map-swept (fn (_ l) (%cu-unexpand-line l w all?))
-                  (%cu-lines block)))
+          (do (cu-print-lines
+                (cu-map-swept (fn (_ l) (%cu-unexpand-line l w all?))
+                  (cu-lines block)))
               s))
         ()))))
 
@@ -247,16 +247,16 @@
     (def go
       (fn (self i run n)
         (match
-          ((%cu< 4095 n) (do (put (%cu-run-bytes (reverse run) n)) (self i () 0)))
-          ((%cu< i end)
+          ((cu< 4095 n) (do (put (cu-run-bytes (reverse run) n)) (self i () 0)))
+          ((cu< i end)
             (do (def b (byte-at s i))
-                (if (= (%cu& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+                (if (= (cu& i cu-sweep-bytes) 0) (cu-sweep! i) ())
                 (match
-                  ((= b 13) (self (%cu+ i 1) run n))
+                  ((= b 13) (self (cu+ i 1) run n))
                   ((if dos? (= b 10) #f)
-                    (self (%cu+ i 1) (pair 10 (pair 13 run)) (%cu+ n 2)))
-                  (#t (self (%cu+ i 1) (pair b run) (%cu+ n 1))))))
-          ((%cu< 0 n) (put (%cu-run-bytes (reverse run) n)))
+                    (self (cu+ i 1) (pair 10 (pair 13 run)) (cu+ n 2)))
+                  (#t (self (cu+ i 1) (pair b run) (cu+ n 1))))))
+          ((cu< 0 n) (put (cu-run-bytes (reverse run) n)))
           (#t ()))))
     (go 0 () 0)))
 
@@ -264,12 +264,12 @@
 ; or read with, said by SAYS
 (def %cu-runs-said
   (fn (_ says name)
-    (let ((src (%cu-file-pieces name)))
-      (if (Err err? src) (do (%cu-say says name src) src)
-        (let ((g (%cu-fold-pieces src (fn (_ p acc) (pair p acc)) ())))
+    (let ((src (cu-file-pieces name)))
+      (if (Err err? src) (do (cu-say says name src) src)
+        (let ((g (cu-fold-pieces src (fn (_ p acc) (pair p acc)) ())))
           (do (src (lit close))
               (if (null? (rest g)) (reverse (first g))
-                (do (%cu-say says name (rest g)) (rest g)))))))))
+                (do (cu-say says name (rest g)) (rest g)))))))))
 
 ; RUNS converted back into the file PATH, or the io Err it would not open with
 (def %cu-crlf-back
@@ -289,7 +289,7 @@
 ; is wanted outright.
 (def %cu-crlf-applet
   (fn (_ name to-dos-by-default? argv stdin-thunk)
-    (def o (%cu-opts name argv))
+    (def o (cu-opts name argv))
     (def ops (Opts operands o))
     (def to-dos?
       (match
@@ -297,7 +297,7 @@
         ((Opts on? o "-u") #f)
         (#t to-dos-by-default?)))
     (if (null? ops)
-      (do (%cu-fold-stdin stdin-thunk
+      (do (cu-fold-stdin stdin-thunk
             (fn (_ p s)
               (do (%cu-crlf-walk p to-dos? (fn (_ c) (file-write-run 1 c))) s))
             ())
@@ -306,13 +306,13 @@
       ; still converted
       (let ((go (fn (self os st)
                   (if (null? os) st
-                    (let ((runs (%cu-runs-said (%cu-says name) (first os))))
+                    (let ((runs (%cu-runs-said (cu-says name) (first os))))
                       (if (Err err? runs) (self (rest os) 1)
                         (let ((w (%cu-crlf-back (first os) runs to-dos?)))
                           (if (Err err? w)
                             (do (file-write 2
                                   (string-append
-                                    ((%cu-says name) (first os) w) "\n"))
+                                    ((cu-says name) (first os) w) "\n"))
                                 (self (rest os) 1))
                             (self (rest os) st)))))))))
         (go ops 0)))))
@@ -376,25 +376,25 @@
             ((>= i (rest r)) (list n fd used 0))
             ((if (null? fd) #t (>= used size))
               (let ((next (%cu-split-open prefix n width)))
-                (if (null? next) (%cu-enough (list n fd used 1))
+                (if (null? next) (cu-enough (list n fd used 1))
                   (do (if (null? fd) () (file-close fd))
                       (self i (+ n 1) next 0)))))
             (#t
-              (let ((cut (if lines? (%cu-newlines-from r i (- size used))
+              (let ((cut (if lines? (cu-newlines-from r i (- size used))
                            (let ((k (- size used)) (left (- (rest r) i)))
                              (pair (+ i (if (< k left) k left)) 0)))))
                 (do (file-write-run fd
                       (if (= i 0) (pair (first r) (first cut))
-                        (%cu-run-part r i (first cut))))
+                        (cu-run-part r i (first cut))))
                     (self (first cut) n fd
                       (+ used (if lines? (rest cut) (- (first cut) i))))))))))
-      (go 0 (first s) (%cu-nth 1 s) (%cu-nth 2 s)))))
+      (go 0 (first s) (cu-nth 1 s) (cu-nth 2 s)))))
 
 ; split [FILE [PREFIX]]: a third operand is refused
 (def %cu-split
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "split" argv))
-    (%cu-operands "split" (Opts operands o) 0 2
+    (def o (cu-opts "split" argv))
+    (cu-operands "split" (Opts operands o) 0 2
       (fn (_) (%cu-split-run o stdin-thunk)))))
 
 (def %cu-split-run
@@ -402,11 +402,11 @@
     (def bv (Opts value o "-b"))
     (def lv (Opts value o "-l"))
     (def width
-      (let ((v (Opts value o "-a"))) (if (null? v) 2 (%cu-num-prefix v))))
+      (let ((v (Opts value o "-a"))) (if (null? v) 2 (cu-num-prefix v))))
     (def by-bytes? (not (null? bv)))
     (def size
       (let ((v (if (null? bv) lv bv)))
-        (if (null? v) 1000 (%cu-num-prefix v))))
+        (if (null? v) 1000 (cu-num-prefix v))))
     (def ops (Opts operands o))
     (def prefix (if (if (pair? ops) (pair? (rest ops)) #f) (first (rest ops)) "x"))
     ; the input is read a piece at a time and put out as it is read
@@ -416,13 +416,13 @@
               (list "split: invalid number of " (if by-bytes? "bytes" "lines")
                     ": '" (if by-bytes? bv lv) "'\n")))
           1)
-      (let ((g (%cu-fold-said (if (null? ops) () (list (first ops))) stdin-thunk
+      (let ((g (cu-fold-said (if (null? ops) () (list (first ops))) stdin-thunk
                  %cu-split-says
                  (%cu-split-take prefix width size (not by-bytes?))
                  (list 0 () 0 0))))
         (let ((s (first g)))
-          (do (if (null? (%cu-nth 1 s)) () (file-close (%cu-nth 1 s)))
-              (if (if (> (rest g) 0) #t (= (%cu-nth 3 s) 1)) 1 0)))))))
+          (do (if (null? (cu-nth 1 s)) () (file-close (cu-nth 1 s)))
+              (if (if (> (rest g) 0) #t (= (cu-nth 3 s) 1)) 1 0)))))))
 
 ; a file split cannot read, said as split says it: "cannot open 'F' for
 ; reading" for one that would not open, "F: REASON" for one that would not read
@@ -448,7 +448,7 @@
       (vec-build n
         (fn (_ i)
           (let ((xs (first cur)))
-            (do (%cu-sweep-at i %cu-sweep-steps)
+            (do (cu-sweep-at i cu-sweep-steps)
                 (set-first! cur (rest xs))
                 (first xs))))))))
 
@@ -457,7 +457,7 @@
     (def go
       (fn (self i acc)
         (if (< i 0) acc
-          (do (%cu-sweep-at i %cu-sweep-steps)
+          (do (cu-sweep-at i cu-sweep-steps)
               (self (- i 1) (pair (vec-ref v i) acc))))))
     (go (- n 1) ())))
 
@@ -469,7 +469,7 @@
     (def go
       (fn (self i)
         (if (<= i 0) (%cu-vec->list v n)
-          (let ((j (do (%cu-sweep-at i %cu-sweep-lines) (rng-int r (+ i 1)))))
+          (let ((j (do (cu-sweep-at i cu-sweep-lines) (rng-int r (+ i 1)))))
             (let ((tmp (vec-ref v i)))
               (do (vec-set! v i (vec-ref v j))
                   (vec-set! v j tmp)
@@ -486,8 +486,8 @@
 ; a range and takes none; otherwise there is one FILE at most.
 (def %cu-shuf
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "shuf" argv))
-    (%cu-operands "shuf" (Opts operands o) 0
+    (def o (cu-opts "shuf" argv))
+    (cu-operands "shuf" (Opts operands o) 0
       (match
         ((Opts on? o "-e") ())
         ((not (null? (Opts value o "-i"))) 0)
@@ -497,7 +497,7 @@
 (def %cu-shuf-run
   (fn (_ o stdin-thunk)
     (def nv (Opts value o "-n"))
-    (def count (if (null? nv) 0 (%cu-num-prefix nv)))
+    (def count (if (null? nv) 0 (cu-num-prefix nv)))
     (def echo? (Opts on? o "-e"))
     (def z? (Opts on? o "-z"))
     (def rest1 (Opts operands o))
@@ -510,11 +510,11 @@
       (match
         ((not (null? iv)) (pair (%cu-shuf-range iv) 0))
         (echo? (pair rest1 0))
-        (z? (%cu-delim-fields-said rest1 stdin-thunk 0 (%cu-read-error "shuf")
+        (z? (cu-delim-fields-said rest1 stdin-thunk 0 (cu-read-error "shuf")
                #f))
-        (#t (let ((g (%cu-gather-said rest1 stdin-thunk (%cu-read-error "shuf")
+        (#t (let ((g (cu-gather-said rest1 stdin-thunk (cu-read-error "shuf")
                        #f)))
-              (pair (%cu-lines (first g)) (rest g))))))
+              (pair (cu-lines (first g)) (rest g))))))
     (def items (first read))
     (def out (%cu-shuffle items))
     (def picked (if (null? nv) out (%cu-take out count)))
@@ -523,17 +523,17 @@
     (def dest (Opts value o "-o"))
     (match
       ((> (rest read) 0) 1)
-      ((if (null? dest) z? #f) (do (%cu-print-fields picked 0) 0))
-      ((null? dest) (do (%cu-print-lines picked) 0))
+      ((if (null? dest) z? #f) (do (cu-print-fields picked 0) 0))
+      ((null? dest) (do (cu-print-lines picked) 0))
       (z?
         (let ((fd (file-open-or-err file-open-write dest)))
           (if (Err err? fd) (%cu-shuf-cannot dest fd)
-            (do (%cu-print-fields-to fd picked 0) (file-close fd) 0))))
+            (do (cu-print-fields-to fd picked 0) (file-close fd) 0))))
       ; each line put out as it is walked, which sweeps as it goes
       (#t
         (let ((fd (file-open-or-err file-open-write dest)))
           (if (Err err? fd) (%cu-shuf-cannot dest fd)
-            (do (%cu-print-lines-to fd picked) (file-close fd) 0)))))))
+            (do (cu-print-lines-to fd picked) (file-close fd) 0)))))))
 
 ; an -o file shuf cannot write, said as shuf says it
 (def %cu-shuf-cannot
@@ -551,13 +551,13 @@
                     (if (= (byte-at spec i) 45) i (self (+ i 1)))))))
         (go 0)))
     (if (< dash 0) ()
-      (let ((lo (%cu-num-prefix (substring spec 0 dash)))
-            (hi (%cu-num-prefix (substring spec (+ dash 1) (byte-len spec)))))
+      (let ((lo (cu-num-prefix (substring spec 0 dash)))
+            (hi (cu-num-prefix (substring spec (+ dash 1) (byte-len spec)))))
         ; K counts the numbers made, for the sweeps
         (let ((go (fn (self n k acc)
                     (if (< n lo) acc
-                      (do (%cu-sweep-at k %cu-sweep-steps)
-                          (self (- n 1) (+ k 1) (pair (%cu-int->str n) acc)))))))
+                      (do (cu-sweep-at k cu-sweep-steps)
+                          (self (- n 1) (+ k 1) (pair (cu-int->str n) acc)))))))
           (go hi 0 ()))))))
 
 ; --- base64 -------------------------------------------------------------------
@@ -586,7 +586,7 @@
 
 ; byte B's value in the alphabet, or 127 for anything outside it
 (def %cu-b64-value
-  (fn (_ b) (%cu- (byte-at %cu-b64-values b) 1)))
+  (fn (_ b) (cu- (byte-at %cu-b64-values b) 1)))
 
 ; S in base64, put out as it is made: lines of WRAP characters, each ended by a
 ; newline, the last one too when it holds any; WRAP 0 is one line and no
@@ -594,7 +594,7 @@
 (def %cu-b64-put
   (fn (_ s wrap)
     (let ((r (%cu-b64-put-from (pair s (byte-len s)) wrap () 0 #t)))
-      (%cu-b64-put-end wrap (%cu-nth 1 r) (%cu-nth 2 r)))))
+      (%cu-b64-put-end wrap (cu-nth 1 r) (cu-nth 2 r)))))
 
 ; The encoding of run R carried on from a line begun before it: FROM-LINE holds
 ; the characters made since the last write, newest first, and FROM-COL how
@@ -611,32 +611,32 @@
     ; character C onto LINE, and the line out when it fills: (LINE . COL)
     (def push
       (fn (_ c line col)
-        (if (= (%cu+ col 1) full)
+        (if (= (cu+ col 1) full)
           (do (%cu-b64-out wrap (pair c line)) (pair () 0))
-          (pair (pair c line) (%cu+ col 1)))))
+          (pair (pair c line) (cu+ col 1)))))
     ; a step's four characters onto LINE, from N, the step's 24 bits, and
     ; HAVE, how many of its three bytes the input held; a step short of
     ; bytes is padded out.  Bindings here are defs, not lets: a let costs a
     ; hundred objects a step, a def none past its value.
     (def step
       (fn (_ n have line col)
-        (do (def a (push (%cu-b64-char (%cu>> n 18)) line col))
-            (def b (push (%cu-b64-char (%cu& (%cu>> n 12) 63)) (first a) (rest a)))
-            (def c (push (if (%cu< 1 have) (%cu-b64-char (%cu& (%cu>> n 6) 63)) 61)
+        (do (def a (push (%cu-b64-char (cu>> n 18)) line col))
+            (def b (push (%cu-b64-char (cu& (cu>> n 12) 63)) (first a) (rest a)))
+            (def c (push (if (cu< 1 have) (%cu-b64-char (cu& (cu>> n 6) 63)) 61)
                          (first b) (rest b)))
-            (push (if (%cu< 2 have) (%cu-b64-char (%cu& n 63)) 61)
+            (push (if (cu< 2 have) (%cu-b64-char (cu& n 63)) 61)
                   (first c) (rest c)))))
     (def go
       (fn (self i line col)
-        (do (def have (%cu- end i))
-            (if (if (%cu< have 3) (if (%cu< 0 have) (not last?) #t) #f)
+        (do (def have (cu- end i))
+            (if (if (cu< have 3) (if (cu< 0 have) (not last?) #t) #f)
               (list i line col)
-              (do (def lc (step (%cu+ (%cu<< (byte-at s i) 16)
-                                  (%cu+ (if (%cu< 1 have) (%cu<< (byte-at s (%cu+ i 1)) 8) 0)
-                                        (if (%cu< 2 have) (byte-at s (%cu+ i 2)) 0)))
+              (do (def lc (step (cu+ (cu<< (byte-at s i) 16)
+                                  (cu+ (if (cu< 1 have) (cu<< (byte-at s (cu+ i 1)) 8) 0)
+                                        (if (cu< 2 have) (byte-at s (cu+ i 2)) 0)))
                                 have line col))
-                  (if (= (%cu& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
-                  (self (%cu+ i 3) (first lc) (rest lc)))))))
+                  (if (= (cu& i cu-sweep-steps) 0) (cu-sweep! i) ())
+                  (self (cu+ i 3) (first lc) (rest lc)))))))
     (go 0 from-line from-col)))
 
 ; a line of the encoding out: LINE's characters, newest first, and the newline
@@ -656,10 +656,10 @@
   (fn (_ wrap)
     (fn (_ piece s)
       (let ((text (if (= (rest (first s)) 0) piece
-                    (%cu-run-join (first s) piece 0 (rest piece)))))
-        (let ((r (%cu-b64-put-from text wrap (%cu-nth 1 s) (%cu-nth 2 s) #f)))
-          (list (%cu-run-part text (first r) (rest text))
-                (%cu-nth 1 r) (%cu-nth 2 r)))))))
+                    (cu-run-join (first s) piece 0 (rest piece)))))
+        (let ((r (%cu-b64-put-from text wrap (cu-nth 1 s) (cu-nth 2 s) #f)))
+          (list (cu-run-part text (first r) (rest text))
+                (cu-nth 1 r) (cu-nth 2 r)))))))
 
 ; S decoded, as GNU's base64 -d reads it: newlines are passed over, the rest is
 ; taken four characters at a time, and the last one or two of a quantum may be
@@ -692,29 +692,29 @@
     (def go
       (fn (self i out n k bits pads)
         (match
-          ((%cu< 4095 n) (do (%cu-b64-flush put out n) (self i () 0 k bits pads)))
-          ((%cu< i end)
+          ((cu< 4095 n) (do (%cu-b64-flush put out n) (self i () 0 k bits pads)))
+          ((cu< i end)
             (do (def b (byte-at s i))
                 (def v (%cu-b64-value b))
-                (if (= (%cu& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+                (if (= (cu& i cu-sweep-steps) 0) (cu-sweep! i) ())
                 (match
-                  ((= b 10) (self (%cu+ i 1) out n k bits pads))
-                  ((if (= b 61) (%cu< 1 k) #f)
-                    (if (= (%cu+ k (%cu+ pads 1)) 4)
-                      (self (%cu+ i 1) (%cu-b64-spell k bits out)
-                        (%cu+ n (%cu-b64-spelt k)) 0 0 0)
-                      (self (%cu+ i 1) out n k bits (%cu+ pads 1))))
-                  ((if (%cu< v 64) (= pads 0) #f)
+                  ((= b 10) (self (cu+ i 1) out n k bits pads))
+                  ((if (= b 61) (cu< 1 k) #f)
+                    (if (= (cu+ k (cu+ pads 1)) 4)
+                      (self (cu+ i 1) (%cu-b64-spell k bits out)
+                        (cu+ n (%cu-b64-spelt k)) 0 0 0)
+                      (self (cu+ i 1) out n k bits (cu+ pads 1))))
+                  ((if (cu< v 64) (= pads 0) #f)
                     (if (= k 3)
-                      (self (%cu+ i 1) (%cu-b64-spell 4 (%cu+ (%cu<< bits 6) v) out)
-                        (%cu+ n 3) 0 0 0)
-                      (self (%cu+ i 1) out n (%cu+ k 1) (%cu+ (%cu<< bits 6) v) 0)))
-                  (garbage? (self (%cu+ i 1) out n k bits pads))
+                      (self (cu+ i 1) (%cu-b64-spell 4 (cu+ (cu<< bits 6) v) out)
+                        (cu+ n 3) 0 0 0)
+                      (self (cu+ i 1) out n (cu+ k 1) (cu+ (cu<< bits 6) v) 0)))
+                  (garbage? (self (cu+ i 1) out n k bits pads))
                   (#t (do (%cu-b64-flush put (%cu-b64-spell k bits out)
-                            (%cu+ n (%cu-b64-spelt k)))
+                            (cu+ n (%cu-b64-spelt k)))
                           #f)))))
           (#t (list out n k bits pads)))))
-    (go 0 (first st) (%cu-nth 1 st) (%cu-nth 2 st) (%cu-nth 3 st) (%cu-nth 4 st))))
+    (go 0 (first st) (cu-nth 1 st) (cu-nth 2 st) (cu-nth 3 st) (cu-nth 4 st))))
 
 (def %cu-b64-fresh (list () 0 0 0 0))
 
@@ -722,21 +722,21 @@
 ; ended inside a quantum after one character or after a pad
 (def %cu-b64-decode-end
   (fn (_ st put)
-    (let ((k (%cu-nth 2 st)))
-      (do (%cu-b64-flush put (%cu-b64-spell k (%cu-nth 3 st) (first st))
-            (+ (%cu-nth 1 st) (%cu-b64-spelt k)))
-          (if (> (%cu-nth 4 st) 0) #f (not (= k 1)))))))
+    (let ((k (cu-nth 2 st)))
+      (do (%cu-b64-flush put (%cu-b64-spell k (cu-nth 3 st) (first st))
+            (+ (cu-nth 1 st) (%cu-b64-spelt k)))
+          (if (> (cu-nth 4 st) 0) #f (not (= k 1)))))))
 
 ; the bytes K characters spell, BITS their value, onto OUT, and how many
 (def %cu-b64-spell
   (fn (_ k bits out)
     (match
-      ((= k 4) (pair (%cu& bits 255)
-                 (pair (%cu& (%cu>> bits 8) 255)
-                   (pair (%cu>> bits 16) out))))
-      ((= k 3) (pair (%cu& (%cu>> bits 2) 255)
-                 (pair (%cu>> bits 10) out)))
-      ((= k 2) (pair (%cu>> bits 4) out))
+      ((= k 4) (pair (cu& bits 255)
+                 (pair (cu& (cu>> bits 8) 255)
+                   (pair (cu>> bits 16) out))))
+      ((= k 3) (pair (cu& (cu>> bits 2) 255)
+                 (pair (cu>> bits 10) out)))
+      ((= k 2) (pair (cu>> bits 4) out))
       (#t out))))
 
 (def %cu-b64-spelt
@@ -744,12 +744,12 @@
 
 ; OUT's N bytes, newest first, to PUT as a run
 (def %cu-b64-flush
-  (fn (_ put out n) (put (%cu-run-bytes (reverse out) n))))
+  (fn (_ put out n) (put (cu-run-bytes (reverse out) n))))
 
 (def %cu-base64
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "base64" argv))
-    (%cu-operands "base64" (Opts operands o) 0 1
+    (def o (cu-opts "base64" argv))
+    (cu-operands "base64" (Opts operands o) 0 1
       (fn (_) (%cu-base64-run o stdin-thunk)))))
 
 ; -w's column, as GNU reads it: blanks, a sign, and decimal digits, nothing
@@ -800,24 +800,24 @@
       ; the input is encoded or decoded as it is read.  One that could not be
       ; read is said and fails, and nothing more is put out.
       (let ((ops (Opts operands o))
-            (says (%cu-read-error "base64"))
+            (says (cu-read-error "base64"))
             (put (fn (_ r) (file-write-run 1 r))))
         (if d?
           ; the first piece that holds what is not base64 ends the reading
-          (let ((g (%cu-fold-said ops stdin-thunk says
+          (let ((g (cu-fold-said ops stdin-thunk says
                      (fn (_ p st)
                        (let ((after (%cu-b64-decode-from p st put #f)))
-                         (if after after (%cu-enough #f))))
+                         (if after after (cu-enough #f))))
                      %cu-b64-fresh)))
             (match
               ((> (rest g) 0) 1)
               ((if (first g) (%cu-b64-decode-end (first g) put) #f) 0)
               (#t (do (file-write 2 "base64: invalid input\n") 1))))
-          (let ((g (%cu-fold-said ops stdin-thunk says (%cu-b64-take wrap)
+          (let ((g (cu-fold-said ops stdin-thunk says (%cu-b64-take wrap)
                      (list (pair "" 0) () 0))))
             (if (> (rest g) 0) 1
               (let ((s (first g)))
-                (let ((r (%cu-b64-put-from (first s) wrap (%cu-nth 1 s)
-                           (%cu-nth 2 s) #t)))
-                  (do (%cu-b64-put-end wrap (%cu-nth 1 r) (%cu-nth 2 r))
+                (let ((r (%cu-b64-put-from (first s) wrap (cu-nth 1 s)
+                           (cu-nth 2 s) #t)))
+                  (do (%cu-b64-put-end wrap (cu-nth 1 r) (cu-nth 2 r))
                       0))))))))))

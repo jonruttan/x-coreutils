@@ -212,7 +212,7 @@
     (guard (e (do (when (if (> %nc-verbose 1) #t
                           (if (> %nc-verbose 0) (not (eq? (file-err-sym e) (lit econnrefused))) #f))
                     (file-write 2 (string-concat
-                      (list %nc-name ": " host " (" ip ":" (%cu-int->str port) "): " (%wget-err-text e) "\n"))))
+                      (list %nc-name ": " host " (" ip ":" (cu-int->str port) "): " (%wget-err-text e) "\n"))))
                   ()))
       (net-connect ip port))))
 
@@ -242,7 +242,7 @@
                     (let ((fd (%nc-connect-or-fail host ip port)))
                       (do (when (if (> %nc-verbose 0) (not (null? fd)) #f)
                             (file-write 2 (string-concat
-                              (list host " (" ip ":" (%cu-int->str port) ") open\n"))))
+                              (list host " (" ip ":" (cu-int->str port) ") open\n"))))
                           fd))))))))
     (def st
       (match
@@ -254,7 +254,7 @@
                   (do (net-close net) r))))))
     (when (> %nc-verbose 1)
       (file-write 2 (string-concat
-        (list "sent " (%cu-int->str %nc-wrote-net) ", rcvd " (%cu-int->str %nc-wrote-out) "\n"))))
+        (list "sent " (cu-int->str %nc-wrote-net) ", rcvd " (cu-int->str %nc-wrote-out) "\n"))))
     (unless (< %nc-hex-fd 0) (do (file-close %nc-hex-fd) (set! %nc-hex-fd -1)))
     st))
 
@@ -268,7 +268,7 @@
     (def o (Opts parse %nc-flags %nc-values (first split)))
     (def ops (Opts operands o))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option name (Opts unknown o)))
+      ((not (null? (Opts unknown o))) (cu-refuse-option name (Opts unknown o)))
       ((if (null? ops) (not (Opts on? o "-l")) #f) (%nc-usage))
       ((> (length ops) 2) (%nc-usage))
       (#t

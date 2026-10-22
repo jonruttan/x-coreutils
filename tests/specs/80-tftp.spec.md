@@ -29,8 +29,8 @@ lines busybox draws within one.
   (def tf-b (fn (_ run) (%tftp-bytes (first run) 0 (rest run))))
   (def tf-cstr (fn (_ bs i)
     (let go ((j i) (acc ()))
-      (if (if (< j (length bs)) (not (= (%cu-nth j bs) 0)) #f)
-        (go (+ j 1) (pair (%cu-nth j bs) acc))
+      (if (if (< j (length bs)) (not (= (cu-nth j bs) 0)) #f)
+        (go (+ j 1) (pair (cu-nth j bs) acc))
         (pair (bytes->str (reverse acc)) (+ j 1))))))
   (def tf-opts (fn (self bs i acc)
     (if (>= i (length bs)) acc
@@ -46,8 +46,8 @@ lines busybox draws within one.
     (def bsz (tf-bsz opts))
     (when (if (= bsz 512) (not (null? (Assoc find "tsize" opts))) #t)
       (do (tf-send s to (tf-cat (tf-u16 6)
-                                (if (= bsz 512) () (append (tf-z "blksize") (tf-z (%cu-int->str bsz))))
-                                (tf-z "tsize") (tf-z (%cu-int->str (length data)))))
+                                (if (= bsz 512) () (append (tf-z "blksize") (tf-z (cu-int->str bsz))))
+                                (tf-z "tsize") (tf-z (cu-int->str (length data)))))
           (tf-recv s)))
     (let go ((n 1) (left data))
       (let ((block (tf-take bsz left)))
@@ -57,7 +57,7 @@ lines busybox draws within one.
   (def tf-upload (fn (_ s to path opts)
     (def bsz (tf-bsz opts))
     (if (= bsz 512) (tf-send s to (tf-cat (tf-u16 4) (tf-u16 0)))
-      (tf-send s to (tf-cat (tf-u16 6) (tf-z "blksize") (tf-z (%cu-int->str bsz)))))
+      (tf-send s to (tf-cat (tf-u16 6) (tf-z "blksize") (tf-z (cu-int->str bsz)))))
     (def fd (file-open-write path))
     (let go ((n 1))
       (let ((p (tf-recv s)))
@@ -86,12 +86,12 @@ lines busybox draws within one.
   (def tf-files (fn (_ dir)
     (string-concat
       (map (fn (_ f) (string-concat (list "file " f ": "
-                       (%cu-int->str (Assoc get (lit size) (file-stat (string-concat (list dir "/" f))))) " bytes\n")))
+                       (cu-int->str (Assoc get (lit size) (file-stat (string-concat (list dir "/" f))))) " bytes\n")))
            (filter (fn (_ f) (not (if (string=? f ".") #t (string=? f "..")))) (file-list-dir dir))))))
   (def tf-case (fn (_ args)
     (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -rf " tf " && mkdir -p " tf "/srv " tf "/work && printf 'hello\\n' > " tf "/srv/small.txt && : > " tf "/srv/empty && awk 'BEGIN { for (i = 0; i < 1500; i++) printf \"%c\", 65 + i % 26 }' > " tf "/srv/big.bin"))))
     (def lfd (Socket udp-bind 0))
-    (def port (%cu-int->str (Socket local-port lfd)))
+    (def port (cu-int->str (Socket local-port lfd)))
     (def pid (sys-fork))
     (when (= pid 0) (tf-serve lfd))
     (Socket close lfd)
@@ -108,7 +108,7 @@ lines busybox draws within one.
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (sys-kill pid 9) (sys-wait pid)
     (display (string-concat (list (file-read-all (string-append tf "/out")) "stderr:\n"
-                                  (file-read-all (string-append tf "/err")) "status " (%cu-int->str st) "\n"
+                                  (file-read-all (string-append tf "/err")) "status " (cu-int->str st) "\n"
                                   (tf-files (string-append tf "/work")))))))
   (display "made"))
 ```

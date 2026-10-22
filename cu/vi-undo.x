@@ -73,8 +73,8 @@
 (def %vi-text-copy
   (fn (_ p len)
     (def n (%vi-max 0 (%vi-min len (%vi- %vi-room p))))
-    (def s (%str-make-raw (%vi+ n 1)))
-    (%cu-ptr-call %vi-c-memcpy (%vi-str->ptr s) (%vi+ %vi-taddr p) n)
+    (def s (str-make-raw (%vi+ n 1)))
+    (cu-ptr-call %vi-c-memcpy (%vi-str->ptr s) (%vi+ %vi-taddr p) n)
     (pair s n)))
 
 (def %vi-undo-record!
@@ -141,7 +141,7 @@
 ; the first N of BYTES as (BUFFER . LENGTH)
 (def %vi-bytes-copy
   (fn (_ bytes n)
-    (def s (%str-make-raw (%vi+ n 1)))
+    (def s (str-make-raw (%vi+ n 1)))
     (%vi-bytes-fill (%vi-str->ptr s) 0 n bytes)
     (pair s n)))
 (def %vi-bytes-fill
@@ -195,7 +195,7 @@
     (match
       ((if (= type %vi-u-del) #t (= type %vi-u-del-chain))
         (do (%vi-hole-make! start len)
-            (%cu-ptr-call %vi-c-memcpy (%vi+ %vi-taddr start) (first (rest (rest (rest rec)))) len)
+            (cu-ptr-call %vi-c-memcpy (%vi+ %vi-taddr start) (first (rest (rest (rest rec)))) len)
             (set! %vi-nl-total (%vi+ %vi-nl-total (%vi-newlines-in start (%vi+ start len))))
             (%vi-undo-said "restored" len start)))
       ((if (= type %vi-u-ins) #t (= type %vi-u-ins-chain))

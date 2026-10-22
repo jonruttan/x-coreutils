@@ -69,7 +69,7 @@
             (let ((dw (% (- (+ temp 5) (if (< temp 639787) 0 11)) 7)))
               (fill (% (+ (- dw weekstart) 7) 7)
                 (if julian yday 1)
-                (+ (%cu-nth month %cal-month-days)
+                (+ (cu-nth month %cal-month-days)
                    (if (if (= month 2) leap #f) 1 0))))))))))
 
 ; busybox's build_row: the seven days of DAYS from slot AT, three columns a
@@ -111,8 +111,8 @@
 (def %cal-center
   (fn (_ s len sep)
     (def gap (- len (byte-len s)))
-    (string-append (%cu-pad-left s (+ (%cal/ gap 2) (byte-len s)))
-      (%cu-pad-left "" (+ (%cal/ gap 2) (+ (% gap 2) sep))))))
+    (string-append (cu-pad-left s (+ (%cal/ gap 2) (byte-len s)))
+      (cu-pad-left "" (+ (%cal/ gap 2) (+ (% gap 2) sep))))))
 
 ; the day headings, from WEEKSTART; under JULIAN four columns a day
 (def %cal-headings
@@ -133,14 +133,14 @@
     (def days (%cal-days month year weekstart julian))
     (def title
       (string-concat
-        (list (%cu-nth (- month 1) %cal-month-names) " " (%cu-int->str year))))
+        (list (cu-nth (- month 1) %cal-month-names) " " (cu-int->str year))))
     (def rows
       (fn (self at acc)
         (if (= at 42) (reverse acc)
           (self (+ at 7) (pair (%cal-line (%cal-row days at julian)) acc)))))
     (string-concat
       (append
-        (list (%cu-pad-left "" (%cal/ (- (+ (if julian 7 0) 20) (byte-len title)) 2))
+        (list (cu-pad-left "" (%cal/ (- (+ (if julian 7 0) 20) (byte-len title)) 2))
               title "\n" (%cal-headings weekstart julian) "\n")
         (rows 0 ())))))
 
@@ -158,7 +158,7 @@
           (fn (self k acc)
             (if (= k per) (string-concat (reverse acc))
               (self (+ k 1)
-                (pair (%cal-center (%cu-nth (+ m k) %cal-month-names) week-len
+                (pair (%cal-center (cu-nth (+ m k) %cal-month-names) week-len
                         (if (= k (- per 1)) 0 2))
                   acc)))))
         (go 0 ())))
@@ -170,7 +170,7 @@
               (self (+ k 1)
                 (pair (%cal-row (vec-ref all (+ m k)) at julian)
                   (if (null? acc) acc (pair " " acc)))))))
-        (%cal-line (%cu-pad-right (go 0 ()) 79))))
+        (%cal-line (cu-pad-right (go 0 ()) 79))))
     (def block
       (fn (_ m)
         (def rows
@@ -185,13 +185,13 @@
       (fn (self m acc)
         (if (>= m 12) (reverse acc) (self (+ m per) (pair (block m) acc)))))
     (string-concat
-      (pair (%cal-center (%cu-int->str year) (if julian 56 64) 0)
+      (pair (%cal-center (cu-int->str year) (if julian 56 64) 0)
         (pair "\n\n" (blocks 0 ()))))))
 
 ; cal [-jmy] [[MONTH] YEAR]
 (def %cu-cal
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "cal" argv))
+    (def o (cu-opts "cal" argv))
     (def ops (Opts operands o))
     (def n (length ops))
     (def julian (Opts on? o "-j"))
@@ -204,7 +204,7 @@
                 (%cal-month month year weekstart julian)))
             0)))
     (match
-      ((> n 2) (%cu-usage "cal"))
+      ((> n 2) (cu-usage "cal"))
       ((= n 0)
         (let ((today (%cu-date-today #f)))
           (show (if year? 0 (Assoc get (lit month) today)) (Assoc get (lit year) today))))
@@ -213,5 +213,5 @@
                        (%cu-range-number "cal" (first ops) 1 12)
                        0)))
           (if (null? month) 1
-            (let ((year (%cu-range-number "cal" (%cu-nth (- n 1) ops) 1 9999)))
+            (let ((year (%cu-range-number "cal" (cu-nth (- n 1) ops) 1 9999)))
               (if (null? year) 1 (show month year)))))))))

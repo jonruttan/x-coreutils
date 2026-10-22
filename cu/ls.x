@@ -115,7 +115,7 @@
 (def %ls-desc-then-name
   (fn (_ kx ky x y)
     (if (> kx ky) #t
-      (if (< kx ky) #f (%cu-str< (%ls-name x) (%ls-name y))))))
+      (if (< kx ky) #f (cu-str< (%ls-name x) (%ls-name y))))))
 
 (def %ls-less
   (fn (_ o)
@@ -130,15 +130,15 @@
       ((%ls-flag? o "-X")
         (fn (_ x y)
           (let ((ex (%ls-ext (%ls-name x))) (ey (%ls-ext (%ls-name y))))
-            (if (string=? ex ey) (%cu-str< (%ls-name x) (%ls-name y))
-              (%cu-str< ex ey)))))
+            (if (string=? ex ey) (cu-str< (%ls-name x) (%ls-name y))
+              (cu-str< ex ey)))))
       ((%ls-flag? o "-v")
         (fn (_ x y) (%ls-natural< (%ls-name x) (%ls-name y))))
-      (#t (fn (_ x y) (%cu-str< (%ls-name x) (%ls-name y)))))))
+      (#t (fn (_ x y) (cu-str< (%ls-name x) (%ls-name y)))))))
 
 (def %ls-order
   (fn (_ es o)
-    (let ((sorted (%cu-msort es (%ls-less o))))
+    (let ((sorted (cu-msort es (%ls-less o))))
       (if (%ls-flag? o "-r") (reverse sorted) sorted))))
 
 ; --- one line -----------------------------------------------------------------
@@ -147,7 +147,7 @@
   (list "Jan" "Feb" "Mar" "Apr" "May" "Jun"
         "Jul" "Aug" "Sep" "Oct" "Nov" "Dec"))
 
-(def %ls-two (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
+(def %ls-two (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
 
 ; Mon DD HH:MM within six months either way, Mon DD  YYYY otherwise
 (def %ls-date
@@ -156,11 +156,11 @@
     (def f (fn (_ k) (rest (Assoc entry k d))))
     (def recent? (< (if (> now t) (- now t) (- t now)) 15768000))
     (string-concat
-      (list (%cu-nth (- (f (lit month)) 1) %ls-months) " "
-            (%cu-pad-left (%cu-int->str (f (lit day))) 2) " "
+      (list (cu-nth (- (f (lit month)) 1) %ls-months) " "
+            (cu-pad-left (cu-int->str (f (lit day))) 2) " "
             (if recent?
               (string-append (%ls-two (f (lit hour))) (string-append ":" (%ls-two (f (lit minute)))))
-              (string-append " " (%cu-int->str (f (lit year)))))))))
+              (string-append " " (cu-int->str (f (lit year)))))))))
 
 ; -h: bytes with one decimal below ten of a unit, as ls -h prints
 ; N bytes the way -h prints them, which is ls's and df's rule both: the
@@ -175,14 +175,14 @@
         (def tenths (ceil/ (* n 10) scale))
         (def whole (ceil/ n scale))
         (match
-          ((null? (rest units)) (string-append (%cu-int->str whole) (first units)))
+          ((null? (rest units)) (string-append (cu-int->str whole) (first units)))
           ((<= tenths 99)
             (string-concat
-              (list (%cu-int->str (/ (- tenths (% tenths 10)) 10)) "."
-                    (%cu-int->str (% tenths 10)) (first units))))
-          ((< whole 1024) (string-append (%cu-int->str whole) (first units)))
+              (list (cu-int->str (/ (- tenths (% tenths 10)) 10)) "."
+                    (cu-int->str (% tenths 10)) (first units))))
+          ((< whole 1024) (string-append (cu-int->str whole) (first units)))
           (#t (self (* scale 1024) (rest units))))))
-    (if (< n 1024) (%cu-int->str n)
+    (if (< n 1024) (cu-int->str n)
       (go 1024 (list "K" "M" "G" "T")))))
 
 (def %ls-suffix
@@ -201,7 +201,7 @@
 (def %ls-size-str
   (fn (_ e o)
     (if (%ls-flag? o "-h") (%ls-human (%ls-get e (lit size)))
-      (%cu-int->str (%ls-get e (lit size))))))
+      (cu-int->str (%ls-get e (lit size))))))
 
 ; An owner or group as a long line shows it: under -l the system's name, or
 ; the id where the system has none; under -n the id.  Each id is looked up
@@ -212,7 +212,7 @@
 (def %ls-id-text
   (fn (_ id numeric? cell look)
     (let ((n (if numeric? () (%ls-memo-name cell id look))))
-      (if (null? n) (%cu-int->str id) n))))
+      (if (null? n) (cu-int->str id) n))))
 
 (def %ls-memo-name
   (fn (_ cell id look)
@@ -243,9 +243,9 @@
     (if (if (eq? k (lit char)) #t (eq? k (lit block)))
       (let ((dev (%ls-get e (lit rdev))))
         (string-concat
-          (list (%cu-pad-left (%cu-int->str (%cu-dev-major dev)) 4) ", "
-                (%cu-pad-left (%cu-int->str (%cu-dev-minor dev)) 3))))
-      (%cu-pad-left (%ls-size-str e o) (if (%ls-flag? o "-h") 7 9)))))
+          (list (cu-pad-left (cu-int->str (%cu-dev-major dev)) 4) ", "
+                (cu-pad-left (cu-int->str (%cu-dev-minor dev)) 3))))
+      (cu-pad-left (%ls-size-str e o) (if (%ls-flag? o "-h") 7 9)))))
 
 ; one entry as it is listed, without its newline: the cell a column layout
 ; arranges, or the line the plain listing prints.  The columns are busybox's
@@ -260,15 +260,15 @@
     (string-concat
       (list
         (if (%ls-flag? o "-i")
-          (string-append (%cu-pad-left (%cu-int->str (%ls-get e (lit ino))) 7) " ") "")
+          (string-append (cu-pad-left (cu-int->str (%ls-get e (lit ino))) 7) " ") "")
         (if (%ls-flag? o "-s")
-          (string-append (%cu-pad-left (%cu-int->str (%cu-du-blocks st)) 6) " ") "")
+          (string-append (cu-pad-left (cu-int->str (%cu-du-blocks st)) 6) " ") "")
         (if (not long?) name
           (string-concat
             (list (%cu-perm-string (%ls-get e (lit file-type)) (%ls-get e (lit mode))) " "
-                  (%cu-pad-left (%cu-int->str (%ls-get e (lit nlink))) 4) " "
-                  (%cu-pad-right (%ls-owner e numeric?) 8) " "
-                  (%cu-pad-right (%ls-group e numeric?) 8) " "
+                  (cu-pad-left (cu-int->str (%ls-get e (lit nlink))) 4) " "
+                  (cu-pad-right (%ls-owner e numeric?) 8) " "
+                  (cu-pad-right (%ls-group e numeric?) 8) " "
                   (%ls-size-cell e o) " "
                   (%ls-date (%ls-get e (%ls-time-key o)) now) " "
                   name
@@ -295,8 +295,8 @@
     (def env (sys-getenv "COLUMNS"))
     (def n
       (match
-        ((not (null? w)) (%cu-num-prefix w))
-        ((if (null? env) #f (> (%cu-num-prefix env) 0)) (%cu-num-prefix env))
+        ((not (null? w)) (cu-num-prefix w))
+        ((if (null? env) #f (> (cu-num-prefix env) 0)) (cu-num-prefix env))
         (#t 80)))
     (if (<= n 0) 1000000 n)))
 
@@ -409,7 +409,7 @@
         (go ordered 0)))
     ; `total` heads a DIRECTORY listing only, as ls prints it
     (do (if (if dir? (if long? #t (%ls-flag? o "-s")) #f)
-          (display (string-append "total " (string-append (%cu-int->str blocks) "\n")))
+          (display (string-append "total " (string-append (cu-int->str blocks) "\n")))
           ())
         (if (if (%ls-columns? o) (not long?) #f)
           (display
@@ -443,9 +443,9 @@
 
 (def %cu-ls
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ls" argv))
+    (def o (cu-opts "ls" argv))
     (%set-first! %ls-one-cell
-      (if (%ls-flag? o "-1") #t (%cu-member-s? "-1" argv)))
+      (if (%ls-flag? o "-1") #t (cu-member-s? "-1" argv)))
     ; a standalone -1 comes back as an operand (x-lang#650): not a file
     (def ops0 (filter (fn (_ p) (not (string=? p "-1"))) (Opts operands o)))
     (def ops (if (null? ops0) (list ".") ops0))

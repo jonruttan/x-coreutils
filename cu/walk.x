@@ -26,9 +26,9 @@
 ; The entries of DIR worth walking: no . or .., in sorted order.
 (def %cu-walk-names
   (fn (_ dir)
-    (%cu-msort
+    (cu-msort
       (filter (fn (_ n) (not (%cu-dot? n))) (file-list-dir dir))
-      %cu-str<)))
+      cu-str<)))
 
 ; Visit each entry of DIR and answer the WORST status any visit gave.
 ; The visitor takes the NAME, not the path: every caller joins it to a
@@ -57,7 +57,7 @@
         (if (null? start) ns
           (let ((go (fn (self l)
                       (if (null? l) ()
-                        (if (%cu-str< (first l) start) (self (rest l)) l)))))
+                        (if (cu-str< (first l) start) (self (rest l)) l)))))
             (go ns)))))
     (def go
       (fn (self as bs st)
@@ -66,7 +66,7 @@
           (let ((n (match
                      ((null? as) (first bs))
                      ((null? bs) (first as))
-                     ((%cu-str< (first as) (first bs)) (first as))
+                     ((cu-str< (first as) (first bs)) (first as))
                      (#t (first bs)))))
             (let ((ina (if (null? as) #f (string=? (first as) n)))
                   (inb (if (null? bs) #f (string=? (first bs) n))))

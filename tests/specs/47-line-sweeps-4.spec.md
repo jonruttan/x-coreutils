@@ -31,7 +31,7 @@ The keyed files hold a distinct number on each line, one from 1001 and one
 from 2001, and the last one number on all twenty of its lines.
 
 ```cu
-(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def kv (fn (self n from acc) (if (= n 0) (string-concat acc) (self (- n 1) from (pair (%cu-int->str (+ from n)) (pair " alpha\n" acc)))))) (def same (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair "7 alpha\n" acc))))) (file-write-all "/tmp/x-cu-ls4-k" (kv 400 1000 ())) (file-write-all "/tmp/x-cu-ls4-d" (kv 400 2000 ())) (file-write-all "/tmp/x-cu-ls4-r" (same 20 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (%cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display "made"))
+(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def kv (fn (self n from acc) (if (= n 0) (string-concat acc) (self (- n 1) from (pair (cu-int->str (+ from n)) (pair " alpha\n" acc)))))) (def same (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair "7 alpha\n" acc))))) (file-write-all "/tmp/x-cu-ls4-k" (kv 400 1000 ())) (file-write-all "/tmp/x-cu-ls4-d" (kv 400 2000 ())) (file-write-all "/tmp/x-cu-ls4-r" (same 20 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display "made"))
 ```
 ---
     made

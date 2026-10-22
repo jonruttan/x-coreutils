@@ -52,7 +52,7 @@ a message file shown as tmp/NAME or new/NAME.
     "  esac\n"
     "done\n")))
   (def pm (fn (_ flags args input box)
-    (%cu-heap-collect)
+    (cu-heap-collect)
     (sys-setenv "PM_FLAGS" flags) (sys-setenv "PM_ARGS" args) (sys-setenv "PM_IN" input) (sys-setenv "PM_BOX" box)
     (pm-sh (string-concat (list
       "d=/tmp/x-cu-pop; rm -rf $d; mkdir -p $d/box; "
@@ -74,7 +74,7 @@ a message file shown as tmp/NAME or new/NAME.
     (def st (sys-wait pid))
     (pm-sh (string-concat (list
       "d=/tmp/x-cu-pop; norm() { sed -E \"s#(tmp|new)/[0-9]+\\.[0-9]+\\.[^' ]+#\\1/NAME#g\"; }; "
-      "{ LC_ALL=C cat -v $d/out; echo \"[status " (%cu-int->str st) "]\"; LC_ALL=C cat -v $d/err | norm; "
+      "{ LC_ALL=C cat -v $d/out; echo \"[status " (cu-int->str st) "]\"; LC_ALL=C cat -v $d/err | norm; "
       "echo \"--- server got\"; LC_ALL=C cat -v $d/got; "
       "if [ -d $d/md/new ]; then for m in $(ls $d/md/new); do echo \"--- new\"; LC_ALL=C cat -v $d/md/new/$m; done; fi; "
       "if [ -d $d/md/tmp ]; then echo \"--- tmp $(ls $d/md/tmp | wc -l | tr -d ' ')\"; fi; "

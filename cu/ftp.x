@@ -162,7 +162,7 @@
         (do (unless (file-exists? local) (%net-die "stat: No such file or directory"))
             (Assoc get (lit size) (file-stat local)))
         0))
-    (def resumed? (if (> beg 0) (= (%ftpgp-cmd (string-append "REST " (%cu-int->str beg)) ()) 350) #f))
+    (def resumed? (if (> beg 0) (= (%ftpgp-cmd (string-append "REST " (cu-int->str beg)) ()) 350) #f))
     (when (> (%ftpgp-cmd "RETR" remote) 150) (%ftpgp-die "RETR"))
     (def out
       (if to-stdout? 1
@@ -173,7 +173,7 @@
     (let go ()
       (let ((r (net-recv-run data 65536)))
         (unless (null? r)
-          (do (%ftp-pump-out out r) (%cu-sweep! 1) (go)))))
+          (do (%ftp-pump-out out r) (cu-sweep! 1) (go)))))
     (net-close data)
     (unless to-stdout? (file-close out))
     (%ftpgp-finish)))
@@ -193,11 +193,11 @@
         (let ((p (stdin-thunk (lit chunk))))
           (let ((r (if (pair? p) p (pair p (byte-len p)))))
             (when (> (rest r) 0)
-              (do (%ftp-pump-out data r) (%cu-sweep! 1) (go))))))
+              (do (%ftp-pump-out data r) (cu-sweep! 1) (go))))))
       (let go ()
         (let ((r (file-read-run in 65536)))
           (when (> (rest r) 0)
-            (do (%ftp-pump-out data r) (%cu-sweep! 1) (go))))))
+            (do (%ftp-pump-out data r) (cu-sweep! 1) (go))))))
     (unless (null? in) (file-close in))
     (net-close data)
     (%ftpgp-finish)))
@@ -214,9 +214,9 @@
 ; ftpget HOST [LOCAL] REMOTE and ftpput HOST [REMOTE] LOCAL
 (def %cu-ftpgetput
   (fn (_ applet argv stdin-thunk)
-    (def o (%cu-opts applet argv))
+    (def o (cu-opts applet argv))
     (def ops (Opts operands o))
-    (if (if (< (length ops) 2) #t (> (length ops) 3)) (%cu-usage applet)
+    (if (if (< (length ops) 2) #t (> (length ops) 3)) (cu-usage applet)
       (do (set! %ftp-applet applet)
           (set! %ftp-verbose (if (if (Opts on? o "-v") #t (Opts on? o "--verbose")) 1 0))
           (guard (e (if (eq? (Err label e) (lit net))
@@ -239,7 +239,7 @@
     (when (null? ip) (%net-die (string-concat (list "bad address '" host "'"))))
     (set! %ftp-ip ip)
     (when (> %ftp-verbose 0)
-      (file-write 1 (string-concat (list "Connecting to " host " (" ip ":" (%cu-int->str port) ")\n"))))
+      (file-write 1 (string-concat (list "Connecting to " host " (" ip ":" (cu-int->str port) ")\n"))))
     (%ftp-open! (%ftp-connect ip port))
     (def st
       (do (%ftpgp-login (%ftp-opt o "-u" "--username" "anonymous")
@@ -303,7 +303,7 @@
     (def data (%ftp-connect ip port))
     (def len
       (if (> %wget-beg 0)
-        (if (= (%wget-ftpcmd (string-append "REST " (%cu-int->str %wget-beg)) ()) 350)
+        (if (= (%wget-ftpcmd (string-append "REST " (cu-int->str %wget-beg)) ()) 350)
           (if (null? clen) () (- clen %wget-beg))
           (do (%wget-restart-failed!) clen))
         clen))

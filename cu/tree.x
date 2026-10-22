@@ -41,7 +41,7 @@
     (def listed (guard (e (lit fail)) (file-list-dir path)))
     (if (eq? listed (lit fail))
       (do (file-write 1 (string-append name " [error opening dir]\n")) here)
-      (let ((entries (%cu-msort (pair "." (pair ".." listed)) %cu-str<)))
+      (let ((entries (cu-msort (pair "." (pair ".." listed)) cu-str<)))
         (def each
           (fn (each-self es)
             (if (null? es) ()
@@ -50,7 +50,7 @@
                       (%tree-entry self counts path d
                         (string-append prefix (if (null? (rest es)) %tree-end %tree-mid))
                         (string-append prefix (if (null? (rest es)) "    " %tree-bar))))
-                    (%cu-sweep-tick! %cu-sweep-lines)
+                    (cu-sweep-tick! cu-sweep-lines)
                     (each-self (rest es)))))))
         (do (file-write 1 (string-append name "\n"))
             (each entries)
@@ -84,6 +84,6 @@
     (do (go (if (null? argv) (list ".") argv) ".")
         (file-write 1
           (string-concat
-            (list "\n" (%cu-int->str (first counts)) " directories, "
-                  (%cu-int->str (first (rest counts))) " files\n")))
+            (list "\n" (cu-int->str (first counts)) " directories, "
+                  (cu-int->str (first (rest counts))) " files\n")))
         0)))

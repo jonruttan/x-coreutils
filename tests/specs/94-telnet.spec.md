@@ -27,7 +27,7 @@ got, in hex.
   (def tn-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
   (def tn-prep (fn (_ args server input port)
     (sys-setenv "TN_ARGS" args) (sys-setenv "TN_SERVER" server) (sys-setenv "TN_IN" input)
-    (sys-setenv "TN_PORT" (%cu-int->str port))
+    (sys-setenv "TN_PORT" (cu-int->str port))
     (tn-sh (string-concat (list
       "d=/tmp/x-cu-telnet; rm -f $d/p* $d/got $d/out $d/err; printf '%b' \"$TN_SERVER\" > $d/sbytes; "
       "n=0; printf '%s\\n' \"$TN_IN\" | tr '|' '\\n' | while IFS= read -r part; do n=$((n+1)); printf '%b' \"$part\" > $d/p$n; done; "
@@ -40,7 +40,7 @@ got, in hex.
           (if (= (rest r) 0) (do (file-close fd) (reverse acc)) (go (pair r acc))))))))
   (def tn-pieces (fn (_)
     (let go ((n 1) (acc ()))
-      (let ((f (tn-f (string-append "p" (%cu-int->str n)))))
+      (let ((f (tn-f (string-append "p" (cu-int->str n)))))
         (if (file-exists? f) (go (+ n 1) (pair (tn-read-run f) acc)) (reverse acc))))))
   (def tn-now (fn (_) (sys-time-ms)))
   (def tn-telnet (fn (_ env argv in-read in-write l)
@@ -80,7 +80,7 @@ got, in hex.
                   (do (File write got (first r) (rest r)) (go pieces at open? writing?)))))))))
     (file-close got)))
   (def tn (fn (_ env args server input)
-    (%cu-heap-collect)
+    (cu-heap-collect)
     (def l (if (string=? server "-") () (Socket tcp-listen-on "127.0.0.1" 0 5)))
     (def port (if (null? l) (let ((q (Socket tcp-listen 0))) (let ((n (Socket local-port q))) (do (Socket close q) n)))
                 (Socket local-port l)))
@@ -93,7 +93,7 @@ got, in hex.
     (unless (null? l) (Socket close l))
     (def st (sys-wait pid))
     (tn-sh (string-concat (list
-      "d=/tmp/x-cu-telnet; { LC_ALL=C cat -v $d/out; echo \"[status " (%cu-int->str st) "]\"; LC_ALL=C cat -v $d/err; "
+      "d=/tmp/x-cu-telnet; { LC_ALL=C cat -v $d/out; echo \"[status " (cu-int->str st) "]\"; LC_ALL=C cat -v $d/err; "
       (if (null? l) ""
         "echo '--- server got'; od -An -tx1 -v $d/got | tr -s ' \\n' ' ' | sed 's/^ //; s/ $//'; echo; ")
       "} > $d/report")))

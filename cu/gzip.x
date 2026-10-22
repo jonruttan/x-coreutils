@@ -29,7 +29,7 @@
 (def %gz-room 32768)
 
 (def %gz-copy (prim-ref (lit mem) (lit copy)))
-(def %gz-at (fn (_ p off) (%cu-int->ptr (+ ((prim-ref (lit ptr) (lit ->int)) p) off))))
+(def %gz-at (fn (_ p off) (cu-int->ptr (+ ((prim-ref (lit ptr) (lit ->int)) p) off))))
 
 ; the run ends: MSG said under the applet's NAME, and the status 1
 (def %gz-die
@@ -56,7 +56,7 @@
 ; the writer may fill its buffer again, so what is held is a copy.
 (def %gz-sink
   (fn (_ fd)
-    (def head (%str-make-raw 10))
+    (def head (str-make-raw 10))
     (do (%gz-fill! head (list 31 139 8 0 0 0 0 0 0 3))
         (%gz-write! fd head 10)
         (vec-build 5
@@ -85,8 +85,8 @@
 
 (def %gz-held
   (fn (_ buf n)
-    (let ((r (%str-make-raw (if (= n 0) 1 n))))
-      (do (if (> n 0) (%gz-copy (%cu-str->ptr r) (%cu-str->ptr buf) n) ()) (pair r n)))))
+    (let ((r (str-make-raw (if (= n 0) 1 n))))
+      (do (if (> n 0) (%gz-copy (cu-str->ptr r) (cu-str->ptr buf) n) ()) (pair r n)))))
 
 ; the held piece as the stream's end, then the CRC and length
 (def %gz-sink-close!
@@ -106,14 +106,14 @@
           (match
             ((Err err? p) (error p))
             ((= (rest p) 0) ())
-            (#t (do (%gz-sink-write! k (first p) (rest p)) (%cu-sweep-tick! 0) (self)))))))
+            (#t (do (%gz-sink-write! k (first p) (rest p)) (cu-sweep-tick! 0) (self)))))))
     (do (feed)
         (%gz-sink-close! k))))
 
 (def %gz-fill!
   (fn (_ buf bytes)
-    (def p (%cu-str->ptr buf))
-    (def go (fn (self i l) (if (null? l) () (do (%cu-ptr-set! p i (first l) 1) (self (+ i 1) (rest l))))))
+    (def p (cu-str->ptr buf))
+    (def go (fn (self i l) (if (null? l) () (do (cu-ptr-set! p i (first l) 1) (self (+ i 1) (rest l))))))
     (go 0 bytes)))
 
 ; --- decompressing -----------------------------------------------------------------
@@ -196,7 +196,7 @@
         (fn (_ i)
           (match
             ((= i 0) (lit start)) ((= i 1) ())
-            ((= i 5) (%gz-reader src)) ((= i 6) (%str-make-raw %gz-room))
+            ((= i 5) (%gz-reader src)) ((= i 6) (str-make-raw %gz-room))
             ((= i 7) name) ((= i 8) mtime) ((= i 9) ())
             (#t 0)))))
     (fn (_) (%gz-next st))))
@@ -252,8 +252,8 @@
   (fn (_ st)
     (let ((n (vec-ref st 4)) (out (vec-ref st 6)))
       (unless (= n 0)
-        (let ((copy (%str-make-raw n)))
-          (do (%gz-copy (%cu-str->ptr copy) (%cu-str->ptr out) n)
+        (let ((copy (str-make-raw n)))
+          (do (%gz-copy (cu-str->ptr copy) (cu-str->ptr out) n)
               (vec-set! st 2 (Crc32 update (vec-ref st 2) out 0 n))
               (vec-set! st 3 (& (+ (vec-ref st 3) n) 4294967295))
               (vec-set! st 4 0)
@@ -265,8 +265,8 @@
     (unless (= n 0)
       (let ((filled (vec-ref st 4)))
         (let ((k (if (< (- %gz-room filled) n) (- %gz-room filled) n)))
-          (do (%gz-copy (%gz-at (%cu-str->ptr (vec-ref st 6)) filled)
-                            (%gz-at (%cu-str->ptr out) at) k)
+          (do (%gz-copy (%gz-at (cu-str->ptr (vec-ref st 6)) filled)
+                            (%gz-at (cu-str->ptr out) at) k)
               (vec-set! st 4 (+ filled k))
               (when (= (vec-ref st 4) %gz-room) (%gz-emit! st))
               (self st out (+ at k) (- n k))))))))
@@ -279,7 +279,7 @@
       (let ((p (%gz-piece rd)))
         (if (null? p) (%gz-bad st "unexpected end of file")
           (let ((at (vec-ref rd 2)) (z (vec-ref st 1)))
-            (let ((r (guard (e (if (eq? (%cu-err-label e) (lit value)) (%gz-bad st "corrupted data") (error e)))
+            (let ((r (guard (e (if (eq? (cu-err-label e) (lit value)) (%gz-bad st "corrupted data") (error e)))
                        (Inflate feed z (first p) at (- (rest p) at)))))
               (do (vec-set! rd 2 (rest p))
                   (%gz-take! st (first r) 0 (first (rest r)))
@@ -296,7 +296,7 @@
     (def go
       (fn (self)
         (let ((p (pieces)))
-          (if (= (rest p) 0) () (do (%gz-write! fd (first p) (rest p)) (%cu-sweep-tick! 0) (self))))))
+          (if (= (rest p) 0) () (do (%gz-write! fd (first p) (rest p)) (cu-sweep-tick! 0) (self))))))
     (go)))
 
 ; --- the applets -------------------------------------------------------------------
@@ -307,7 +307,7 @@
 
 (def %gz-run-guarded
   (fn (_ thunk)
-    (guard (e (if (eq? (%cu-err-label e) (lit gzip))
+    (guard (e (if (eq? (cu-err-label e) (lit gzip))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
                 (error e)))
       (thunk))))
@@ -316,7 +316,7 @@
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
-        (let ((o (%cu-opts "gzip" (%gz-levels-gone argv))))
+        (let ((o (cu-opts "gzip" (%gz-levels-gone argv))))
           (%gz-files (%gz-settings "gzip" o (if (%gz-on? o "-d" "--decompress") #t
                                               (if (%gz-on? o "--uncompress" "-t") #t
                                                 (Opts on? o "--test"))) #f)
@@ -326,14 +326,14 @@
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
-        (let ((o (%cu-opts "gunzip" argv)))
+        (let ((o (cu-opts "gunzip" argv)))
           (%gz-files (%gz-settings "gunzip" o #t #f) (Opts operands o) stdin-thunk))))))
 
 (def %cu-zcat
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
-        (let ((o (%cu-opts "zcat" argv)))
+        (let ((o (cu-opts "zcat" argv)))
           (%gz-files (%gz-settings "zcat" o #t #t) (Opts operands o) stdin-thunk))))))
 
 (def %gz-on? (fn (_ o a b) (if (Opts on? o a) #t (Opts on? o b))))
@@ -385,7 +385,7 @@
       ((if (not stdin?) (null? st) #f)
         (do (%gz-say name (string-concat (list file ": " (%gz-why (lit stat) file)))) 1))
       (#t
-        (let ((src (%cu-pieces file stdin-thunk)))
+        (let ((src (cu-pieces file stdin-thunk)))
           (if (Err err? src)
             (do (%gz-say name (string-concat (list file ": " (file-err-text src)))) 1)
             (%gz-to t file stdin? st (%gz-checked t src))))))))
@@ -451,7 +451,7 @@
 ; the data packed or unpacked to FD; 0, or 1 where it was bad (said)
 (def %gz-work
   (fn (_ t src fd mtime)
-    (guard (e (if (eq? (%cu-err-label e) (lit gzip))
+    (guard (e (if (eq? (cu-err-label e) (lit gzip))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
                 (error e)))
       (do (if (vec-ref t 1) (%gz-unpack! (%gz-name t) src fd mtime) (%gz-pack! src fd))
@@ -493,12 +493,12 @@
   (fn (_ src)
     (def pieces (%gz-inflate-pieces "tar" src (list 0)))
     (def over (list #f))
-    (def none (%str-make-raw 1))
+    (def none (str-make-raw 1))
     (fn (_ . how)
       (match
         ((pair? how) (src (first how)))
         ((first over) (pair none 0))
-        (#t (guard (e (if (eq? (%cu-err-label e) (lit gzip))
+        (#t (guard (e (if (eq? (cu-err-label e) (lit gzip))
                         (do (file-write 2 (string-append (e msg) "\n"))
                             (%set-first! over #t)
                             (pair none 0))

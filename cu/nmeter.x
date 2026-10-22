@@ -53,7 +53,7 @@
         (let ((shares (map (fn (_ v) (%ps-div (* size v) all)) d))
               (fracs (map (fn (_ v) (% (* size v) all)) d)))
           (def bumped (%nm-bump shares fracs (- size (List fold + 0 shares))))
-          (def run (fn (_ i c) (%str-make-raw-of (%cu-nth i bumped) c)))
+          (def run (fn (_ i c) (%str-make-raw-of (cu-nth i bumped) c)))
           (def bar (string-concat (list (run 2 #\S) (run 0 #\U) (run 1 #\N) (run 4 #\D) (run 5 #\I) (run 6 #\i))))
           (pair (%cu-pad-right-with bar size #\.) now))))))
 
@@ -63,7 +63,7 @@
   (fn (self shares fracs left)
     (if (<= left 0) shares
       (let ((pos (%nm-max-at fracs)))
-        (self (%nm-set-at shares pos (+ (%cu-nth pos shares) 1)) (%nm-set-at fracs pos 0) (- left 1))))))
+        (self (%nm-set-at shares pos (+ (cu-nth pos shares) 1)) (%nm-set-at fracs pos 0) (- left 1))))))
 
 (def %nm-max-at
   (fn (_ vs)
@@ -112,8 +112,8 @@
       (if (null? r) (pair "??????????" old)
         (let ((now (map (fn (_ k) (%vm-get k (first r))) (lit (rx-bytes rx-errors tx-bytes tx-errors)))))
           (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (%vm-zip now (if (null? old) (list 0 0 0 0) old))))
-          (pair (string-concat (list (if (> (%cu-nth 1 d) 0) "*" " ") (%nm-scale (first d))
-                                     (if (> (%cu-nth 3 d) 0) "*" " ") (%nm-scale (%cu-nth 2 d))))
+          (pair (string-concat (list (if (> (cu-nth 1 d) 0) "*" " ") (%nm-scale (first d))
+                                     (if (> (cu-nth 3 d) 0) "*" " ") (%nm-scale (cu-nth 2 d))))
                 now))))))
 
 ; %m and its variants: used (total less free, buffers, cached and slab),
@@ -191,7 +191,7 @@
       (def sec1 (if carry (+ sec0 1) sec0))
       (def us1 (if carry (- us0 1000000) us0))
       (def hms (if since (%cu-date-fmt "%H:%M:%S" (%cu-date-split sec1 #t) sec1) (%io-time sec1)))
-      (pair (if (= prec 0) hms (string-concat (list hms "." (%cu-pad-zero (%cu-int->str (%ps-div us1 scale)) prec))))
+      (pair (if (= prec 0) hms (string-concat (list hms "." (cu-pad-zero (cu-int->str (%ps-div us1 scale)) prec))))
             old))))
 
 ; --- the format ----------------------------------------------------------------
@@ -249,7 +249,7 @@
       ((= c #\m) (%nm-mem (if (str=? arg "") "" (substring arg 0 1))))
       ((= c #\s) %nm-swap)
       ((= c #\f) %nm-files)
-      ((= c #\i) (%nm-rate (%nm-irq (if (str=? arg "") "" (%cu-int->str (%nm-number arg))))))
+      ((= c #\i) (%nm-rate (%nm-irq (if (str=? arg "") "" (cu-int->str (%nm-number arg))))))
       ((= c #\x) (%nm-rate (%nm-counter (lit context-switches))))
       ((= c #\p) (if (if (> (byte-len arg) 0) (= (byte-at arg 0) #\n) #f) %nm-procs (%nm-rate (%nm-counter (lit forks)))))
       ((= c #\t) (%nm-clock (%nm-prec arg) #f))
@@ -287,15 +287,15 @@
 
 (def %cu-nmeter
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "nmeter" argv))
+    (def o (cu-opts "nmeter" argv))
     (def ops (Opts operands o))
     (def d (Opts value o "-d"))
     (def delta (if (null? d) 1000000 (let ((v (%nm-xatoi d))) (if (null? v) () (* v 1000)))))
     (def parsed (if (null? ops) () (%nm-parse (first ops))))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option "nmeter" (Opts unknown o)))
+      ((not (null? (Opts unknown o))) (cu-refuse-option "nmeter" (Opts unknown o)))
       ((null? delta) (do (file-write 2 (string-concat (list "nmeter: invalid number '" d "'\n"))) 1))
-      ((null? parsed) (%cu-usage "nmeter"))
+      ((null? parsed) (cu-usage "nmeter"))
       (#t (%nm-main (first parsed) (if (rest parsed) "\r" "\n") delta)))))
 
 ; xatoi: an optionally signed decimal that fits an int, or nil

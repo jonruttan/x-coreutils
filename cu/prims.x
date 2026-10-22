@@ -68,17 +68,17 @@
 (def integer->char (prim-ref (lit int) (lit ->char)))
 (def byte-at (prim-ref (lit str) (lit byte-ref)))
 (def byte-len (prim-ref (lit str) (lit byte-len)))
-(def %str-make-raw (prim-ref (lit str) (lit make)))
+(def str-make-raw (prim-ref (lit str) (lit make)))
 
 (def string-length (fn (_ s) (Str8 length s)))
 (def substring (fn (_ s a b) (Str8 sub a (- b a) s)))
 (def string=? (fn (_ a b) (str=? a b)))
 
-(def %cvt (prim-ref (lit convert) (lit to)))
+(def cvt (prim-ref (lit convert) (lit to)))
 ; The string type's handle, fetched by name through the platform's public
 ; door.
-(def %cu-string-type (Type named STRING))
-(def list->string (fn (_ l) (if (null? l) "" (%cvt l %cu-string-type))))
+(def cu-string-type (Type named STRING))
+(def list->string (fn (_ l) (if (null? l) "" (cvt l cu-string-type))))
 
 (def string-append (fn (_ . ss) (string-concat ss)))
 
@@ -87,20 +87,20 @@
 ; joins, at a few dozen objects a piece.  It reads its pieces raw, as bytes,
 ; so each is checked first: a piece that is not a string is a type error
 ; here, not a read of whatever it points at.
-(def %cu-type-of (prim-ref (lit type) (lit of)))
+(def cu-type-of (prim-ref (lit type) (lit of)))
 (def %cu-strings
   (fn (self ss all)
     (match
       ((null? ss) all)
-      ((if (null? (first ss)) #f (eq? (%cu-type-of (first ss)) %cu-string-type))
+      ((if (null? (first ss)) #f (eq? (cu-type-of (first ss)) cu-string-type))
         (self (rest ss) all))
       (#t (Err raise (lit type) "string-concat: not a string" ())))))
 (def string-concat
   (fn (_ ss) (%str-concat (%cu-strings ss ss))))
 
 (def length (fn (_ l) (List length l)))
-(def reverse (fn (_ l) (%cu-rev l ())))
-(def %cu-rev
+(def reverse (fn (_ l) (cu-rev l ())))
+(def cu-rev
   (fn (self l acc)
     (if (null? l) acc (self (rest l) (pair (first l) acc)))))
 ; any number of lists, as List append takes them: a third list given to a
@@ -126,17 +126,17 @@
 ; their operands and promote past a machine word.  These do neither -- a nil
 ; operand crashes the engine and a sum past a word wraps -- so they take only
 ; what is an integer by construction, never a value read from a user.  There
-; is no > or >=: a > b is (%cu< b a), and a >= b swaps the branches of a <.
-(def %cu+ (prim-ref (lit int) (lit +)))
-(def %cu- (prim-ref (lit int) (lit -)))
-(def %cu* (prim-ref (lit int) (lit *)))
-(def %cu/ (prim-ref (lit int) (lit /)))
-(def %cu% (prim-ref (lit int) (lit %)))
-(def %cu< (prim-ref (lit int) (lit <)))
-(def %cu& (prim-ref (lit int) (lit &)))
+; is no > or >=: a > b is (cu< b a), and a >= b swaps the branches of a <.
+(def cu+ (prim-ref (lit int) (lit +)))
+(def cu- (prim-ref (lit int) (lit -)))
+(def cu* (prim-ref (lit int) (lit *)))
+(def cu/ (prim-ref (lit int) (lit /)))
+(def cu% (prim-ref (lit int) (lit %)))
+(def cu< (prim-ref (lit int) (lit <)))
+(def cu& (prim-ref (lit int) (lit &)))
 (def %cu| (prim-ref (lit int) (lit |)))
-(def %cu<< (prim-ref (lit int) (lit <<)))
-(def %cu>> (prim-ref (lit int) (lit >>)))
+(def cu<< (prim-ref (lit int) (lit <<)))
+(def cu>> (prim-ref (lit int) (lit >>)))
 
 (def file-read-all (fn (_ path) (File read-all path)))
 (def file-write-all (fn (_ path text) (File write-all path text)))
@@ -154,7 +154,7 @@
   (fn (_ fd s) (File write fd s (byte-len s))))
 (def file-read-fd
   (fn (_ fd n)
-    (def buf (%str-make-raw n))
+    (def buf (str-make-raw n))
     (def r (File read fd buf n))
     (if (if (number? r) (> r 0) #f) (substring buf 0 r) "")))
 
@@ -218,7 +218,7 @@
 ; (stat-layout), whose field order differs from one to the next, so the
 ; alist is assembled by name.  Answers () when the path is gone.
 
-(def %cu-mode-file-type
+(def cu-mode-file-type
   (fn (_ mode)
     (let ((fmt (& mode 61440)))
       (match
@@ -233,12 +233,12 @@
 
 (def file-stat-full
   (fn (_ path)
-    (def buf (%str-make-raw 160))
+    (def buf (str-make-raw 160))
     (def r (%cu-sys-stat path buf))
     (if (< r 0) ()
       (let ((d (Struct unpack stat-layout buf)))
         (pair (pair (lit file-type)
-                (%cu-mode-file-type (rest (Assoc entry (lit mode) d))))
+                (cu-mode-file-type (rest (Assoc entry (lit mode) d))))
           d)))))
 
 (def vec-make (fn (_ n fill) (Vector make n fill)))
@@ -255,16 +255,16 @@
 ; and no number for it in the Darwin syscall table, so it is reached through the
 ; FFI the platform's own errno lookup uses (x/type/err.x).  A libc without the
 ; symbol answers 0, which masks nothing.
-(def %cu-dlsym (prim-ref (lit ffi) (lit dlsym)))
-(def %cu-dlopen (prim-ref (lit ffi) (lit dlopen)))
-(def %cu-ptr-call (prim-ref (lit ptr) (lit call)))
+(def cu-dlsym (prim-ref (lit ffi) (lit dlsym)))
+(def cu-dlopen (prim-ref (lit ffi) (lit dlopen)))
+(def cu-ptr-call (prim-ref (lit ptr) (lit call)))
 (def %cu-umask-cell (list ()))
 
 (def %cu-umask-fn
   (fn (_)
     (do (if (null? (first %cu-umask-cell))
           (set-first! %cu-umask-cell
-            (list (%cu-dlsym (%cu-dlopen () 1) "umask")))
+            (list (cu-dlsym (cu-dlopen () 1) "umask")))
           ())
         (first (first %cu-umask-cell)))))
 
@@ -272,30 +272,30 @@
   (fn (_)
     (let ((f (%cu-umask-fn)))
       (if (null? f) 0
-        (let ((old (%cu-ptr-call f 0)))
-          (do (%cu-ptr-call f old) old))))))
+        (let ((old (cu-ptr-call f 0)))
+          (do (cu-ptr-call f old) old))))))
 
 ; The name for a user or group id, or nil where the system has none: getpwuid's
 ; pw_name and getgrgid's gr_name, the first field of their structs on Darwin
 ; and Linux alike.  There is no passwd door on Sys, so both are reached through
 ; the FFI, as the umask is.
-(def %cu-ptr-word (prim-ref (lit ptr) (lit ref-word)))
-(def %cu-ptr->str (prim-ref (lit ptr) (lit ->str)))
-(def %cu-int->ptr (prim-ref (lit int) (lit ->ptr)))
+(def cu-ptr-word (prim-ref (lit ptr) (lit ref-word)))
+(def cu-ptr->str (prim-ref (lit ptr) (lit ->str)))
+(def cu-int->ptr (prim-ref (lit int) (lit ->ptr)))
 (def %cu-getpwuid-cell (list ()))
 (def %cu-getgrgid-cell (list ()))
 
 (def %cu-id-name
   (fn (_ cell sym id)
     (do (if (null? (first cell))
-          (set-first! cell (list (%cu-dlsym (%cu-dlopen () 1) sym)))
+          (set-first! cell (list (cu-dlsym (cu-dlopen () 1) sym)))
           ())
         (let ((f (first (first cell))))
           (if (null? f) ()
-            (let ((r (%cu-ptr-call f id)))
+            (let ((r (cu-ptr-call f id)))
               (if (= r 0) ()
-                (%cu-ptr->str
-                  (%cu-int->ptr (%cu-ptr-word (%cu-int->ptr r) 0))))))))))
+                (cu-ptr->str
+                  (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0))))))))))
 
 (def sys-user-name (fn (_ uid) (%cu-id-name %cu-getpwuid-cell "getpwuid" uid)))
 (def sys-group-name (fn (_ gid) (%cu-id-name %cu-getgrgid-cell "getgrgid" gid)))
@@ -304,19 +304,19 @@
 ; name -- getpwnam's pw_uid and getgrnam's gr_gid, the four bytes after the
 ; struct's two pointers -- and a user's login group, pw_gid, the four after
 ; that, on Darwin and Linux alike.
-(def %cu-ptr-ref (prim-ref (lit ptr) (lit ref)))
+(def cu-ptr-ref (prim-ref (lit ptr) (lit ref)))
 (def %cu-getpwnam-cell (list ()))
 (def %cu-getgrnam-cell (list ()))
 
 (def %cu-name-field
   (fn (_ cell sym name offset)
     (do (if (null? (first cell))
-          (set-first! cell (list (%cu-dlsym (%cu-dlopen () 1) sym)))
+          (set-first! cell (list (cu-dlsym (cu-dlopen () 1) sym)))
           ())
         (let ((f (first (first cell))))
           (if (null? f) ()
-            (let ((r (%cu-ptr-call f name)))
-              (if (= r 0) () (%cu-ptr-ref (%cu-int->ptr r) offset 4))))))))
+            (let ((r (cu-ptr-call f name)))
+              (if (= r 0) () (cu-ptr-ref (cu-int->ptr r) offset 4))))))))
 
 (def sys-user-id (fn (_ name) (%cu-name-field %cu-getpwnam-cell "getpwnam" name 16)))
 (def sys-user-group (fn (_ name) (%cu-name-field %cu-getpwnam-cell "getpwnam" name 20)))
@@ -332,15 +332,15 @@
   (fn (_ name base)
     (do (if (null? (first %cu-getgrouplist-cell))
           (set-first! %cu-getgrouplist-cell
-            (list (%cu-dlsym (%cu-dlopen () 1) "getgrouplist")))
+            (list (cu-dlsym (cu-dlopen () 1) "getgrouplist")))
           ())
         (let ((f (first (first %cu-getgrouplist-cell))))
           (if (null? f) (list base)
-            (let ((gs (%str-make-raw 4096)) (ns (%str-make-raw 4)))
-              (do (%cu-ptr-set! (%cu-str->ptr ns) 0 1024 4)
-                  (%cu-ptr-call f name base (%cu-str->ptr gs) (%cu-str->ptr ns))
-                  (%cu-int32s (%cu-str->ptr gs)
-                    (let ((n (%cu-ptr-ref (%cu-str->ptr ns) 0 4)))
+            (let ((gs (str-make-raw 4096)) (ns (str-make-raw 4)))
+              (do (cu-ptr-set! (cu-str->ptr ns) 0 1024 4)
+                  (cu-ptr-call f name base (cu-str->ptr gs) (cu-str->ptr ns))
+                  (%cu-int32s (cu-str->ptr gs)
+                    (let ((n (cu-ptr-ref (cu-str->ptr ns) 0 4)))
                       (if (> n 1024) 1024 n))))))))))
 
 ; The process's groups.  Darwin's getgroups stops at NGROUPS_MAX, 16, and a
@@ -353,23 +353,23 @@
   (fn (_)
     (do (if (null? (first %cu-getgroups-cell))
           (set-first! %cu-getgroups-cell
-            (list (%cu-dlsym (%cu-dlopen () 1) "getgroups$DARWIN_EXTSN")))
+            (list (cu-dlsym (cu-dlopen () 1) "getgroups$DARWIN_EXTSN")))
           ())
         (let ((f (first (first %cu-getgroups-cell))))
           (if (null? f) (Sys getgroups)
-            (let ((n (%cu-ptr-call f 0 0)))
+            (let ((n (cu-ptr-call f 0 0)))
               (if (if (< n 1) #t (> n 2147483647)) (Sys getgroups)
-                (let ((gs (%str-make-raw (* 4 n))))
-                  (let ((m (%cu-ptr-call f n (%cu-str->ptr gs))))
+                (let ((gs (str-make-raw (* 4 n))))
+                  (let ((m (cu-ptr-call f n (cu-str->ptr gs))))
                     (if (if (< m 1) #t (> m n)) (Sys getgroups)
-                      (%cu-int32s (%cu-str->ptr gs) m)))))))))))
+                      (%cu-int32s (cu-str->ptr gs) m)))))))))))
 
 ; N four-byte ids from P, in order
 (def %cu-int32s
   (fn (_ p n)
     (def go
       (fn (self i acc)
-        (if (< i 0) acc (self (- i 1) (pair (%cu-ptr-ref p (* 4 i) 4) acc)))))
+        (if (< i 0) acc (self (- i 1) (pair (cu-ptr-ref p (* 4 i) 4) acc)))))
     (go (- n 1) ())))
 
 (def sys-setenv (fn (_ n v) (Sys setenv n v)))
@@ -471,12 +471,12 @@
 ; read that text.  It moves once: fd 3 is free after, and a file an applet
 ; opens may take it -- split's first file does -- which a second move would
 ; put on fd 0 as stdin.  When fd 3 is not open, there was no stdin to move.
-(def %cu-stdin-moved (list #f))
+(def cu-stdin-moved (list #f))
 
 (def cu-stdin-to-command!
   (fn (_)
-    (if (first %cu-stdin-moved) ()
-      (do (set-first! %cu-stdin-moved #t)
+    (if (first cu-stdin-moved) ()
+      (do (set-first! cu-stdin-moved #t)
           (if (< (sys-dup2 3 0) 0) () (sys-close 3))))))
 
 ; The size of the pieces an applet reads as it goes.  A list made from a piece
@@ -484,21 +484,21 @@
 ; one C frame to an element, so one much past 30,000 elements overflows the
 ; stack in the middle of a collect; pieces of 16K keep every such list well
 ; short of that.
-(def %cu-piece-bytes 16384)
+(def cu-piece-bytes 16384)
 
 ; The next piece of stdin as a run, an empty one at its end, for an applet
 ; that reads as it goes: head on the output of yes, which has no end.
 (def cu-stdin-chunk!
   (fn (_)
     (do (cu-stdin-to-command!)
-        (file-read-run 0 %cu-piece-bytes))))
+        (file-read-run 0 cu-piece-bytes))))
 
 ; FD's bytes to the end, or the io Err its read answered.  A file under /proc
 ; or /sys has no size for stat to give, so it is read until a read answers 0.
 (def file-read-to-end
   (fn (_ fd path)
     (let go ((acc ()))
-      (let ((buf (%str-make-raw 4096)))
+      (let ((buf (str-make-raw 4096)))
         (let ((r (File read fd buf 4096)))
           (match
             ((not (number? r)) (string-concat (reverse acc)))
@@ -520,7 +520,7 @@
 ; fails
 (def file-read-run
   (fn (_ fd n)
-    (def buf (%str-make-raw n))
+    (def buf (str-make-raw n))
     (def r (File read fd buf n))
     (if (if (number? r) (> r 0) #f) (pair buf r) (pair "" 0))))
 
@@ -541,42 +541,42 @@
 ; Nothing is collected while an applet runs unless it asks, and every step of
 ; a loop leaves an environment behind, so a loop over an input leaves garbage
 ; in proportion to the input.  A loop that walks an input sweeps as it goes:
-; (%cu-sweep-at I MASK) collects when I, the loop's own count of what it has
+; (cu-sweep-at I MASK) collects when I, the loop's own count of what it has
 ; walked, has none of MASK's bits set -- once every MASK+1 steps.  What the loop
 ; holds is in its arguments, and so rooted across the collect.  The cell turns
 ; the sweeps off, for a caller that measures what a loop allocates.
-(def %cu-heap-collect (prim-ref (lit heap) (lit collect)))
-(def %cu-sweeps-cell (list #t))
+(def cu-heap-collect (prim-ref (lit heap) (lit collect)))
+(def cu-sweeps-cell (list #t))
 
 ; the masks, so each sweep clears a million objects or a few: a step over a
 ; byte leaves hundreds, a step that makes a line tens of thousands, and a cheap
 ; step -- a line put out, a comparison, a copy -- one to a few thousand.  A
 ; sweep costs a walk of the whole heap, so a loop of cheap steps that swept as
 ; often as one of dear ones would spend its time walking.
-(def %cu-sweep-bytes 2047)
-(def %cu-sweep-lines 63)
-(def %cu-sweep-steps 511)
+(def cu-sweep-bytes 2047)
+(def cu-sweep-lines 63)
+(def cu-sweep-steps 511)
 
-(def %cu-sweep-at
+(def cu-sweep-at
   (fn (_ i mask)
-    (if (= (& i mask) 0) (%cu-sweep! i) ())))
+    (if (= (& i mask) 0) (cu-sweep! i) ())))
 
 ; the collect itself, once the step's bits say so.  A loop over bytes writes
-; the test out, (if (= (& I %cu-sweep-bytes) 0) (%cu-sweep! I) ()), since the
-; call to %cu-sweep-at would be the dearest thing in a step over one byte.
-(def %cu-sweep!
+; the test out, (if (= (& I cu-sweep-bytes) 0) (cu-sweep! I) ()), since the
+; call to cu-sweep-at would be the dearest thing in a step over one byte.
+(def cu-sweep!
   (fn (_ i)
-    (if (if (first %cu-sweeps-cell) (> i 0) #f) (%cu-heap-collect) ())))
+    (if (if (first cu-sweeps-cell) (> i 0) #f) (cu-heap-collect) ())))
 
 ; a step of a loop that keeps no count of its own -- a merge, which recurses
 ; into its own result -- counted on one shared counter instead
 (def %cu-sweep-ticks (list 0))
 
-(def %cu-sweep-tick!
+(def cu-sweep-tick!
   (fn (_ mask)
     (let ((n (+ (first %cu-sweep-ticks) 1)))
       (do (set-first! %cu-sweep-ticks n)
-          (%cu-sweep-at n mask)))))
+          (cu-sweep-at n mask)))))
 
 ; --- NUL bytes ----------------------------------------------------------------
 ;
@@ -589,7 +589,7 @@
 ; first one.  The rule below: carry the buffer and its length, index it with
 ; byte-at, write with an explicit count.
 ;
-; %str-make-raw answers a SPACE-filled buffer, so the zero bytes come from
+; str-make-raw answers a SPACE-filled buffer, so the zero bytes come from
 ; /dev/zero, read once and kept.
 
 (def %cu-zeros-cell (list ()))
@@ -598,7 +598,7 @@
   (fn (_)
     (if (not (null? (first %cu-zeros-cell))) (first (first %cu-zeros-cell))
       (let ((fd (file-open-read "/dev/zero")))
-        (def b (%str-make-raw 65536))
+        (def b (str-make-raw 65536))
         (do (File read fd b 65536)
             (file-close fd)
             (set-first! %cu-zeros-cell (list b))
@@ -607,7 +607,7 @@
 ; File's read and write, resolved once.  Two methods of one class called in
 ; turn pay the class's whole lookup on every call, thousands of objects; a
 ; resolved method is called directly, with the class as its first argument.
-(def %cu-file-read (method-of File (lit read)))
+(def cu-file-read (method-of File (lit read)))
 (def %cu-file-write (method-of File (lit write)))
 
 ; N random bytes to FD: the system's, read from /dev/urandom a buffer of up to
@@ -621,13 +621,13 @@
     (if (<= n 0) ()
       (let ((src (file-open-read "/dev/urandom")))
         (def chunk (if (> n 65536) 65536 n))
-        (def buf (%str-make-raw chunk))
+        (def buf (str-make-raw chunk))
         (def go
           (fn (self i left)
             (if (<= left 0) ()
-              (let ((got (%cu-file-read File src buf (if (> left chunk) chunk left))))
+              (let ((got (cu-file-read File src buf (if (> left chunk) chunk left))))
                 (if (<= got 0) ()
-                  (do (%cu-sweep-at i %cu-sweep-steps)
+                  (do (cu-sweep-at i cu-sweep-steps)
                       (%cu-file-write File fd buf got)
                       (self (+ i 1) (- left got))))))))
         (do (go 0 n) (file-close src))))))
@@ -641,7 +641,7 @@
       (fn (self i left)
         (if (<= left 0) ()
           (let ((k (if (> left 65536) 65536 left)))
-            (do (%cu-sweep-at i %cu-sweep-steps)
+            (do (cu-sweep-at i cu-sweep-steps)
                 (File write fd (%cu-zeros) k)
                 (self (+ i 1) (- left k)))))))
     (go 0 n)))
@@ -654,23 +654,23 @@
   (fn (_ fd s delim)
     (do (File write fd s (byte-len s))
         (if (= delim 0) (file-write-nuls fd 1)
-          (File write fd (%cu-b->s delim) 1)))))
+          (File write fd (cu-b->s delim) 1)))))
 
 ; A RUN is text and the count of its bytes: (TEXT . COUNT).  The count is
 ; carried rather than asked of the text, which would stop at the first NUL,
-; and it is what the counted write needs.  %cu-run-of packs text that holds
-; none; %cu-run-bytes packs the bytes a caller gathered, in order.
-(def %cu-run-of (fn (_ s) (pair s (byte-len s))))
+; and it is what the counted write needs.  cu-run-of packs text that holds
+; none; cu-run-bytes packs the bytes a caller gathered, in order.
+(def cu-run-of (fn (_ s) (pair s (byte-len s))))
 
-(def %cu-run-bytes (fn (_ bs n) (pair (bytes->str bs) n)))
+(def cu-run-bytes (fn (_ bs n) (pair (bytes->str bs) n)))
 
 ; TEXT as a run: a run as it is, a string packed
-(def %cu-as-run (fn (_ t) (if (pair? t) t (%cu-run-of t))))
+(def cu-as-run (fn (_ t) (if (pair? t) t (cu-run-of t))))
 
 ; run R's bytes onto the list ACC, in order.  The walk never sweeps: its list
 ; may hold a whole input, and a collect with a list that long live overflows
 ; the C stack marking it.
-(def %cu-run-list
+(def cu-run-list
   (fn (_ r acc)
     (def t (first r))
     (def go
@@ -685,9 +685,9 @@
 ; caller reading several files sees one stream.  A field holds no DELIM
 ; by construction, so each is an ordinary string once cut -- substring
 ; would stop at a NUL, so a slice is built byte by byte.
-(def %cu-fd-fields
+(def cu-fd-fields
   (fn (_ fd delim partial)
-    (def buf (%str-make-raw 65536))
+    (def buf (str-make-raw 65536))
     (def slice
       (fn (_ from to)
         (let ((go (fn (self k acc)
@@ -702,7 +702,7 @@
             ; with it, so the scan sweeps as often as a loop of cheap steps
             (let ((scan
                     (fn (self2 i start p acc2)
-                      (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+                      (do (if (= (& i cu-sweep-steps) 0) (cu-sweep! i) ())
                         (if (>= i n) (pair (string-append p (slice start i)) acc2)
                           (if (= (byte-at buf i) delim)
                             (self2 (+ i 1) (+ i 1) ""
@@ -722,7 +722,7 @@
     ; A terminal is not a stream of NUL-separated items, and reading one
     ; waits for a writer that is not coming.  Nothing, rather.
     (if (sys-isatty 0) ()
-      (let ((r (%cu-fd-fields 0 delim "")))
+      (let ((r (cu-fd-fields 0 delim "")))
         (append (first r)
           (if (= (byte-len (rest r)) 0) () (list (rest r))))))))
 
@@ -735,7 +735,7 @@
 
 ; An error's label, by whichever name the platform has for the accessor:
 ; (Err tag e) up to v0.16.0, (Err label e) after it.  Asked once, at load.
-(def %cu-err-label
+(def cu-err-label
   (guard (_ (fn (_ e) (Err tag e)))
     (do (Err label "probe")
         (fn (_ e) (Err label e)))))
@@ -743,14 +743,14 @@
 ; THUNK's value, or the io Err it raised; any other raise goes on up
 (def file-or-err
   (fn (_ thunk)
-    (guard (e (if (eq? (%cu-err-label e) (lit io)) e (error e)))
+    (guard (e (if (eq? (cu-err-label e) (lit io)) e (error e)))
       (thunk))))
 
 ; the C library's words for errno N, strerror's: what busybox prints after a
 ; failed call, where the platform's own texts word some of them otherwise
 ; (musl's "No such device" for ENODEV, "I/O error" for EIO)
 (def libc-strerror
-  (fn (_ n) (%cu-ptr->str (%cu-int->ptr (%cu-ptr-call (%cu-dlsym (%cu-dlopen () 1) "strerror") n)))))
+  (fn (_ n) (cu-ptr->str (cu-int->ptr (cu-ptr-call (cu-dlsym (cu-dlopen () 1) "strerror") n)))))
 
 (def file-err-text
   (fn (_ e) (%cu-after-colon (e msg) 0)))
@@ -799,7 +799,7 @@
   (fn (_)
     (do (if (null? (first %cu-lchown-cell))
           (set-first! %cu-lchown-cell
-            (list (%cu-dlsym (%cu-dlopen () 1) "lchown")))
+            (list (cu-dlsym (cu-dlopen () 1) "lchown")))
           ())
         (first (first %cu-lchown-cell)))))
 
@@ -809,7 +809,7 @@
   (fn (_ path uid gid)
     (let ((f (%cu-lchown-fn)))
       (if (null? f) ()
-        (let ((r (%cu-ptr-call f path uid gid)))
+        (let ((r (cu-ptr-call f path uid gid)))
           (if (< r 0) (Err from-errno (Err errno-of r) (lit lchown) path) 0))))))
 (def file-link (fn (_ target path) (File link target path)))
 (def file-symlink (fn (_ target path) (File symlink target path)))
@@ -822,14 +822,14 @@
 ; platforms lay a timeval out as 16 bytes with the seconds a little-endian i64
 ; at offset 0, so all 32 bytes are written, the microseconds and padding as
 ; zeros -- a raw string starts out filled with spaces, not zeros.
-(def %cu-str->ptr (prim-ref (lit str) (lit ->ptr)))
-(def %cu-ptr-set! (prim-ref (lit ptr) (lit set!)))
+(def cu-str->ptr (prim-ref (lit str) (lit ->ptr)))
+(def cu-ptr-set! (prim-ref (lit ptr) (lit set!)))
 (def file-set-times
   (fn (_ path atime mtime)
-    (def buf (%str-make-raw 32))
-    (def at (%cu-str->ptr buf))
+    (def buf (str-make-raw 32))
+    (def at (cu-str->ptr buf))
     (def zero
-      (fn (self i) (if (< i 32) (do (%cu-ptr-set! at i 0 1) (self (+ i 1))) ())))
+      (fn (self i) (if (< i 32) (do (cu-ptr-set! at i 0 1) (self (+ i 1))) ())))
     ; A time before 1970 is negative, and its bytes are the complements of the
     ; bytes of -v-1 -- two's complement without a 64-bit bigint.
     (def put
@@ -838,7 +838,7 @@
           (let ((go (fn (self i m)
                       (if (< i 8)
                         (let ((b (% m 256)))
-                          (do (%cu-ptr-set! at (+ off i) (if neg? (- 255 b) b) 1)
+                          (do (cu-ptr-set! at (+ off i) (if neg? (- 255 b) b) 1)
                               (self (+ i 1) (/ (- m b) 256))))
                         ()))))
             (go 0 (if neg? (- (- 0 v) 1) v))))))
@@ -851,7 +851,7 @@
 (def file-statfs (fn (_ path) (File statfs path)))
 
 ; the C string of at most N bytes at OFF in BUF -- a name a syscall wrote
-(def %cu-cstr-at
+(def cu-cstr-at
   (fn (_ buf off n)
     (def go
       (fn (self i acc)
@@ -885,7 +885,7 @@
 ; Linux the second word high, as stat.c has it (unmeasured).
 (def file-statfs-full
   (fn (_ path)
-    (def buf (%str-make-raw 2304))
+    (def buf (str-make-raw 2304))
     (def r (%cu-sys-statfs path buf))
     (if (< r 0) ()
       (let ((d (Struct unpack
@@ -907,10 +907,10 @@
         (def hi (if os-darwin? (get (lit fsid0)) (get (lit fsid1))))
         (def lo (if os-darwin? (get (lit fsid1)) (get (lit fsid0))))
         (def typename
-          (if os-darwin? (%cu-cstr-at buf 72 16)
+          (if os-darwin? (cu-cstr-at buf 72 16)
             (let ((e (Assoc entry (get (lit type)) %cu-fs-magic-names)))
               (if (null? e)
-                (string-concat (list "UNKNOWN (0x" (%cu-hexs (get (lit type))) ")"))
+                (string-concat (list "UNKNOWN (0x" (cu-hexs (get (lit type))) ")"))
                 (rest e)))))
         (append
           (list (pair (lit fsid) (+ (* hi 4294967296) lo))
@@ -968,7 +968,7 @@
   (fn (_)
     (if os-darwin?
       (let ((n (syscall %cu-getfsstat64 0 0 2)))              ; MNT_NOWAIT
-        (def buf (%str-make-raw (* n 2168)))
+        (def buf (str-make-raw (* n 2168)))
         (def got (syscall %cu-getfsstat64 buf (* n 2168) 2))
         ; the words at their offsets, read byte by byte: a record sits
         ; kilobytes into the buffer, past what a pad should walk
@@ -977,9 +977,9 @@
             (def at (* i 2168))
             (def u32 (fn (_ off) (%cu-u32-at buf (+ at off))))
             (def u64 (fn (_ off) (%cu-u64-at buf (+ at off))))
-            (list (pair (lit from) (%cu-cstr-at buf (+ at 1112) 1024))
-                  (pair (lit on) (%cu-cstr-at buf (+ at 88) 1024))
-                  (pair (lit typename) (%cu-cstr-at buf (+ at 72) 16))
+            (list (pair (lit from) (cu-cstr-at buf (+ at 1112) 1024))
+                  (pair (lit on) (cu-cstr-at buf (+ at 88) 1024))
+                  (pair (lit typename) (cu-cstr-at buf (+ at 72) 16))
                   (pair (lit fsid) (+ (* (u32 48) 4294967296) (u32 52)))
                   (pair (lit frsize) (u32 0))
                   (pair (lit bsize) (u32 0))
@@ -992,14 +992,14 @@
         (if (< got 0) () (go 0 ())))
       (let ((text (guard (_ "") (file-read-all "/proc/self/mounts"))))
         (map (fn (_ ws)
-               (let ((on (%cu-mount-unescape (%cu-nth 1 ws))))
+               (let ((on (%cu-mount-unescape (cu-nth 1 ws))))
                  (append
                    (list (pair (lit from) (%cu-mount-unescape (first ws)))
                          (pair (lit on) on)
-                         (pair (lit typename) (%cu-nth 2 ws)))
+                         (pair (lit typename) (cu-nth 2 ws)))
                    (let ((fs (file-statfs-full on))) (if (null? fs) () fs)))))
           (filter (fn (_ ws) (>= (length ws) 3))
-            (map (fn (_ l) (%cu-words-line l)) (%cu-lines text))))))))
+            (map (fn (_ l) (cu-words-line l)) (cu-lines text))))))))
 
 ; the file type a path has WITHOUT following it: the one question ln,
 ; readlink and realpath ask, and the one File stat cannot answer.  A
@@ -1029,12 +1029,12 @@
 ; the wide stat WITHOUT following a link: ls -l shows a link as itself
 (def file-lstat-full
   (fn (_ path)
-    (def buf (%str-make-raw 160))
+    (def buf (str-make-raw 160))
     (def r (%cu-sys-lstat path buf))
     (if (< r 0) ()
       (let ((d (Struct unpack stat-layout buf)))
         (pair (pair (lit file-type)
-                (%cu-mode-file-type (rest (Assoc entry (lit mode) d))))
+                (cu-mode-file-type (rest (Assoc entry (lit mode) d))))
           d)))))
 
 ; Binary-safe copy: a 64K fd-level loop driven by raw byte counts, because a
@@ -1115,8 +1115,8 @@
     (def bytes
       (match ((= n 0) ())
              ((= n 1) (split (first parts) 4 ()))
-             ((= n 2) (pair (first parts) (split (%cu-nth 1 parts) 3 ())))
-             ((= n 3) (pair (first parts) (pair (%cu-nth 1 parts) (split (%cu-nth 2 parts) 2 ()))))
+             ((= n 2) (pair (first parts) (split (cu-nth 1 parts) 3 ())))
+             ((= n 3) (pair (first parts) (pair (cu-nth 1 parts) (split (cu-nth 2 parts) 2 ()))))
              (#t parts)))
     (if (if (null? bytes) #t (List any? (fn (_ b) (> b 255)) bytes)) () bytes)))
 
@@ -1145,21 +1145,21 @@
 ; network order on both
 (def net-sockaddr
   (fn (_ quad port)
-    (def s (%str-make-raw 16))
-    (def p (%cu-str->ptr s))
-    (let go ((i 0)) (when (< i 16) (do (%cu-ptr-set! p i 0 1) (go (+ i 1)))))
-    (if os-darwin? (do (%cu-ptr-set! p 0 16 1) (%cu-ptr-set! p 1 2 1)) (%cu-ptr-set! p 0 2 1))
-    (%cu-ptr-set! p 2 (/ (- port (% port 256)) 256) 1)
-    (%cu-ptr-set! p 3 (% port 256) 1)
+    (def s (str-make-raw 16))
+    (def p (cu-str->ptr s))
+    (let go ((i 0)) (when (< i 16) (do (cu-ptr-set! p i 0 1) (go (+ i 1)))))
+    (if os-darwin? (do (cu-ptr-set! p 0 16 1) (cu-ptr-set! p 1 2 1)) (cu-ptr-set! p 0 2 1))
+    (cu-ptr-set! p 2 (/ (- port (% port 256)) 256) 1)
+    (cu-ptr-set! p 3 (% port 256) 1)
     (let go ((i 0) (bs (net-aton quad)))
-      (unless (null? bs) (do (%cu-ptr-set! p (+ 4 i) (first bs) 1) (go (+ i 1) (rest bs)))))
+      (unless (null? bs) (do (cu-ptr-set! p (+ 4 i) (first bs) 1) (go (+ i 1) (rest bs)))))
     s))
 
 ; a sockaddr_in's (QUAD . PORT)
 (def net-sockaddr-read
   (fn (_ s)
-    (pair (string-concat (list (%cu-int->str (byte-at s 4)) "." (%cu-int->str (byte-at s 5)) "."
-                               (%cu-int->str (byte-at s 6)) "." (%cu-int->str (byte-at s 7))))
+    (pair (string-concat (list (cu-int->str (byte-at s 4)) "." (cu-int->str (byte-at s 5)) "."
+                               (cu-int->str (byte-at s 6)) "." (cu-int->str (byte-at s 7))))
           (+ (* (byte-at s 2) 256) (byte-at s 3)))))
 
 ; the address FD is bound to, (QUAD . PORT), or nil when FD is not an IPv4
@@ -1168,10 +1168,10 @@
 (def net-sock-addr
   (fn (_ fd)
     (def sa (net-sockaddr "0.0.0.0" 0))
-    (def len (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr len) 0 16 4)
-    (def r (Sys %sign-fold (%cu-ptr-call (%cu-dlsym (%cu-dlopen () 1) "getsockname")
-                                          fd (%cu-str->ptr sa) (%cu-str->ptr len))))
+    (def len (str-make-raw 4))
+    (cu-ptr-set! (cu-str->ptr len) 0 16 4)
+    (def r (Sys %sign-fold (cu-ptr-call (cu-dlsym (cu-dlopen () 1) "getsockname")
+                                          fd (cu-str->ptr sa) (cu-str->ptr len))))
     (if (if (< r 0) #t (not (= (byte-at sa (if os-darwin? 1 0)) 2))) () (net-sockaddr-read sa))))
 
 ; a UDP socket bound to QUAD:PORT, or the io Err the bind failed with.  With
@@ -1179,14 +1179,14 @@
 ; address with a socket that holds it, as udpsvd's and tftpd's do
 (def net-udp-open
   (fn (_ quad port reuse?)
-    (def c (fn (_ name) (%cu-dlsym (%cu-dlopen () 1) name)))
-    (def fd (Sys %sign-fold (%cu-ptr-call (c "socket") 2 2 0)))
+    (def c (fn (_ name) (cu-dlsym (cu-dlopen () 1) name)))
+    (def fd (Sys %sign-fold (cu-ptr-call (c "socket") 2 2 0)))
     (when reuse?
-      (let ((one (%str-make-raw 4)) (sol (if os-darwin? 65535 1)))
-        (do (%cu-ptr-set! (%cu-str->ptr one) 0 1 4)
-            (%cu-ptr-call (c "setsockopt") fd sol (if os-darwin? 4 2) (%cu-str->ptr one) 4)
-            (when os-darwin? (%cu-ptr-call (c "setsockopt") fd sol 512 (%cu-str->ptr one) 4)))))
-    (def r (Sys %sign-fold (%cu-ptr-call (c "bind") fd (%cu-str->ptr (net-sockaddr quad port)) 16)))
+      (let ((one (str-make-raw 4)) (sol (if os-darwin? 65535 1)))
+        (do (cu-ptr-set! (cu-str->ptr one) 0 1 4)
+            (cu-ptr-call (c "setsockopt") fd sol (if os-darwin? 4 2) (cu-str->ptr one) 4)
+            (when os-darwin? (cu-ptr-call (c "setsockopt") fd sol 512 (cu-str->ptr one) 4)))))
+    (def r (Sys %sign-fold (cu-ptr-call (c "bind") fd (cu-str->ptr (net-sockaddr quad port)) 16)))
     (if (< r 0) (Err from-errno (Err errno-of r) (lit bind) ()) fd)))
 
 ; an inetd service's socket: fd 0 when a caller put it there, else fd 3, where
@@ -1202,12 +1202,12 @@
 
 ; the byte B as a one-byte string.  bytes->str packs the byte itself; a
 ; character of that code would be written in UTF-8, as two bytes above 0x7F.
-(def %cu-b->s
+(def cu-b->s
   (fn (_ b) (bytes->str (list b))))
 
 (def %cu-lines-go
   (fn (self s end i start acc)
-    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+    (do (if (= (& i cu-sweep-bytes) 0) (cu-sweep! i) ())
       (if (>= i end)
         (if (> i start)
           (reverse (pair (substring s start i) acc))
@@ -1216,10 +1216,10 @@
           (self s end (+ i 1) (+ i 1) (pair (substring s start i) acc))
           (self s end (+ i 1) start acc))))))
 
-(def %cu-lines
+(def cu-lines
   (fn (_ s) (%cu-lines-go s (byte-len s) 0 0 ())))
 
-(def %cu-words-line
+(def cu-words-line
   (fn (_ s)
     (def end (byte-len s))
     (def go
@@ -1236,7 +1236,7 @@
 ; N in decimal.  Its digits are packed as bytes by bytes->str, at a third of
 ; what the list->string conversion costs; the tower's % and / keep a bignum
 ; right.
-(def %cu-int->str
+(def cu-int->str
   (fn (_ n)
     (if (= n 0) "0"
       (let ((go (fn (self t acc)
@@ -1246,7 +1246,7 @@
           (bytes->str (pair 45 (go (- 0 n) ())))
           (bytes->str (go n ())))))))
 
-(def %cu-hexs
+(def cu-hexs
   (fn (_ n)
     (if (= n 0) "0"
       (let ((go (fn (self t acc)
@@ -1256,5 +1256,5 @@
                         (pair (if (< d 10) (+ 48 d) (+ 87 d)) acc)))))))
         (go n ())))))
 
-(def %cu-nth
+(def cu-nth
   (fn (self n l) (if (= n 0) (first l) (self (- n 1) (rest l)))))

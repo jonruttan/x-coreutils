@@ -87,7 +87,7 @@
             ((%ip-alnum? (byte-at s i)) ())
             (#t (pair v #f))))))))
 
-(def %ip-hex2 (fn (_ b) (%cu-pad-zero (%cvt b %cu-string-type 16) 2)))
+(def %ip-hex2 (fn (_ b) (cu-pad-zero (cvt b cu-string-type 16) 2)))
 
 ; the little-endian number BYTES make
 (def %ip-num
@@ -116,22 +116,22 @@
 (def %ip-link-type
   (fn (_ type)
     (let ((e (List find (fn (_ e) (= (first e) type)) %ip-link-types)))
-      (if (null? e) (string-concat (list "[" (%cu-int->str type) "]")) (rest e)))))
+      (if (null? e) (string-concat (list "[" (cu-int->str type) "]")) (rest e)))))
 
 ; ll_addr_n2a: a link-layer address, hex pairs, or dotted for a tunnel's four bytes
 (def %ip-ll-addr
   (fn (_ bytes type)
     (if (if (= (length bytes) 4) (if (= type 768) #t (if (= type 776) #t (= type 778))) #f)
-      (Str8 join "." (map %cu-int->str bytes))
+      (Str8 join "." (map cu-int->str bytes))
       (Str8 join ":" (map %ip-hex2 bytes)))))
 
 ; rt_addr_n2a: an address of FAMILY, as inet_ntop writes it
 (def %ip-ntoa
   (fn (_ family bytes)
     (match
-      ((= family 2) (Str8 join "." (map %cu-int->str (List take 4 (%ip-pad16 bytes)))))
+      ((= family 2) (Str8 join "." (map cu-int->str (List take 4 (%ip-pad16 bytes)))))
       ((= family 10)
-        (let ((buf (%str-make-raw 16)))
+        (let ((buf (str-make-raw 16)))
           (do (map (fn (_ e) (%inet-set! buf (first e) (rest e) 1)) (%ip-indexed (%ip-pad16 bytes)))
               (%inet-ntop6-bytes buf))))
       (#t "???"))))
@@ -146,20 +146,20 @@
   (fn (_ f file own)
     (def text (file-or-err (fn (_) (file-read-unsized (string-append "/etc/iproute2/rt_" file)))))
     (if (Err err? text) own
-      (let go ((lines (%cu-lines text)) (no 1) (acc own))
+      (let go ((lines (cu-lines text)) (no 1) (acc own))
         (if (null? lines) acc
           (let ((ws (%inet-words (first (Str8 split "#" (first lines))))))
             (if (null? (if (null? ws) () (rest ws))) (go (rest lines) (+ no 1) acc)
               (let ((id (%ip-strtou (first ws))))
                 (if (if (null? id) #t (> (first id) 1023))
-                  (do (%ip-say f (string-concat (list "database " file " is corrupted at line " (%cu-int->str no)))) acc)
+                  (do (%ip-say f (string-concat (list "database " file " is corrupted at line " (cu-int->str no)))) acc)
                   (go (rest lines) (+ no 1) (pair (pair (first id) (first (rest ws))) acc)))))))))))
 
 ; rtnl_*_n2a: ID's name in TAB, else its number
 (def %ip-name
   (fn (_ tab id)
     (let ((e (List find (fn (_ e) (= (first e) id)) tab)))
-      (if (null? e) (%cu-int->str id) (rest e)))))
+      (if (null? e) (cu-int->str id) (rest e)))))
 
 ; rtnl_a2n: the lowest id TAB names NAME, else NAME's number up to 1023 (RT_TABLE_MAX), else nil
 (def %ip-id
@@ -204,7 +204,7 @@
       ((>= (%dp-find name 0 #\:) 0)
         (let ((buf (%inet-zeros 16)))
           (if (if (if (= family 0) #t (= family 10)) (%inet-pton6! buf 0 name) #f)
-            (list #t 10 (%ip-bytes (%cu-str->ptr buf) 0 16) 16)
+            (list #t 10 (%ip-bytes (cu-str->ptr buf) 0 16) 16)
             (list #f 10 zero 0))))
       ((not (if (= family 0) #t (= family 2))) (list #f 0 zero 0))
       (#t (let ((q (%ip-quad name))) (list (first q) 2 (%ip-pad16 (rest q)) (if (first q) 4 0)))))))
@@ -251,8 +251,8 @@
 
 ; --- netlink ----------------------------------------------------------------------
 
-(def %ip-off (fn (_ p o) (%cu-int->ptr (+ (%td-ptr->int p) o))))
-(def %ip-bytes (fn (_ p at n) (map (fn (_ k) (%cu-ptr-ref p (+ at k) 1)) (List range 0 n))))
+(def %ip-off (fn (_ p o) (cu-int->ptr (+ (%td-ptr->int p) o))))
+(def %ip-bytes (fn (_ p at n) (map (fn (_ k) (cu-ptr-ref p (+ at k) 1)) (List range 0 n))))
 (def %ip-align (fn (_ n) (& (+ n 3) (^ 3 4294967295))))
 
 ; the attribute TYPE of ATTRS: (TYPE . BYTES), or nil
@@ -264,7 +264,7 @@
   (fn (_ p at end want)
     (let go ((a at) (acc ()))
       (if (> (+ a 4) end) acc
-        (let ((len (%cu-ptr-ref p a 2)) (type (%cu-ptr-ref p (+ a 2) 2)))
+        (let ((len (cu-ptr-ref p a 2)) (type (cu-ptr-ref p (+ a 2) 2)))
           (if (if (< len 4) #t (> (+ a len) end)) acc
             (go (+ a (%ip-align len))
                 (if (null? (List find (fn (_ t) (= t type)) want)) acc
@@ -279,7 +279,7 @@
 (def %ip-link-of
   (fn (_ p len kind)
     (if (if (if (= kind 16) #t (= kind 17)) (>= len 32) #f)
-      (list kind (%inet-int32 (%cu-ptr-ref p 20 4)) (%cu-ptr-ref p 18 2) (%cu-ptr-ref p 24 4)
+      (list kind (%inet-int32 (cu-ptr-ref p 20 4)) (cu-ptr-ref p 18 2) (cu-ptr-ref p 24 4)
             (%ip-attrs p 32 len %ip-link-want))
       ())))
 
@@ -287,18 +287,18 @@
 (def %ip-addr-of
   (fn (_ p len kind)
     (if (if (if (= kind 20) #t (= kind 21)) (>= len 24) #f)
-      (list kind (%cu-ptr-ref p 16 1) (%cu-ptr-ref p 17 1) (%cu-ptr-ref p 18 1) (%cu-ptr-ref p 19 1)
-            (%cu-ptr-ref p 20 4) (%ip-attrs p 24 len %ip-addr-want))
+      (list kind (cu-ptr-ref p 16 1) (cu-ptr-ref p 17 1) (cu-ptr-ref p 18 1) (cu-ptr-ref p 19 1)
+            (cu-ptr-ref p 20 4) (%ip-attrs p 24 len %ip-addr-want))
       ())))
 
 ; xrtnl_open: a NETLINK_ROUTE socket, bound
 (def %ip-open
   (fn (_ f)
-    (def fd (%in-call (%cu-ptr-call (%in-c "socket") 16 3 0)))
+    (def fd (%in-call (cu-ptr-call (%in-c "socket") 16 3 0)))
     (when (< fd 0) (%ip-die f (string-append "socket: " (libc-strerror (Err errno-of fd)))))
     (def sa (%inet-zeros 12))
     (%inet-set! sa 0 16 2)
-    (let ((r (%in-call (%cu-ptr-call (%in-c "bind") fd (%cu-str->ptr sa) 12))))
+    (let ((r (%in-call (cu-ptr-call (%in-c "bind") fd (cu-str->ptr sa) 12))))
       (if (< r 0) (%ip-die f (string-append "bind: " (libc-strerror (Err errno-of r)))) fd))))
 
 ; xrtnl_wilddump_request then xrtnl_dump_filter: the kernel's KIND messages
@@ -311,48 +311,48 @@
     (%inet-set! req 6 769 2)
     (%inet-set! req 8 seq 4)
     (%inet-set! req 16 family 1)
-    (let ((r (%in-call (%cu-ptr-call (%in-c "write") fd (%cu-str->ptr req) 20))))
+    (let ((r (%in-call (cu-ptr-call (%in-c "write") fd (cu-str->ptr req) 20))))
       (when (< r 0) (%ip-die f (string-append "write error: " (libc-strerror (Err errno-of r))))))
     (%ip-dump-read f fd seq of)))
 
 ; xrtnl_dump_filter: the messages to SEQ up to NLMSG_DONE, each as OF reads it
 (def %ip-dump-read
   (fn (_ f fd seq of)
-    (def buf (%str-make-raw 32768))
+    (def buf (str-make-raw 32768))
     (let go ((acc ()))
-      (let ((n (%in-call (%cu-ptr-call (%in-c "recv") fd (%cu-str->ptr buf) 32768 0))))
+      (let ((n (%in-call (cu-ptr-call (%in-c "recv") fd (cu-str->ptr buf) 32768 0))))
         (match
           ((< n 0) (do (%ip-say f (string-append "OVERRUN: " (libc-strerror (Err errno-of n)))) (go acc)))
           ((= n 0) (do (%ip-say f "EOF on netlink") (%ip-die f "dump terminated")))
-          (#t (let ((r (%ip-take f (%cu-str->ptr buf) n seq of acc)))
+          (#t (let ((r (%ip-take f (cu-str->ptr buf) n seq of acc)))
                 (if (first r) (reverse (rest r)) (go (rest r))))))))))
 
 ; the messages of the N bytes at P that answer SEQ: (DONE? . ACC)
 (def %ip-take
   (fn (_ f p n seq of acc)
     (let go ((o 0) (acc acc))
-      (let ((len (if (> (+ o 16) n) 0 (%cu-ptr-ref p o 4))))
+      (let ((len (if (> (+ o 16) n) 0 (cu-ptr-ref p o 4))))
         (match
           ((if (< len 16) #t (> (+ o len) n)) (pair #f acc))
-          ((not (= (%cu-ptr-ref p (+ o 8) 4) seq)) (go (+ o (%ip-align len)) acc))
-          ((= (%cu-ptr-ref p (+ o 4) 2) 3) (pair #t acc))
-          ((= (%cu-ptr-ref p (+ o 4) 2) 2) (%ip-nl-error f p o len))
-          (#t (let ((m (of (%ip-off p o) len (%cu-ptr-ref p (+ o 4) 2))))
+          ((not (= (cu-ptr-ref p (+ o 8) 4) seq)) (go (+ o (%ip-align len)) acc))
+          ((= (cu-ptr-ref p (+ o 4) 2) 3) (pair #t acc))
+          ((= (cu-ptr-ref p (+ o 4) 2) 2) (%ip-nl-error f p o len))
+          (#t (let ((m (of (%ip-off p o) len (cu-ptr-ref p (+ o 4) 2))))
                 (go (+ o (%ip-align len)) (if (null? m) acc (pair m acc))))))))))
 
 ; NLMSG_ERROR in a dump
 (def %ip-nl-error
   (fn (_ f p o len)
     (if (< len 36) (%ip-say f "ERROR truncated")
-      (%ip-say f (string-append "RTNETLINK answers: " (libc-strerror (- 0 (%inet-int32 (%cu-ptr-ref p (+ o 16) 4)))))))
+      (%ip-say f (string-append "RTNETLINK answers: " (libc-strerror (- 0 (%inet-int32 (cu-ptr-ref p (+ o 16) 4)))))))
     (%ip-die f "dump terminated")))
 
 ; --- the links --------------------------------------------------------------------
 
-(def %ip-l-index (fn (_ l) (%cu-nth 1 l)))
-(def %ip-l-flags (fn (_ l) (%cu-nth 3 l)))
+(def %ip-l-index (fn (_ l) (cu-nth 1 l)))
+(def %ip-l-flags (fn (_ l) (cu-nth 3 l)))
 (def %ip-l-name
-  (fn (_ l) (let ((e (%ip-attr (%cu-nth 4 l) 3))) (if (null? e) () (%ip-cstr (rest e))))))
+  (fn (_ l) (let ((e (%ip-attr (cu-nth 4 l) 3))) (if (null? e) () (%ip-cstr (rest e))))))
 
 (def %ip-link-at (fn (_ f idx) (List find (fn (_ l) (= (%ip-l-index l) idx)) (%ip-get f (lit links)))))
 
@@ -361,7 +361,7 @@
   (fn (_ f idx)
     (let ((l (%ip-link-at f idx)))
       (match ((= idx 0) "*")
-             ((if (null? l) #t (null? (%ip-l-name l))) (string-append "if" (%cu-int->str idx)))
+             ((if (null? l) #t (null? (%ip-l-name l))) (string-append "if" (cu-int->str idx)))
              (#t (%ip-l-name l))))))
 
 ; ll_index_to_flags
@@ -371,7 +371,7 @@
 ; xll_name_to_index: if_nametoindex, or the run ended
 (def %ip-dev-index
   (fn (_ f name)
-    (let ((i (%in-call (%cu-ptr-call (%in-c "if_nametoindex") name))))
+    (let ((i (%in-call (cu-ptr-call (%in-c "if_nametoindex") name))))
       (if (<= i 0) (%ip-die f (string-concat (list "can't find device '" name "'"))) i))))
 
 (def %ip-sl (fn (_ f) (if (%ip-get f (lit oneline)) "\\" "\n")))
@@ -388,7 +388,7 @@
     (def left (List fold (fn (_ n e) (& n (^ (first e) 4294967295))) f on))
     (string-concat
       (list "<" (if (if (= (& flags 1) 0) #f (= (& flags 64) 0)) "NO-CARRIER," "")
-            (Str8 join "," (map rest on)) (if (= left 0) "" (%cvt left %cu-string-type 16))
+            (Str8 join "," (map rest on)) (if (= left 0) "" (cvt left cu-string-type 16))
             (if mdown ",M-DOWN" "") "> "))))
 
 (def %ip-operstates (list "UNKNOWN" "NOTPRESENT" "DOWN" "LOWERLAYERDOWN" "TESTING" "DORMANT" "UP"))
@@ -396,15 +396,15 @@
 ; print_queuelen: SIOCGIFTXQLEN on a stream socket, "qlen N" where it is not 0
 (def %ip-qlen
   (fn (_ f name)
-    (def fd (%in-call (%cu-ptr-call (%in-c "socket") 2 1 0)))
+    (def fd (%in-call (cu-ptr-call (%in-c "socket") 2 1 0)))
     (if (< fd 0) ""
       (let ((r (%if-req name)))
-        (let ((n (%in-call (%cu-ptr-call (%in-c "ioctl") fd 35138 (%cu-str->ptr r)))))
-          (%cu-ptr-call (%in-c "close") fd)
+        (let ((n (%in-call (cu-ptr-call (%in-c "ioctl") fd 35138 (cu-str->ptr r)))))
+          (cu-ptr-call (%in-c "close") fd)
           (match
             ((< n 0) (do (%ip-say f (string-append "ioctl 0x8942 failed: " (libc-strerror (Err errno-of n)))) ""))
             ((= (%if-ref r 16 4) 0) "")
-            (#t (string-append "qlen " (%cu-int->str (%inet-int32 (%if-ref r 16 4)))))))))))
+            (#t (string-append "qlen " (cu-int->str (%inet-int32 (%if-ref r 16 4)))))))))))
 
 ; "@LINK: " for a link that has one, and M-DOWN where that one is down
 (def %ip-iflink
@@ -423,8 +423,8 @@
 ; the link-layer line: "    link/TYPE ADDR brd|peer ADDR"
 (def %ip-ll-line
   (fn (_ f l)
-    (def attrs (%cu-nth 4 l))
-    (def type (%cu-nth 2 l))
+    (def attrs (cu-nth 4 l))
+    (def type (cu-nth 2 l))
     (string-concat
       (list (%ip-sl f) "    link/" (%ip-link-type type) " "
             (%ip-some attrs 1 (fn (_ b) (%ip-ll-addr b type)))
@@ -433,16 +433,16 @@
 ; print_linkinfo's line for L
 (def %ip-link-text
   (fn (_ f l)
-    (def attrs (%cu-nth 4 l))
+    (def attrs (cu-nth 4 l))
     (def at (%ip-iflink f attrs))
     (def family (%ip-get f (lit family)))
     (string-concat
-      (list (if (= (first l) 17) "Deleted " "") (%cu-int->str (%ip-l-index l)) ": " (%ip-l-name l) (first at)
+      (list (if (= (first l) 17) "Deleted " "") (cu-int->str (%ip-l-index l)) ": " (%ip-l-name l) (first at)
             (%ip-link-flags (%ip-l-flags l) (rest at))
-            (%ip-some attrs 4 (fn (_ b) (string-concat (list "mtu " (%cu-int->str (%ip-num b)) " "))))
+            (%ip-some attrs 4 (fn (_ b) (string-concat (list "mtu " (cu-int->str (%ip-num b)) " "))))
             (%ip-some attrs 6 (fn (_ b) (string-concat (list "qdisc " (%ip-cstr b) " "))))
             (%ip-some attrs 10 (fn (_ b) (string-concat (list "master " (%ip-index-name f (%inet-int32 (%ip-num b))) " "))))
-            (%ip-some attrs 16 (fn (_ b) (string-concat (list "state " (if (< (first b) 7) (%cu-nth (first b) %ip-operstates) "") " "))))
+            (%ip-some attrs 16 (fn (_ b) (string-concat (list "state " (if (< (first b) 7) (cu-nth (first b) %ip-operstates) "") " "))))
             (%ip-qlen f (%ip-l-name l))
             (if (if (= family 0) #t (= family 17)) (%ip-ll-line f l) "")
             "\n"))))
@@ -461,14 +461,14 @@
       (#t (do (file-write 1 (%ip-link-text f l)) 0)))))
 
 (def %ip-fnmatch?
-  (fn (_ pattern s) (= (%in-call (%cu-ptr-call (%in-c "fnmatch") pattern s 0)) 0)))
+  (fn (_ pattern s) (= (%in-call (cu-ptr-call (%in-c "fnmatch") pattern s 0)) 0)))
 
 ; --- the addresses ----------------------------------------------------------------
 
-(def %ip-a-family (fn (_ a) (%cu-nth 1 a)))
-(def %ip-a-scope (fn (_ a) (%cu-nth 4 a)))
-(def %ip-a-index (fn (_ a) (%cu-nth 5 a)))
-(def %ip-a-attrs (fn (_ a) (%cu-nth 6 a)))
+(def %ip-a-family (fn (_ a) (cu-nth 1 a)))
+(def %ip-a-scope (fn (_ a) (cu-nth 4 a)))
+(def %ip-a-index (fn (_ a) (cu-nth 5 a)))
+(def %ip-a-attrs (fn (_ a) (cu-nth 6 a)))
 
 ; the attribute TYPE of A's, else OTHER's
 (def %ip-a-either
@@ -514,7 +514,7 @@
             (if (= left 0) "" (string-concat (list "flags " (%ip-hex2 left) " ")))))))
 
 (def %ip-lft
-  (fn (_ word n) (string-append word (if (= n 4294967295) " forever" (string-concat (list " " (%cu-int->str (%inet-int32 n)) "sec"))))))
+  (fn (_ word n) (string-append word (if (= n 4294967295) " forever" (string-concat (list " " (cu-int->str (%inet-int32 n)) "sec"))))))
 
 ; whether two addresses' first four bytes are the same, as busybox's memcmp asks
 (def %ip-same4?
@@ -526,7 +526,7 @@
 (def %ip-addr-local
   (fn (_ a local peer)
     (def family (%ip-a-family a))
-    (def len (string-append "/" (%cu-int->str (%cu-nth 2 a))))
+    (def len (string-append "/" (cu-int->str (cu-nth 2 a))))
     (string-concat
       (list (%ip-ntoa family (rest local))
             (if (if (null? peer) #t (%ip-same4? (rest peer) (rest local)))
@@ -542,13 +542,13 @@
     (def fl (%ip-attr attrs 8))
     (string-concat
       (list (if (= (first a) 21) "Deleted " "")
-            (if (%ip-get f (lit oneline)) (string-concat (list (%cu-int->str (%ip-a-index a)) ": " (%ip-index-name f (%ip-a-index a)))) "")
-            (match ((= family 2) "    inet ") ((= family 10) "    inet6 ") (#t (string-concat (list "    family " (%cu-int->str family) " "))))
+            (if (%ip-get f (lit oneline)) (string-concat (list (cu-int->str (%ip-a-index a)) ": " (%ip-index-name f (%ip-a-index a)))) "")
+            (match ((= family 2) "    inet ") ((= family 10) "    inet6 ") (#t (string-concat (list "    family " (cu-int->str family) " "))))
             (if (null? local) "" (%ip-addr-local a local (%ip-a-either a 1 2)))
             (%ip-some attrs 4 (fn (_ b) (string-concat (list "brd " (%ip-ntoa family b) " "))))
             (%ip-some attrs 5 (fn (_ b) (string-concat (list "any " (%ip-ntoa family b) " "))))
             "scope " (%ip-scope-name f (%ip-a-scope a)) " "
-            (%ip-addr-flags (if (null? fl) (%cu-nth 3 a) (%ip-num (rest fl))))
+            (%ip-addr-flags (if (null? fl) (cu-nth 3 a) (%ip-num (rest fl))))
             (%ip-some attrs 3 %ip-cstr)
             (%ip-some attrs 6 (fn (_ b) (string-concat (list (%ip-sl f) "       " (%ip-lft "valid_lft" (%ip-num (List take 4 (List drop 4 b))))
                                                             " " (%ip-lft "preferred_lft" (%ip-num (List take 4 b)))))))
@@ -634,7 +634,7 @@
     (def family (%ip-get f (lit family)))
     (def links (%ip-get f (lit links)))
     (def addrs (if (= family 17) () (%ip-dump f (%ip-get f (lit fd)) 22 family 2 %ip-addr-of)))
-    (%cu-ptr-call (%in-c "close") (%ip-get f (lit fd)))
+    (cu-ptr-call (%in-c "close") (%ip-get f (lit fd)))
     (map (fn (_ l)
            (when (if (if (%ip-get f (lit oneline)) (not (= family 17)) #f) #t (= (%ip-print-link f l) 0))
              (unless (= family 17) (%ip-print-addrs f (%ip-l-index l) addrs))))
@@ -653,15 +653,15 @@
     (def k (if (null? ws) 5 (%ip-keyword (list "add" "change" "chg" "replace" "delete" "list" "show" "lst" "flush") (first ws))))
     (match
       ((< k 0) (%ip-invarg f (first ws) (%ip-get f (lit name))))
-      ((<= k 4) (%ip-modify f (if (= k 4) 21 20) (%cu-nth k (list 1536 256 256 1280 0)) (rest ws)))
+      ((<= k 4) (%ip-modify f (if (= k 4) 21 20) (cu-nth k (list 1536 256 256 1280 0)) (rest ws)))
       ((= k 8) (%ip-flush f (rest ws)))
       (#t (%ip-list f (if (null? ws) () (rest ws)))))))
 
 ; do_iplink: its errors end the run with 2, a link-layer address it cannot read with 1
 (def %ip-link
   (fn (_ f ws)
-    (guard (e (match ((eq? (%cu-err-label e) (lit ip)) 2)
-                     ((eq? (%cu-err-label e) (lit ip-exit1)) 1)
+    (guard (e (match ((eq? (cu-err-label e) (lit ip)) 2)
+                     ((eq? (cu-err-label e) (lit ip-exit1)) 1)
                      (#t (error e))))
       (let ((k (if (null? ws) 3 (%ip-keyword (list "add" "delete" "set" "show" "lst" "list") (first ws)))))
         (match
@@ -701,12 +701,12 @@
           (let ((fam (List find (fn (_ e) (string=? (first e) (first (rest argv)))) (list (pair "inet" 2) (pair "inet6" 10) (pair "link" 17)))))
             (if (null? fam) (%ip-invarg f (first (rest argv)) "family")
               (%ip-common (%ip-put f (lit preferred) (rest fam)) (rest (rest argv)))))))
-      (#t (%ip-common (%ip-put f (lit preferred) (%cu-nth (- k 2) (list 2 10 17))) (rest argv))))))
+      (#t (%ip-common (%ip-put f (lit preferred) (cu-nth (- k 2) (list 2 10 17))) (rest argv))))))
 
 (def %ip-run
   (fn (_ name argv go)
-    (guard (e (match ((eq? (%cu-err-label e) (lit ip-usage)) (%cu-usage name))
-                     ((eq? (%cu-err-label e) (lit ip)) 1)
+    (guard (e (match ((eq? (cu-err-label e) (lit ip-usage)) (cu-usage name))
+                     ((eq? (cu-err-label e) (lit ip)) 1)
                      (#t (error e))))
       (let ((f (%ip-common (list (pair (lit name) name) (pair (lit oneline) #f) (pair (lit preferred) 0)) argv)))
         (go f (%ip-get f (lit words)))))))

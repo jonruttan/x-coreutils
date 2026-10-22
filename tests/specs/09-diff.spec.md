@@ -46,7 +46,7 @@ blocks assert.
               (if (string=? (substring out i (+ i 4)) "@@ -")
                 (self (+ i 4) (+ k 1))
                 (self (+ i 1) k)))))
-        (%cu-int->str (go 0 0))))
+        (cu-int->str (go 0 0))))
     (display "made"))
 ```
 ---
@@ -328,7 +328,7 @@ no clock a spec can pin.
     (def %cu-dd
       (fn (_ flags start)
         (first (%cu-diff-dir
-                 (%cu-opts "diff" (append flags
+                 (cu-opts "diff" (append flags
                                     (list "/tmp/x-cu-dd/A" "/tmp/x-cu-dd/B")))
                  flags "/tmp/x-cu-dd/A" "/tmp/x-cu-dd/B" start))))
     (def %cu-dd-has?

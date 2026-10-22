@@ -65,14 +65,14 @@ types the bursts, and shows what came of them.
     (def f (if (file-exists? "/tmp/x-cu-vx/f") (vi-shown (file-read-all "/tmp/x-cu-vx/f")) "no file\n"))
     (display
       (string-concat
-        (list "exit " (%cu-int->str st) "\n"
+        (list "exit " (cu-int->str st) "\n"
               (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) #\newline) #t) f
                 (string-append f " (no newline)\n"))
               "--\n"
               (string-concat (List map (fn (_ r) (string-append "|" (vi-trim r) "\n")) %vi-screen))
               "status " (vi-trim %vi-bottom) "\n"
-              "cursor " (%cu-int->str %vi-crow) " " (%cu-int->str %vi-ccol)
-              " bells " (%cu-int->str (vi-bells %vi-drawn 0)) "\n")))))
+              "cursor " (cu-int->str %vi-crow) " " (cu-int->str %vi-ccol)
+              " bells " (cu-int->str (vi-bells %vi-drawn 0)) "\n")))))
 (display "made")
 ```
 ---

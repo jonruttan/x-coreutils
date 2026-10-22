@@ -22,7 +22,7 @@
 
 (def %cu-ssl-client
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ssl_client" argv))
+    (def o (cu-opts "ssl_client" argv))
     (def ops (Opts operands o))
     (def s? (Opts on? o "-s"))
     (def r? (Opts on? o "-r"))
@@ -31,7 +31,7 @@
                (e? (null? ops))                         ; -e needs PROG
                ((if s? #t r?) (if s? (not (null? ops)) #t)) ; -s FD alone; -r only with -s
                (#t (if (null? ops) #t (not (null? (rest ops))))))  ; exactly one HOST
-      (%cu-usage "ssl_client")
+      (cu-usage "ssl_client")
       (guard (e (match ((eq? (Err label e) (lit net)) (do (%sc-say (e msg)) 1))
                        ((eq? (Err label e) (lit io)) (do (%sc-say (e msg)) 1))
                        (#t (error e))))
@@ -76,7 +76,7 @@
 ; the session has already read ahead is taken first: poll does not see it.
 (def %sc-copy
   (fn (self session in here there local-eof? reading?)
-    (%cu-sweep-tick! 0)
+    (cu-sweep-tick! 0)
     (if (Tls13 pending? session)
       (if (%sc-from-peer session there) (self session in here there local-eof? reading?) ())
       (let ((ready (sys-poll (append (if reading? (list (pair here (list (lit in)))) ()) (list (pair in (list (lit in))))) 1000)))

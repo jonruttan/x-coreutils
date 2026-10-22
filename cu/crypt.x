@@ -32,7 +32,7 @@
 
 (def %cw-run
   (fn (_ applet argv stdin-thunk)
-    (def opts (%cu-opts applet argv))
+    (def opts (cu-opts applet argv))
     (def either (fn (_ a b) (let ((v (Opts value opts a))) (if (null? v) (Opts value opts b) v))))
     (def words (Opts operands opts))
     (def method (let ((v (either "-m" "--method"))) (if (null? v) (let ((a (Opts value opts "-a"))) (if (null? a) "sha512" a)) v)))
@@ -40,7 +40,7 @@
     (def pfd (either "-P" "--password-fd"))
     (def fd (if (null? pfd) 0 (%cu-range-number applet pfd 0 2147483647)))
     (match
-      ((> (length words) 2) (%cu-usage applet))
+      ((> (length words) 2) (cu-usage applet))
       ((null? fd) 1)
       ; -P's descriptor becomes standard input before anything is read
       ((< (sys-dup2 fd fd) 0)
@@ -66,11 +66,11 @@
 (def %cw-read-line
   (fn (_ fd stdin-thunk)
     (if (= fd 0)
-      (let ((p ((%cu-stdin-pieces stdin-thunk))))
+      (let ((p ((cu-stdin-pieces stdin-thunk))))
         (if (= (rest p) 0) ()
           (let ((t (if (= (rest p) (byte-len (first p))) (first p) (substring (first p) 0 (rest p)))))
             (let ((nl (%dp-find t 0 #\newline))) (if (< nl 0) t (substring t 0 nl))))))
-      (let ((buf (%str-make-raw 1)))
+      (let ((buf (str-make-raw 1)))
         (let go ((acc ()))
           (let ((r (File read fd buf 1)))
             (match

@@ -23,7 +23,7 @@
 (def %fi-say
   (fn (_ msg)
     (if %fi-syslog?
-      (%cu-ptr-call (%in-c "syslog") 3 (%in-percent msg))
+      (cu-ptr-call (%in-c "syslog") 3 (%in-percent msg))
       (file-write 2 (string-concat (list "fakeidentd: " msg "\n"))))))
 
 (def %fi-die (fn (_ msg) (Err raise (lit net) msg ())))
@@ -45,7 +45,7 @@
 ; -i: the query read from stdin as it comes, the answer on stdout
 (def %fi-inetd
   (fn (_ stdin-thunk)
-    (%cu-ptr-call (%in-c "alarm") %fi-timeout)
+    (cu-ptr-call (%in-c "alarm") %fi-timeout)
     (let go ((acc ""))
       (let ((r (stdin-thunk (lit chunk))))
         (def piece (if (pair? r) (substring (first r) 0 (rest r)) r))
@@ -54,7 +54,7 @@
         (def line (%fi-line text59 (= (byte-len piece) 0)))
         (if (null? line) (go text59)
           (do (file-write 1 (%fi-answer line))
-              (%cu-ptr-call (%in-c "alarm") 0)
+              (cu-ptr-call (%in-c "alarm") 0)
               0))))))
 
 ; --- the server ---------------------------------------------------------------------
@@ -69,12 +69,12 @@
         (if (null? (net-aton addr)) (%fi-die (string-concat (list "bad address '" addr "'")))
           (pair (net-sockaddr addr 113) 16))))
     (def af (if (= (rest sa) 16) 2 (%in-af (lit inet6))))
-    (def fd (%in-call (%cu-ptr-call (%in-c "socket") af 1 0)))
+    (def fd (%in-call (cu-ptr-call (%in-c "socket") af 1 0)))
     (when (< fd 0) (%fi-die (string-append "socket: " (%in-errtext fd))))
     (%in-reuse! fd)
     (def r (%in-bind fd sa))
     (when (< r 0) (%fi-die (string-append "bind: " (%in-errtext r))))
-    (%cu-ptr-call (%in-c "listen") fd 5)
+    (cu-ptr-call (%in-c "listen") fd 5)
     fd))
 
 ; a peer: (FD TEXT LAST-HEARD)
@@ -85,10 +85,10 @@
 (def %fi-read
   (fn (_ p)
     (def fd (first p))
-    (def text (%cu-nth 1 p))
+    (def text (cu-nth 1 p))
     (def room (- %fi-limit (byte-len text)))
-    (def buf (%str-make-raw (+ room 1)))
-    (def r (%in-call (%cu-ptr-call (%in-c "read") fd (%cu-str->ptr buf) room)))
+    (def buf (str-make-raw (+ room 1)))
+    (def r (%in-call (cu-ptr-call (%in-c "read") fd (cu-str->ptr buf) room)))
     (if (< r 0) (do (%fi-close! p) ())
       (let ((now-text (string-append text (substring buf 0 r))))
         (let ((line (%fi-line now-text (= r 0))))
@@ -102,9 +102,9 @@
 (def %fi-serve
   (fn (_ lfd linger)
     (let loop ((peers ()) (heard (%in-now)))
-      (%cu-sweep-tick! %cu-sweep-lines)
+      (cu-sweep-tick! cu-sweep-lines)
       (def now (%in-now))
-      (def live (filter (fn (_ p) (if (> (- now (%cu-nth 2 p)) %fi-timeout) (do (%fi-close! p) #f) #t)) peers))
+      (def live (filter (fn (_ p) (if (> (- now (cu-nth 2 p)) %fi-timeout) (do (%fi-close! p) #f) #t)) peers))
       (if (if (> linger 0) (if (null? live) (>= (- now heard) linger) #f) #f) 0
         (let ((ready (sys-poll (map (fn (_ fd) (pair fd (list (lit in)))) (pair lfd (map first live))) 1000)))
           (def ready? (fn (_ fd) (List any? (fn (_ e) (= (first e) fd)) ready)))
@@ -112,7 +112,7 @@
             (let ((kept (filter (fn (_ p) (not (null? p)))
                                 (map (fn (_ p) (if (ready? (first p)) (%fi-read p) p)) live))))
               (loop (if (ready? lfd)
-                      (let ((c (%in-call (%cu-ptr-call (%in-c "accept") lfd 0 0))))
+                      (let ((c (%in-call (cu-ptr-call (%in-c "accept") lfd 0 0))))
                         (if (< c 0) kept (append kept (list (list c "" (%in-now))))))
                       kept)
                     (%in-now)))))))))
@@ -121,7 +121,7 @@
 
 (def %cu-fakeidentd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "fakeidentd" argv))
+    (def o (cu-opts "fakeidentd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
                 (do (%fi-say (e msg)) 1)
                 (error e)))
@@ -136,7 +136,7 @@
     (def fiw? (if (Opts on? o "-f") #t (if inetd? #t wait?)))
     (unless fiw?
       (do (%hd-daemonize)
-          (%cu-ptr-call (%in-c "openlog") "fakeidentd" 1 24)
+          (cu-ptr-call (%in-c "openlog") "fakeidentd" 1 24)
           (set! %fi-syslog? #t)))
     (if inetd? (%fi-inetd stdin-thunk)
       (do (sys-signal 13 cu-sig-ign)

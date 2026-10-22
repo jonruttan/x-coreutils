@@ -72,19 +72,19 @@
 
 (def %vi-resolve!
   (fn (_)
-    (def lib (%cu-dlopen () 1))
-    (set! %vi-c-memchr (%cu-dlsym lib "memchr"))
-    (set! %vi-c-memmove (%cu-dlsym lib "memmove"))
-    (set! %vi-c-memcpy (%cu-dlsym lib "memcpy"))
-    (set! %vi-c-strcspn (%cu-dlsym lib "strcspn"))
-    (set! %vi-c-poll (%cu-dlsym lib "poll"))
-    (set! %vi-c-read (%cu-dlsym lib "read"))
-    (set! %vi-c-write (%cu-dlsym lib "write"))
-    (set! %vi-c-access (%cu-dlsym lib "access"))
-    (set! %vi-c-memmem (%cu-dlsym lib "memmem"))
-    (set! %vi-c-strcasestr (%cu-dlsym lib "strcasestr"))
-    (set! %vi-c-system (%cu-dlsym lib "system"))
-    (set! %vi-c-memset (%cu-dlsym lib "memset"))))
+    (def lib (cu-dlopen () 1))
+    (set! %vi-c-memchr (cu-dlsym lib "memchr"))
+    (set! %vi-c-memmove (cu-dlsym lib "memmove"))
+    (set! %vi-c-memcpy (cu-dlsym lib "memcpy"))
+    (set! %vi-c-strcspn (cu-dlsym lib "strcspn"))
+    (set! %vi-c-poll (cu-dlsym lib "poll"))
+    (set! %vi-c-read (cu-dlsym lib "read"))
+    (set! %vi-c-write (cu-dlsym lib "write"))
+    (set! %vi-c-access (cu-dlsym lib "access"))
+    (set! %vi-c-memmem (cu-dlsym lib "memmem"))
+    (set! %vi-c-strcasestr (cu-dlsym lib "strcasestr"))
+    (set! %vi-c-system (cu-dlsym lib "system"))
+    (set! %vi-c-memset (cu-dlsym lib "memset"))))
 
 ; --- the terminal's words ---------------------------------------------------
 
@@ -153,13 +153,13 @@
     (def old %vi-text)
     (def old-room %vi-room)
     (def old-end %vi-end)
-    (set! %vi-text (%str-make-raw (%vi+ room 1)))
+    (set! %vi-text (str-make-raw (%vi+ room 1)))
     (set! %vi-tptr (%vi-str->ptr %vi-text))
     (set! %vi-taddr (%vi-ptr->int %vi-tptr))
-    (%cu-ptr-call %vi-c-memset %vi-taddr 0 (%vi+ room 1))
+    (cu-ptr-call %vi-c-memset %vi-taddr 0 (%vi+ room 1))
     (set! %vi-room room)
     (if (%vi< 0 old-end)
-      (%cu-ptr-call %vi-c-memcpy %vi-taddr old (%vi-min old-room room))
+      (cu-ptr-call %vi-c-memcpy %vi-taddr old (%vi-min old-room room))
       ())))
 
 (def %vi-text-init!
@@ -197,10 +197,10 @@
       (%vi-text-room! (%vi+ new-end 10240))
       ())
     (%vi-touch! p)
-    (%cu-ptr-call %vi-c-memmove (%vi+ %vi-taddr (%vi+ p size)) (%vi+ %vi-taddr p)
+    (cu-ptr-call %vi-c-memmove (%vi+ %vi-taddr (%vi+ p size)) (%vi+ %vi-taddr p)
       (%vi- %vi-end p))
     (set! %vi-end new-end)
-    (%cu-ptr-call %vi-c-memset (%vi+ %vi-taddr p) 32 size)))
+    (cu-ptr-call %vi-c-memset (%vi+ %vi-taddr p) 32 size)))
 
 ; one byte of the text replaced, the newline count kept
 (def %vi-byte-set!
@@ -232,7 +232,7 @@
     (set! %vi-nl-total (%vi- %vi-nl-total (%vi-newlines-in dest src)))
     (%vi-touch! dest)
     (if (%vi< src %vi-end)
-      (%cu-ptr-call %vi-c-memmove (%vi+ %vi-taddr dest) (%vi+ %vi-taddr src)
+      (cu-ptr-call %vi-c-memmove (%vi+ %vi-taddr dest) (%vi+ %vi-taddr src)
         (%vi- %vi-end src))
       ())
     (set! %vi-end (%vi- %vi-end (%vi- src dest)))
@@ -253,7 +253,7 @@
 (def %vi-find-nl
   (fn (_ a b)
     (if (%vi< a b)
-      (%vi-nl-found (%cu-ptr-call %vi-c-memchr (%vi+ %vi-taddr a) 10 (%vi- b a)))
+      (%vi-nl-found (cu-ptr-call %vi-c-memchr (%vi+ %vi-taddr a) 10 (%vi- b a)))
       -1)))
 (def %vi-nl-found (fn (_ r) (if (= r 0) -1 (%vi- r %vi-taddr))))
 
@@ -366,7 +366,7 @@
 ; where the bytes shown as themselves end, from A on
 (def %vi-plain-end
   (fn (_ a)
-    (%vi+ a (%cu-ptr-call %vi-c-strcspn (%vi+ %vi-taddr a) %vi-reject))))
+    (%vi+ a (cu-ptr-call %vi-c-strcspn (%vi+ %vi-taddr a) %vi-reject))))
 
 ; the column after the bytes [A, P), from column CO
 (def %vi-columns-over
@@ -464,7 +464,7 @@
 ; text, ROWS - 1 of them
 (def %vi-new-screen!
   (fn (_)
-    (set! %vi-blanks (%str-make-raw (%vi+ %vi-columns 16)))
+    (set! %vi-blanks (str-make-raw (%vi+ %vi-columns 16)))
     (def blank (%vi-spaces %vi-columns))
     (def tilde (string-append "~" (%vi-spaces (%vi- %vi-columns 1))))
     (set! %vi-screen (pair blank (%vi-rows-of tilde (%vi- %vi-rows 2) ())))))
@@ -1603,7 +1603,7 @@
   (fn (self fd at left done)
     (if (%vi< 0 left)
       (%vi-wrote self fd at left done
-        (%cu-ptr-call %vi-c-write fd (%vi+ %vi-taddr at) left))
+        (cu-ptr-call %vi-c-write fd (%vi+ %vi-taddr at) left))
       done)))
 (def %vi-wrote
   (fn (_ again fd at left done r)
@@ -1635,7 +1635,7 @@
 
 (def %vi-unwritable?
   (fn (_ name st)
-    (if (%vi< (%cu-ptr-call %vi-c-access name 2) 0) #t
+    (if (%vi< (cu-ptr-call %vi-c-access name 2) 0) #t
       (if (null? st) #f (= (%vi& (Assoc get (lit mode) st) 146) 0)))))
 
 (def %vi-read-in
@@ -1653,7 +1653,7 @@
   (fn (self fd at left done)
     (if (%vi< 0 left)
       (%vi-read-got self fd at left done
-        (%cu-ptr-call %vi-c-read fd (%vi+ %vi-taddr at) left))
+        (cu-ptr-call %vi-c-read fd (%vi+ %vi-taddr at) left))
       done)))
 (def %vi-read-got
   (fn (_ again fd at left done r)
@@ -1748,7 +1748,7 @@
 (def %vi-sweep-if-due!
   (fn (_)
     (if (%vi< (%vi+ %vi-heap-floor %vi-heap-room) (%vi-live-objects))
-      (do (%cu-heap-collect) (set! %vi-heap-floor (%vi-live-objects)))
+      (do (cu-heap-collect) (set! %vi-heap-floor (%vi-live-objects)))
       ())))
 
 ; ^C, the engine's STOP: back to the top of the file in command mode, as
@@ -1758,7 +1758,7 @@
   (fn (_ e)
     (match
       ((Err stop? e) (%vi-restart!))
-      ((eq? (%cu-err-label e) (lit vi-eof)) e)
+      ((eq? (cu-err-label e) (lit vi-eof)) e)
       (#t (error e)))))
 
 ; busybox's restart point in edit_file: the top of the file, command mode, no
@@ -1815,10 +1815,10 @@
 ; when the first file is in
 (def %vi-start
   (fn (_ argv)
-    (def o (%cu-opts "vi" argv))
+    (def o (cu-opts "vi" argv))
     (match
-      ((Opts on? o "-H") (do (%vi-show-help) (%cu-usage "vi")))
-      ((Opts on? o "-h") (%cu-usage "vi"))
+      ((Opts on? o "-H") (do (%vi-show-help) (cu-usage "vi")))
+      ((Opts on? o "-h") (cu-usage "vi"))
       (#t (%vi-main (Opts operands o) (Opts values o "-c") (Opts on? o "-R"))))))
 
 (def %vi-show-help
@@ -1898,7 +1898,7 @@
 ; that comes first is handled, then the wait goes on.  stdin may come
 ; non-blocking, so a read that would block, or was interrupted, is tried
 ; again; any other failure, like the end, ends the input.
-(def %vi-byte-buf (%str-make-raw 1))
+(def %vi-byte-buf (str-make-raw 1))
 (def %vi-tty-read
   (fn (self)
     (%vi-signals!)
@@ -1925,14 +1925,14 @@
 
 ; poll(2) on FD for EVENTS (1 in, 4 out), MS milliseconds, -1 for ever: struct
 ; pollfd is an int fd and two shorts, the events first
-(def %vi-pollfd (%str-make-raw 8))
+(def %vi-pollfd (str-make-raw 8))
 (def %vi-poll
   (fn (_ fd events ms)
     (def p (%vi-str->ptr %vi-pollfd))
     (%vi-ptr-set! p 0 fd 4)
     (%vi-ptr-set! p 4 events 2)
     (%vi-ptr-set! p 6 0 2)
-    (%cu-ptr-call %vi-c-poll p 1 ms)))
+    (cu-ptr-call %vi-c-poll p 1 ms)))
 
 ; the screen's bytes all written to stdout, waiting while it is full
 (def %vi-tty-write

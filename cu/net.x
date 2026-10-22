@@ -80,15 +80,15 @@
         (#t (go (+ i 1)))))))
 
 ; N as decimal text, right-aligned in W columns
-(def %wget-rjust (fn (_ n w) (%cu-pad-left (%cu-int->str n) w)))
+(def %wget-rjust (fn (_ n w) (cu-pad-left (cu-int->str n) w)))
 
 ; N as two digits
-(def %wget-02 (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
+(def %wget-02 (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
 
 ; S cut or padded with blanks to exactly W columns
 (def %wget-fixed
   (fn (_ s w)
-    (if (>= (byte-len s) w) (substring s 0 w) (%cu-pad-right s w))))
+    (if (>= (byte-len s) w) (substring s 0 w) (cu-pad-right s w))))
 
 ; K copies of the byte C
 (def %wget-times
@@ -145,7 +145,7 @@
     (def hostpart (if (null? cut) tail (substring tail 0 cut)))
     (def path (if (null? cut) "" (substring tail (+ cut 1) (byte-len tail))))
     (def at (%wget-last-index hostpart #\@))
-    (if (%cu-member-s? scheme (list "http" "https" "ftp"))
+    (if (cu-member-s? scheme (list "http" "https" "ftp"))
       (list scheme
             (if (null? at) hostpart (substring hostpart (+ at 1) (byte-len hostpart)))
             path
@@ -421,7 +421,7 @@
           (list (pair "Authorization" (string-append "Basic " (net-base64 (%wget-user t))))))
         (append
           (if (if (= %wget-beg 0) #t (%wget-has-header? uh "range")) ()
-            (list (pair "Range" (string-concat (list "bytes=" (%cu-int->str %wget-beg) "-")))))
+            (list (pair "Range" (string-concat (list "bytes=" (cu-int->str %wget-beg) "-")))))
           (append uh
             (if (if (null? post) #t (%wget-has-header? uh "content-type")) ()
               (list (pair "Content-Type" "application/x-www-form-urlencoded")))))))))
@@ -451,7 +451,7 @@
       (%wget-die (string-concat (list "bad address '" (%wget-host t) "'"))))
     (unless (%wget-quiet?)
       (%wget-say (string-concat
-        (list "Connecting to " (%wget-host t) " (" ip ":" (%cu-int->str (rest np)) ")\n"))))
+        (list "Connecting to " (%wget-host t) " (" ip ":" (cu-int->str (rest np)) ")\n"))))
     ip))
 
 ; what keeps a response from arriving, in busybox's words: a refused
@@ -481,7 +481,7 @@
     (def np (%wget-name-port t))
     (def url
       (string-concat
-        (list (%wget-scheme t) "://" (first np) ":" (%cu-int->str (rest np))
+        (list (%wget-scheme t) "://" (first np) ":" (cu-int->str (rest np))
               "/" (%wget-path t))))
     (def opts
       (append (list (pair (lit redirects) 0))
@@ -531,7 +531,7 @@
               (let ((n (rest piece)))
                 (do (file-write-run %wget-out-fd piece)
                     (set! %wget-pos (+ %wget-pos n))
-                    (%cu-sweep! 1)
+                    (cu-sweep! 1)
                     ; the piece that ends a counted body goes straight to the
                     ; final update, as busybox's read loop does
                     (when (if pm? (if (null? clen) #t (< (+ tr n) clen)) #f)
@@ -549,7 +549,7 @@
                          (string-concat (list "'" fname "' saved\n")))))
           (pair tr #t))
       (do (%wget-say (string-concat
-            (list "wget: connection closed at byte " (%cu-int->str tr) "\n")))
+            (list "wget: connection closed at byte " (cu-int->str tr) "\n")))
           (pair tr #f)))))
 
 ; --- one url ---------------------------------------------------------------------
@@ -722,9 +722,9 @@
 
 (def %cu-wget
   (fn (_ argv stdin-thunk)
-    (set! %wget-cfg (%cu-opts "wget" argv))
+    (set! %wget-cfg (cu-opts "wget" argv))
     (def urls (Opts operands %wget-cfg))
-    (if (null? urls) (%cu-usage "wget")
+    (if (null? urls) (cu-usage "wget")
       (do (set! %wget-msg-fd 2)
           (set! %wget-out-fd (if (string=? (if (null? (%wget-value "-O" "--output-document")) ""
                                               (%wget-value "-O" "--output-document")) "-")
@@ -812,7 +812,7 @@
 (def %whois-query
   (fn (_ host port name pfx)
     (file-write 1 (string-concat
-      (list "[Querying " host ":" (%cu-int->str port) " '" pfx name "']\n")))
+      (list "[Querying " host ":" (cu-int->str port) " '" pfx name "']\n")))
     (def fd (%net-connect-or-die host port))
     (net-send fd (string-concat (list pfx name "\r\n")))
     ; state: the texts so far (reversed), their length, success?, redirect
@@ -874,13 +874,13 @@
 
 (def %cu-whois
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "whois" argv))
+    (def o (cu-opts "whois" argv))
     (def names (Opts operands o))
     (def host (let ((h (Opts value o "-h"))) (if (null? h) "whois.iana.org" h)))
     (def pv (Opts value o "-p"))
     (def port (if (null? pv) 43 (%wget-digits pv)))
     (match
-      ((null? names) (%cu-usage "whois"))
+      ((null? names) (cu-usage "whois"))
       ((null? port)
         (do (file-write 2 (string-concat (list "whois: invalid number '" pv "'\n"))) 1))
       (#t

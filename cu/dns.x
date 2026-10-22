@@ -42,7 +42,7 @@
       ((null? n) (%net-die (string-concat (list "invalid number '" val "'"))))
       ((if (< n lo) #t (> n hi))
         (%net-die (string-concat (list "number " val " is not in "
-          (%cu-int->str lo) ".." (%cu-int->str hi) " range"))))
+          (cu-int->str lo) ".." (cu-int->str hi) " range"))))
       (#t n))))
 
 ; the qtype number for NAME, any case, or the run ends
@@ -79,14 +79,14 @@
             (let ((name (if (null? eq) arg (substring arg 0 eq)))
                   (val (if (null? eq) "" (substring arg (+ eq 1) (byte-len arg)))))
               (match
-                ((%cu-member-s? name (list "type" "querytype"))
+                ((cu-member-s? name (list "type" "querytype"))
                   (self (rest argv) (%ns-add-type types (%ns-type val))))
                 ((string=? name "port")
                   (do (set! %ns-port (%ns-number val 1 65535)) (self (rest argv) types)))
                 ((string=? name "retry")
                   (do (set! %ns-retry (%ns-number val 1 2147483647)) (self (rest argv) types)))
                 ((string=? name "debug") (do (set! %ns-debug #t) (self (rest argv) types)))
-                ((%cu-member-s? name (list "t" "timeout"))
+                ((cu-member-s? name (list "t" "timeout"))
                   (do (set! %ns-timeout (%ns-number val 1 2147483)) (self (rest argv) types)))
                 (#t (lit usage))))))))))
 
@@ -187,7 +187,7 @@
   (fn (_ s)
     (def v6 (%ns-ipv6 s))
     (def v4 (%ns-ipv4 s))
-    (def join (fn (_ ns) (string-concat (map (fn (_ n) (string-append (%cu-int->str n) ".")) ns))))
+    (def join (fn (_ ns) (string-concat (map (fn (_ n) (string-append (cu-int->str n) ".")) ns))))
     (match
       ((not (null? v6))
         (if (if (= (first v6) 0) (if (= (first (rest v6)) 0) (if (= (first (rest (rest v6))) 0)
@@ -327,7 +327,7 @@
     (unless printed?
       (file-write 1 (string-concat
         (list "Server:\t\t" (first server) "\nAddress:\t" (first (rest server)) ":"
-              (%cu-int->str (first (rest (rest server)))) "\n\n"))))
+              (cu-int->str (first (rest (rest server)))) "\n\n"))))
     (def bs (%ns-bytes (first r) 0 (rest r)))
     (def q (if (< (length bs) 4) () (%ns-match queries (first bs) (first (rest bs)))))
     (def rcode (if (null? q) 0 (& (first (rest (rest (rest bs)))) 15)))
@@ -342,14 +342,14 @@
         (do (set-first! (rest (rest q)) #t)
             (when %ns-debug
               (file-write 1 (string-concat
-                (list "Query #" (%cu-int->str (%ns-index queries q 0)) " completed in "
-                      (%cu-int->str (- (sys-time-ms) tstart)) "ms:\n"))))
+                (list "Query #" (cu-int->str (%ns-index queries q 0)) " completed in "
+                      (cu-int->str (- (sys-time-ms) tstart)) "ms:\n"))))
             (if (= rcode 0)
               (when (< (%ns-print-reply bs) 0)
                 (do (file-write 1 (string-concat (list "*** Can't find " (first q) ": Parse error\n")))
                     (set! %ns-exit 1)))
               (do (file-write 1 (string-concat (list "** server can't find " (first q) ": "
-                    (%cu-nth rcode %ns-rcodes) "\n")))
+                    (cu-nth rcode %ns-rcodes) "\n")))
                   (set! %ns-exit 1)))
             (file-write 1 "\n")
             (if (>= (+ replies 1) (length queries)) (+ replies 1)
@@ -448,7 +448,7 @@
       ((= type 1)
         (if (= rdlen 4)
           (say (list "Name:\t" name "\nAddress: "
-                     (%ns-join (map %cu-int->str (list (vec-ref v rd) (vec-ref v (+ rd 1)) (vec-ref v (+ rd 2)) (vec-ref v (+ rd 3))))) "\n"))
+                     (%ns-join (map cu-int->str (list (vec-ref v rd) (vec-ref v (+ rd 1)) (vec-ref v (+ rd 2)) (vec-ref v (+ rd 3))))) "\n"))
           -1))
       ((= type 28)
         (if (= rdlen 16)
@@ -461,7 +461,7 @@
         (if (< rdlen 2) (do (file-write 1 "MX record too short\n") -1)
           (let ((d (%ns-name v n (+ rd 2))))
             (if (null? d) -1
-              (say (list name "\tmail exchanger = " (%cu-int->str (%ns-u16 v rd)) " " (first d) "\n"))))))
+              (say (list name "\tmail exchanger = " (cu-int->str (%ns-u16 v rd)) " " (first d) "\n"))))))
       ((= type 16)
         (if (< rdlen 1) -1
           (let ((k (vec-ref v rd)))
@@ -475,8 +475,8 @@
         (if (< rdlen 6) -1
           (let ((d (%ns-name v n (+ rd 6))))
             (if (null? d) -1
-              (say (list name "\tservice = " (%cu-int->str (%ns-u16 v rd)) " "
-                         (%cu-int->str (%ns-u16 v (+ rd 2))) " " (%cu-int->str (%ns-u16 v (+ rd 4)))
+              (say (list name "\tservice = " (cu-int->str (%ns-u16 v rd)) " "
+                         (cu-int->str (%ns-u16 v (+ rd 2))) " " (cu-int->str (%ns-u16 v (+ rd 4)))
                          " " (first d) "\n"))))))
       ((= type 6) (%ns-print-soa v n name rd rdlen))
       (#t 0))))
@@ -489,11 +489,11 @@
       (let ((at (+ (+ rd (rest origin)) (rest mail))))
         (do (file-write 1 (string-concat
               (list name "\n\torigin = " (first origin) "\n\tmail addr = " (first mail)
-                    "\n\tserial = " (%cu-int->str (%ns-u32 v at))
-                    "\n\trefresh = " (%cu-int->str (%ns-u32 v (+ at 4)))
-                    "\n\tretry = " (%cu-int->str (%ns-u32 v (+ at 8)))
-                    "\n\texpire = " (%cu-int->str (%ns-u32 v (+ at 12)))
-                    "\n\tminimum = " (%cu-int->str (%ns-u32 v (+ at 16))) "\n")))
+                    "\n\tserial = " (cu-int->str (%ns-u32 v at))
+                    "\n\trefresh = " (cu-int->str (%ns-u32 v (+ at 4)))
+                    "\n\tretry = " (cu-int->str (%ns-u32 v (+ at 8)))
+                    "\n\texpire = " (cu-int->str (%ns-u32 v (+ at 12)))
+                    "\n\tminimum = " (cu-int->str (%ns-u32 v (+ at 16))) "\n")))
             0)))))
 
 ; inet_ntop for 16 bytes at I: lowercase groups without leading zeros, the
@@ -545,9 +545,9 @@
   (fn (_ argv)
     (def parsed (%ns-options argv ()))
     (match
-      ((eq? parsed (lit usage)) (%cu-usage "nslookup"))
-      ((null? (rest parsed)) (%cu-usage "nslookup"))
-      ((if (not (null? (rest (rest parsed)))) (not (null? (rest (rest (rest parsed))))) #f) (%cu-usage "nslookup"))
+      ((eq? parsed (lit usage)) (cu-usage "nslookup"))
+      ((null? (rest parsed)) (cu-usage "nslookup"))
+      ((if (not (null? (rest (rest parsed)))) (not (null? (rest (rest (rest parsed))))) #f) (cu-usage "nslookup"))
       (#t (%ns-lookup (first parsed) (first (rest parsed))
                       (if (null? (rest (rest parsed))) () (first (rest (rest parsed)))))))))
 

@@ -31,14 +31,14 @@
                (List range 0 (if (> (byte-len name) 15) 15 (byte-len name))))
           r))))
 
-(def %if-ref (fn (_ r at n) (%cu-ptr-ref (%cu-str->ptr r) at n)))
+(def %if-ref (fn (_ r at n) (cu-ptr-ref (cu-str->ptr r) at n)))
 
 ; REQ on an AF_INET datagram socket with R; the call's answer
 (def %if-ioctl
   (fn (_ req r)
     (let ((fd (%inet-socket 2 %if-die)))
-      (let ((n (%in-call (%cu-ptr-call (%in-c "ioctl") fd req (%cu-str->ptr r)))))
-        (do (%cu-ptr-call (%in-c "close") fd) n)))))
+      (let ((n (%in-call (cu-ptr-call (%in-c "ioctl") fd req (cu-str->ptr r)))))
+        (do (cu-ptr-call (%in-c "close") fd) n)))))
 
 ; an IPv4 address at AT of R, as the u32 the kernel holds
 (def %if-sin (fn (_ r at) (%if-ref r (+ at 4) 4)))
@@ -56,8 +56,8 @@
                        (let ((c (%dp-find line 0 #\:)))
                          (if (< c 0) ()
                            (pair (%sy-trim (substring line 0 c))
-                                 (map %cu-num-prefix (%inet-words (substring line (+ c 1) (byte-len line))))))))
-                     (rest (rest (%cu-lines text)))))))))
+                                 (map cu-num-prefix (%inet-words (substring line (+ c 1) (byte-len line))))))))
+                     (rest (rest (cu-lines text)))))))))
 
 ; SIOCGIFCONF's interfaces: those with an IPv4 address, aliases among them
 (def %if-conf
@@ -66,9 +66,9 @@
     (def buf (%inet-zeros (* n 40)))
     (def ifc (%inet-zeros 16))
     (%inet-set! ifc 0 (* n 40) 4)
-    (%cu-ptr-set! (%cu-str->ptr ifc) 8 (%td-ptr->int (%cu-str->ptr buf)) 8)
+    (cu-ptr-set! (cu-str->ptr ifc) 8 (%td-ptr->int (cu-str->ptr buf)) 8)
     (if (< (%if-ioctl 35090 ifc) 0) ()
-      (map (fn (_ k) (%cu-ptr->str (%cu-int->ptr (+ (%td-ptr->int (%cu-str->ptr buf)) (* 40 k)))))
+      (map (fn (_ k) (cu-ptr->str (cu-int->ptr (+ (%td-ptr->int (cu-str->ptr buf)) (* 40 k)))))
            (List range 0 (%cal/ (%if-ref ifc 0 4) 40))))))
 
 ; the entry of ENTRIES named NAME, a string, or nil
@@ -109,13 +109,13 @@
         (pair 32 "NOTRAILERS") (pair 64 "RUNNING") (pair 128 "NOARP") (pair 256 "PROMISC") (pair 512 "ALLMULTI")
         (pair 2048 "SLAVE") (pair 1024 "MASTER") (pair 4096 "MULTICAST")))
 
-(def %if-hex2 (fn (_ b) (%cu-pad-zero (Str8 upcase (%cvt b %cu-string-type 16)) 2)))
+(def %if-hex2 (fn (_ b) (cu-pad-zero (Str8 upcase (cvt b cu-string-type 16)) 2)))
 
 ; print_bytes_scaled: "X bytes:N (I.F UNITB)"
 (def %if-scaled
   (fn (_ n)
     (let go ((i 4) (int n) (frac 0) (ext ""))
-      (if (= i 0) (string-concat (list "X bytes:" (%cu-int->str n) " (" (%cu-int->str int) "." (%cu-int->str frac) " " ext "B)"))
+      (if (= i 0) (string-concat (list "X bytes:" (cu-int->str n) " (" (cu-int->str int) "." (cu-int->str frac) " " ext "B)"))
         (if (>= int 1024)
           (go (- i 1) (%cal/ int 1024) (%cal/ (* (& int 1023) 10) 1024)
               (match ((string=? ext "") "Ki") ((string=? ext "Ki") "Mi") ((string=? ext "Mi") "Gi") (#t "Ti")))
@@ -132,11 +132,11 @@
                    (if (if (>= (length w) 6) (string=? (List ref 5 w) name) #f)
                      (let ((scope (& (%inet-hex (List ref 3 w)) 240)))
                        (string-concat
-                         (list "          inet6 addr: " (%inet-ntop6 (first w)) "/" (%cu-int->str (%inet-hex (List ref 2 w)))
+                         (list "          inet6 addr: " (%inet-ntop6 (first w)) "/" (cu-int->str (%inet-hex (List ref 2 w)))
                                " Scope:" (match ((= scope 0) "Global") ((= scope 32) "Link") ((= scope 64) "Site")
                                                 ((= scope 128) "Compat") ((= scope 16) "Host") (#t "Unknown")) "\n")))
                      "")))
-               (%cu-lines text)))))))
+               (cu-lines text)))))))
 
 ; ife_print: one interface, its counters STATS where it has them
 (def %if-print
@@ -149,7 +149,7 @@
             "          "
             (if (= flags 0) "[NO FLAGS] "
               (string-concat (map (fn (_ f) (if (= (& flags (first f)) 0) "" (string-append (rest f) " "))) %if-flag-names)))
-            " MTU:" (%cu-int->str (List ref 4 ife)) "  Metric:" (%cu-int->str (let ((m (List ref 3 ife))) (if (= m 0) 1 m))) "\n"
+            " MTU:" (cu-int->str (List ref 4 ife)) "  Metric:" (cu-int->str (let ((m (List ref 3 ife))) (if (= m 0) 1 m))) "\n"
             (if (null? stats) "" (%if-stats-lines stats (List ref 6 ife)))
             (%if-map-line (List ref 5 ife))
             "\n"))))
@@ -181,23 +181,23 @@
 ; the counters' lines, and txqueuelen where the kernel gave it
 (def %if-stats-lines
   (fn (_ stats txq)
-    (def n (fn (_ k) (%cu-int->str (List ref k stats))))
+    (def n (fn (_ k) (cu-int->str (List ref k stats))))
     (string-concat
       (list "          RX packets:" (n 1) " errors:" (n 2) " dropped:" (n 3) " overruns:" (n 4) " frame:" (n 5) "\n"
             "          TX packets:" (n 9) " errors:" (n 10) " dropped:" (n 11) " overruns:" (n 12) " carrier:" (n 14) "\n"
             "          collisions:" (n 13) " "
-            (if (= txq -1) "" (string-concat (list "txqueuelen:" (%cu-int->str txq) " ")))
+            (if (= txq -1) "" (string-concat (list "txqueuelen:" (cu-int->str txq) " ")))
             "\n          R" (%if-scaled (List ref 0 stats)) "  T" (%if-scaled (List ref 8 stats)) "\n"))))
 
 ; the hardware map's line, IFMAP (base_addr irq mem_start mem_end dma), where
 ; any of it is set
 (def %if-map-line
   (fn (_ ifmap)
-    (def hex (fn (_ v) (%cvt v %cu-string-type 16)))
+    (def hex (fn (_ v) (cvt v cu-string-type 16)))
     (if (List all? (fn (_ k) (= (List ref k ifmap) 0)) (list 0 1 2 4)) ""
       (string-concat
         (list "          "
-              (if (= (List ref 1 ifmap) 0) "" (string-concat (list "Interrupt:" (%cu-int->str (List ref 1 ifmap)) " ")))
+              (if (= (List ref 1 ifmap) 0) "" (string-concat (list "Interrupt:" (cu-int->str (List ref 1 ifmap)) " ")))
               (if (< (List ref 0 ifmap) 256) "" (string-concat (list "Base address:0x" (hex (List ref 0 ifmap)) " ")))
               (if (= (List ref 2 ifmap) 0) "" (string-concat (list "Memory:" (hex (List ref 2 ifmap)) "-" (hex (List ref 3 ifmap)) " ")))
               (if (= (List ref 4 ifmap) 0) "" (string-concat (list "DMA chan:" (hex (List ref 4 ifmap)) " ")))
@@ -271,7 +271,7 @@
 (def %if-xioctl!
   (fn (_ req r)
     (let ((n (%if-ioctl req r)))
-      (when (< n 0) (%if-die (string-concat (list "ioctl 0x" (%cvt req %cu-string-type 16) " failed: " (libc-strerror (Err errno-of n)))))))))
+      (when (< n 0) (%if-die (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n)))))))))
 
 ; the flags SEL set or cleared
 (def %if-flag!
@@ -313,13 +313,13 @@
     (def idx (%if-req iface))
     (def fd (%inet-socket 10 %if-die))
     (def r6 (%inet-zeros 24))
-    (let ((n (%in-call (%cu-ptr-call (%in-c "ioctl") fd 35123 (%cu-str->ptr idx)))))
-      (when (< n 0) (do (%cu-ptr-call (%in-c "close") fd) (%if-die (string-append "ioctl 0x8933 failed: " (libc-strerror (Err errno-of n)))))))
-    (map (fn (_ k) (%inet-set! r6 k (%cu-ptr-ref (%cu-str->ptr bytes) k 1) 1)) (List range 0 16))
+    (let ((n (%in-call (cu-ptr-call (%in-c "ioctl") fd 35123 (cu-str->ptr idx)))))
+      (when (< n 0) (do (cu-ptr-call (%in-c "close") fd) (%if-die (string-append "ioctl 0x8933 failed: " (libc-strerror (Err errno-of n)))))))
+    (map (fn (_ k) (%inet-set! r6 k (cu-ptr-ref (cu-str->ptr bytes) k 1) 1)) (List range 0 16))
     (%inet-set! r6 16 plen 4)
     (%inet-set! r6 20 (%if-ref idx 16 4) 4)
-    (let ((n (%in-call (%cu-ptr-call (%in-c "ioctl") fd (List ref 4 op) (%cu-str->ptr r6)))))
-      (do (%cu-ptr-call (%in-c "close") fd)
+    (let ((n (%in-call (cu-ptr-call (%in-c "ioctl") fd (List ref 4 op) (cu-str->ptr r6)))))
+      (do (cu-ptr-call (%in-c "close") fd)
           (when (< n 0) (%if-die (string-concat (list "SIOC" (List ref 6 op) ": " (libc-strerror (Err errno-of n))))))))))
 
 ; strtoul with base 0: decimal, 0x hex or 0 octal, its digits as far as they go
@@ -399,8 +399,8 @@
   (fn (_ argv stdin-thunk)
     (def all? (if (pair? argv) (string=? (first argv) "-a") #f))
     (def words (if all? (rest argv) argv))
-    (guard (e (match ((eq? (%cu-err-label e) (lit ifconfig-usage)) (%cu-usage "ifconfig"))
-                     ((eq? (%cu-err-label e) (lit ifconfig)) 1)
+    (guard (e (match ((eq? (cu-err-label e) (lit ifconfig-usage)) (cu-usage "ifconfig"))
+                     ((eq? (cu-err-label e) (lit ifconfig)) 1)
                      (#t (error e))))
       (if (if (null? words) #t (null? (rest words)))
         (%if-show all? (if (null? words) () (first words)))

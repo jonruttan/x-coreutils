@@ -180,7 +180,7 @@
     (let ((r (go (if hex (+ q 1) q) 0 (if hex 1 0))))
       (match
         ((eq? r (lit bad)) (pair #\\ q))
-        ((> (%cu-nth 2 r) 0) (pair (first r) (%cu-nth 1 r)))
+        ((> (cu-nth 2 r) 0) (pair (first r) (cu-nth 1 r)))
         (#t
           (let ((c (%dp-at s q)))
             (match
@@ -514,7 +514,7 @@
 (def %dp-conv!
   (fn (_ spec conv value)
     (let ((sp (%dp-spec spec)))
-      (%dp-conv-p! (%dp-flagset (first sp)) (%cu-nth 1 sp) (%cu-nth 2 sp) conv value))))
+      (%dp-conv-p! (%dp-flagset (first sp)) (cu-nth 1 sp) (cu-nth 2 sp) conv value))))
 
 ; FLAGS as (LEFT ZERO PLUS SPACE ALT), read once
 (def %dp-flagset
@@ -525,13 +525,13 @@
 (def %dp-conv-p!
   (fn (_ fl width prec conv value)
     (def left (first fl))
-    (def zero (%cu-nth 1 fl))
-    (def alt (%cu-nth 4 fl))
+    (def zero (cu-nth 1 fl))
+    (def alt (cu-nth 4 fl))
     ; the sign or prefix, and the body: a string, or for %c the byte
     (def lead
       (match
         ((if (= conv #\d) #t (= conv #\i))
-          (match ((< value 0) "-") ((%cu-nth 2 fl) "+") ((%cu-nth 3 fl) " ") (#t "")))
+          (match ((< value 0) "-") ((cu-nth 2 fl) "+") ((cu-nth 3 fl) " ") (#t "")))
         ((if (if alt (not (= value 0)) #f) (= conv #\x) #f) "0x")
         ((if (if alt (not (= value 0)) #f) (= conv #\X) #f) "0X")
         (#t "")))
@@ -557,10 +557,10 @@
           (#t (%dp-put (bytes->str (list body)))))))
     (match
       ((<= gap 0) (do (%dp-put lead) (put-body)))
-      (left (do (%dp-put lead) (put-body) (%dp-put (%cu-pad-left "" gap))))
+      (left (do (%dp-put lead) (put-body) (%dp-put (cu-pad-left "" gap))))
       ((if zero (if (null? prec) (not (if (= conv #\c) #t (= conv #\s))) #f) #f)
-        (do (%dp-put lead) (%dp-put (%cu-pad-zero "" gap)) (put-body)))
-      (#t (do (%dp-put (%cu-pad-left "" gap)) (%dp-put lead) (put-body))))))
+        (do (%dp-put lead) (%dp-put (cu-pad-zero "" gap)) (put-body)))
+      (#t (do (%dp-put (cu-pad-left "" gap)) (%dp-put lead) (put-body))))))
 
 ; DIGITS to at least PREC of them; a precision of 0 prints no digit for 0
 (def %dp-precise
@@ -568,7 +568,7 @@
     (match
       ((null? prec) digits)
       ((if (= prec 0) (= value 0) #f) "")
-      (#t (%cu-pad-zero digits prec)))))
+      (#t (cu-pad-zero digits prec)))))
 
 ; --- the block's values -------------------------------------------------------------
 
@@ -599,7 +599,7 @@
         "cr" "so" "si" "dle" "dc1" "dc2" "dc3" "dc4" "nak" "syn" "etb" "can" "em"
         "sub" "esc" "fs" "gs" "rs" "us"))
 
-(def %dp-octal3 (fn (_ b) (%cu-pad-zero (%dp-udigits b 8 #f) 3)))
+(def %dp-octal3 (fn (_ b) (cu-pad-zero (%dp-udigits b 8 #f) 3)))
 
 ; A print unit compiled, once, for the display: (BCNT NOSPACE . PRINT), PRINT
 ; called with the block's bytes from the unit's place, DROP to leave off the
@@ -616,9 +616,9 @@
     (def text-dropped (if (vec-ref pr 6) (substring text 0 (- (byte-len text) 1)) text))
     (def sp (%dp-spec spec))
     (def fl (%dp-flagset (first sp)))
-    (def width (%cu-nth 1 sp))
-    (def prec (%cu-nth 2 sp))
-    (def blank (%cu-pad-left "" width))
+    (def width (cu-nth 1 sp))
+    (def prec (cu-nth 2 sp))
+    (def blank (cu-pad-left "" width))
     (def long (%dp-in? #\l spec))
     (def conv! (fn (_ c v) (%dp-conv-p! fl width prec c v)))
     (def value
@@ -629,7 +629,7 @@
             ((eq? kind (lit c))
               (match
                 ((= b 0) (conv! #\s "\\0"))
-                ((if (>= b 7) (<= b 13) #f) (conv! #\s (%cu-nth (- b 6) %dp-c-escapes)))
+                ((if (>= b 7) (<= b 13) #f) (conv! #\s (cu-nth (- b 6) %dp-c-escapes)))
                 ((if (>= b 32) (< b 127) #f) (conv! #\c b))
                 (#t (conv! #\s (%dp-octal3 b)))))
             ((eq? kind (lit char)) (conv! #\c b))
@@ -644,7 +644,7 @@
             ((eq? kind (lit str)) (conv! #\s (%dp-cstring bp bcnt)))
             ((eq? kind (lit u))
               (match
-                ((<= b 31) (conv! #\s (%cu-nth b %dp-u-names)))
+                ((<= b 31) (conv! #\s (cu-nth b %dp-u-names)))
                 ((= b 127) (conv! #\s "del"))
                 ((< b 127) (conv! #\c b))
                 (#t (conv! #\x b))))
@@ -680,7 +680,7 @@
     (if (pair? %dp-argv)
       (let ((name (first %dp-argv)))
         (do (set! %dp-argv (rest %dp-argv))
-            (let ((src (%cu-pieces name %dp-stdin)))
+            (let ((src (cu-pieces name %dp-stdin)))
               (if (Err err? src)
                 (do (%dp-say name src) (set! %dp-exit 1) (set! %dp-done #t) (self))
                 (do (%dp-close!)
@@ -688,7 +688,7 @@
                     (set! %dp-name name)
                     (%dp-opened! name))))))
       (if %dp-done #f
-        (do (if (null? %dp-src) (set! %dp-src (%cu-pieces "-" %dp-stdin)) ())
+        (do (if (null? %dp-src) (set! %dp-src (cu-pieces "-" %dp-stdin)) ())
             (set! %dp-name "stdin")
             (%dp-opened! ()))))))
 
@@ -711,7 +711,7 @@
               (>= %dp-skip (%cu-stat-get st (lit size))) #f))
         (do (set! %dp-skip (- %dp-skip (%cu-stat-get st (lit size))))
             (set! %dp-address (+ %dp-address (%cu-stat-get st (lit size)))))
-        (do (set! %dp-src (%cu-pieces-past %dp-src %dp-skip))
+        (do (set! %dp-src (cu-pieces-past %dp-src %dp-skip))
             (set! %dp-piece ())
             (set! %dp-address (+ %dp-address %dp-skip))
             (set! %dp-savaddress %dp-address)
@@ -833,7 +833,7 @@
       (fn (self fus bp)
         (if (if (null? fus) #t (if %dp-stop #t (first (first fus)))) ()
           (let ((fu (first fus)))
-            (self (rest fus) (rep-loop (%cu-nth 2 fu) bp (%cu-nth 1 fu)))))))
+            (self (rest fus) (rep-loop (cu-nth 2 fu) bp (cu-nth 1 fu)))))))
     (def fs-loop
       (fn (self fss)
         (if (if (null? fss) #t %dp-stop) ()
@@ -880,7 +880,7 @@
             (if (null? block) ()
               (do (%dp-block! block)
                   (%dp-flush!)
-                  (%cu-sweep-tick! 7)
+                  (cu-sweep-tick! 7)
                   (self (+ k 1))))))))
     (if (not (null? %dp-error)) 1
       (do (size-all %dp-fss)

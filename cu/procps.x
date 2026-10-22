@@ -27,7 +27,7 @@
 
 (def %cu-uptime
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "uptime" argv))
+    (def o (cu-opts "uptime" argv))
     ; busybox's uptime reads no operands, and refuses none
     (do (display
           (if (Opts on? o "-s")
@@ -41,9 +41,9 @@
 (def %ps-boot-line
   (fn (_ boot)
     (def d (Date local boot))
-    (def two (fn (_ k) (%cu-pad-zero (%cu-int->str (Assoc get k d)) 2)))
+    (def two (fn (_ k) (cu-pad-zero (cu-int->str (Assoc get k d)) 2)))
     (string-concat
-      (list (%cu-pad-zero (%cu-int->str (Assoc get (lit year) d)) 4)
+      (list (cu-pad-zero (cu-int->str (Assoc get (lit year) d)) 4)
             "-" (two (lit month)) "-" (two (lit day))
             " " (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second)) "\n"))))
 
@@ -52,22 +52,22 @@
 (def %ps-uptime-line
   (fn (_ now up users loads)
     (def d (Date local now))
-    (def two (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
+    (def two (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
     (def days (%ps-div up 86400))
     (def minutes (%ps-div up 60))
     (def hours (% (%ps-div minutes 60) 24))
-    (def load (fn (_ c) (string-append (%cu-int->str (%ps-div c 100))
+    (def load (fn (_ c) (string-append (cu-int->str (%ps-div c 100))
                           (string-append "." (two (% c 100))))))
     (string-concat
       (list " " (two (Assoc get (lit hour) d)) ":" (two (Assoc get (lit minute) d))
             ":" (two (Assoc get (lit second) d)) " up "
             (if (= days 0) ""
-              (string-concat (list (%cu-int->str days) " day" (if (= days 1) "" "s") ", ")))
+              (string-concat (list (cu-int->str days) " day" (if (= days 1) "" "s") ", ")))
             (if (= hours 0)
-              (string-append (%cu-int->str (% minutes 60)) " min")
-              (string-concat (list (%cu-pad-left (%cu-int->str hours) 2) ":"
+              (string-append (cu-int->str (% minutes 60)) " min")
+              (string-concat (list (cu-pad-left (cu-int->str hours) 2) ":"
                                    (two (% minutes 60)))))
-            ",  " (%cu-int->str users) " users"
+            ",  " (cu-int->str users) " users"
             ",  load average: " (load (first loads))
             ", " (load (first (rest loads)))
             ", " (load (first (rest (rest loads)))) "\n"))))
@@ -77,7 +77,7 @@
 (def %cu-free
   (fn (_ argv stdin-thunk)
     ; the guard has refused a letter free does not know
-    (%cu-opts "free" argv)
+    (cu-opts "free" argv)
     (do (display (%ps-free-text (host-memory) (%ps-free-unit argv))) 0)))
 
 ; The unit free shows, from ARGV as busybox reads it: its first word alone,
@@ -98,20 +98,20 @@
       (fn (self v frac u)
         (if (>= v 1024)
           (self (%ps-div v 1024) (%ps-div (+ (* (% v 1024) 10) 512) 1024) (+ u 1))
-          (if (= u 0) (%cu-int->str v)
+          (if (= u 0) (cu-int->str v)
             (let ((v2 (if (>= frac 10) (+ v 1) v)) (f2 (if (>= frac 10) 0 frac)))
-              (string-concat (list (%cu-int->str v2) "." (%cu-int->str f2)
+              (string-concat (list (cu-int->str v2) "." (cu-int->str f2)
                                    (substring "KMGTPEZY" (- u 1) u))))))))
     (match
       ((= n 0) "0")
-      ((> unit 0) (%cu-int->str (%ps-div (+ n (%ps-div unit 2)) unit)))
+      ((> unit 0) (cu-int->str (%ps-div (+ n (%ps-div unit 2)) unit)))
       (#t (human n 0 0)))))
 
 ; free's table from MEM, Host's memory record, in UNIT
 (def %ps-free-text
   (fn (_ mem unit)
     (def get (fn (_ k) (let ((v (Assoc get k mem))) (if (null? v) 0 v))))
-    (def col (fn (_ n) (%cu-pad-left (%ps-scale n unit) 12)))
+    (def col (fn (_ n) (cu-pad-left (%ps-scale n unit) 12)))
     (def seen (if (null? (Assoc get (lit cached) mem)) #f
                 (if (null? (Assoc get (lit available) mem)) #f
                   (not (null? (Assoc get (lit reclaimable) mem))))))
@@ -120,9 +120,9 @@
     (def total (get (lit total)))
     (def used (- total (+ cached free)))
     (string-concat
-      (list "       " (%cu-pad-left "total" 12) (%cu-pad-left "used" 12)
-            (%cu-pad-left "free" 12) (%cu-pad-left "shared" 12)
-            (%cu-pad-left "buff/cache" 12) (%cu-pad-left "available" 12) "\n"
+      (list "       " (cu-pad-left "total" 12) (cu-pad-left "used" 12)
+            (cu-pad-left "free" 12) (cu-pad-left "shared" 12)
+            (cu-pad-left "buff/cache" 12) (cu-pad-left "available" 12) "\n"
             "Mem:   " (col total) (col used) (col free)
             (col (get (lit shared))) (col cached) (col (get (lit available))) "\n"
             (if seen ""
@@ -153,7 +153,7 @@
 
 (def %cu-ps
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ps" argv))
+    (def o (cu-opts "ps" argv))
     (def specs (Opts values o "-o"))
     (def cols (%ps-parse-o (if (null? specs) (list "pid,user,time,args") specs)))
     (if (str? cols)
@@ -191,7 +191,7 @@
     (def bad
       (fn (_ name)
         (string-concat (list "bad -o argument '" name "', supported arguments: "
-                             (%cu-join-with (map first %ps-columns) ",")))))
+                             (cu-join-with (map first %ps-columns) ",")))))
     (def one
       (fn (self s acc)
         (def comma (Str8 index-of "," s))
@@ -221,8 +221,8 @@
 ; busybox's format_time: seconds as mm:ss, hhHmm, ddDhh or dddd in WIDTH
 (def %ps-time
   (fn (_ tt width)
-    (def two (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
-    (def left (fn (_ n) (%cu-pad-left (%cu-int->str n) 2)))
+    (def two (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
+    (def left (fn (_ n) (cu-pad-left (cu-int->str n) 2)))
     (def m (%ps-div tt 60))
     (def h (%ps-div m 60))
     (def d (%ps-div h 24))
@@ -231,7 +231,7 @@
         ((< m 60) (string-concat (list (left m) ":" (two (% tt 60)))))
         ((< h 24) (string-concat (list (left h) "h" (two (% m 60)))))
         ((< d 100) (string-concat (list (left d) "d" (two (% h 24)))))
-        (#t (string-append (%cu-pad-left (%cu-int->str d) 4) "d"))))
+        (#t (string-append (cu-pad-left (cu-int->str d) 4) "d"))))
     (if (> (byte-len s) width) (substring s 0 width) s)))
 
 ; busybox's smart_ulltoa4: N in four characters, "1234" up to 9999, then
@@ -266,9 +266,9 @@
 (def %ps-resolve!
   (fn (_)
     (if (null? %ps-c-strcspn)
-      (let ((lib (%cu-dlopen () 1)))
-        (set! %ps-c-strcspn (%cu-dlsym lib "strcspn"))
-        (set! %ps-c-strrchr (%cu-dlsym lib "strrchr")))
+      (let ((lib (cu-dlopen () 1)))
+        (set! %ps-c-strcspn (cu-dlsym lib "strcspn"))
+        (set! %ps-c-strrchr (cu-dlsym lib "strrchr")))
       ())))
 
 ; busybox's read_cmdline: the arguments joined by spaces, a control byte as
@@ -278,13 +278,13 @@
   (fn (_ args comm)
     (%ps-resolve!)
     (if (null? args) (string-concat (list "[" comm "]"))
-      (let ((line (%ps-printable (%cu-join-with args " ")))
+      (let ((line (%ps-printable (cu-join-with args " ")))
             ; argv[0] up to its first space, past a leading -, after its last /
             (argv0 (let ((a (first args)))
-                     (substring a 0 (%cu-ptr-call %ps-c-strcspn a " ")))))
+                     (substring a 0 (cu-ptr-call %ps-c-strcspn a " ")))))
         (def from (if (if (> (byte-len argv0) 0) (= (byte-at argv0 0) #\-) #f) 1 0))
         (def word (substring argv0 from (byte-len argv0)))
-        (def slash (%cu-ptr-call %ps-c-strrchr word 47))   ; 47 is /, a byte for the FFI
+        (def slash (cu-ptr-call %ps-c-strrchr word 47))   ; 47 is /, a byte for the FFI
         (def base (if (= slash 0) word
                     (substring word (+ (- slash (%ps-addr word)) 1) (byte-len word))))
         (def m (byte-len comm))
@@ -299,13 +299,13 @@
       (fn (self i acc)
         (if (>= i end) (bytes->str (reverse acc))
           (let ((b (byte-at s i))) (self (+ i 1) (pair (if (< b 32) #\? b) acc))))))
-    (if (= (%cu-ptr-call %ps-c-strcspn s %ps-controls) end) s (go 0 ()))))
+    (if (= (cu-ptr-call %ps-c-strcspn s %ps-controls) end) s (go 0 ()))))
 
 ; One cell of a process's row, before padding, "" where busybox prints its -
 (def %ps-cell
   (fn (_ name width p now args-of names)
     (def get (fn (_ k) (Assoc get k p)))
-    (def right (fn (_ n) (if (null? n) "" (%cu-pad-left (%cu-int->str n) width))))
+    (def right (fn (_ n) (if (null? n) "" (cu-pad-left (cu-int->str n) width))))
     (def cut (fn (_ s) (if (> (byte-len s) width) (substring s 0 width) s)))
     (def id (fn (_ k db) (let ((n (get k))) (if (null? n) "" (cut (names db n))))))
     (def kb (fn (_ k) (let ((n (get k))) (if (null? n) "" (cut (%ps-four (%ps-div n 1024) " mgtpezy"))))))
@@ -327,8 +327,8 @@
           (%ps-time (%ps-div (+ (get (lit utime)) (get (lit stime))) 1000000000) width)))
       ((str=? name "tty")
         (if (null? (get (lit tty-major))) "?"
-          (cut (string-concat (list (%cu-int->str (get (lit tty-major))) ","
-                                    (%cu-int->str (get (lit tty-minor))))))))
+          (cut (string-concat (list (cu-int->str (get (lit tty-major))) ","
+                                    (cu-int->str (get (lit tty-minor))))))))
       ((str=? name "vsz") (kb (lit vsz)))
       ((str=? name "rss") (kb (lit rss)))
       ((str=? name "stat") (%ps-stat p))
@@ -344,7 +344,7 @@
     (if (null? st) ""
       (let ((w (if (if (null? vsz) #f (if (= vsz 0) (not (str=? st "Z")) #f)) "W" "")))
         (def n (match ((null? nice) "") ((< nice 0) "<") ((> nice 0) "N") (#t "")))
-        (%cu-pad-right (string-concat (list st w n)) 3)))))
+        (cu-pad-right (string-concat (list st w n)) 3)))))
 
 ; The table: the header when a column has one, then a row a process -- each
 ; column but the last padded to its width and a space, each line cut to WIDTH
@@ -367,7 +367,7 @@
         (def hit (List find (fn (_ e) (if (eq? (first (first e)) db) (= (rest (first e)) n) #f)) (first cache)))
         (if (not (null? hit)) (rest hit)
           (let ((s (let ((nm (if (eq? db (lit user)) (sys-user-name n) (sys-group-name n))))
-                     (if (null? nm) (%cu-int->str n) nm))))
+                     (if (null? nm) (cu-int->str n) nm))))
             (set-first! cache (pair (pair (pair db n) s) (first cache)))
             s))))
     (def line
@@ -377,7 +377,7 @@
             (if (null? (rest cs)) (string-concat (reverse (pair (first cs) acc)))
               (let ((gap (- (+ (first ws) 1) (byte-len (first cs)))))
                 (self (rest cs) (rest ws)
-                  (pair (%str-make-raw (if (< gap 1) 1 gap)) (pair (first cs) acc)))))))
+                  (pair (str-make-raw (if (< gap 1) 1 gap)) (pair (first cs) acc)))))))
         (def l (go cells (map (fn (_ c) (first (rest (rest c)))) shown) ()))
         (string-append (if (> (byte-len l) width) (substring l 0 width) l) "\n")))
     (def header?
@@ -394,7 +394,7 @@
     (def rows
       (fn (self ps k acc)
         (if (null? ps) (reverse acc)
-          (do (if (= (% k 32) 31) (%cu-heap-collect) ())
+          (do (if (= (% k 32) 31) (cu-heap-collect) ())
               (self (rest ps) (+ k 1) (pair (row (first ps)) acc))))))
     (string-concat
       (pair (if header? (line (map (fn (_ c) (first (rest c))) shown)) "")
@@ -410,7 +410,7 @@
 (def %pg-base
   (fn (_ s)
     (%ps-resolve!)
-    (def slash (%cu-ptr-call %ps-c-strrchr s 47))   ; 47 is /, a byte for the FFI
+    (def slash (cu-ptr-call %ps-c-strrchr s 47))   ; 47 is /, a byte for the FFI
     (if (= slash 0) s (substring s (+ (- slash (%ps-addr s)) 1) (byte-len s)))))
 
 ; the first N bytes of S, or all of it when it is shorter
@@ -422,7 +422,7 @@
     (def go
       (fn (self ps k)
         (if (null? ps) ()
-          (do (if (= (% k 32) 31) (%cu-heap-collect) ())
+          (do (if (= (% k 32) 31) (cu-heap-collect) ())
               (f (first ps))
               (self (rest ps) (+ k 1))))))
     (go procs 0)))
@@ -451,7 +451,7 @@
 
 (def %cu-pidof
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "pidof" argv))
+    (def o (cu-opts "pidof" argv))
     (def me (host-process (sys-getpid)))
     ; -o %PPID is pidof's parent
     (def omits
@@ -468,7 +468,7 @@
             (if (if single (not (null? kept)) #f) (list (first kept)) kept)))
         (def all (List flat-map found (Opts operands o)))
         (if (null? all) 1
-          (do (display (string-append (%cu-join-with (map %cu-int->str all) " ") "\n")) 0))))))
+          (do (display (string-append (cu-join-with (map cu-int->str all) " ") "\n")) 0))))))
 
 
 ; --- signals ------------------------------------------------------------------
@@ -508,13 +508,13 @@
 (def %pg-rt
   (fn (_)
     (do (if (null? (first %pg-rt-cell))
-          (let ((lib (%cu-dlopen () 1)))
-            (let ((lo (%cu-dlsym lib "__libc_current_sigrtmin"))
-                  (hi (%cu-dlsym lib "__libc_current_sigrtmax")))
+          (let ((lib (cu-dlopen () 1)))
+            (let ((lo (cu-dlsym lib "__libc_current_sigrtmin"))
+                  (hi (cu-dlsym lib "__libc_current_sigrtmax")))
               (set-first! %pg-rt-cell
                 (list (if (if (null? lo) #t (null? hi)) ()
-                        (pair (Sys %sign-fold (%cu-ptr-call lo))
-                              (Sys %sign-fold (%cu-ptr-call hi))))))))
+                        (pair (Sys %sign-fold (cu-ptr-call lo))
+                              (Sys %sign-fold (cu-ptr-call hi))))))))
           ())
         (first (first %pg-rt-cell)))))
 
@@ -566,14 +566,14 @@
   (fn (_ n)
     (if (= n 0) "EXIT"
       (let ((hit (List find (fn (_ e) (= (rest e) n)) (sys-signals))))
-        (if (null? hit) (%cu-int->str n) (first hit))))))
+        (if (null? hit) (cu-int->str n) (first hit))))))
 
 ; busybox's print_signames: each signal as " 9) KILL", then libc's RTMIN and
 ; RTMAX where it has them
 (def %pg-print-signames
   (fn (_)
     (def rt (%pg-rt))
-    (def line (fn (_ n name) (display (string-concat (list (%cu-pad-left (%cu-int->str n) 2) ") " name "\n")))))
+    (def line (fn (_ n name) (display (string-concat (list (cu-pad-left (cu-int->str n) 2) ") " name "\n")))))
     (do (map (fn (_ e) (line (rest e) (first e))) (sys-signals))
         (if (null? rt) ()
           (do (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))
@@ -635,7 +635,7 @@
         (def r (%pg-strto w 0 0 4294967295))
         (def n (if digit (if (= (rest r) (byte-len w)) (first r) ()) (%pg-signum w)))
         (if (null? n) (say (string-concat (list "unknown signal '" w "'")))
-          (do (display (string-append (if digit (%pg-signame (& n 127)) (%cu-int->str n)) "\n"))
+          (do (display (string-append (if digit (%pg-signame (& n 127)) (cu-int->str n)) "\n"))
               (self say (rest words))))))))
 
 (def %kl-pids
@@ -660,14 +660,14 @@
       ; errno is read straight after the refusal
       (#t (let ((err (if (< (sys-kill pid signo) 0) (Err from-errno (Err errno-of (- 0 1)) (lit kill) ()) ())))
             (+ (if (null? err) 0
-                 (%kl-say (string-concat (list "can't kill pid " (%cu-int->str pid) ": " (file-err-text err)))))
+                 (%kl-say (string-concat (list "can't kill pid " (cu-int->str pid) ": " (file-err-text err)))))
                (self w end signo)))))))
 
 (def %pg-run (fn (_ applet argv) (%pg-run-with applet argv cu-sigterm)))
 
 (def %pg-run-with
   (fn (_ applet argv signo)
-    (def o (%cu-opts applet argv))
+    (def o (cu-opts applet argv))
     (def on (fn (_ f) (Opts on? o f)))
     (def num (fn (_ f) (let ((v (Opts value o f))) (if (null? v) -1 (%cu-range-number applet v 0 2147483647)))))
     (def ops (Opts operands o))
@@ -678,7 +678,7 @@
       ((if (null? sid-asked) #t (null? ppid)) 1)
       ((if (str=? applet "pkill") (on "-l") #f) (%pg-print-signames))
       ((if (< sid-asked 0) (if (< ppid 0) (if (null? ops) #t (not (null? (rest ops)))) #f) #f)
-        (%cu-usage applet))
+        (cu-usage applet))
       (#t (%pg-scan applet o ops
             (if (= sid-asked 0) (Assoc get (lit sid) (host-process me)) sid-asked)
             ppid me signo)))))
@@ -702,10 +702,10 @@
       (fn (_ p shown)
         (def pid (Assoc get (lit pid) p))
         (if (str=? applet "pgrep")
-          (display (string-append (%cu-int->str pid)
+          (display (string-append (cu-int->str pid)
                      (if (if (on "-l") #t (on "-a")) (string-append " " shown "\n") "\n")))
           (do (sys-kill pid signo)
-              (if (on "-e") (display (string-concat (list shown " killed (pid " (%cu-int->str pid) ")\n"))) ())))))
+              (if (on "-e") (display (string-concat (list shown " killed (pid " (cu-int->str pid) ")\n"))) ())))))
     (def found (list ()))
     (def stop (list #f))
     (%pg-each (%ps-sorted (host-processes))
@@ -716,7 +716,7 @@
         (if (match ((first stop) #t) ((= pid me) #t) (invert #f) (#t ids-differ)) ()
           (let ((args (host-args pid)) (comm (Assoc get (lit comm) p)))
             (def cmd (if (null? args) comm
-                       (if full (%pg-spaced (%cu-join-with args " ")) (first args))))
+                       (if full (%pg-spaced (cu-join-with args " ")) (first args))))
             ; what -l and -a print: the first argument, or with -f -a the line
             (def shown (if (null? args) comm (if (if full (on "-a")) cmd (first args))))
             (def by-cmd (if (null? rx) #f (matches? cmd)))
@@ -742,7 +742,7 @@
       (fn (self i acc)
         (if (>= i end) (bytes->str (reverse acc))
           (let ((b (byte-at s i))) (self (+ i 1) (pair (if (< b 32) #\space b) acc))))))
-    (if (= (%cu-ptr-call %ps-c-strcspn s %ps-controls) end) s (go 0 ()))))
+    (if (= (cu-ptr-call %ps-c-strcspn s %ps-controls) end) s (go 0 ()))))
 
 ; --- lsof -------------------------------------------------------------------
 ;
@@ -766,7 +766,7 @@
     (match
       ((not (null? name)) name)
       ((null? id) kind)
-      (#t (string-concat (list kind ":[" (%cu-int->str id) "]"))))))
+      (#t (string-concat (list kind ":[" (cu-int->str id) "]"))))))
 
 (def %cu-lsof
   (fn (_ argv stdin-thunk)
@@ -776,14 +776,14 @@
         (def pid (Assoc get (lit pid) p))
         (def fs (if (= pid me) () (host-files pid)))
         (if (null? fs) ()
-          (let ((head (string-concat (list (%cu-int->str pid) "\t"
+          (let ((head (string-concat (list (cu-int->str pid) "\t"
                                            (let ((e (host-exe pid))) (if (null? e) "(null)" e)) "\t"))))
             ((fn (self l)
                (if (null? l) ()
-                 (do (display (string-concat (list head (%cu-int->str (Assoc get (lit fd) (first l))) "\t"
+                 (do (display (string-concat (list head (cu-int->str (Assoc get (lit fd) (first l))) "\t"
                                                    (%lsof-target (first l)) "\n")))
                      ; a process can hold thousands of descriptors
-                     (%cu-sweep-tick! %cu-sweep-lines)
+                     (cu-sweep-tick! cu-sweep-lines)
                      (self (rest l)))))
              fs)))))
     0))
@@ -796,12 +796,12 @@
 ; lines before it.
 (def %cu-pwdx
   (fn (_ argv stdin-thunk)
-    (def ops (Opts operands (%cu-opts "pwdx" argv)))
+    (def ops (Opts operands (cu-opts "pwdx" argv)))
     ; getopt reads -5 as the option 5, before any pid
     (def dash (%vm-dash-number ops))
     (match
-      ((not (null? dash)) (%cu-refuse-option "pwdx" dash))
-      ((null? ops) (%cu-usage "pwdx"))
+      ((not (null? dash)) (cu-refuse-option "pwdx" dash))
+      ((null? ops) (cu-usage "pwdx"))
       (#t (%pw-each ops)))))
 
 (def %pw-each
@@ -858,7 +858,7 @@
         (if (null? (rest argv)) (%pg-print-signames) (%kl-list %ka-say (rest argv))))
       ((str=? (first argv) "-q")
         (match
-          ((null? (rest argv)) (%cu-usage "killall"))
+          ((null? (rest argv)) (cu-usage "killall"))
           ((dash? (first (rest argv))) (%ka-signal (rest argv) #t))
           (#t (%ka-kill (rest argv) cu-sigterm #t))))
       (#t (%ka-signal argv #f)))))
@@ -898,7 +898,7 @@
           (let ((r (sys-kill pid signo)))
             (if (< r 0)
               (do (if quiet ()
-                    (%ka-say (string-concat (list "can't kill pid " (%cu-int->str pid) ": "
+                    (%ka-say (string-concat (list "can't kill pid " (cu-int->str pid) ": "
                                (file-err-text (Err from-errno (Err errno-of r) (lit kill) ()))))))
                   1)
               0)))))

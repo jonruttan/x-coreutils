@@ -79,8 +79,8 @@
     (if (= %more-size 0) "--More-- "
       (let ((d (if (< %more-size 100) 1 (%more/ %more-size 100))))
         (string-concat
-          (list "--More-- (" (%cu-int->str (%more/ %more-pos d))
-                "% of " (%cu-int->str %more-size) " bytes)"))))))
+          (list "--More-- (" (cu-int->str (%more/ %more-pos d))
+                "% of " (cu-int->str %more-size) " bytes)"))))))
 
 ; a key as busybox's tolower reads it, Enter as a newline
 (def %more-lower
@@ -98,7 +98,7 @@
       (fn (self len)
         (do (%more-flush!)
           (let ((k (%more-key)))
-            (do (%more-put (string-concat (list %more-cr (%cu-pad-left "" len) %more-cr)))
+            (do (%more-put (string-concat (list %more-cr (cu-pad-left "" len) %more-cr)))
               (match
                 ((null? k) (set! %more-stop 0))
                 ((if (= k (%more-ctrl #\C)) #t (= k (%more-ctrl #\\)))
@@ -142,7 +142,7 @@
                       ())
                     (if (if wrap (not (= c #\newline)) #f)
                       (self c)
-                      (do (%more-put (%cu-b->s c))
+                      (do (%more-put (cu-b->s c))
                           (if (= c #\newline) (%more-flush!) ())))))))
         ()))))
 
@@ -169,12 +169,12 @@
     (def go
       (fn (self i)
         (if (if (< i n) (null? %more-stop) #f)
-          (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+          (do (if (= (& i cu-sweep-bytes) 0) (cu-sweep! i) ())
               (%more-byte (byte-at text i))
               (self (+ i 1)))
           ())))
     (do (go 0)
-        (if (null? %more-stop) s (%cu-enough s)))))
+        (if (null? %more-stop) s (cu-enough s)))))
 
 ; the size more says it is through: a file's, or 0 for standard input
 (def %more-size-of
@@ -186,7 +186,7 @@
 ; each operand in turn, paged; one that will not open is said and passed
 (def %more-page
   (fn (_ ops stdin-thunk)
-    (def says (%cu-says "more"))
+    (def says (cu-says "more"))
     (def each
       (fn (self names)
         (if (if (null? names) #t (not (null? %more-stop))) ()
@@ -196,9 +196,9 @@
               (set! %more-len 0)
               (set! %more-lines 0)
               (%more-measure!)
-              (let ((r (%cu-fold-one (first names) stdin-thunk %more-take ())))
+              (let ((r (cu-fold-one (first names) stdin-thunk %more-take ())))
                 (if (null? (rest r)) ()
-                  (%cu-say says (first names) (rest r))))
+                  (cu-say says (first names) (rest r))))
               (%more-flush!)
               (self (rest names))))))
     (do (set! %more-out ())
@@ -214,7 +214,7 @@
 ; standard output not a terminal, or no terminal to read keys from: cat
 (def %more-cat
   (fn (_ ops stdin-thunk)
-    (rest (%cu-fold-said ops stdin-thunk (%cu-says "more")
+    (rest (cu-fold-said ops stdin-thunk (cu-says "more")
             (fn (_ p s) (do (file-write-run 1 p) s)) ()))))
 
 ; the screen's bytes to standard output, a newline returning the carriage
@@ -225,7 +225,7 @@
 
 (def %cu-more
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "more" argv))
+    (def o (cu-opts "more" argv))
     (def ops (Opts operands o))
     (def tty (if (sys-isatty 1) (file-open-or-err file-open-read "/dev/tty") ()))
     (if (if (null? tty) #t (Err err? tty)) (%more-cat ops stdin-thunk)
@@ -257,8 +257,8 @@
             (do (set-first! i (+ (first i) 1)) b)))))
     (set! %more-sink (fn (_ s) (set-first! drawn (pair s (first drawn)))))
     (set! %more-window (fn (_) (pair cols rows)))
-    (let ((st (%more-page (Opts operands (%cu-opts "more" argv))
-                (%cu-string-stdin stdin))))
+    (let ((st (%more-page (Opts operands (cu-opts "more" argv))
+                (cu-string-stdin stdin))))
       (pair st (string-concat (reverse (first drawn)))))))
 
 ; --- clear, reset -------------------------------------------------------------

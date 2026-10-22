@@ -71,8 +71,8 @@
 ; N in WIDTH columns, filled before it with FILLER: "0", or " "
 (def %cu-date-pad
   (fn (_ n width filler)
-    (if (string=? filler "0") (%cu-pad-zero (%cu-int->str n) width)
-      (%cu-pad-left (%cu-int->str n) width))))
+    (if (string=? filler "0") (cu-pad-zero (cu-int->str n) width)
+      (cu-pad-left (cu-int->str n) width))))
 
 (def %cu-date-pad2 (fn (_ n) (%cu-date-pad n 2 "0")))
 
@@ -84,7 +84,7 @@
     (def go
       (fn (self k acc)
         (if (>= k m) acc
-          (self (+ k 1) (+ acc (%cu-nth (- k 1) %cu-date-mon-days))))))
+          (self (+ k 1) (+ acc (cu-nth (- k 1) %cu-date-mon-days))))))
     (+ (go 1 0)
        (+ (%cu-date-get d (lit day))
           (if (if (> m 2) (Date leap-year? y) #f) 1 0)))))
@@ -98,7 +98,7 @@
 (def %cu-date-one
   (fn (_ c d secs)
     (match
-      ((= c 89) (%cu-int->str (%cu-date-get d (lit year))))            ; Y
+      ((= c 89) (cu-int->str (%cu-date-get d (lit year))))            ; Y
       ((= c 121) (%cu-date-pad2 (% (%cu-date-get d (lit year)) 100)))  ; y
       ((= c 67) (%cu-date-pad2 (/ (- (%cu-date-get d (lit year))
                                      (% (%cu-date-get d (lit year)) 100))
@@ -115,19 +115,19 @@
       ((= c 77) (%cu-date-pad2 (%cu-date-get d (lit minute))))         ; M
       ((= c 83) (%cu-date-pad2 (%cu-date-get d (lit second))))         ; S
       ((= c 106) (%cu-date-pad (%cu-date-yday d) 3 "0"))               ; j
-      ((= c 97) (%cu-nth (%cu-date-get d (lit wday)) %cu-date-wday-abbr)) ; a
-      ((= c 65) (%cu-nth (%cu-date-get d (lit wday)) %cu-date-wday-full)) ; A
-      ((= c 98) (%cu-nth (- (%cu-date-get d (lit month)) 1)
+      ((= c 97) (cu-nth (%cu-date-get d (lit wday)) %cu-date-wday-abbr)) ; a
+      ((= c 65) (cu-nth (%cu-date-get d (lit wday)) %cu-date-wday-full)) ; A
+      ((= c 98) (cu-nth (- (%cu-date-get d (lit month)) 1)
                   %cu-date-mon-abbr))                                  ; b
-      ((= c 104) (%cu-nth (- (%cu-date-get d (lit month)) 1)
+      ((= c 104) (cu-nth (- (%cu-date-get d (lit month)) 1)
                    %cu-date-mon-abbr))                                 ; h
-      ((= c 66) (%cu-nth (- (%cu-date-get d (lit month)) 1)
+      ((= c 66) (cu-nth (- (%cu-date-get d (lit month)) 1)
                   %cu-date-mon-full))                                  ; B
       ((= c 112) (if (< (%cu-date-get d (lit hour)) 12) "AM" "PM"))    ; p
-      ((= c 119) (%cu-int->str (%cu-date-get d (lit wday))))           ; w
-      ((= c 117) (%cu-int->str (if (= (%cu-date-get d (lit wday)) 0) 7
+      ((= c 119) (cu-int->str (%cu-date-get d (lit wday))))           ; w
+      ((= c 117) (cu-int->str (if (= (%cu-date-get d (lit wday)) 0) 7
                                  (%cu-date-get d (lit wday)))))        ; u
-      ((= c 115) (%cu-int->str secs))                                  ; s
+      ((= c 115) (cu-int->str secs))                                  ; s
       ((= c 122) (%cu-date-zone d #f))                                  ; z
       ((= c 90) (Assoc get-or "UTC" (lit zone) d))                      ; Z
       ((= c 110) "\n")                                                 ; n
@@ -243,7 +243,7 @@
   (fn (_ year month day hour minute second max-second utc)
     (def month-days
       (if (if (>= month 1) (<= month 12) #f)
-        (+ (%cu-nth (- month 1) %cu-date-mon-days)
+        (+ (cu-nth (- month 1) %cu-date-mon-days)
            (if (if (= month 2) (Date leap-year? year) #f) 1 0))
         0))
     (match
@@ -281,8 +281,8 @@
           (let ((b (byte-at s i)))
             (match
               ((space? b) (self (+ i 1) acc (pair? acc)))
-              (gap? (self (+ i 1) (pair (%cu-b->s b) (pair " " acc)) #f))
-              (#t (self (+ i 1) (pair (%cu-b->s b) acc) #f)))))))
+              (gap? (self (+ i 1) (pair (cu-b->s b) (pair " " acc)) #f))
+              (#t (self (+ i 1) (pair (cu-b->s b) acc) #f)))))))
     (go 0 () #f)))
 
 ; the seconds a -d with no -D names, or nil, read in UTC or the local zone
@@ -368,9 +368,9 @@
 
 (def %cu-date
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "date" argv))
+    (def o (cu-opts "date" argv))
     (def ops (Opts operands o))
-    (%cu-operands "date" ops 0 1 (fn (_) (%cu-date-run o ops)))))
+    (cu-operands "date" ops 0 1 (fn (_) (%cu-date-run o ops)))))
 
 (def %cu-date-run
   (fn (_ o ops)

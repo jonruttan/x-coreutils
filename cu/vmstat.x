@@ -121,16 +121,16 @@
                 ((> twice p) (+ whole 1))
                 ((< twice p) whole)
                 (#t (+ whole (% whole 2))))))))
-    (def int-part (%cu-int->str (%ps-div q scale)))
+    (def int-part (cu-int->str (%ps-div q scale)))
     (string-append (if (< bits 0) "-" "")
       (if (= prec 0) int-part
-        (string-concat (list int-part "." (%cu-pad-zero (%cu-int->str (% q scale)) prec)))))))
+        (string-concat (list int-part "." (cu-pad-zero (cu-int->str (% q scale)) prec)))))))
 
 ; A divided by B times K, as C computes (double)A / B * K
 (def %vm-rate (fn (_ a b k) (Float * (Float / (Float from a) (Float from b)) (Float from k))))
 
 ; S right-aligned in W columns, as printf's %*s puts it
-(def %vm-right (fn (_ s w) (%cu-pad-left s w)))
+(def %vm-right (fn (_ s w) (cu-pad-left s w)))
 
 ; --- vmstat -------------------------------------------------------------------
 
@@ -213,7 +213,7 @@
         (if (eq? (rest col) (lit rate))
           (let ((r (if (= interval 0) v (%ps-div v interval))))
             (%vm-right (%vm-trim-left (if (= (first col) 4) (%vm-four r " kmgtpezy") (%vm-five r " kmgtpezy"))) width))
-          (%vm-right (%cu-int->str v) width))))
+          (%vm-right (cu-int->str v) width))))
     (def go
       (fn (self cols vs overrun acc)
         (if (null? cols) (string-concat (reverse (pair "\n" acc)))
@@ -239,11 +239,11 @@
 
 (def %cu-vmstat
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "vmstat" argv))
+    (def o (cu-opts "vmstat" argv))
     (def ops (Opts operands o))
     (def unknown (if (null? (Opts unknown o)) (%vm-dash-number ops) (Opts unknown o)))
     ; the options are refused before an operand is read, as getopt runs first
-    (if (not (null? unknown)) (%cu-refuse-option "vmstat" unknown)
+    (if (not (null? unknown)) (cu-refuse-option "vmstat" unknown)
       (let ((interval (if (null? ops) 0 (%cu-range-number "vmstat" (first ops) 0 2147483647))))
         (def count
           (match

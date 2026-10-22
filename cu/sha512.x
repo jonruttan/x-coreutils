@@ -81,9 +81,9 @@
 ; zero for any message x can hold.
 (def %cu-sha512-pad
   (fn (_ text)
-    (def run (%cu-as-run text))
+    (def run (cu-as-run text))
     (def len (rest run))
-    (def bytes (%cu-run-list run ()))
+    (def bytes (cu-run-list run ()))
     (def zeros
       (let ((k (% (- 239 (% len 128)) 128)))
         (let ((go (fn (self n acc)
@@ -115,10 +115,10 @@
     (def extend
       (fn (self t wrev)
         (if (> t 79) (reverse wrev)
-          (let ((w2 (%cu-nth 1 wrev)))
-            (def w7 (%cu-nth 6 wrev))
-            (def w15 (%cu-nth 14 wrev))
-            (def w16v (%cu-nth 15 wrev))
+          (let ((w2 (cu-nth 1 wrev)))
+            (def w7 (cu-nth 6 wrev))
+            (def w15 (cu-nth 14 wrev))
+            (def w16v (cu-nth 15 wrev))
             (def s0 (bit-xor (%cu-rotr64 w15 1)
                       (bit-xor (%cu-rotr64 w15 8) (%cu-shr64 w15 7))))
             (def s1 (bit-xor (%cu-rotr64 w2 19)
@@ -164,8 +164,8 @@
               (%cu-add64 t1 t2) a b c (%cu-add64 d t1) e f g)))))
     (def out
       (round w %cu-sha512-k
-        (%cu-nth 0 hs) (%cu-nth 1 hs) (%cu-nth 2 hs) (%cu-nth 3 hs)
-        (%cu-nth 4 hs) (%cu-nth 5 hs) (%cu-nth 6 hs) (%cu-nth 7 hs)))
+        (cu-nth 0 hs) (cu-nth 1 hs) (cu-nth 2 hs) (cu-nth 3 hs)
+        (cu-nth 4 hs) (cu-nth 5 hs) (cu-nth 6 hs) (cu-nth 7 hs)))
     (def add2
       (fn (self a b acc)
         (if (null? a) (reverse acc)

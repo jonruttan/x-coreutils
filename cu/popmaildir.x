@@ -93,7 +93,7 @@
     (def line
       (let go ((acc ()))
         (let ((r (guard (_ (pair "" 0)) (file-read-run 0 1))))
-          (def b (if (= (rest r) 0) () (%cu-ptr-ref (%cu-str->ptr (first r)) 0 1)))
+          (def b (if (= (rest r) 0) () (cu-ptr-ref (cu-str->ptr (first r)) 0 1)))
           (match ((null? b) (if (null? acc) () (bytes->str (reverse acc))))
                  ((%wget-memv b (list #\newline #\return)) (bytes->str (reverse acc)))
                  ((%wget-memv b (list 8 127)) (go (if (null? acc) acc (rest acc))))
@@ -193,7 +193,7 @@
 ; DELIVERY; DELE unless KEEP?, then new/NAME.  #f stops the run.
 (def %pm-fetch
   (fn (_ k retr delivery keep? suffix)
-    (def name (string-concat (list "tmp/" (let ((t (%si-now))) (%cu-int->str (+ (* (first t) 1000000) (rest t)))) suffix)))
+    (def name (string-concat (list "tmp/" (let ((t (%si-now))) (cu-int->str (+ (* (first t) 1000000) (rest t)))) suffix)))
     (%pm-check (retr k))
     (if (not (null? delivery))
       ; busybox skips DELE and the move whatever the program answers
@@ -205,16 +205,16 @@
                          (#t r)))))
         (do (%pm-copy fd)
             (file-close fd)
-            (unless keep? (%pm-check (string-append "DELE " (%cu-int->str k))))
+            (unless keep? (%pm-check (string-append "DELE " (cu-int->str k))))
             (%pm-move name))))))
 
 ; --- the applet ----------------------------------------------------------------------
 
 (def %cu-popmaildir
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "popmaildir" argv))
+    (def o (cu-opts "popmaildir" argv))
     (def ops (Opts operands o))
-    (if (null? ops) (%cu-usage "popmaildir")
+    (if (null? ops) (cu-usage "popmaildir")
       (guard (e (if (eq? (Err label e) (lit net))
                   (do (file-write 2 (string-concat (list "popmaildir: " (e msg) "\n"))) 1)
                   (error e)))
@@ -241,10 +241,10 @@
     (def greeting (%pm-check ()))
     (unless (Opts on? o "-s") (%pm-login! greeting cred (Opts on? o "-a")))
     (def n (%pm-atoi (%pm-check "STAT")))
-    (def suffix (string-concat (list "." (%cu-int->str (sys-getpid)) "." (%cu-uname-field (sys-uname) (lit nodename)))))
+    (def suffix (string-concat (list "." (cu-int->str (sys-getpid)) "." (%cu-uname-field (sys-uname) (lit nodename)))))
     (def retr (if (Opts on? o "-T")
-                (fn (_ k) (string-concat (list "TOP " (%cu-int->str k) " " (%cu-int->str lines))))
-                (fn (_ k) (string-append "RETR " (%cu-int->str k)))))
+                (fn (_ k) (string-concat (list "TOP " (cu-int->str k) " " (cu-int->str lines))))
+                (fn (_ k) (string-append "RETR " (cu-int->str k)))))
     (let go ((k n))
       (when (> k 0)
         (when (%pm-fetch k retr delivery (Opts on? o "-k") suffix) (go (- k 1)))))

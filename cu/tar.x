@@ -39,14 +39,14 @@
 
 (def %tar-resolve!
   (fn (_)
-    (def lib (%cu-dlopen () 1))
-    (set! %tar-c-memcpy (%cu-dlsym lib "memcpy"))
-    (set! %tar-c-write (%cu-dlsym lib "write"))
-    (set! %tar-c-mkdir (%cu-dlsym lib "mkdir"))
-    (set! %tar-c-mknod (%cu-dlsym lib "mknod"))
-    (set! %tar-c-getuid (%cu-dlsym lib "getuid"))))
+    (def lib (cu-dlopen () 1))
+    (set! %tar-c-memcpy (cu-dlsym lib "memcpy"))
+    (set! %tar-c-write (cu-dlsym lib "write"))
+    (set! %tar-c-mkdir (cu-dlsym lib "mkdir"))
+    (set! %tar-c-mknod (cu-dlsym lib "mknod"))
+    (set! %tar-c-getuid (cu-dlsym lib "getuid"))))
 
-(def %tar-addr (fn (_ s) (%tar-ptr->int (%cu-str->ptr s))))
+(def %tar-addr (fn (_ s) (%tar-ptr->int (cu-str->ptr s))))
 (def %tar-min (fn (_ a b) (if (< a b) a b)))
 
 ; the run ends: MSG said under tar's name, and the status 1
@@ -91,14 +91,14 @@
     (def put (list 0))
     (%tar-take! rd n
       (fn (_ a m)
-        (do (%cu-ptr-call %tar-c-memcpy (+ at (first put)) a m)
+        (do (cu-ptr-call %tar-c-memcpy (+ at (first put)) a m)
             (%set-first! put (+ (first put) m)))))))
 
 (def %tar-skip! (fn (_ rd n) (%tar-take! rd n (fn (_ a m) ()))))
 
 ; N bytes written to FD as they are read
 (def %tar-copy-out!
-  (fn (_ rd fd n) (%tar-take! rd n (fn (_ a m) (%cu-ptr-call %tar-c-write fd a m)))))
+  (fn (_ rd fd n) (%tar-take! rd n (fn (_ a m) (cu-ptr-call %tar-c-write fd a m)))))
 
 ; past the padding to the next 512-byte block
 (def %tar-align!
@@ -241,13 +241,13 @@
 (def %tar-pax
   (fn (_ rd size global)
     (def blk (* 512 (%cal/ (+ size 511) 512)))
-    (def buf (%str-make-raw (+ blk 1)))
+    (def buf (str-make-raw (+ blk 1)))
     (def text (do (%tar-fill! rd buf 0 blk) (substring buf 0 size)))
     (def go
       (fn (self s path link)
         (if (= (byte-len s) 0) (pair path link)
           (let ((sp (%dp-find s 0 #\space)))
-            (let ((len (if (> sp 0) (%cu-num-prefix (substring s 0 sp)) 0)))
+            (let ((len (if (> sp 0) (cu-num-prefix (substring s 0 sp)) 0)))
               (if (if (< sp 1) #t (if (= len 0) #t (> len (byte-len s))))
                 (do (%tar-say "malformed extended header, skipped") (pair path link))
                 (let ((rec (substring s (+ sp 1) (- len 1))))
@@ -263,7 +263,7 @@
 (def %tar-long
   (fn (_ rd size)
     (if (> size 4095) (%tar-die "bad archive")
-      (let ((buf (%str-make-raw (+ size 1))))
+      (let ((buf (str-make-raw (+ size 1))))
         (do (%tar-fill! rd buf 0 size)
             (%tar-field buf 0 size))))))
 
@@ -273,7 +273,7 @@
 ; gave for the member after it, and whether the last block was empty.
 (def %tar-header
   (fn (self rd st)
-    (def h (%str-make-raw 512))
+    (def h (str-make-raw 512))
     (do (%tar-align! rd)
         (let ((got (%tar-fill! rd h 0 512)))
           (match
@@ -355,9 +355,9 @@
 ; MODE as ls -l shows it: the type, then the permissions
 (def %tar-mode-string
   (fn (_ mode)
-    (%cu-perm-string (%cu-mode-file-type mode) (& mode 4095))))
+    (%cu-perm-string (cu-mode-file-type mode) (& mode 4095))))
 
-(def %tar-2 (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
+(def %tar-2 (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
 
 ; busybox's header_verbose_list line for member M
 (def %tar-verbose-line
@@ -366,10 +366,10 @@
     (def at (fn (_ k) (Assoc get k d)))
     (string-concat
       (list (%tar-mode-string (%tm-mode m)) " "
-            (if (null? (vec-ref m 7)) (%cu-int->str (vec-ref m 2)) (vec-ref m 7)) "/"
-            (if (null? (vec-ref m 8)) (%cu-int->str (vec-ref m 3)) (vec-ref m 8)) " "
-            (%cu-pad-left (%cu-int->str (%tm-size m)) 9) " "
-            (%cu-pad-left (%cu-int->str (at (lit year))) 4) "-" (%tar-2 (at (lit month))) "-"
+            (if (null? (vec-ref m 7)) (cu-int->str (vec-ref m 2)) (vec-ref m 7)) "/"
+            (if (null? (vec-ref m 8)) (cu-int->str (vec-ref m 3)) (vec-ref m 8)) " "
+            (cu-pad-left (cu-int->str (%tm-size m)) 9) " "
+            (cu-pad-left (cu-int->str (at (lit year))) 4) "-" (%tar-2 (at (lit month))) "-"
             (%tar-2 (at (lit day))) " " (%tar-2 (at (lit hour))) ":" (%tar-2 (at (lit minute))) ":"
             (%tar-2 (at (lit second))) " "
             (%tar-printable (%tm-name m))
@@ -480,7 +480,7 @@
               (%tar-die (string-concat (list "can't open '" dst "': " (file-err-text (file-open-err fd dst)))))
               (do (%tar-copy-out! rd fd (%tm-size m)) (file-close fd)))))
         ((= type 16384)
-          (if (< (Sys %sign-fold (%cu-ptr-call %tar-c-mkdir dst (& mode 4095))) 0)
+          (if (< (Sys %sign-fold (cu-ptr-call %tar-c-mkdir dst (& mode 4095))) 0)
             (let ((why (%tar-why (lit mkdir) dst)))
               (if (string=? why "File exists") ()
                 (%tar-say (string-concat (list "can't make dir " dst ": " why)))))
@@ -494,7 +494,7 @@
                                                (%tar-why (lit symlink) dst))))))))
         (#t
           (let ((dev (vec-ref m 9)))
-            (if (< (Sys %sign-fold (%cu-ptr-call %tar-c-mknod dst mode (%tar-makedev dev))) 0)
+            (if (< (Sys %sign-fold (cu-ptr-call %tar-c-mknod dst mode (%tar-makedev dev))) 0)
               (%tar-say (string-concat (list "can't create node " dst ": " (%tar-why (lit mknod) dst))))
               ()))))
       (if (if (= type 40960) #t (not (null? target))) () (%tar-restore! t m dst mode)))))
@@ -568,7 +568,7 @@
                             (if (= (& (%tm-mode m2) 61440) 32768) (%tar-copy-out! rd 1 (%tm-size m2))
                               (%tar-skip! rd (%tm-size m2))))
                           (#t (%tar-skip! rd (%tm-size m2))))
-                        (%cu-sweep-tick! %cu-sweep-lines)
+                        (cu-sweep-tick! cu-sweep-lines)
                         (self (pair (%tm-name m2) passed) #t)))))))))
     (go () #f)))
 
@@ -596,9 +596,9 @@
 ; where it fills the field
 (def %tc-put!
   (fn (_ h off s max)
-    (def p (%cu-str->ptr h))
+    (def p (cu-str->ptr h))
     (def n (%tar-min (byte-len s) max))
-    (def go (fn (self i) (if (< i n) (do (%cu-ptr-set! p (+ off i) (byte-at s i) 1) (self (+ i 1))) ())))
+    (def go (fn (self i) (if (< i n) (do (cu-ptr-set! p (+ off i) (byte-at s i) 1) (self (+ i 1))) ())))
     (go 0)))
 
 ; V into a field of LEN at OFF, as busybox's putOctal: LEN-1 digits and a NUL
@@ -606,16 +606,16 @@
 (def %tc-octal!
   (fn (_ h off len v)
     (def d (%dp-udigits v 8 #f))
-    (def full (%cu-pad-zero d len))
+    (def full (cu-pad-zero d len))
     (def last (substring full (- (byte-len full) len) (byte-len full)))
     (%tc-put! h off (if (= (byte-at last 0) #\0) (substring last 1 len) last) len)))
 
 ; a block of 512 NUL bytes
 (def %tc-block
   (fn (_)
-    (def h (%str-make-raw 512))
-    (def p (%cu-str->ptr h))
-    (def go (fn (self i) (if (< i 512) (do (%cu-ptr-set! p i 0 1) (self (+ i 1))) ())))
+    (def h (str-make-raw 512))
+    (def p (cu-str->ptr h))
+    (def go (fn (self i) (if (< i 512) (do (cu-ptr-set! p i 0 1) (self (+ i 1))) ())))
     (do (go 0) h)))
 
 ; the header H written to FD, its magic and checksum put in first: GNU's
@@ -623,13 +623,13 @@
 ; octal digits and a NUL
 (def %tc-write-header!
   (fn (_ fd h)
-    (def p (%cu-str->ptr h))
+    (def p (cu-str->ptr h))
     (do (%tc-put! h 257 "ustar  " 8)
         (%tc-put! h 148 "        " 8)
         (let ((sum (let ((go (fn (self i acc) (if (= i 512) acc (self (+ i 1) (+ acc (byte-at h i)))))))
                      (go 0 0))))
-          (do (%tc-put! h 148 (%cu-pad-zero (%dp-udigits sum 8 #f) 6) 6)
-              (%cu-ptr-set! p 154 0 1)))
+          (do (%tc-put! h 148 (cu-pad-zero (%dp-udigits sum 8 #f) 6) 6)
+              (cu-ptr-set! p 154 0 1)))
         (%tc-emit! fd (pair h 512)))))
 
 ; a GNU long name or link block, TYPE L or K, before the header it belongs to
@@ -644,11 +644,11 @@
         (%tc-put! h 124 "00000000000" 12)
         (%tc-put! h 136 "00000000000" 12)
         (%tc-octal! h 124 12 size)
-        (%cu-ptr-set! (%cu-str->ptr h) 156 type 1)
+        (cu-ptr-set! (cu-str->ptr h) 156 type 1)
         (%tc-write-header! fd h)
         (let ((blocks (%cal/ (+ size 511) 512)))
-          (let ((buf (%str-make-raw (* 512 blocks))))
-            (do (map (fn (_ i) (%cu-ptr-set! (%cu-str->ptr buf) i 0 1)) (List range 0 (* 512 blocks)))
+          (let ((buf (str-make-raw (* 512 blocks))))
+            (do (map (fn (_ i) (cu-ptr-set! (cu-str->ptr buf) i 0 1)) (List range 0 (* 512 blocks)))
                 (%tc-put! buf 0 (if dir? (string-append name "/") name) (* 512 blocks))
                 (%tc-emit! fd (pair buf (* 512 blocks)))))))))
 
@@ -658,8 +658,8 @@
 (def %tc-fd (fn (_ c) (vec-ref c 0)))
 
 ; an owner's or group's name for the header, or its number
-(def %tc-uname (fn (_ uid) (let ((n (sys-user-name uid))) (if (null? n) (%cu-int->str uid) n))))
-(def %tc-gname (fn (_ gid) (let ((n (sys-group-name gid))) (if (null? n) (%cu-int->str gid) n))))
+(def %tc-uname (fn (_ uid) (let ((n (sys-user-name uid))) (if (null? n) (cu-int->str uid) n))))
+(def %tc-gname (fn (_ gid) (let ((n (sys-group-name gid))) (if (null? n) (cu-int->str gid) n))))
 
 ; busybox's writeTarHeader: the header for PATH, named NAME, from its stat ST,
 ; HL the name of the file it is a hard link to.  #f where it is not written.
@@ -685,7 +685,7 @@
           (%tc-octal! h 136 12 (let ((t (get (lit mtime)))) (if (< t 0) 0 t)))
           (%tc-put! h 265 (%tc-uname (get (lit uid))) 31)
           (%tc-put! h 297 (%tc-gname (get (lit gid))) 31)
-          (%cu-ptr-set! (%cu-str->ptr h) 156 flag 1)
+          (cu-ptr-set! (cu-str->ptr h) 156 flag 1)
           (if (null? link) () (%tc-put! h 157 link 100))
           (match
             ((if (= flag #\5) (< (byte-len name) 100) #f) (%tc-put! h (byte-len name) "/" 1))
@@ -768,7 +768,7 @@
       ((if (null? self-dev) #f (if (= (first self-dev) (get (lit dev))) (= (rest self-dev) (get (lit ino))) #f))
         (do (%tar-say (string-append path ": file is the archive; skipping")) #t))
       ((if (null? hl) (= type 32768) #f)
-        (let ((src (%cu-pieces path ())))
+        (let ((src (cu-pieces path ())))
           (if (Err err? src) (do (%tar-say (string-append path ": " (file-err-text src))) #f)
             (do (%tc-header! c name path st hl)
                 (%tc-body! c src (get (lit size)))
@@ -786,7 +786,7 @@
             (if (if (Err err? p) #t (= (rest p) 0)) (%tar-die "short read")
               (let ((k (%tar-min (rest p) left)))
                 (do (%tc-emit! fd (if (= k (rest p)) p (pair (%tc-sub-run p k) k)))
-                    (%cu-sweep-tick! %cu-sweep-lines)
+                    (cu-sweep-tick! cu-sweep-lines)
                     (self (- left k)))))))))
     (do (go size)
         (src (lit close))
@@ -796,8 +796,8 @@
 ; the first K bytes of run P, as a string of its own
 (def %tc-sub-run
   (fn (_ p k)
-    (def buf (%str-make-raw (+ k 1)))
-    (do (%cu-ptr-call %tar-c-memcpy (%tar-addr buf) (%tar-addr (first p)) k) buf)))
+    (def buf (str-make-raw (+ k 1)))
+    (do (cu-ptr-call %tar-c-memcpy (%tar-addr buf) (%tar-addr (first p)) k) buf)))
 
 ; busybox's recursive_action for PATH: the path itself, then -- a directory,
 ; unless --no-recursion or it was left out -- each entry in it.  #f where
@@ -842,10 +842,10 @@
   (fn (_ names)
     (def one
       (fn (_ f)
-        (let ((src (%cu-pieces f ())))
+        (let ((src (cu-pieces f ())))
           (if (Err err? src) (%tar-die (string-concat (list "can't open '" f "': " (file-err-text src))))
-            (let ((text (string-concat (map %cu-run-text (%tar-all-pieces src)))))
-              (map %tar-unslash (%cu-lines text)))))))
+            (let ((text (string-concat (map cu-run-text (%tar-all-pieces src)))))
+              (map %tar-unslash (cu-lines text)))))))
     (%tar-flatten (map one names))))
 
 (def %tar-all-pieces
@@ -856,19 +856,19 @@
 (def %tar-flatten (fn (self ls) (if (null? ls) () (append (first ls) (self (rest ls))))))
 
 (def %tar-count
-  (fn (_ o flags) (length (filter (fn (_ f) (%cu-member-s? f flags)) (Assoc get (lit on) o)))))
+  (fn (_ o flags) (length (filter (fn (_ f) (cu-member-s? f flags)) (Assoc get (lit on) o)))))
 
 ; tar c|x|t [-hmvokO] [-f TARFILE] [-C DIR] [-T FILE] [-X FILE] [LONGOPT]... [FILE]...
 (def %cu-tar
   (fn (_ argv stdin-thunk)
-    (guard (e (if (eq? (%cu-err-label e) (lit tar))
+    (guard (e (if (eq? (cu-err-label e) (lit tar))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
                 (error e)))
       (%tar-run (%tar-compat-argv argv) stdin-thunk))))
 
 (def %tar-run
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "tar" argv))
+    (def o (cu-opts "tar" argv))
     (def on (fn (_ a b) (if (Opts on? o a) #t (Opts on? o b))))
     (def val (fn (_ a b) (let ((v (Opts value o a))) (if (null? v) (Opts value o b) v))))
     (def modes (filter (fn (_ x) x) (list (on "-c" "--create") (on "-x" "--extract") (on "-t" "--list"))))
@@ -887,7 +887,7 @@
         (set! %tar-pending ())
         (%tar-resolve!)
         (match
-          ((not (= (length modes) 1)) (%cu-usage "tar"))
+          ((not (= (length modes) 1)) (cu-usage "tar"))
           ((null? strip) 1)
           ((on "-c" "--create") (%tar-create o file verbose accept reject))
           (#t (%tar-extract-run o on file verbose accept reject strip stdin-thunk))))))
@@ -904,7 +904,7 @@
 
 (def %tar-extract-run
   (fn (_ o on file verbose accept reject strip stdin-thunk)
-    (def root (= (%cu-ptr-call %tar-c-getuid) 0))
+    (def root (= (cu-ptr-call %tar-c-getuid) 0))
     (def t
       (vec-build 11
         (fn (_ i)
@@ -915,7 +915,7 @@
             ((= i 7) (on "-o" "--no-same-owner")) ((= i 8) (Opts on? o "--numeric-owner"))
             ((= i 9) (if root (not (Opts on? o "--no-same-permissions")) #f))
             (#t (not (on "-m" "--touch")))))))
-    (def raw (%cu-pieces file stdin-thunk))
+    (def raw (cu-pieces file stdin-thunk))
     ; z, or data that begins with gzip's magic, is read through gunzip
     (def src (if (Err err? raw) raw
                (if (on "-z" "--gzip") (%gz-tar-pieces raw)

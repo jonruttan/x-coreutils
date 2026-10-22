@@ -60,7 +60,7 @@
 
 (def %cu-touch
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "touch" argv))
+    (def o (cu-opts "touch" argv))
     (def c? (Opts on? o "-c"))
     (def ops (Opts operands o))
     (def rfile (Opts value o "-r"))
@@ -124,7 +124,7 @@
 ; and what this applet always printed.
 (def %cu-pwd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "pwd" argv))
+    (def o (cu-opts "pwd" argv))
     (def here (sys-getcwd))
     (def shown
       (let ((p (sys-getenv "PWD")))
@@ -154,7 +154,7 @@
 ; strip a binary and there is no strip to call, so it is not claimed.
 (def %cu-install
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "install" argv))
+    (def o (cu-opts "install" argv))
     (def ops (Opts operands o))
     (def mode (let ((m (Opts value o "-m")))
                 (if (null? m) () (%cu-octal->int m))))
@@ -166,8 +166,8 @@
         (do (if (null? mode) () (file-chmod target mode))
             (if (if (null? owner) (null? group) #f) ()
               (file-chown target
-                (if (null? owner) (- 0 1) (%cu-num-prefix owner))
-                (if (null? group) (- 0 1) (%cu-num-prefix group))))
+                (if (null? owner) (- 0 1) (cu-num-prefix owner))
+                (if (null? group) (- 0 1) (cu-num-prefix group))))
             (if (Opts on? o "-p") (file-utimes target) ()))))
     (if (Opts on? o "-d")
       (let ((go (fn (self ds)
@@ -183,7 +183,7 @@
                     (if (null? ops) () (%cu-drop-last ops))
                     ops))
         (if (null? srcs)
-          (%cu-missing-file-operand "install" ops)
+          (cu-missing-file-operand "install" ops)
           (let ((go (fn (self ss st)
                       (if (null? ss) st
                         (let ((target
@@ -229,7 +229,7 @@
 ; One TEMPLATE at most; a second is refused in GNU's words.
 (def %cu-mktemp
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "mktemp" argv))
+    (def o (cu-opts "mktemp" argv))
     (if (> (length (Opts operands o)) 1)
       (do (file-write 2 "mktemp: too many templates\n") 1)
       (%cu-mktemp-run o))))
@@ -303,7 +303,7 @@
 ; usage line and 1; so is a count -n or a skip that is not a number.
 (def %cu-cmp
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "cmp" argv))
+    (def o (cu-opts "cmp" argv))
     (def ops (Opts operands o))
     (def n (length ops))
     (def numbers
@@ -337,9 +337,9 @@
     (def scale
       (match
         ((string=? tail "") 1)
-        ((%cu-member-s? tail (list "k" "K" "kiB" "KiB")) 1024)
-        ((%cu-member-s? tail (list "m" "M" "miB" "MiB")) 1048576)
-        ((%cu-member-s? tail (list "g" "G" "giB" "GiB")) 1073741824)
+        ((cu-member-s? tail (list "k" "K" "kiB" "KiB")) 1024)
+        ((cu-member-s? tail (list "m" "M" "miB" "MiB")) 1048576)
+        ((cu-member-s? tail (list "g" "G" "giB" "GiB")) 1073741824)
         (#t ())))
     (if (if (> (first d) 0) (not (null? scale)) #f) (* (rest d) scale) ())))
 
@@ -350,8 +350,8 @@
     (def ops (list (first given) (if (null? (rest given)) "-" (first (rest given)))))
     (def skip
       (fn (_ k)
-        (if (> (length given) k) (%cu-kmg-number (%cu-nth k given)) 0)))
-    (def says (if s? (fn (_ name err) ()) (%cu-says "cmp")))
+        (if (> (length given) k) (%cu-kmg-number (cu-nth k given)) 0)))
+    (def says (if s? (fn (_ name err) ()) (cu-says "cmp")))
     (def cap
       (let ((v (Opts value o "-n")))
         (if (null? v) (- 0 1) (%cu-kmg-number v))))
@@ -361,11 +361,11 @@
     ; Standard input named twice is the same bytes, and nothing is read.
     (match
       ((if (string=? (first ops) "-") (string=? (first (rest ops)) "-") #f) 0)
-      ((Err err? (%cu-first-unopened ops says)) 2)
+      ((Err err? (cu-first-unopened ops says)) 2)
       (#t
-        (%cu-with-sources ops stdin-thunk says 2
+        (cu-with-sources ops stdin-thunk says 2
           (fn (_ a b)
-            (%cu-cmp-walk (%cu-pieces-past a (skip 2)) (%cu-pieces-past b (skip 3))
+            (%cu-cmp-walk (cu-pieces-past a (skip 2)) (cu-pieces-past b (skip 3))
               ops (pair "" 0) (pair "" 0) cap (Opts on? o "-l") s? says)))))))
 
 ; The bytes of the piece sources A and B compared in turn, from the runs RA
@@ -386,7 +386,7 @@
         (do (if quiet? ()
               (file-write 2 (string-concat (list "cmp: EOF on " name "\n"))))
             1)))
-    (def failed (fn (_ name err) (do (%cu-say says name err) 2)))
+    (def failed (fn (_ name err) (do (cu-say says name err) 2)))
     (def least (fn (_ x y) (if (< x y) x y)))
     ; the next run of A where RA is used up: back to WALK, or the end of both,
     ; or of A alone.  The walk is handed in, as it is to %cu-cmp-over, since
@@ -433,7 +433,7 @@
           (let ((x (byte-at (first ra) (+ ia k)))
                 (y (byte-at (first rb) (+ ib k)))
                 (at (+ off k)))
-            (do (if (= (& at %cu-sweep-bytes) 0) (%cu-sweep! at) ())
+            (do (if (= (& at cu-sweep-bytes) 0) (cu-sweep! at) ())
                 (match
                   ((= x y) (self (+ k 1) (if (= x 10) (+ line 1) line) st))
                   (list?
@@ -451,12 +451,12 @@
   (fn (_ names at line)
     (string-concat
       (list (first names) " " (first (rest names)) " differ: byte "
-            (%cu-int->str at) ", line " (%cu-int->str line) "\n"))))
+            (cu-int->str at) ", line " (cu-int->str line) "\n"))))
 
 ; a line of -l: the offset, and the two bytes in octal, three wide
 (def %cu-cmp-listed
   (fn (_ off x y)
     (string-concat
-      (list (%cu-int->str off) " "
-            (%cu-pad-left (%cu-oct->str x) 3) " "
-            (%cu-pad-left (%cu-oct->str y) 3) "\n"))))
+      (list (cu-int->str off) " "
+            (cu-pad-left (%cu-oct->str x) 3) " "
+            (cu-pad-left (%cu-oct->str y) 3) "\n"))))

@@ -27,14 +27,14 @@
 
 (def %cu-watch
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "watch" argv))
+    (def o (cu-opts "watch" argv))
     (def words (Opts operands o))
     (def n (Opts value o "-n"))
     (def period (if (null? n) (Float from 2) (%watch-period n)))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option "watch" (Opts unknown o)))
-      ((null? words) (%cu-usage "watch"))
-      ((eq? period (lit usage)) (%cu-usage "watch"))
+      ((not (null? (Opts unknown o))) (cu-refuse-option "watch" (Opts unknown o)))
+      ((null? words) (cu-usage "watch"))
+      ((eq? period (lit usage)) (cu-usage "watch"))
       ((str? period) (do (file-write 2 (string-concat (list "watch: invalid number '" period "'\n"))) 1))
       ; the engine keeps SIGINT to itself; busybox's watch dies of it
       (#t (do (%watch-signals! (Sys sig-dfl))
@@ -116,7 +116,7 @@
 ; command, the wait; the rounds' garbage collected every 16th
 (def %watch-loop
   (fn (self round words cmd exec? header? period)
-    (%cu-sweep-at round 15)
+    (cu-sweep-at round 15)
     (file-write 1 (string-concat (list %watch-esc "[H" %watch-esc "[J")))
     (when header?
       (file-write 1 (string-append (%watch-header period cmd (%watch-width) (%watch-now)) "\n\n")))
@@ -128,7 +128,7 @@
 ; one, the last 19 the local time
 (def %watch-header
   (fn (_ period cmd width now)
-    (def line (string-concat (list "Every " (%vm-fixed period 1) "s: " (%cu-pad-right cmd width))))
+    (def line (string-concat (list "Every " (%vm-fixed period 1) "s: " (cu-pad-right cmd width))))
     (if (> width 20)
       (string-append (substring line 0 (- width 20)) (substring (%ps-boot-line now) 0 19))
       line)))

@@ -45,7 +45,7 @@
             (let ((p ((vec-ref rd 0))))
               (if (if (Err err? p) #t (= (rest p) 0))
                 (do (vec-set! rd 1 ()) (if (null? acc) () (string-concat (reverse acc))))
-                (do (vec-set! rd 1 (%cu-run-text p)) (vec-set! rd 2 0) (self acc n))))
+                (do (vec-set! rd 1 (cu-run-text p)) (vec-set! rd 2 0) (self acc n))))
             (let ((nl (%dp-find text pos #\newline)))
               (let ((end (%ed-min (if (< nl 0) (byte-len text) (+ nl 1)) (+ pos (- (- max 1) n)))))
                 (do (vec-set! rd 2 end)
@@ -77,7 +77,7 @@
 (def %ed-line
   (fn (_ num)
     (if (if (< num 1) #t (> num (%ed-last)))
-      (%ed-err (string-concat (list "line number " (%cu-int->str num) " does not exist")))
+      (%ed-err (string-concat (list "line number " (cu-int->str num) " does not exist")))
       (List ref (- num 1) (%eg 0)))))
 
 (def %ed-set-cur!
@@ -159,12 +159,12 @@
 (def %ed-read-file
   (fn (_ file num)
     (if (if (< num 1) #t (> num (+ (%ed-last) 1))) (%ed-err "bad line for read")
-      (let ((src (%cu-pieces file ())))
+      (let ((src (cu-pieces file ())))
         (if (Err err? src) (%ed-err (string-concat (list file ": " (file-err-text src))))
-          (let ((text (string-concat (map %cu-run-text (%tar-all-pieces src)))))
+          (let ((text (string-concat (map cu-run-text (%tar-all-pieces src)))))
             (let ((lines (%ed-split text)))
               (do (%ed-insert! num lines)
-                  (if (%eg 8) () (file-write 1 (string-append (%cu-int->str (byte-len text)) "\n")))
+                  (if (%eg 8) () (file-write 1 (string-append (cu-int->str (byte-len text)) "\n")))
                   #t))))))))
 
 ; TEXT's lines, each with its newline, the last without where it has none
@@ -187,7 +187,7 @@
             (do (map (fn (_ l) (file-write fd l)) ls)
                 (file-close fd)
                 (if (%eg 8) ()
-                  (file-write 1 (string-append (%cu-int->str (List fold (fn (_ a l) (+ a (byte-len l))) 0 ls)) "\n")))
+                  (file-write 1 (string-append (cu-int->str (List fold (fn (_ a l) (+ a (byte-len l))) 0 ls)) "\n")))
                 #t)))))))
 
 ; --- s ---------------------------------------------------------------------------
@@ -223,7 +223,7 @@
       ((eq? (%ed-line n1) #f) ())
       (#t (let ((old (if (= (byte-len (first parts)) 0) (%eg 6) (first parts))))
             (do (%eg! 6 old)
-                (if (%ed-sub-lines old (%cu-nth 1 parts) (%cu-nth 2 parts) (%cu-nth 3 parts) n1 n2 0) ()
+                (if (%ed-sub-lines old (cu-nth 1 parts) (cu-nth 2 parts) (cu-nth 3 parts) n1 n2 0) ()
                   (%ed-err (string-concat (list "no substitutions found for \"" old "\""))))))))))
 
 ; each line from N to N2 with OLD replaced, the first from OFF or, under G,
@@ -352,7 +352,7 @@
       ((= c #\z) (do (%ed-z (%ed-at line i)) #t))
       ((= c #\.) (do (if have1 (%ed-err "no arguments allowed") (%ed-print (%ed-cur) (%ed-cur) #f)) #t))
       ((= c #\-) (do (if (%ed-set-cur! (- (%ed-cur) 1)) (%ed-print (%ed-cur) (%ed-cur) #f) ()) #t))
-      ((= c #\=) (do (file-write 1 (string-append (%cu-int->str n1) "\n")) #t))
+      ((= c #\=) (do (file-write 1 (string-append (cu-int->str n1) "\n")) #t))
       ((= c 0) (do (if have1 (%ed-print n2 n2 #f)
                      (if (%ed-set-cur! (+ (%ed-cur) 1)) (%ed-print (%ed-cur) (%ed-cur) #f) ())) #t))
       (#t (do (%ed-err "unimplemented command") #t)))))
@@ -416,13 +416,13 @@
 ; ed [-p PROMPT] [-s] [FILE]
 (def %cu-ed
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ed" argv))
+    (def o (cu-opts "ed" argv))
     (def p (Opts value o "-p"))
     (def file (let ((ops (Opts operands o))) (if (null? ops) () (first ops))))
     (do (set! %ed (vec-build 10 (fn (_ i) (match ((= i 0) ()) ((= i 1) 0) ((= i 2) 0) ((= i 3) #f)
                                                  ((= i 4) (vec-make 26 0)) ((= i 6) "") ((= i 7) (if (null? p) "" p))
                                                  ((= i 8) (Opts on? o "-s"))
-                                                 ((= i 9) (vec-build 3 (fn (_ k) (match ((= k 0) (%cu-pieces "-" stdin-thunk)) ((= k 2) 0) (#t ())))))
+                                                 ((= i 9) (vec-build 3 (fn (_ k) (match ((= k 0) (cu-pieces "-" stdin-thunk)) ((= k 2) 0) (#t ())))))
                                                  (#t ())))))
         (if (null? file) (%ed-loop)
           (do (%eg! 5 file)
@@ -434,4 +434,4 @@
     (do (if (= (byte-len (%eg 7)) 0) () (file-write 2 (%eg 7)))
         (let ((l (%ed-gets 1024)))
           (if (null? l) ()
-            (if (%ed-command (%ed-trim l)) (do (%cu-sweep-tick! %cu-sweep-lines) (self)) ()))))))
+            (if (%ed-command (%ed-trim l)) (do (cu-sweep-tick! cu-sweep-lines) (self)) ()))))))

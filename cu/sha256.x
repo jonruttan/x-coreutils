@@ -51,9 +51,9 @@
 ; big-endian bit length
 (def %cu-sha-pad
   (fn (_ text)
-    (def run (%cu-as-run text))
+    (def run (cu-as-run text))
     (def len (rest run))
-    (def bytes (%cu-run-list run ()))
+    (def bytes (cu-run-list run ()))
     (def zeros
       (let ((k (% (- 119 (% len 64)) 64)))
         (let ((go (fn (self n acc)
@@ -86,10 +86,10 @@
     (def extend
       (fn (self t wrev)
         (if (> t 63) (reverse wrev)
-          (let ((w2 (%cu-nth 1 wrev)))
-            (def w7 (%cu-nth 6 wrev))
-            (def w15 (%cu-nth 14 wrev))
-            (def w16v (%cu-nth 15 wrev))
+          (let ((w2 (cu-nth 1 wrev)))
+            (def w7 (cu-nth 6 wrev))
+            (def w15 (cu-nth 14 wrev))
+            (def w16v (cu-nth 15 wrev))
             (def s0 (bit-xor (%cu-rotr w15 7)
                       (bit-xor (%cu-rotr w15 18) (bit-shr w15 3))))
             (def s1 (bit-xor (%cu-rotr w2 17)
@@ -125,8 +125,8 @@
               (%cu-add32 d t1) e f g)))))
     (def out
       (round w %cu-sha-k
-        (%cu-nth 0 hs) (%cu-nth 1 hs) (%cu-nth 2 hs) (%cu-nth 3 hs)
-        (%cu-nth 4 hs) (%cu-nth 5 hs) (%cu-nth 6 hs) (%cu-nth 7 hs)))
+        (cu-nth 0 hs) (cu-nth 1 hs) (cu-nth 2 hs) (cu-nth 3 hs)
+        (cu-nth 4 hs) (cu-nth 5 hs) (cu-nth 6 hs) (cu-nth 7 hs)))
     (def add2
       (fn (self a b acc)
         (if (null? a) (reverse acc)

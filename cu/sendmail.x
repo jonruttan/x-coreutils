@@ -81,12 +81,12 @@
 (def %sm-helper-check
   (fn (_)
     (when (> %sm-helper 0)
-      (let ((st (%str-make-raw 4)))
-        (when (> (%in-call (%cu-ptr-call (%in-c "waitpid") %sm-helper (%cu-str->ptr st) 1)) 0)
-          (let ((raw (%cu-ptr-ref (%cu-str->ptr st) 0 4)))
-            (match ((> (% raw 128) 0) (%sm-die (string-append "helper killed by signal " (%cu-int->str (% raw 128)))))
+      (let ((st (str-make-raw 4)))
+        (when (> (%in-call (cu-ptr-call (%in-c "waitpid") %sm-helper (cu-str->ptr st) 1)) 0)
+          (let ((raw (cu-ptr-ref (cu-str->ptr st) 0 4)))
+            (match ((> (% raw 128) 0) (%sm-die (string-append "helper killed by signal " (cu-int->str (% raw 128)))))
                    ((> (% (%wget-div raw 256) 256) 0)
-                     (%sm-die (string-concat (list "helper exited (" (%cu-int->str (% (%wget-div raw 256) 256)) ")"))))
+                     (%sm-die (string-concat (list "helper exited (" (cu-int->str (% (%wget-div raw 256) 256)) ")"))))
                    (#t ()))))))))
 
 ; --- addresses ------------------------------------------------------------------
@@ -226,8 +226,8 @@
 
 (def %cu-sendmail
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "sendmail" argv))
-    (if (if (Opts on? o "-H") (not (null? (Opts value o "-S"))) #f) (%cu-usage "sendmail")
+    (def o (cu-opts "sendmail" argv))
+    (if (if (Opts on? o "-H") (not (null? (Opts value o "-S"))) #f) (cu-usage "sendmail")
       (guard (e (if (eq? (Err label e) (lit net))
                   (do (%sm-say (e msg)) 1)
                   (error e)))
@@ -276,9 +276,9 @@
 ; xgethostbyname's h_name for HOST
 (def %sm-canonical
   (fn (_ host)
-    (def h (%cu-ptr-call (%in-c "gethostbyname") host))
+    (def h (cu-ptr-call (%in-c "gethostbyname") host))
     (if (= (%td-ptr->int h) 0) (%sm-die (string-concat (list "bad address '" host "'")))
-      (%cu-ptr->str (%cu-int->ptr (%cu-ptr-word h 0))))))
+      (cu-ptr->str (cu-int->ptr (cu-ptr-word h 0))))))
 
 ; AUTH LOGIN or PLAIN; without -au and -ap, the user and password are fd 4's
 ; first two lines

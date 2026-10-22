@@ -245,7 +245,7 @@
     (def n (byte-len s))
     (%vi-undo-push-insert! p n undo)
     (%vi-hole-make! p n)
-    (%cu-ptr-call %vi-c-memcpy (%vi+ %vi-taddr p) s n)
+    (cu-ptr-call %vi-c-memcpy (%vi+ %vi-taddr p) s n)
     (set! %vi-nl-total (%vi+ %vi-nl-total (%vi-newlines-of s)))))
 
 ; "x: the register the next command yanks into or puts from

@@ -27,10 +27,10 @@
 
 (def %ss-resolve!
   (fn (_)
-    (def lib (%cu-dlopen () 1))
-    (set! %ss-c-flock (%cu-dlsym lib "flock"))
-    (set! %ss-c-setsid (%cu-dlsym lib "setsid"))
-    (set! %ss-c-fdatasync (%cu-dlsym lib "fdatasync"))))
+    (def lib (cu-dlopen () 1))
+    (set! %ss-c-flock (cu-dlsym lib "flock"))
+    (set! %ss-c-setsid (cu-dlsym lib "setsid"))
+    (set! %ss-c-fdatasync (cu-dlsym lib "fdatasync"))))
 
 ; a libc call's result, and the io Err it failed with as OP on NAME, or nil
 (def %ss-call
@@ -62,7 +62,7 @@
 ; fsync [-d] FILE...: each opened to read, without waiting on it, and flushed
 (def %cu-fsync
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "fsync" argv))
+    (def o (cu-opts "fsync" argv))
     (def data? (Opts on? o "-d"))
     (def one
       (fn (_ name)
@@ -73,7 +73,7 @@
                                       (file-err-text (file-open-err fd name)) "\n")))
                 1)
             (let ((err (if (if data? (not (null? %ss-c-fdatasync)) #f)
-                         (%ss-call (%cu-ptr-call %ss-c-fdatasync fd) (lit fdatasync) name)
+                         (%ss-call (cu-ptr-call %ss-c-fdatasync fd) (lit fdatasync) name)
                          (if (< (sys-fsync fd) 0)
                            (Err from-errno (Err errno-of -1) (lit fsync) name) ()))))
               (do (file-close fd)
@@ -129,7 +129,7 @@
 ; flock [-sxun] FD | { FILE [-c] PROG ARGS }
 (def %cu-flock
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "flock" argv))
+    (def o (cu-opts "flock" argv))
     (def ops (Opts operands o))
     (def cmd (if (pair? ops) (rest ops) ()))
     (def c? (if (pair? cmd) (if (string=? (first cmd) "-c") #t (string=? (first cmd) "--command")) #f))
@@ -149,7 +149,7 @@
         (do (file-write 2 "flock: -c takes only one argument\n") 1))
       (#t
         (do (%ss-resolve!)
-            (let ((err (%ss-call (%cu-ptr-call %ss-c-flock target (%flock-mode o)) (lit flock) "")))
+            (let ((err (%ss-call (cu-ptr-call %ss-c-flock target (%flock-mode o)) (lit flock) "")))
               (match
                 ((null? err)
                   (match
@@ -184,7 +184,7 @@
 ; child starting the session.  Then PROG replaces it.
 (def %cu-setsid
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "setsid" argv))
+    (def o (cu-opts "setsid" argv))
     (def command (Opts operands o))
     (def exec!
       (fn (_)
@@ -197,9 +197,9 @@
                               127 126)))))))
     (if (null? command) (%setsid-usage)
       (do (%ss-resolve!)
-          (if (>= (Sys %sign-fold (%cu-ptr-call %ss-c-setsid)) 0) (exec!)
+          (if (>= (Sys %sign-fold (cu-ptr-call %ss-c-setsid)) 0) (exec!)
             (if (= (sys-fork) 0)
-              (do (%cu-ptr-call %ss-c-setsid) (exec!))
+              (do (cu-ptr-call %ss-c-setsid) (exec!))
               0))))))
 
 ; --- ttysize, nologin, pipe_progress ---------------------------------------------
@@ -220,12 +220,12 @@
           (let ((c (if (> (byte-len (first args)) 0) (byte-at (first args) 0) 0)))
             (self (rest args) " "
               (match
-                ((= c #\w) (pair (string-append sep (%cu-int->str w)) acc))
-                ((= c #\h) (pair (string-append sep (%cu-int->str h)) acc))
+                ((= c #\w) (pair (string-append sep (cu-int->str w)) acc))
+                ((= c #\h) (pair (string-append sep (cu-int->str h)) acc))
                 (#t acc)))))))
     (do (file-write 1
           (string-concat
-            (append (if (null? argv) (list (%cu-int->str w) " " (%cu-int->str h)) (go argv "" ()))
+            (append (if (null? argv) (list (cu-int->str w) " " (cu-int->str h)) (go argv "" ()))
                     (list "\n"))))
         0)))
 
@@ -243,7 +243,7 @@
 ; at the end
 (def %cu-pipe-progress
   (fn (_ argv stdin-thunk)
-    (def src (%cu-pieces "-" stdin-thunk))
+    (def src (cu-pieces "-" stdin-thunk))
     (def go
       (fn (self t)
         (let ((p (src)))

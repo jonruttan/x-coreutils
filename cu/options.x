@@ -20,8 +20,8 @@
 ; take.  A listed row declares the option it describes; a hidden row declares
 ; one busybox does not list; a text row is a line laid out by hand, or a
 ; spelling (a cluster, an attached value) of options declared elsewhere.  The
-; guard, the applet and --help all read the same row (through %cu-opts and
-; %cu-usage), so an option cannot be accepted and undocumented, nor documented
+; guard, the applet and --help all read the same row (through cu-opts and
+; cu-usage), so an option cannot be accepted and undocumented, nor documented
 ; and refused.
 ;
 ; test's whole vocabulary is declared because the guard must know every

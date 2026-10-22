@@ -108,7 +108,7 @@
         (if (>= i end) (string-concat (reverse acc))
           (let ((b (byte-at s i)))
             (self (+ i 1)
-              (pair (%cu-b->s (if (if (>= b 65) (<= b 90) #f) (+ b 32) b))
+              (pair (cu-b->s (if (if (>= b 65) (<= b 90) #f) (+ b 32) b))
                 acc))))))
     (go 0 ())))
 
@@ -131,7 +131,7 @@
     (def end (byte-len arg))
     (if (= end 0) #f
       (let ((lead (byte-at arg 0)))
-        (def n (%cu-num-prefix
+        (def n (cu-num-prefix
                  (if (if (= lead 43) #t (= lead 45)) (substring arg 1 end) arg)))
         (match
           ((= lead 43) (> v n))
@@ -380,11 +380,11 @@
       ; -maxdepth additionally stops the descent, which the walk reads off the
       ; argument list rather than the predicate.
       ((string=? a "-maxdepth")
-        (pair (let ((n (%cu-num-prefix arg)))
+        (pair (let ((n (cu-num-prefix arg)))
                 (fn (_ path name depth st) (<= depth n)))
           (rest more)))
       ((string=? a "-mindepth")
-        (pair (let ((n (%cu-num-prefix arg)))
+        (pair (let ((n (cu-num-prefix arg)))
                 (fn (_ path name depth st) (>= depth n)))
           (rest more)))
       (#t (%find-bad args)))))
@@ -402,7 +402,7 @@
         (match
           ((null? xs) (- 0 1))
           ((null? (rest xs)) (- 0 1))
-          ((string=? (first xs) "-maxdepth") (%cu-num-prefix (first (rest xs))))
+          ((string=? (first xs) "-maxdepth") (cu-num-prefix (first (rest xs))))
           ((%find-takes-arg? (first xs)) (self (rest (rest xs))))
           (#t (self (rest xs))))))
     (go args)))

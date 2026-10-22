@@ -15,7 +15,7 @@ own, from `/bin/ls -l` and `/usr/bin/id`.
 owner and group, their ids, the user's name, and the name of root's group.
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-nm && mkdir -p /tmp/x-cu-nm && cd /tmp/x-cu-nm && printf 'x\\n' > f && chmod 644 f && /bin/ls -ld f | awk '{print $3}' > .owner && /bin/ls -ld f | awk '{print $4}' > .group && /bin/ls -ldn f | awk '{print $3}' > .uid && /bin/ls -ldn f | awk '{print $4}' > .gid && /usr/bin/id -un > .me && /usr/bin/id -gn root > .rootgroup")) (def nm (fn (_ n) (string-append "/tmp/x-cu-nm/" n))) (def said (fn (_ n) (first (%cu-lines (file-read-all (nm n)))))) (def cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write (nm ".cap")))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all (nm ".cap"))))))) (def pad (fn (self s w) (if (>= (byte-len s) w) s (self (string-append " " s) w)))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-nm && mkdir -p /tmp/x-cu-nm && cd /tmp/x-cu-nm && printf 'x\\n' > f && chmod 644 f && /bin/ls -ld f | awk '{print $3}' > .owner && /bin/ls -ld f | awk '{print $4}' > .group && /bin/ls -ldn f | awk '{print $3}' > .uid && /bin/ls -ldn f | awk '{print $4}' > .gid && /usr/bin/id -un > .me && /usr/bin/id -gn root > .rootgroup")) (def nm (fn (_ n) (string-append "/tmp/x-cu-nm/" n))) (def said (fn (_ n) (first (cu-lines (file-read-all (nm n)))))) (def cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write (nm ".cap")))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all (nm ".cap"))))))) (def pad (fn (self s w) (if (>= (byte-len s) w) s (self (string-append " " s) w)))) (display "made"))
 ```
 ---
     made
@@ -54,7 +54,7 @@ owner and group, their ids, the user's name, and the name of root's group.
 ### the default block shows each id in five columns and its name in eight
 
 ```cu
-(display (string=? (%cu-nth 3 (%cu-lines (cap (list "stat" (nm "f"))))) (string-concat (list "Access: (0644/-rw-r--r--)  Uid: (" (pad (said ".uid") 5) "/" (pad (said ".owner") 8) ")   Gid: (" (pad (said ".gid") 5) "/" (pad (said ".group") 8) ")"))))
+(display (string=? (cu-nth 3 (cu-lines (cap (list "stat" (nm "f"))))) (string-concat (list "Access: (0644/-rw-r--r--)  Uid: (" (pad (said ".uid") 5) "/" (pad (said ".owner") 8) ")   Gid: (" (pad (said ".gid") 5) "/" (pad (said ".group") 8) ")"))))
 ```
 ---
     #t

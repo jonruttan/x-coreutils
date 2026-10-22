@@ -43,7 +43,7 @@
     (match
       ((= len 0) from)
       ((%vi-opt? %vi-ic) (%vi-find-text-ic from room pat len))
-      (#t (%vi-found (%cu-ptr-call %vi-c-memmem (%vi+ %vi-taddr from) room pat len))))))
+      (#t (%vi-found (cu-ptr-call %vi-c-memmem (%vi+ %vi-taddr from) room pat len))))))
 
 ; the last PAT starting at or after STOP and ending before P
 (def %vi-search-back
@@ -764,7 +764,7 @@
 ; this process waiting and SIGINT and SIGQUIT ignored the while; the status
 ; as system answers it, an exit status times 256
 (def %vi-tty-shell
-  (fn (_ cmd) (Sys %sign-fold (%cu-ptr-call %vi-c-system cmd))))
+  (fn (_ cmd) (Sys %sign-fold (cu-ptr-call %vi-c-system cmd))))
 
 ; in a spec, the command's output is drawn where vi draws, so the case sees
 ; it: fds 1 and 2 go to a file while it runs, stdin comes from /dev/null, and

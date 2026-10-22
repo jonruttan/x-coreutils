@@ -19,10 +19,10 @@
 
 (def %cu-ssl-server
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ssl_server" argv))
+    (def o (cu-opts "ssl_server" argv))
     (def ops (Opts operands o))
     (if (if (null? ops) #t (null? (Opts value o "-f")))
-      (%cu-usage "ssl_server")
+      (cu-usage "ssl_server")
       (guard (e (match ((eq? (Err label e) (lit io)) (do (%ss-say (e msg)) 1))
                        ((eq? (Err label e) (lit value)) (do (%ss-say (e msg)) 1))
                        (#t (error e))))

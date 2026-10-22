@@ -9,7 +9,7 @@
 ; md5sum sha1sum cksum sum.  SHA-256 built the pattern (cu/sha256.x):
 ; the padded message is a BYTE LIST, never a string, because a NUL in
 ; the padding would truncate a C string.  The 32-bit helpers -- %cu-m32
-; %cu-add32 %cu-word-hex %cu-nth -- are that file's, reused here.
+; %cu-add32 %cu-word-hex cu-nth -- are that file's, reused here.
 ;
 ; MD5 is little-endian where SHA is big-endian: the block words and the
 ; trailing bit-length both reverse, and the digest prints byte-swapped.
@@ -29,9 +29,9 @@
 ; or a run, so a NUL in it is a byte like any other.
 (def %cu-md5-pad
   (fn (_ text)
-    (def run (%cu-as-run text))
+    (def run (cu-as-run text))
     (def len (rest run))
-    (def bytes (%cu-run-list run ()))
+    (def bytes (cu-run-list run ()))
     (def zeros
       (let ((k (% (- 119 (% len 64)) 64)))
         (let ((go (fn (self n acc)
@@ -112,14 +112,14 @@
         (if (> i 63) (list a b c d)
           (let ((f (%cu-add32
                      (%cu-add32 (%cu-md5-f i b c d) a)
-                     (%cu-add32 (first ks) (%cu-nth (%cu-md5-g i) m)))))
+                     (%cu-add32 (first ks) (cu-nth (%cu-md5-g i) m)))))
             (self (+ i 1) (rest ks) (rest ss)
               d
               (%cu-add32 b (%cu-rotl32 f (first ss)))
               b c)))))
     (def out
       (round 0 %cu-md5-k %cu-md5-s
-        (%cu-nth 0 hs) (%cu-nth 1 hs) (%cu-nth 2 hs) (%cu-nth 3 hs)))
+        (cu-nth 0 hs) (cu-nth 1 hs) (cu-nth 2 hs) (cu-nth 3 hs)))
     (def add2
       (fn (self a b acc)
         (if (null? a) (reverse acc)
@@ -212,9 +212,9 @@
         (if (> t 79) (reverse wrev)
           (self (+ t 1)
             (pair (%cu-rotl32
-                    (bit-xor (%cu-nth 2 wrev)
-                      (bit-xor (%cu-nth 7 wrev)
-                        (bit-xor (%cu-nth 13 wrev) (%cu-nth 15 wrev))))
+                    (bit-xor (cu-nth 2 wrev)
+                      (bit-xor (cu-nth 7 wrev)
+                        (bit-xor (cu-nth 13 wrev) (cu-nth 15 wrev))))
                     1)
               wrev)))))
     (extend 16 (reverse w16))))
@@ -249,8 +249,8 @@
               tmp a (%cu-rotl32 b 30) c d)))))
     (def out
       (round 0 w
-        (%cu-nth 0 hs) (%cu-nth 1 hs) (%cu-nth 2 hs)
-        (%cu-nth 3 hs) (%cu-nth 4 hs)))
+        (cu-nth 0 hs) (cu-nth 1 hs) (cu-nth 2 hs)
+        (cu-nth 3 hs) (cu-nth 4 hs)))
     (def add2
       (fn (self a b acc)
         (if (null? a) (reverse acc)
@@ -334,11 +334,11 @@
       (let ((text (if (string=? (first lists) "-") (stdin-thunk)
                     (file-or-err (fn (_) (file-read-all (first lists)))))))
         (if (if (Err err? text) (not (eq? (file-err-op text) (lit read))) #f)
-          (do (%cu-say (%cu-says name) (first lists) text) 1)
+          (do (cu-say (cu-says name) (first lists) text) 1)
           (self name digest (rest lists) stdin-thunk status? warn?
             (%cu-max-status st
               (%cu-sum-check-lines name digest (first lists)
-                (if (Err err? text) () (%cu-lines text)) stdin-thunk
+                (if (Err err? text) () (cu-lines text)) stdin-thunk
                 status? warn?))))))))
 
 ; The lines of the list SHOWN checked in turn, and what the list comes to.
@@ -358,7 +358,7 @@
             (if (null? row)
               (do (if warn? (file-write 2 (string-append name ": invalid format\n")) ())
                   (self (rest ls) (+ total 1) (+ failed 1)))
-              (let ((text (%cu-read-run-said says (rest row) stdin-thunk)))
+              (let ((text (cu-read-run-said says (rest row) stdin-thunk)))
                 (if (if (Err err? text) #f (%cu-hex=? (digest text) (first row)))
                   (do (say (string-append (rest row) ": OK"))
                       (self (rest ls) (+ total 1) failed))
@@ -370,7 +370,7 @@
     (do (if (if status? #t (= failed 0)) ()
           (file-write 2
             (string-concat
-              (list name ": WARNING: " (%cu-int->str failed) " of " (%cu-int->str total)
+              (list name ": WARNING: " (cu-int->str failed) " of " (cu-int->str total)
                     " computed checksums did NOT match\n"))))
         (if (= total 0)
           (file-write 2 (string-concat (list name ": " shown ": no checksum lines found\n")))
@@ -381,7 +381,7 @@
 ; usage text.  No operand is stdin.
 (def %cu-sum-applet
   (fn (_ name digest argv stdin-thunk)
-    (def o (%cu-opts name argv))
+    (def o (cu-opts name argv))
     (def ops (if (null? (Opts operands o)) (list "-") (Opts operands o)))
     (def one
       (fn (_ path text)
@@ -390,8 +390,8 @@
       ((Opts on? o "-c")
         (%cu-sum-check-lists name digest ops stdin-thunk
           (Opts on? o "-s") (Opts on? o "-w") 0))
-      ((if (Opts on? o "-s") #t (Opts on? o "-w")) (%cu-usage name))
-      (#t (%cu-each-run-said ops stdin-thunk (%cu-sum-says name) one 0)))))
+      ((if (Opts on? o "-s") #t (Opts on? o "-w")) (cu-usage name))
+      (#t (cu-each-run-said ops stdin-thunk (%cu-sum-says name) one 0)))))
 
 (def %cu-md5sum
   (fn (_ argv stdin-thunk)
@@ -436,14 +436,14 @@
 ; TEXT is a string or a run, so a NUL in it is a byte like any other
 (def cu-cksum
   (fn (_ text)
-    (def run (%cu-as-run text))
+    (def run (cu-as-run text))
     (def end (rest run))
     ; a byte here costs a few thousand objects, a table lookup's dispatch
     ; with it, so the walk sweeps as often as a loop of cheap steps
     (def over
       (fn (self i crc)
         (if (>= i end) crc
-          (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+          (do (if (= (& i cu-sweep-steps) 0) (cu-sweep! i) ())
               (self (+ i 1) (%cu-crc-byte crc (byte-at (first run) i)))))))
     ; POSIX folds the LENGTH in after the bytes, low octet first
     (def tail
@@ -457,14 +457,14 @@
     (def one
       (fn (_ name text)
         (display
-          (string-append (%cu-int->str (cu-cksum text))
+          (string-append (cu-int->str (cu-cksum text))
             (string-append " "
-              (string-append (%cu-int->str (rest text))
+              (string-append (cu-int->str (rest text))
                 (if (null? name) "\n"
                   (string-append " " (string-append name "\n")))))))))
     (if (null? argv)
-      (do (one () (%cu-read-run-said (%cu-says-open "cksum") "-" stdin-thunk)) 0)
-      (%cu-each-run-said argv stdin-thunk (%cu-says-open "cksum") one 0))))
+      (do (one () (cu-read-run-said (cu-says-open "cksum") "-" stdin-thunk)) 0)
+      (cu-each-run-said argv stdin-thunk (cu-says-open "cksum") one 0))))
 
 ; --- sum: the two historical checksums ----------------------------------------
 
@@ -472,12 +472,12 @@
 ; and for System V, is a string or a run.
 (def cu-sum-bsd
   (fn (_ text)
-    (def run (%cu-as-run text))
+    (def run (cu-as-run text))
     (def end (rest run))
     (def go
       (fn (self i s)
         (if (>= i end) s
-          (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+          (do (if (= (& i cu-sweep-bytes) 0) (cu-sweep! i) ())
               (self (+ i 1)
                 (bit-and
                   (+ (+ (bit-shr s 1) (bit-shl (bit-and s 1) 15))
@@ -488,12 +488,12 @@
 ; System V (-s): the byte sum, folded twice into 16 bits, blocks of 512
 (def cu-sum-sysv
   (fn (_ text)
-    (def run (%cu-as-run text))
+    (def run (cu-as-run text))
     (def end (rest run))
     (def total
       (let ((go (fn (self i s)
                   (if (>= i end) s
-                    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+                    (do (if (= (& i cu-sweep-bytes) 0) (cu-sweep! i) ())
                         (self (+ i 1) (+ s (byte-at (first run) i))))))))
         (go 0 0)))
     (def r (+ (bit-and total 65535) (bit-shr total 16)))
@@ -505,7 +505,7 @@
 ; the space.
 (def %cu-sum
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "sum" argv))
+    (def o (cu-opts "sum" argv))
     (def sysv? (if (Opts on? o "-r") #f (Opts on? o "-s")))
     (def ops (Opts operands o))
     (def named? (if sysv? #t (if (pair? ops) (pair? (rest ops)) #f)))
@@ -516,12 +516,12 @@
           (string-concat
             (list
               (if sysv?
-                (string-append (%cu-int->str (cu-sum-sysv text)) " "
-                  (%cu-int->str (/ (- (+ n 511) (% (+ n 511) 512)) 512)))
-                (string-append (%cu-pad-zero (%cu-int->str (cu-sum-bsd text)) 5) " "
-                  (%cu-pad-left
-                    (%cu-int->str (/ (- (+ n 1023) (% (+ n 1023) 1024)) 1024)) 5)))
+                (string-append (cu-int->str (cu-sum-sysv text)) " "
+                  (cu-int->str (/ (- (+ n 511) (% (+ n 511) 512)) 512)))
+                (string-append (cu-pad-zero (cu-int->str (cu-sum-bsd text)) 5) " "
+                  (cu-pad-left
+                    (cu-int->str (/ (- (+ n 1023) (% (+ n 1023) 1024)) 1024)) 5)))
               " " (if named? name "") "\n")))))
     (if (null? ops)
-      (do (one "-" (%cu-read-run-said (%cu-says-open "sum") "-" stdin-thunk)) 0)
-      (%cu-each-run-said ops stdin-thunk (%cu-says-open "sum") one 0))))
+      (do (one "-" (cu-read-run-said (cu-says-open "sum") "-" stdin-thunk)) 0)
+      (cu-each-run-said ops stdin-thunk (cu-says-open "sum") one 0))))

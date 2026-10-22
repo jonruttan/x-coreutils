@@ -15,7 +15,7 @@ the end of each line written to standard output.
 ### a run of pmap over the fixture /proc, with its stdout, stderr and status
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-pmap && mkdir -p /tmp/x-cu-pmap")) (def nf (fn (_ n) (string-append "/tmp/x-cu-pmap/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def show (fn (_ r) (display (string-concat (list (Str8 replace "\n" "|\n" (first r)) "stderr:\n" (first (rest r)) "status " (%cu-int->str (first (rest (rest r)))) "\n"))))) (def fixture (fn (_ argv) (do (Host source 'linux) (Host proc-root "tests/fixtures/pmap/proc") (def r (run argv)) (Host source (if os-darwin? 'darwin 'linux)) (Host proc-root "/proc") (show r)))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-pmap && mkdir -p /tmp/x-cu-pmap")) (def nf (fn (_ n) (string-append "/tmp/x-cu-pmap/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def show (fn (_ r) (display (string-concat (list (Str8 replace "\n" "|\n" (first r)) "stderr:\n" (first (rest r)) "status " (cu-int->str (first (rest (rest r)))) "\n"))))) (def fixture (fn (_ argv) (do (Host source 'linux) (Host proc-root "tests/fixtures/pmap/proc") (def r (run argv)) (Host source (if os-darwin? 'darwin 'linux)) (Host proc-root "/proc") (show r)))) (display "made"))
 ```
 ---
     made
@@ -332,7 +332,7 @@ status 1
 ### pmap's own process: its line, a row a region in address order, the total of their sizes
 
 ```cu
-(let ((r (run (list "pmap" (%cu-int->str (sys-getpid)))))) (def ls (filter (fn (_ l) (> (byte-len l) 0)) (%cu-lines (first r)))) (def rows (rest (reverse (rest (reverse ls))))) (def kib (fn (_ l) (%cu-num-prefix (Str8 trim-left (substring l 17 (byte-len l)))))) (def addrs (map (fn (_ l) (substring l 0 16)) rows)) (def sorted? (fn (self as) (if (null? (rest as)) #t (if (Str8 <? (first as) (first (rest as))) (self (rest as)) #f)))) (list (Str8 starts? (string-append (%cu-int->str (sys-getpid)) ": ") (first ls)) (> (length rows) 4) (sorted? addrs) (= (List fold (fn (_ a l) (+ a (kib l))) 0 rows) (let ((t (first (reverse ls)))) (%cu-num-prefix (Str8 trim-left (substring t 7 (byte-len t)))))) (first (rest r)) (first (rest (rest r)))))
+(let ((r (run (list "pmap" (cu-int->str (sys-getpid)))))) (def ls (filter (fn (_ l) (> (byte-len l) 0)) (cu-lines (first r)))) (def rows (rest (reverse (rest (reverse ls))))) (def kib (fn (_ l) (cu-num-prefix (Str8 trim-left (substring l 17 (byte-len l)))))) (def addrs (map (fn (_ l) (substring l 0 16)) rows)) (def sorted? (fn (self as) (if (null? (rest as)) #t (if (Str8 <? (first as) (first (rest as))) (self (rest as)) #f)))) (list (Str8 starts? (string-append (cu-int->str (sys-getpid)) ": ") (first ls)) (> (length rows) 4) (sorted? addrs) (= (List fold (fn (_ a l) (+ a (kib l))) 0 rows) (let ((t (first (reverse ls)))) (cu-num-prefix (Str8 trim-left (substring t 7 (byte-len t)))))) (first (rest r)) (first (rest (rest r)))))
 ```
 ---
     (#t #t #t #t "" 0)
@@ -340,7 +340,7 @@ status 1
 ### -x on its own process: the header, a row a region, the dashes and the totals
 
 ```cu
-(let ((r (run (list "pmap" "-x" (%cu-int->str (sys-getpid)))))) (def ls (filter (fn (_ l) (> (byte-len l) 0)) (%cu-lines (first r)))) (list (first (rest ls)) (first (rest (reverse ls))) (Str8 starts? "total kB " (first (reverse ls))) (first (rest (rest r)))))
+(let ((r (run (list "pmap" "-x" (cu-int->str (sys-getpid)))))) (def ls (filter (fn (_ l) (> (byte-len l) 0)) (cu-lines (first r)))) (list (first (rest ls)) (first (rest (reverse ls))) (Str8 starts? "total kB " (first (reverse ls))) (first (rest (rest r)))))
 ```
 ---
     ("Address\t\t  Kbytes     PSS   Dirty    Swap  Mode  Mapping" "----------------  ------  ------  ------  ------" #t 0)

@@ -39,7 +39,7 @@
 (def %nst-dotted
   (fn (_ a)
     (if (= (first a) 4) (%inet-dotted (rest a))
-      (let ((buf (%str-make-raw 16)))
+      (let ((buf (str-make-raw 16)))
         (do (let go ((k 0) (bs (rest a))) (unless (null? bs) (do (%inet-set! buf k (first bs) 1) (go (+ k 1) (rest bs)))))
             (%inet-ntop6-bytes buf))))))
 
@@ -47,7 +47,7 @@
 (def %nst-name
   (fn (_ a)
     (if (= (first a) 4) (%inet-addr-host (rest a))
-      (let ((buf (%str-make-raw 16)))
+      (let ((buf (str-make-raw 16)))
         (do (let go ((k 0) (bs (rest a))) (unless (null? bs) (do (%inet-set! buf k (first bs) 1) (go (+ k 1) (rest bs)))))
             (%inet-addr-host6 buf))))))
 
@@ -56,8 +56,8 @@
   (fn (_ port proto numeric?)
     (match
       ((= port 0) "*")
-      (numeric? (%cu-int->str port))
-      (#t (let ((s (%inet-service port proto))) (if (null? s) (%cu-int->str port) s))))))
+      (numeric? (cu-int->str port))
+      (#t (let ((s (%inet-service port proto))) (if (null? s) (cu-int->str port) s))))))
 
 ; ip_port_str: ADDRESS:PORT, by name unless NUMERIC?
 (def %nst-endpoint
@@ -98,8 +98,8 @@
 (def %nst-socket-inode
   (fn (_ link)
     (match
-      ((if (Str8 starts? "socket:[" link) (Str8 ends? "]" link) #f) (%cu-num-prefix (substring link 8 (- (byte-len link) 1))))
-      ((Str8 starts? "[0000]:" link) (%cu-num-prefix (substring link 7 (byte-len link))))
+      ((if (Str8 starts? "socket:[" link) (Str8 ends? "]" link) #f) (cu-num-prefix (substring link 8 (- (byte-len link) 1))))
+      ((Str8 starts? "[0000]:" link) (cu-num-prefix (substring link 7 (byte-len link))))
       (#t ()))))
 
 ; --- the tables -----------------------------------------------------------------------
@@ -114,7 +114,7 @@
       (let ((l (ep (List ref 1 w))) (r (ep (List ref 2 w))) (q (ep (List ref 4 w))))
         (if (if (null? l) #t (if (null? r) #t (null? q))) ()
           (list (%nst-addr (first l)) (rest l) (%nst-addr (first r)) (rest r) (%inet-hex (List ref 3 w))
-                (%inet-hex (first q)) (rest q) (%cu-num-prefix (List ref 9 w))))))))
+                (%inet-hex (first q)) (rest q) (cu-num-prefix (List ref 9 w))))))))
 
 ; print_inet_line: one socket, where its side (CONNECTED?) is asked for
 (def %nst-inet-print
@@ -123,7 +123,7 @@
       (let ((numeric? (List ref 2 st)) (width (List ref 3 st)) (progs (List ref 4 st)))
         (file-write 1
           (string-concat
-            (list proto "   " (%cu-pad-left (%cu-int->str (List ref 6 p)) 6) " " (%cu-pad-left (%cu-int->str (List ref 5 p)) 6) " "
+            (list proto "   " (cu-pad-left (cu-int->str (List ref 6 p)) 6) " " (cu-pad-left (cu-int->str (List ref 5 p)) 6) " "
                   (%inet-left (%nst-endpoint (List ref 0 p) (List ref 1 p) proto numeric?) width) " "
                   (%inet-left (%nst-endpoint (List ref 2 p) (List ref 3 p) proto numeric?) width) " "
                   (%inet-left state 12)
@@ -138,9 +138,9 @@
     (let ((text (file-or-err (fn (_) (file-read-unsized file)))))
       (if (Err err? text)
         (%nst-say (string-concat (list file ": " (libc-strerror (Err errno-of -1)))))
-        (let go ((ls (rest (%cu-lines text))) (n 2))
+        (let go ((ls (rest (cu-lines text))) (n 2))
           (unless (null? ls)
-            (do (unless (do-one (first ls)) (%nst-say (string-concat (list file ": bogus data on line " (%cu-int->str n)))))
+            (do (unless (do-one (first ls)) (%nst-say (string-concat (list file ": bogus data on line " (cu-int->str n)))))
                 (go (rest ls) (+ n 1)))))))))
 
 (def %nst-tcp
@@ -164,7 +164,7 @@
     (fn (_ line)
       (let ((p (%nst-inet-line line)))
         (if (null? p) #f
-          (do (%nst-inet-print st p (%cu-int->str (List ref 4 p)) "raw" (not (%nst-null? (List ref 2 p)))) #t))))))
+          (do (%nst-inet-print st p (cu-int->str (List ref 4 p)) "raw" (not (%nst-null? (List ref 2 p)))) #t))))))
 
 ; unix_do_one: one socket of /proc/net/unix
 (def %nst-unix
@@ -174,13 +174,13 @@
       (if (= (byte-len line) 0) #t
         (if (< (length w) 7) #f
           (let ((refcnt (%inet-hex (List ref 1 w))) (proto (%inet-hex (List ref 2 w))) (fl (%inet-hex (List ref 3 w)))
-                (type (%inet-hex (List ref 4 w))) (state (%inet-hex (List ref 5 w))) (inode (%cu-num-prefix (List ref 6 w))))
+                (type (%inet-hex (List ref 4 w))) (state (%inet-hex (List ref 5 w))) (inode (cu-num-prefix (List ref 6 w))))
             (do
                 (when (if (if (List ref 0 st) (List ref 1 st) #f) #t
                         (if (if (= state 1) (not (= (& fl 65536) 0)) #f) (List ref 1 st) (List ref 0 st)))
                   (file-write 1
                     (string-concat
-                      (list (%inet-left (if (= proto 0) "unix" "??") 5) " " (%inet-left (%cu-int->str refcnt) 6) " "
+                      (list (%inet-left (if (= proto 0) "unix" "??") 5) " " (%inet-left (cu-int->str refcnt) 6) " "
                             (%inet-left (string-concat (list "[ " (if (= (& fl 65536) 0) "" "ACC ") (if (= (& fl 131072) 0) "" "W ")
                                                              (if (= (& fl 262144) 0) "" "N ") "]")) 11) " "
                             (%inet-left (match ((= type 1) "STREAM") ((= type 2) "DGRAM") ((= type 3) "RAW") ((= type 4) "RDM")
@@ -188,7 +188,7 @@
                             (%inet-left (match ((= state 0) "FREE") ((= state 1) (if (= (& fl 65536) 0) "" "LISTENING"))
                                                ((= state 2) "CONNECTING") ((= state 3) "CONNECTED") ((= state 4) "DISCONNECTING")
                                                (#t "UNKNOWN")) 13) " "
-                            (%cu-pad-left (%cu-int->str inode) 6) " "
+                            (cu-pad-left (cu-int->str inode) 6) " "
                             (let ((progs (List ref 4 st)))
                               (if (null? progs) "" (%inet-left (let ((e (Assoc entry inode progs))) (if (null? e) "-" (rest e))) 20)))
                             (if (>= (length w) 8) (List ref 7 w) "") "\n"))))
@@ -203,7 +203,7 @@
 
 (def %cu-netstat
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "netstat" argv))
+    (def o (cu-opts "netstat" argv))
     (def on? (fn (_ f) (Opts on? o f)))
     (def listen (if (on? "-a") #t (on? "-l")))
     (def connected (if (on? "-a") #t (not (on? "-l"))))

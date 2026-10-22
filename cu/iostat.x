@@ -32,7 +32,7 @@
     (string-concat
       (list (get (lit sysname)) " " (get (lit release)) " (" (get (lit nodename)) ")"
             (if tabbed " \t" "\t") (%io-date secs) (if tabbed " \t_" "\t_") (get (lit machine))
-            "_\t(" (%cu-int->str cpus) " CPU)\n"))))
+            "_\t(" (cu-int->str cpus) " CPU)\n"))))
 
 ; --- a sample --------------------------------------------------------------------
 
@@ -43,7 +43,7 @@
     (def t (host-cpu))
     (def ts (map (fn (_ k) (%vm-ticks (Assoc get k t)))
               (lit (user nice system idle iowait irq softirq steal guest))))
-    (append ts (list (- (List fold + 0 ts) (%cu-nth 8 ts))))))
+    (append ts (list (- (List fold + 0 ts) (cu-nth 8 ts))))))
 
 ; A disk's (NAME RD-OPS RD-SECTORS WR-OPS WR-SECTORS), the name cut to the 12
 ; characters busybox keeps
@@ -68,7 +68,7 @@
 (def %io-cpu-report
   (fn (_ p c itv)
     (def pc (fn (_ a b) (%vm-right (%vm-fixed (%vm-rate (- b a) itv 100) 2) 7)))
-    (def at (fn (_ v i) (%cu-nth i v)))
+    (def at (fn (_ v i) (cu-nth i v)))
     (def sys (fn (_ v) (+ (+ (at v 2) (at v 6)) (at v 5))))
     (string-concat
       (list "avg-cpu:  %user   %nice %system %iowait  %steal   %idle\n        "
@@ -85,15 +85,15 @@
 ; (NAME RD-OPS RD-SECTORS WR-OPS WR-SECTORS)
 (def %io-dev-line
   (fn (_ p c itv div)
-    (def at (fn (_ v i) (%cu-nth i v)))
+    (def at (fn (_ v i) (cu-nth i v)))
     (def rate (fn (_ a b) (Float / (%vm-rate (- b a) itv 100) (Float from div))))
     (string-concat
-      (list (%cu-pad-right (first c) 13) " "
+      (list (cu-pad-right (first c) 13) " "
             (%vm-right (%vm-fixed (%vm-rate (- (+ (at c 1) (at c 3)) (+ (at p 1) (at p 3))) itv 100) 2) 8) " "
             (%vm-right (%vm-fixed (rate (at p 2) (at c 2)) 2) 12) " "
             (%vm-right (%vm-fixed (rate (at p 4) (at c 4)) 2) 12) " "
-            (%vm-right (%cu-int->str (%ps-div (- (at c 2) (at p 2)) div)) 10) " "
-            (%vm-right (%cu-int->str (%ps-div (- (at c 4) (at p 4)) div)) 10) "\n"))))
+            (%vm-right (cu-int->str (%ps-div (- (at c 2) (at p 2)) div)) 10) " "
+            (%vm-right (cu-int->str (%ps-div (- (at c 4) (at p 4)) div)) 10) "\n"))))
 
 ; The disks' lines, and the last samples kept: (TEXT . PREVS), PREVS an alist
 ; by name.  With NAMES, those disks alone; otherwise every disk but a
@@ -113,12 +113,12 @@
             (def p (if (null? seen) (zero name) (rest seen)))
             (def known (if (null? seen) (put name (zero name) prevs) prevs))
             (match
-              ((if (null? names) (%io-partition? name) (not (%cu-member-s? name names)))
+              ((if (null? names) (%io-partition? name) (not (cu-member-s? name names)))
                 (self (rest ds) known acc))
-              ((if (null? names) (if all #f (if (= (%cu-nth 1 c) 0) (= (%cu-nth 3 c) 0) #f)) #f)
+              ((if (null? names) (if all #f (if (= (cu-nth 1 c) 0) (= (cu-nth 3 c) 0) #f)) #f)
                 (self (rest ds) known acc))
               (#t (self (rest ds) (put name c known)
-                    (if (if z (if (= (%cu-nth 1 p) (%cu-nth 1 c)) (= (%cu-nth 3 p) (%cu-nth 3 c)) #f) #f)
+                    (if (if z (if (= (cu-nth 1 p) (cu-nth 1 c)) (= (cu-nth 3 p) (cu-nth 3 c)) #f) #f)
                       acc
                       (pair (%io-dev-line p c itv div) acc)))))))))
     (go disks prevs ())))
@@ -127,7 +127,7 @@
 
 (def %cu-iostat
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "iostat" argv))
+    (def o (cu-opts "iostat" argv))
     (def ops (Opts operands o))
     (def unknown (if (null? (Opts unknown o)) (%vm-dash-number ops) (Opts unknown o)))
     (def on (fn (_ f) (Opts on? o f)))
@@ -140,10 +140,10 @@
     (def parts (split ops ()))
     (def words (first parts))
     (def nums (rest parts))
-    (def unit (%cu-last-given o (list "-k" "-m")))
+    (def unit (cu-last-given o (list "-k" "-m")))
     (def both (not (if (on "-c") #t (on "-d"))))
     ; the options are refused before an operand is read, as getopt runs first
-    (if (not (null? unknown)) (%cu-refuse-option "iostat" unknown)
+    (if (not (null? unknown)) (cu-refuse-option "iostat" unknown)
       (let ((interval (if (null? nums) 0 (%cu-range-number "iostat" (first nums) 0 2147483647))))
         (def count
           (match
@@ -154,7 +154,7 @@
         (if (null? count) 1
           (%io-main (if both #t (on "-c")) (if both #t (on "-d")) (on "-t") (on "-z")
             (match ((null? unit) (pair "Blk" 1)) ((str=? unit "-m") (pair " MB" 2048)) (#t (pair " kB" 2)))
-            (%io-devices words) (%cu-member-s? "ALL" words) interval count))))))
+            (%io-devices words) (cu-member-s? "ALL" words) interval count))))))
 
 ; The device names asked for, a /dev/ prefix gone, ALL and repeats left out
 (def %io-devices
@@ -164,7 +164,7 @@
       (fn (self ws acc)
         (if (null? ws) (reverse acc)
           (let ((n (strip (first ws))))
-            (self (rest ws) (if (if (str=? (first ws) "ALL") #t (%cu-member-s? n acc)) acc (pair n acc)))))))
+            (self (rest ws) (if (if (str=? (first ws) "ALL") #t (cu-member-s? n acc)) acc (pair n acc)))))))
     (go words ())))
 
 (def %io-main
@@ -177,7 +177,7 @@
         (def now (%vm-now))
         (def c (%io-cpu))
         (def up (if smp (%vm-uptime) 0))
-        (def itv (let ((d (- (%cu-nth 9 c) (%cu-nth 9 prev)))) (if (= d 0) 1 d)))
+        (def itv (let ((d (- (cu-nth 9 c) (cu-nth 9 prev)))) (if (= d 0) 1 d)))
         (if stamp (file-write 1 (string-concat (list (%io-date now) " " (%io-time now) "\n"))))
         (if cpu (file-write 1 (string-append (%io-cpu-report prev c itv) (if dev "\n" ""))))
         (def r

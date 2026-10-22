@@ -33,7 +33,7 @@ and ask it over a TCP connection.
   (def hd-show (fn (_ out st err)
     (def body (string-concat (filter (fn (_ l) (not (Str8 starts? "Date: " l)))
                                      (map (fn (_ l) (string-append l "\n")) (hd-lines out)))))
-    (string-concat (list (Str8 replace "\r" "<CR>" body) "[status " (%cu-int->str st) "]\n" err))))
+    (string-concat (list (Str8 replace "\r" "<CR>" body) "[status " (cu-int->str st) "]\n" err))))
   (def hd-run (fn (_ pre req args)
     (hd-sh pre req)
     (sys-dup2 1 9) (sys-dup2 2 8)
@@ -62,7 +62,7 @@ and ask it over a TCP connection.
     (def st (cu-run (pair "httpd" args) ""))
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (Sys chdir hd-home)
-    (display (string-concat (list (file-read-all "/tmp/x-cu-hd/out") "|status " (%cu-int->str st) "\n"
+    (display (string-concat (list (file-read-all "/tmp/x-cu-hd/out") "|status " (cu-int->str st) "\n"
                                   (file-read-all "/tmp/x-cu-hd/err"))))))
   (display "made"))
 ```
@@ -1778,7 +1778,7 @@ The suite runs as a user who is not root, as busybox's own check of this does.
 
 ```cu
 (do (def hu-p0 (Socket tcp-listen 0)) (def hu-port (Socket local-port hu-p0)) (Socket close hu-p0)
-    (hd-str (list "-f" "-p" (%cu-int->str hu-port) "-u" "0")))
+    (hd-str (list "-f" "-p" (cu-int->str hu-port) "-u" "0")))
 ```
 ---
 ```output
@@ -1811,9 +1811,9 @@ name that does not resolve.
           (sys-exec "/bin/sh" (list "-c" "exit 0")))))
   (def px-case (fn (_ req args)
     (def lfd (Socket tcp-listen 0))
-    (def port (%cu-int->str (Socket local-port lfd)))
+    (def port (cu-int->str (Socket local-port lfd)))
     (def rfd (Socket tcp-listen 0))
-    (def rport (%cu-int->str (Socket local-port rfd)))
+    (def rport (cu-int->str (Socket local-port rfd)))
     (Socket close rfd)
     (def pid (sys-fork))
     (when (= pid 0) (px-serve lfd))
@@ -1943,7 +1943,7 @@ PORT.
     (sys-dup2 a fd) (Socket close a)
     (def shown (hd-run pre req args))
     (if saved? (do (sys-dup2 7 fd) (file-close 7)) (sys-close fd))
-    (def port (string-concat (list "127.0.0.1:" (%cu-int->str (Socket local-port c)) ":")))
+    (def port (string-concat (list "127.0.0.1:" (cu-int->str (Socket local-port c)) ":")))
     (Socket close c)
     (display (Str8 replace port "127.0.0.1:PORT:" shown))))
   (display "made"))
@@ -2046,7 +2046,7 @@ REMOTE_ADDR=127.0.0.1
   (def hd-pid (sys-fork))
   (when (= hd-pid 0)
     (do (sys-dup2 (file-open-write "/tmp/x-cu-hd/log") 2)
-        (cu-run (list "httpd" "-f" "-v" "-p" (%cu-int->str hd-port) "-h" hd-w) "")
+        (cu-run (list "httpd" "-f" "-v" "-p" (cu-int->str hd-port) "-h" hd-w) "")
         (sys-exit 0)))
   (def hd-ask (fn (_ req)
     (let ((c (let try ((n 0)) (let ((fd (guard (_ ()) (Socket tcp-connect "127.0.0.1" hd-port))))
@@ -2101,7 +2101,7 @@ The requested URL was not found
   (hd-sh ":" "")
   (def hb-pid (sys-fork))
   (when (= hb-pid 0)
-    (do (cu-run (list "httpd" "-f" "-p" (string-append "127.0.0.1:" (%cu-int->str hb-port)) "-h" hd-w) "")
+    (do (cu-run (list "httpd" "-f" "-p" (string-append "127.0.0.1:" (cu-int->str hb-port)) "-h" hd-w) "")
         (sys-exit 0)))
   (def hb-a (hd-ask-port hb-port "GET / HTTP/1.0\r\n\r\n"))
   (sys-kill hb-pid 9) (sys-wait hb-pid)

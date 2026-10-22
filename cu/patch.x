@@ -46,7 +46,7 @@
               (if (if (Err err? p) #t (= (rest p) 0))
                 (do (vec-set! rd 1 ()) (vec-set! rd 2 ())
                     (if (null? acc) () (string-concat (reverse acc))))
-                (do (vec-set! rd 1 p) (vec-set! rd 2 (%cu-run-text p)) (vec-set! rd 3 0) (self acc))))
+                (do (vec-set! rd 1 p) (vec-set! rd 2 (cu-run-text p)) (vec-set! rd 3 0) (self acc))))
             (let ((nl (%dp-find text pos #\newline)))
               (if (< nl 0)
                 (do (vec-set! rd 3 (byte-len text)) (self (pair (substring text pos (byte-len text)) acc)))
@@ -64,9 +64,9 @@
       (fn (self)
         (let ((p ((vec-ref rd 0))))
           (if (if (Err err? p) #t (= (rest p) 0)) ()
-            (do (file-write-run fd p) (%cu-sweep-tick! %cu-sweep-lines) (self))))))
+            (do (file-write-run fd p) (cu-sweep-tick! cu-sweep-lines) (self))))))
     (do (let ((p (vec-ref rd 1)) (pos (vec-ref rd 3)))
-          (if (if (null? p) #f (< pos (rest p))) (file-write-run fd (%cu-run-from p pos)) ()))
+          (if (if (null? p) #f (< pos (rest p))) (file-write-run fd (cu-run-from p pos)) ()))
         (go))))
 
 (def %pt-starts? (fn (_ s p) (if (>= (byte-len s) (byte-len p)) (string=? (substring s 0 (byte-len p)) p) #f)))
@@ -100,8 +100,8 @@
 (def %pt-fail!
   (fn (_)
     (if (null? (%pg 11)) ()
-      (do (file-write 2 (string-concat (list "Hunk " (%cu-int->str (%pg 5)) " FAILED "
-                                             (%cu-int->str (%pg 6)) "/" (%cu-int->str (%pg 7)) ".\n")))
+      (do (file-write 2 (string-concat (list "Hunk " (cu-int->str (%pg 5)) " FAILED "
+                                             (cu-int->str (%pg 6)) "/" (cu-int->str (%pg 7)) ".\n")))
           (%pg! 3 1)
           (map (fn (_ l) (file-write 2 (string-append (vec-ref l 0) "\n"))) (reverse (%pg 11)))
           (%pg! 11 ())
@@ -184,15 +184,15 @@
           (if (null? data) (%pt-ended s)
             (let ((r (%pt-check s (append buf (list data)) (length buf))))
               (if (eq? (first r) (lit out)) (lit out)
-                (do (%cu-sweep-tick! %cu-sweep-lines) (self s (rest r))))))))))
+                (do (cu-sweep-tick! cu-sweep-lines) (self s (rest r))))))))))
 
 ; the file ended: the hunk matched where it was to end there, else failed
 (def %pt-ended
   (fn (_ s)
     (if (if (null? (vec-ref s 0)) (vec-ref s 4) #f) (lit out)
       (do (if (= (vec-ref s 2) 0) ()
-            (file-write 2 (string-concat (list "Possibly reversed hunk " (%cu-int->str (%pg 5))
-                                               " at " (%cu-int->str (%pg 4)) "\n"))))
+            (file-write 2 (string-concat (list "Possibly reversed hunk " (cu-int->str (%pg 5))
+                                               " at " (cu-int->str (%pg 4)) "\n"))))
           (%pt-fail!)
           (lit failed)))))
 
@@ -245,13 +245,13 @@
   (fn (_ name)
     (def t (string-append name "XXXXXX"))
     (def n (byte-len t))
-    (def buf (%str-make-raw (+ n 1)))
-    (def p (%cu-str->ptr buf))
-    (do (map (fn (_ i) (%cu-ptr-set! p i (byte-at t i) 1)) (List range 0 n))
-        (%cu-ptr-set! p n 0 1)
-        (let ((fd (Sys %sign-fold (%cu-ptr-call (%cu-dlsym (%cu-dlopen () 1) "mkstemp") p))))
+    (def buf (str-make-raw (+ n 1)))
+    (def p (cu-str->ptr buf))
+    (do (map (fn (_ i) (cu-ptr-set! p i (byte-at t i) 1)) (List range 0 n))
+        (cu-ptr-set! p n 0 1)
+        (let ((fd (Sys %sign-fold (cu-ptr-call (cu-dlsym (cu-dlopen () 1) "mkstemp") p))))
           (if (< fd 0) (%pt-die (string-concat (list "can't create '" t "': " (%pt-why (lit mkstemp) t))))
-            (pair fd (%cu-ptr->str p)))))))
+            (pair fd (cu-ptr->str p)))))))
 
 ; the file a hunk's header names, opened at its first hunk: emptied,
 ; removed, made, or read, with its copy made to write
@@ -264,7 +264,7 @@
     (def named (if rev oldname newname))
     (def empty (if (string=? named "/dev/null") #t (= (if rev oldsum newsum) 0)))
     (def p (let ((v (Opts value o "-p"))) (if (null? v) (Opts value o "--strip") v)))
-    (def cut (%pt-strip (if empty (if rev newname oldname) named) (if (null? p) () (%cu-num-prefix p))))
+    (def cut (%pt-strip (if empty (if rev newname oldname) named) (if (null? p) () (cu-num-prefix p))))
     (def name (if (null? argv) (first cut) (first argv)))
     (def say (fn (_ s) (file-write 1 (string-concat (list s " " name "\n")))))
     (match
@@ -279,13 +279,13 @@
       (#t
         (do (if (if (string=? oldname "/dev/null") #t (= oldsum 0))
               (do (say "creating")
-                  (%pg! 0 (%pt-reader (%cu-fd-chunks
+                  (%pg! 0 (%pt-reader (cu-fd-chunks
                     (if dry (%pt-open "/dev/null" (lit rdonly))
                       (do (let ((sl (%tar-last-slash name))) (if (> sl 0) (%cu-mkdir-p! (substring name 0 sl)) ()))
                           (%pt-open name (list (lit rdwr) (lit creat) (lit excl)))))
                     name))))
               (do (say "patching file")
-                  (%pg! 0 (%pt-reader (%cu-fd-chunks (%pt-open name (lit rdonly)) name)))))
+                  (%pg! 0 (%pt-reader (cu-fd-chunks (%pt-open name (lit rdonly)) name)))))
             (if dry
               (do (%pg! 2 "") (%pg! 1 (%pt-open "/dev/null" (lit wronly))))
               (let ((t (%pt-mkstemp name)))
@@ -299,19 +299,19 @@
 ; patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
 (def %cu-patch
   (fn (_ argv stdin-thunk)
-    (guard (e (if (eq? (%cu-err-label e) (lit patch))
+    (guard (e (if (eq? (cu-err-label e) (lit patch))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
                 (error e)))
       (%pt-run argv stdin-thunk))))
 
 (def %pt-run
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "patch" argv))
+    (def o (cu-opts "patch" argv))
     (def on (fn (_ a b) (if (Opts on? o a) #t (Opts on? o b))))
     (def ops (Opts operands o))
     (def input (let ((i (Opts value o "-i"))) (if (null? i) (Opts value o "--input") i)))
     (def diff (if (null? input) (if (if (pair? ops) (pair? (rest ops)) #f) (first (rest ops)) "-") input))
-    (def src (%cu-pieces diff stdin-thunk))
+    (def src (cu-pieces diff stdin-thunk))
     (def rev (on "-R" "--reverse"))
     (do (set! %pt-g (vec-build 15 (fn (_ i) (match ((= i 3) 0) ((= i 12) (if rev 1 0)) ((= i 13) (on "-N" "--forward"))
                                                     ((= i 14) (Opts on? o "--dry-run")) (#t ())))))
@@ -330,7 +330,7 @@
         (let ((raw (%pt-line! rd)))
           (if (null? raw) ()
             (let ((line (if (= (byte-len raw) 0) " " raw)))
-              (do (%cu-sweep-tick! %cu-sweep-lines)
+              (do (cu-sweep-tick! cu-sweep-lines)
                   (self (%pt-line o ops rd rev line state names lens mark!))))))))
     (do (go 0)
         (%pt-finish!)

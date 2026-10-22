@@ -96,9 +96,9 @@
 (def %tn-run
   (fn (_ bytes)
     (def n (length bytes))
-    (def buf (%str-make-raw (+ n 1)))
+    (def buf (str-make-raw (+ n 1)))
     (let go ((i 0) (l bytes))
-      (unless (null? l) (do (%cu-ptr-set! (%cu-str->ptr buf) i (first l) 1) (go (+ i 1) (rest l)))))
+      (unless (null? l) (do (cu-ptr-set! (cu-str->ptr buf) i (first l) 1) (go (+ i 1) (rest l)))))
     (pair buf n)))
 
 ; a subnegotiation's bytes, each 0xff doubled
@@ -187,7 +187,7 @@
   (fn (_ buf n)
     (let go ((i 0) (acc ()))
       (if (>= i n) (reverse acc)
-        (let ((c (%cu-ptr-ref (%cu-str->ptr buf) i 1)))
+        (let ((c (cu-ptr-ref (cu-str->ptr buf) i 1)))
           (match
             ((= %tn-state 0)
               (match ((= c %tn-iac) (do (set! %tn-state 1) (go (+ i 1) acc)))
@@ -281,7 +281,7 @@
 
 (def %tn-loop
   (fn (self shut?)
-    (%cu-sweep-tick! %cu-sweep-lines)
+    (cu-sweep-tick! cu-sweep-lines)
     (if (Sys take-signal %tn-sigint)
       (if (null? (%tn-menu!)) (%tn-exit 1) (self shut?))
       (let ((ready (sys-poll (append (list (pair %tn-net (list (lit in))))
@@ -303,9 +303,9 @@
 
 (def %cu-telnet
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "telnet" argv))
+    (def o (cu-opts "telnet" argv))
     (def ops (Opts operands o))
-    (if (if (null? ops) #t (> (length ops) 2)) (%cu-usage "telnet")
+    (if (if (null? ops) #t (> (length ops) 2)) (cu-usage "telnet")
       (guard (e (if (eq? (Err label e) (lit net))
                   (do (file-write 2 (string-concat (list "telnet: " (e msg) "\n"))) 1)
                   (error e)))

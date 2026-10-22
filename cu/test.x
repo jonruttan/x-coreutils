@@ -117,13 +117,13 @@
       ((string=? op "-k") (%t-mode-bit? v 512))       ; sticky
       ((string=? op "-u") (%t-mode-bit? v 2048))      ; setuid
       ((string=? op "-g") (%t-mode-bit? v 1024))      ; setgid
-      ((string=? op "-t") (sys-isatty (%cu-num-prefix v)))
+      ((string=? op "-t") (sys-isatty (cu-num-prefix v)))
       (#t #f))))
 
 (def %t-binary
   (fn (_ a op b)
-    (def na (%cu-num-prefix a))
-    (def nb (%cu-num-prefix b))
+    (def na (cu-num-prefix a))
+    (def nb (cu-num-prefix b))
     (match
       ((string=? op "=")   (string=? a b))
       ((string=? op "==")  (string=? a b))

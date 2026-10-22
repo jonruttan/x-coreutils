@@ -233,13 +233,13 @@
       (let ((named (if (< c 0) (- 0 1) (%cu-esc-named c variant))))
         (match
           ((< c 0) (list "\\" (+ i 1) #f 92))
-          ((>= named 0) (list (%cu-b->s named) (+ i 2) #f named))
+          ((>= named 0) (list (cu-b->s named) (+ i 2) #f named))
           ((if (= c 99) (not (eq? variant (lit tr))) #f)             ; c
             (list "" (+ i 2) #t (- 0 1)))
           ((%cu-esc-octal? c) (%cu-esc-number s (+ i 1) variant))
           ((if (= c 120) (not (eq? variant (lit tr))) #f)            ; x
             (%cu-esc-hex-at s (+ i 2) i))
-          ((eq? variant (lit tr)) (list (%cu-b->s c) (+ i 2) #f c))
+          ((eq? variant (lit tr)) (list (cu-b->s c) (+ i 2) #f c))
           (#t (list (substring s i (+ i 2)) (+ i 2) #f (- 0 1))))))))
 
 ; an octal escape at I, where S[I] is the first digit
@@ -251,9 +251,9 @@
         (if (if (eq? variant (lit tr)) (> (first d) 255) #f)
           ; three digits past 255 are two, as GNU tr reads \400
           (let ((two (%cu-esc-digits s from 2 8 0)))
-            (list (%cu-b->s (first two)) (rest two) #f (first two)))
+            (list (cu-b->s (first two)) (rest two) #f (first two)))
           (let ((b (bit-and (first d) 255)))
-            (list (%cu-b->s b) (rest d) #f b)))))))
+            (list (cu-b->s b) (rest d) #f b)))))))
 
 ; a hex escape, where I is past the x and AT the backslash: without a digit
 ; after it, \x is what was written
@@ -262,7 +262,7 @@
     (let ((d (%cu-esc-digits s i 2 16 0)))
       (if (= (rest d) i) (list (substring s at (+ at 2)) i #f (- 0 1))
         (let ((b (bit-and (first d) 255)))
-          (list (%cu-b->s b) (rest d) #f b))))))
+          (list (cu-b->s b) (rest d) #f b))))))
 
 ; S with its escapes decoded: (RUNS . STOPPED?), STOPPED? when a \c ended it.
 ; RUNS is a list of runs -- bytes and their count (cu/prims.x) -- one a
@@ -278,9 +278,9 @@
         (if (null? ts) (pair (reverse acc) #f)
           (let ((tag (first (first ts))) (tx (first (rest (first ts)))))
             (if (eq? tag (lit lit))
-              (self (rest ts) (pair (%cu-run-of tx) acc))
+              (self (rest ts) (pair (cu-run-of tx) acc))
               (let ((e (%cu-esc-token tag tx variant)))
-                (if (%cu-nth 2 e)
+                (if (cu-nth 2 e)
                   (pair (reverse acc) #t)
                   (self (rest ts) (pair (%cu-esc-one-run e) acc)))))))))
     (if (= (byte-len s) 0) (pair () #f)
@@ -310,8 +310,8 @@
 ; the run one escape stands for, for a caller that holds the escape alone
 (def %cu-esc-one-run
   (fn (_ e)
-    (if (>= (%cu-nth 3 e) 0) (pair (%cu-b->s (%cu-nth 3 e)) 1)
-      (%cu-run-of (first e)))))
+    (if (>= (cu-nth 3 e) 0) (pair (cu-b->s (cu-nth 3 e)) 1)
+      (cu-run-of (first e)))))
 
 ; the token an escape scored, as the run it stands for -- bytes and their
 ; count, since \0 names a NUL that no text carries past; a \c answers the stop
@@ -322,7 +322,7 @@
     (if (not escapes?) tok
       (if (< (byte-len tok) 2) tok
         (let ((e (%cu-esc-token tag tok (lit format))))
-          (if (%cu-nth 2 e) (lit stop) (%cu-esc-one-run e)))))))
+          (if (cu-nth 2 e) (lit stop) (%cu-esc-one-run e)))))))
 
 ; A format -> its tokens. ESCAPES? says whether a backslash means something
 ; here: printf says yes, a strftime format says no.
@@ -344,9 +344,9 @@
 
 ; the parts of a directive token, named
 (def %cu-fmt-dir? (fn (_ t) (if (pair? t) (eq? (first t) (lit dir)) #f)))
-(def %cu-fmt-left? (fn (_ t) (%cu-nth 1 t)))
-(def %cu-fmt-zero? (fn (_ t) (%cu-nth 2 t)))
-(def %cu-fmt-width (fn (_ t) (%cu-nth 3 t)))
-(def %cu-fmt-prec (fn (_ t) (%cu-nth 4 t)))
-(def %cu-fmt-conv (fn (_ t) (%cu-nth 5 t)))
-(def %cu-fmt-raw (fn (_ t) (%cu-nth 6 t)))
+(def %cu-fmt-left? (fn (_ t) (cu-nth 1 t)))
+(def %cu-fmt-zero? (fn (_ t) (cu-nth 2 t)))
+(def %cu-fmt-width (fn (_ t) (cu-nth 3 t)))
+(def %cu-fmt-prec (fn (_ t) (cu-nth 4 t)))
+(def %cu-fmt-conv (fn (_ t) (cu-nth 5 t)))
+(def %cu-fmt-raw (fn (_ t) (cu-nth 6 t)))

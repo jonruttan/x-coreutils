@@ -15,7 +15,7 @@ Under this harness file-stat-full reads a time before 1970 as its unsigned
 readers accept either and the cases below state the signed time.
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-tch && mkdir -p /tmp/x-cu-tch")) (def tch (fn (_ n) (string-append "/tmp/x-cu-tch/" n))) (def signed (fn (_ v) (if (> v 9223372036854775807) (- v 18446744073709551616) v))) (def mt (fn (_ p) (signed (%cu-stat-get (file-stat-full p) (lit mtime))))) (def at (fn (_ p) (signed (%cu-stat-get (file-stat-full p) (lit atime))))) (def times (fn (_ p) (do (display (at p)) (display " ") (display (mt p)) (newline)))) (def cu-err (fn (_ argv) (do (sys-dup2 2 9) (let ((fd (file-open-write (tch ".err")))) (do (sys-dup2 fd 2) (def st (cu-run argv "")) (sys-dup2 9 2) (file-close fd) (string-append (file-read-all (tch ".err")) (%cu-int->str st))))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-tch && mkdir -p /tmp/x-cu-tch")) (def tch (fn (_ n) (string-append "/tmp/x-cu-tch/" n))) (def signed (fn (_ v) (if (> v 9223372036854775807) (- v 18446744073709551616) v))) (def mt (fn (_ p) (signed (%cu-stat-get (file-stat-full p) (lit mtime))))) (def at (fn (_ p) (signed (%cu-stat-get (file-stat-full p) (lit atime))))) (def times (fn (_ p) (do (display (at p)) (display " ") (display (mt p)) (newline)))) (def cu-err (fn (_ argv) (do (sys-dup2 2 9) (let ((fd (file-open-write (tch ".err")))) (do (sys-dup2 fd 2) (def st (cu-run argv "")) (sys-dup2 9 2) (file-close fd) (string-append (file-read-all (tch ".err")) (cu-int->str st))))))) (display "made"))
 ```
 ---
     made

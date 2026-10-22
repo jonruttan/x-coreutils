@@ -129,8 +129,8 @@
 (def %cu-apply-symbolic
   (fn (_ spec mode dir? umask)
     (let ((w (%cu-mode-who-at spec 0 0)))
-      (%cu-apply-ops spec (%cu-nth 2 w) (first w) mode dir?
-        (if (%cu-nth 1 w) (bit-xor (bit-and umask 511) 4095) 4095)))))
+      (%cu-apply-ops spec (cu-nth 2 w) (first w) mode dir?
+        (if (cu-nth 1 w) (bit-xor (bit-and umask 511) 4095) 4095)))))
 
 (def %cu-apply-ops
   (fn (self spec i who mode dir? grant)
@@ -139,8 +139,8 @@
         (let ((p (%cu-mode-perms spec (+ i 1) mode dir?)))
           (if (null? p) mode
             (let ((bits (bit-and (first p) who))
-                  (specials (bit-and (%cu-nth 1 p) (%cu-mode-specials who))))
-              (self spec (%cu-nth 2 p) who
+                  (specials (bit-and (cu-nth 1 p) (%cu-mode-specials who))))
+              (self spec (cu-nth 2 p) who
                 (match
                   ((= op 43)
                     (bit-or mode (bit-and (bit-or bits specials) grant)))
@@ -156,7 +156,7 @@
 (def %cu-mode-of
   (fn (_ spec current dir? umask)
     (if (%cu-octal-mode? spec) (%cu-octal->int spec)
-      (%cu-mode-clauses (%cu-split-byte spec 44) current dir? umask))))  ; ,
+      (%cu-mode-clauses (cu-split-byte spec 44) current dir? umask))))  ; ,
 
 (def %cu-mode-clauses
   (fn (self cs mode dir? umask)
@@ -170,7 +170,7 @@
   (fn (_ spec)
     (if (%cu-octal-mode? spec) #t
       (if (= (byte-len spec) 0) #f
-        (%cu-mode-clauses-valid? (%cu-split-byte spec 44))))))
+        (%cu-mode-clauses-valid? (cu-split-byte spec 44))))))
 
 (def %cu-mode-clauses-valid?
   (fn (self cs)
@@ -180,15 +180,15 @@
 (def %cu-mode-clause-valid?
   (fn (_ c)
     (let ((w (%cu-mode-who-at c 0 0)))
-      (if (>= (%cu-nth 2 w) (byte-len c)) #f        ; a who and no op at all
-        (%cu-mode-ops-valid? c (%cu-nth 2 w) #f)))))
+      (if (>= (cu-nth 2 w) (byte-len c)) #f        ; a who and no op at all
+        (%cu-mode-ops-valid? c (cu-nth 2 w) #f)))))
 
 (def %cu-mode-ops-valid?
   (fn (self c i any)
     (if (>= i (byte-len c)) any
       (if (not (%cu-mode-op? (byte-at c i))) #f
         (let ((p (%cu-mode-perms c (+ i 1) 0 #f)))
-          (if (null? p) #f (self c (%cu-nth 2 p) #t)))))))
+          (if (null? p) #f (self c (cu-nth 2 p) #t)))))))
 
 ; A directory keeps its setuid and setgid bits through a mode that does not
 ; name them -- an octal mode of fewer than five digits, or a clause with no s --
@@ -202,7 +202,7 @@
 (def %cu-mode-names-setid?
   (fn (_ spec)
     (if (%cu-octal-mode? spec) (>= (byte-len spec) 5)
-      (%cu-byte-in? spec 115 0))))                              ; s
+      (cu-byte-in? spec 115 0))))                              ; s
 
 ; --- chmod --------------------------------------------------------------------
 
@@ -213,7 +213,7 @@
 ; chgrp all read their three flags this way.
 (def %cu-report-how
   (fn (_ o)
-    (let ((v (%cu-last-given o (list "-c" "-v"))))
+    (let ((v (cu-last-given o (list "-c" "-v"))))
       (pair (match
               ((null? v) (lit off))
               ((string=? v "-c") (lit changes))
@@ -319,10 +319,10 @@
 
 (def %cu-chmod
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "chmod" argv))
+    (def o (cu-opts "chmod" argv))
     (def ops (Opts operands o))
     (match
-      ((< (length ops) 2) (%cu-missing-operand "chmod" ops))
+      ((< (length ops) 2) (cu-missing-operand "chmod" ops))
       ((not (%cu-mode-valid? (first ops)))
         (do (file-write 2
               (string-concat
@@ -392,8 +392,8 @@
   (fn (_ uid gid uname gname blank?)
     (let ((un (if (if blank? (null? uname) #f) (if (null? gname) () "") uname)))
       (list uid gid
-            (if (null? un) (if (< uid 0) () (%cu-int->str uid)) un)
-            (if (null? gname) (if (< gid 0) () (%cu-int->str gid)) gname)))))
+            (if (null? un) (if (< uid 0) () (cu-int->str uid)) un)
+            (if (null? gname) (if (< gid 0) () (cu-int->str gid)) gname)))))
 
 ; chown's spec, split at the index AT, nil for no split: the ids, or the
 ; complaint that refuses it
@@ -460,33 +460,33 @@
 
 ; the ids asked for, as a report shows them
 (def %cu-chown-asked
-  (fn (_ ids) (%cu-chown-join (%cu-nth 2 ids) (%cu-nth 3 ids))))
+  (fn (_ ids) (%cu-chown-join (cu-nth 2 ids) (cu-nth 3 ids))))
 
 ; the ids a path has, as a report shows them beside the ones asked for: the
 ; same halves, by the names the system has for them, or their numbers
 (def %cu-chown-had
   (fn (_ ids st)
     (%cu-chown-join
-      (if (null? (%cu-nth 2 ids)) ()
+      (if (null? (cu-nth 2 ids)) ()
         (let ((uid (%cu-stat-get st (lit uid))))
-          (let ((n (sys-user-name uid))) (if (null? n) (%cu-int->str uid) n))))
-      (if (null? (%cu-nth 3 ids)) ()
+          (let ((n (sys-user-name uid))) (if (null? n) (cu-int->str uid) n))))
+      (if (null? (cu-nth 3 ids)) ()
         (let ((gid (%cu-stat-get st (lit gid))))
-          (let ((n (sys-group-name gid))) (if (null? n) (%cu-int->str gid) n)))))))
+          (let ((n (sys-group-name gid))) (if (null? n) (cu-int->str gid) n)))))))
 
 ; whether the ids asked for differ from the ones the path has
 (def %cu-chown-changes?
   (fn (_ ids st)
     (if (if (< (first ids) 0) #f (not (= (first ids) (%cu-stat-get st (lit uid)))))
       #t
-      (if (< (%cu-nth 1 ids) 0) #f
-        (not (= (%cu-nth 1 ids) (%cu-stat-get st (lit gid))))))))
+      (if (< (cu-nth 1 ids) 0) #f
+        (not (= (cu-nth 1 ids) (%cu-stat-get st (lit gid))))))))
 
 ; what a report calls the change: ownership where it shows an owner, group
 ; where it shows only a group
 (def %cu-chown-what
   (fn (_ ids)
-    (if (if (null? (%cu-nth 2 ids)) (not (null? (%cu-nth 3 ids))) #f)
+    (if (if (null? (cu-nth 2 ids)) (not (null? (cu-nth 3 ids))) #f)
       "group" "ownership")))
 
 ; and what a complaint calls it: ownership where an owner was asked for
@@ -547,7 +547,7 @@
 
 (def %cu-chown-links
   (fn (_ o)
-    (let ((v (%cu-last-given o (list "-H" "-L" "-P"))))
+    (let ((v (cu-last-given o (list "-H" "-L" "-P"))))
       (if (null? v) (lit none)
         (match
           ((string=? v "-H") (lit args))
@@ -559,16 +559,16 @@
 ; Without -R a link is followed, as a plain chown follows one.
 (def %cu-chown-itself?
   (fn (_ way)
-    (if (%cu-nth 2 way) #t
-      (if (first way) (eq? (%cu-nth 1 way) (lit none)) #f))))
+    (if (cu-nth 2 way) #t
+      (if (first way) (eq? (cu-nth 1 way) (lit none)) #f))))
 
 ; and whether the walk goes through a link: -L through every one, -H through
 ; one named on the command line
 (def %cu-chown-follows?
   (fn (_ way top?)
     (match
-      ((eq? (%cu-nth 1 way) (lit all)) #t)
-      ((eq? (%cu-nth 1 way) (lit args)) top?)
+      ((eq? (cu-nth 1 way) (lit all)) #t)
+      ((eq? (cu-nth 1 way) (lit args)) top?)
       (#t #f))))
 
 ; Whether the walk goes into PATH at all: a directory under -R, and a link
@@ -660,9 +660,9 @@
 (def %cu-chown-set
   (fn (_ how applet ids path st)
     (let ((r (if (eq? (%cu-stat-get st (lit file-type)) (lit link))
-               (%cu-chown-link path (first ids) (%cu-nth 1 ids))
+               (%cu-chown-link path (first ids) (cu-nth 1 ids))
                (file-or-err
-                 (fn (_) (file-chown path (first ids) (%cu-nth 1 ids)))))))
+                 (fn (_) (file-chown path (first ids) (cu-nth 1 ids)))))))
       (do (if (Err err? r)
             (%cu-report-complain how applet
               (string-concat
@@ -714,16 +714,16 @@
 
 (def %cu-chown
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "chown" argv))
+    (def o (cu-opts "chown" argv))
     (def ops (Opts operands o))
-    (if (< (length ops) 2) (%cu-missing-operand "chown" ops)
+    (if (< (length ops) 2) (cu-missing-operand "chown" ops)
       (%cu-chown-run (%cu-chown-spec (first ops)) (rest ops) o "chown"))))
 
 (def %cu-chgrp
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "chgrp" argv))
+    (def o (cu-opts "chgrp" argv))
     (def ops (Opts operands o))
-    (if (< (length ops) 2) (%cu-missing-operand "chgrp" ops)
+    (if (< (length ops) 2) (cu-missing-operand "chgrp" ops)
       (%cu-chown-run (%cu-chgrp-spec (first ops)) (rest ops) o "chgrp"))))
 
 ; the spec's ids walked over the paths, or the complaint that refused the spec
@@ -760,14 +760,14 @@
             1))
       ((pair? (rest (rest argv)))
         (do (file-write 2
-              (string-concat (list "link: extra operand '" (%cu-nth 2 argv) "'\n")))
+              (string-concat (list "link: extra operand '" (cu-nth 2 argv) "'\n")))
             1))
       (#t
-        (let ((r (file-or-err (fn (_) (file-link (first argv) (%cu-nth 1 argv))))))
+        (let ((r (file-or-err (fn (_) (file-link (first argv) (cu-nth 1 argv))))))
           (if (not (Err err? r)) 0
             (do (file-write 2
                   (string-concat
-                    (list "link: cannot create link '" (%cu-nth 1 argv) "' to '"
+                    (list "link: cannot create link '" (cu-nth 1 argv) "' to '"
                           (first argv) "': " (file-err-text r) "\n")))
                 1)))))))
 
@@ -796,7 +796,7 @@
 ; form answers a non-link with a silent 1.
 (def %cu-readlink
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "readlink" argv))
+    (def o (cu-opts "readlink" argv))
     (def f? (if (Opts on? o "-f") #t (Opts on? o "-e")))
     (def nl (if (Opts on? o "-n") "" "\n"))
     (def complain
@@ -822,7 +822,7 @@
 ; prefix must be re-examined, not patched.  The fuel bounds a cycle.
 (def %cu-path-parts
   (fn (_ p)
-    (filter (fn (_ s) (> (byte-len s) 0)) (%cu-split-byte p 47))))
+    (filter (fn (_ s) (> (byte-len s) 0)) (cu-split-byte p 47))))
 
 (def %cu-realpath-walk
   (fn (self parts acc fuel)
@@ -834,7 +834,7 @@
             (if (string=? seg "..")
               (self (rest parts) (if (null? acc) acc (rest acc)) fuel)
               (let ((here (string-append "/"
-                            (%cu-join-with (reverse (pair seg acc)) "/"))))
+                            (cu-join-with (reverse (pair seg acc)) "/"))))
                 (if (eq? (file-lstat-file-type here) (lit link))
                   (self
                     (append (%cu-path-parts (%cu-readlink-from here))
@@ -858,7 +858,7 @@
                  (%cu-path-join (sys-getcwd) p))))
     (def r (%cu-realpath-walk (%cu-path-parts abs) () 64))
     (if (null? (first r)) "/"
-      (string-append "/" (%cu-join-with (reverse (first r)) "/")))))
+      (string-append "/" (cu-join-with (reverse (first r)) "/")))))
 
 (def %cu-realpath
   (fn (_ argv stdin-thunk)
@@ -881,7 +881,7 @@
 
 (def %cu-mkfifo
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "mkfifo" argv))
+    (def o (cu-opts "mkfifo" argv))
     (def m (Opts value o "-m"))
     (def mode (if (null? m) 420 (%cu-octal->int m)))
     (def ops (Opts operands o))
@@ -912,7 +912,7 @@
   (fn (_ o)
     (let ((b (Opts value o "-B")))
       (if (not (null? b))
-        (let ((n (%cu-num-prefix b)))
+        (let ((n (cu-num-prefix b)))
           (def suffix
             (let ((go (fn (self i)
                         (if (>= i (byte-len b)) 0
@@ -934,7 +934,7 @@
 (def %cu-df-show
   (fn (_ bytes o)
     (if (Opts on? o "-h") (%ls-human bytes)
-      (%cu-int->str (let ((u (%cu-df-unit o)))
+      (cu-int->str (let ((u (%cu-df-unit o)))
                       (let ((c (+ bytes (- u 1))))
                         (/ (- c (% c u)) u)))))))
 
@@ -945,12 +945,12 @@
     (let ((u (%cu-df-unit o)))
       (match
         ((= (% u 1073741824) 0)
-          (string-append (%cu-int->str (/ u 1073741824)) "G-blocks"))
+          (string-append (cu-int->str (/ u 1073741824)) "G-blocks"))
         ((= (% u 1048576) 0)
-          (string-append (%cu-int->str (/ u 1048576)) "M-blocks"))
+          (string-append (cu-int->str (/ u 1048576)) "M-blocks"))
         ((= (% u 1024) 0)
-          (string-append (%cu-int->str (/ u 1024)) "K-blocks"))
-        (#t (string-append (%cu-int->str u) "B-blocks"))))))
+          (string-append (cu-int->str (/ u 1024)) "K-blocks"))
+        (#t (string-append (cu-int->str u) "B-blocks"))))))
 
 ; the types df calls dummies and leaves out of a plain listing
 (def %cu-df-dummy-types
@@ -1015,8 +1015,8 @@
     (def pct (let ((d (+ used avail)))
                (if (= d 0) "-"
                  (let ((n (+ (* used 100) (- d 1))))
-                   (string-append (%cu-int->str (/ (- n (% n d)) d)) "%")))))
-    (def show (fn (_ v) (if inodes? (%cu-int->str v) (%cu-df-show v o))))
+                   (string-append (cu-int->str (/ (- n (% n d)) d)) "%")))))
+    (def show (fn (_ v) (if inodes? (cu-int->str v) (%cu-df-show v o))))
     (if dup? (list "-" "-" "-" "-")
       (list (show total) (show used) (show avail) pct))))
 
@@ -1033,9 +1033,9 @@
           (fn (self rs w)
             (if (null? rs) w
               (self (rest rs)
-                (let ((l (byte-len (%cu-nth c (first rs))))) (if (> l w) l w))))))
+                (let ((l (byte-len (cu-nth c (first rs))))) (if (> l w) l w))))))
         (go rows
-          (let ((h (byte-len (%cu-nth c header))) (m (%cu-nth c mins)))
+          (let ((h (byte-len (cu-nth c header))) (m (cu-nth c mins)))
             (if (> h m) h m)))))
     (def ws
       (let ((go (fn (self c acc) (if (< c 0) acc (self (- c 1) (pair (width c) acc))))))
@@ -1045,12 +1045,12 @@
         (def go
           (fn (self c acc)
             (if (>= c n) (string-concat (reverse acc))
-              (let ((cell (%cu-nth c cells)) (w (%cu-nth c ws)))
+              (let ((cell (cu-nth c cells)) (w (cu-nth c ws)))
                 (self (+ c 1)
                   (pair (if (= c (- n 1)) cell
                           (string-append
-                            (if (%cu-nth c lefts) (%cu-pad-right cell w)
-                              (%cu-pad-left cell w))
+                            (if (cu-nth c lefts) (cu-pad-right cell w)
+                              (cu-pad-left cell w))
                             " "))
                         acc))))))
         (string-append (go 0 ()) "\n")))
@@ -1067,7 +1067,7 @@
         (let ((dev (%cu-stat-get st (lit dev)))
               (fs (file-statfs-full path)))
           (def by-dev
-            (filter (fn (_ e) (if (%cu-nth 1 e) #f (= (%cu-nth 2 e) dev))) marked))
+            (filter (fn (_ e) (if (cu-nth 1 e) #f (= (cu-nth 2 e) dev))) marked))
           (def by-id
             (filter (fn (_ e) (= (%cu-stat-get (first e) (lit fsid))
                                  (%cu-stat-get fs (lit fsid))))
@@ -1112,19 +1112,19 @@
 (def %cu-df-listed
   (fn (_ o marked)
     (def dummy?
-      (fn (_ m) (%cu-member-s? (%cu-stat-get m (lit typename)) %cu-df-dummy-types)))
+      (fn (_ m) (cu-member-s? (%cu-stat-get m (lit typename)) %cu-df-dummy-types)))
     (filter
       (fn (_ e)
         (match
           ((Opts on? o "-a") #t)
-          ((%cu-nth 1 e) #f)
+          ((cu-nth 1 e) #f)
           ((dummy? (first e)) #f)
           (#t (> (%cu-stat-get (first e) (lit blocks)) 0))))
       marked)))
 
 (def %cu-df
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "df" argv))
+    (def o (cu-opts "df" argv))
     (def ops (Opts operands o))
     (def marked (%cu-df-mounts))
     (def found (map (fn (_ p) (pair p (%cu-df-mount-of p marked))) ops))
@@ -1135,16 +1135,16 @@
       (if (pair? ops)
         (map (fn (_ f) (%cu-df-row (rest f) o #f))
           (filter (fn (_ f) (not (null? (rest f)))) found))
-        (map (fn (_ e) (%cu-df-row (first e) o (%cu-nth 1 e)))
+        (map (fn (_ e) (%cu-df-row (first e) o (cu-nth 1 e)))
           (%cu-df-listed o marked))))
     (def cols (%cu-df-columns o))
-    (do (%cu-print-lines-to 2
+    (do (cu-print-lines-to 2
           (map (fn (_ p) (string-concat (list "df: " p ": No such file or directory")))
             missing))
         ; no table when nothing asked for could be found
         (if (if (pair? ops) (null? rows) #f) ()
           (display
-            (%cu-df-table (first cols) rows (%cu-nth 1 cols) (%cu-nth 2 cols))))
+            (%cu-df-table (first cols) rows (cu-nth 1 cols) (cu-nth 2 cols))))
         (if (null? missing) 0 1))))
 
 ; sync with no operand syncs everything. -d asks for a file's DATA and -f
@@ -1155,7 +1155,7 @@
 ; a file to sync, and does not go with -f.
 (def %cu-sync
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "sync" argv))
+    (def o (cu-opts "sync" argv))
     (def ops (Opts operands o))
     (match
       ((if (Opts on? o "-d") (Opts on? o "-f") #f)

@@ -112,7 +112,7 @@
 (def %cu-env
   (fn (_ argv stdin-thunk)
     (let ((z (%cu-env-zero argv () #f)))
-      (let ((o (%cu-opts "env" (rest z))))
+      (let ((o (cu-opts "env" (rest z))))
         (let ((ops (Opts operands o)))
           (let ((dash? (if (pair? ops) (string=? (first ops) "-") #f)))
             (let ((clear? (if dash? #t (Opts on? o "-i")))
@@ -124,7 +124,7 @@
                                (filter (fn (_ e) (not (%cu-env-named? e drop)))
                                  (if clear? () (sys-environ)))
                                (first split))))
-                    (do (if (first z) (%cu-print-fields env 0) (%cu-print-lines env))
+                    (do (if (first z) (cu-print-fields env 0) (cu-print-lines env))
                         0)))
                 ((first z)
                   (do (file-write 2 "env: cannot specify --null (-0) with command\n")
@@ -163,7 +163,7 @@
         (if (null? xs) acc (self (rest xs) (+ acc (first xs))))))
     (def b (bad argv us))
     (match
-      ((null? argv) (%cu-missing-operand "sleep" argv))
+      ((null? argv) (cu-missing-operand "sleep" argv))
       ((not (null? b))
         (do (file-write 2 (string-concat (list "sleep: invalid number '" b "'\n"))) 1))
       (#t (do (%cu-sleep-for (total us 0)) 0)))))
@@ -180,7 +180,7 @@
       (match ((= last 115) 1) ((= last 109) 60) ((= last 104) 3600)
              ((= last 100) 86400) (#t 0)))
     (def parts
-      (%cu-split-byte (substring a 0 (if (= unit 0) end (- end 1))) 46))
+      (cu-split-byte (substring a 0 (if (= unit 0) end (- end 1))) 46))
     (def digits?
       (fn (_ s)
         (let ((go (fn (self i)
@@ -195,8 +195,8 @@
       ((if (= (byte-len whole) 0) (= (byte-len frac) 0) #f) ())
       ((not (if (digits? whole) (digits? frac) #f)) ())
       (#t (* (if (= unit 0) 1 unit)
-             (+ (* (if (= (byte-len whole) 0) 0 (%cu-num-prefix whole)) 1000000)
-                (%cu-num-prefix
+             (+ (* (if (= (byte-len whole) 0) 0 (cu-num-prefix whole)) 1000000)
+                (cu-num-prefix
                   (substring (string-append frac "000000") 0 6))))))))
 
 ; US microseconds slept: the whole seconds through sleep, the rest through
@@ -216,10 +216,10 @@
 ; the name, in PATH order, rather than stopping at the first.
 (def %cu-which
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "which" argv))
+    (def o (cu-opts "which" argv))
     (def all? (Opts on? o "-a"))
     (def path (sys-getenv "PATH"))
-    (def dirs (if (null? path) () (%cu-split-byte path 58)))  ; :
+    (def dirs (if (null? path) () (cu-split-byte path 58)))  ; :
     (def hits
       (fn (self ds name)
         (if (null? ds) ()
@@ -235,7 +235,7 @@
           (let ((found (hits dirs (first os))))
             (if (null? found)
               (self (rest os) 1)
-              (do (%cu-print-lines found)
+              (do (cu-print-lines found)
                   (self (rest os) st)))))))
     (each (Opts operands o) 0)))
 
@@ -278,7 +278,7 @@
 ; Taking zero would not shorten the line, it would loop forever.
 (def %cu-xargs-batch
   (fn (_ cmd ws n maxs)
-    (def base (byte-len (%cu-join-with cmd " ")))
+    (def base (byte-len (cu-join-with cmd " ")))
     (def go
       (fn (self l k len acc)
         (if (null? l)
@@ -306,7 +306,7 @@
       (let ((argv (map (fn (_ a) (%cu-xargs-subst a repl (first ws))) cmd)))
         (do
           (if trace?
-            (file-write 2 (string-append (%cu-join-with argv " ") "\n"))
+            (file-write 2 (string-append (cu-join-with argv " ") "\n"))
             ())
           (let ((st2 (proc-run argv)))
             (self cmd repl (rest ws) trace?
@@ -319,13 +319,13 @@
     ; ENDS the parse, since this row stops at its first operand, so a -a
     ; after it would never be read: the token is taken off the line
     ; first, and what is left parses as it should.
-    (def zero? (%cu-member-s? "-0" argv))
-    (def o (%cu-opts "xargs"
+    (def zero? (cu-member-s? "-0" argv))
+    (def o (cu-opts "xargs"
              (filter (fn (_ a) (not (string=? a "-0"))) argv)))
     (def cmd0 (Opts operands o))
     (def cmd (if (null? cmd0) (list "echo") cmd0))
-    (def n (let ((v (Opts value o "-n"))) (if (null? v) 0 (%cu-num-prefix v))))
-    (def maxs (let ((v (Opts value o "-s"))) (if (null? v) 0 (%cu-num-prefix v))))
+    (def n (let ((v (Opts value o "-n"))) (if (null? v) 0 (cu-num-prefix v))))
+    (def maxs (let ((v (Opts value o "-s"))) (if (null? v) 0 (cu-num-prefix v))))
     (def repl (Opts value o "-I"))
     (def eof (Opts value o "-E"))
     (def trace? (Opts on? o "-t"))
@@ -334,18 +334,18 @@
     ; item is part of it, which is the whole reason for the flag.
     ; an -a file xargs cannot read is said, and nothing is run
     (def zread
-      (if zero? (%cu-delim-fields-said src stdin-thunk 0 (%cu-says "xargs") #t)
+      (if zero? (cu-delim-fields-said src stdin-thunk 0 (cu-says "xargs") #t)
         (pair () 0)))
     (def input
       (if (if zero? #t (null? src)) ()
-        (%cu-read-said (%cu-says "xargs") (first src))))
+        (cu-read-said (cu-says "xargs") (first src))))
     (def failed? (if (Err err? input) #t (> (rest zread) 0)))
     (def words0
       (match
         (zero? (first zread))
         (failed? ())
         (#t (let ((text (if (null? src) (stdin-thunk) input)))
-              (%cu-words-line (%cu-join-with (%cu-lines text) " "))))))
+              (cu-words-line (cu-join-with (cu-lines text) " "))))))
     (def words (if (null? eof) words0 (%cu-xargs-until words0 eof)))
     (def run!
       (fn (_ ws)
@@ -354,7 +354,7 @@
           ; command's own output and nothing else.
           (if trace?
             (file-write 2
-              (string-append (%cu-join-with (append cmd ws) " ") "\n"))
+              (string-append (cu-join-with (append cmd ws) " ") "\n"))
             ())
           (proc-run (append cmd ws)))))
     (match
@@ -363,7 +363,7 @@
       ((not (null? repl)) (%cu-xargs-each cmd repl words trace? 0))
       ((if (Opts on? o "-x")
               (if (> maxs 0)
-                (> (+ (byte-len (%cu-join-with cmd " "))
+                (> (+ (byte-len (cu-join-with cmd " "))
                       (+ 1 (byte-len (first words)))) maxs)
                 #f)
               #f)

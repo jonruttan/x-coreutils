@@ -27,7 +27,7 @@
 
 ; four digits, as stat's Access line and chmod's reports show a mode: 0644
 (def %cu-mode-octal4
-  (fn (_ mode) (%cu-pad-zero (%cu-mode-octal mode) 4)))
+  (fn (_ mode) (cu-pad-zero (%cu-mode-octal mode) 4)))
 
 (def %cu-file-type-letter
   (fn (_ file-type)
@@ -109,14 +109,14 @@
   (fn (_ c name st)
     (def file-type (%cu-stat-get st (lit file-type)))
     (def mode (%cu-stat-get st (lit mode)))
-    (def num (fn (_ key) (%cu-int->str (%cu-stat-get st key))))
-    (def hex (fn (_ key) (%cu-hexs (%cu-stat-get st key))))
+    (def num (fn (_ key) (cu-int->str (%cu-stat-get st key))))
+    (def hex (fn (_ key) (cu-hexs (%cu-stat-get st key))))
     (match
       ((= c 110) name)                          ; n
       ((= c 115) (num (lit size)))              ; s
       ((= c 98)  (num (lit blocks)))            ; b
       ((= c 66)  "512")                         ; B
-      ((= c 102) (%cu-hexs mode))               ; f
+      ((= c 102) (cu-hexs mode))               ; f
       ((= c 97)  (%cu-mode-octal mode))         ; a
       ((= c 65)  (%cu-perm-string file-type mode))   ; A
       ((= c 117) (num (lit uid)))               ; u
@@ -129,28 +129,28 @@
       ((= c 68)  (hex (lit dev)))               ; D
       ((= c 114) (num (lit rdev)))              ; r
       ((= c 82)  (hex (lit rdev)))              ; R
-      ((= c 116) (%cu-hexs (%cu-dev-major (%cu-stat-get st (lit rdev)))))   ; t
-      ((= c 84)  (%cu-hexs (%cu-dev-minor (%cu-stat-get st (lit rdev)))))   ; T
+      ((= c 116) (cu-hexs (%cu-dev-major (%cu-stat-get st (lit rdev)))))   ; t
+      ((= c 84)  (cu-hexs (%cu-dev-minor (%cu-stat-get st (lit rdev)))))   ; T
       ((= c 70)  (%cu-file-type-word file-type))          ; F
       ((= c 88)  (num (lit atime)))             ; X
       ((= c 89)  (num (lit mtime)))             ; Y
       ((= c 90)  (num (lit ctime)))             ; Z
       ((= c 87)  (num (lit btime)))             ; W
       ((= c 111) (num (lit blksize)))           ; o
-      (#t (string-append "%" (%cu-b->s c))))))
+      (#t (string-append "%" (cu-b->s c))))))
 
 ; -f's specifiers, for a filesystem.  Darwin has no name limit to
 ; report, and stat prints `?` for it.
 (def %cu-stat-fs-spec
   (fn (_ c name fs)
-    (def num (fn (_ key) (%cu-int->str (%cu-stat-get fs key))))
+    (def num (fn (_ key) (cu-int->str (%cu-stat-get fs key))))
     (match
       ((= c 110) name)                                       ; n
-      ((= c 105) (%cu-hexs (%cu-stat-get fs (lit fsid))))    ; i
+      ((= c 105) (cu-hexs (%cu-stat-get fs (lit fsid))))    ; i
       ((= c 108)                                             ; l
         (let ((e (Assoc entry (lit namelen) fs)))
-          (if (null? e) "?" (%cu-int->str (rest e)))))
-      ((= c 116) (%cu-hexs (%cu-stat-get fs (lit type))))    ; t
+          (if (null? e) "?" (cu-int->str (rest e)))))
+      ((= c 116) (cu-hexs (%cu-stat-get fs (lit type))))    ; t
       ((= c 84)  (%cu-stat-get fs (lit typename)))           ; T
       ((= c 115) (num (lit bsize)))                          ; s
       ((= c 83)  (num (lit frsize)))                         ; S
@@ -159,7 +159,7 @@
       ((= c 97)  (num (lit bavail)))                         ; a
       ((= c 99)  (num (lit files)))                          ; c
       ((= c 100) (num (lit ffree)))                          ; d
-      (#t (string-append "%" (%cu-b->s c))))))
+      (#t (string-append "%" (cu-b->s c))))))
 
 ; The scanning is cu/fmt-lex.x's; SPEC is one of the two above.
 (def %cu-stat-format
@@ -192,32 +192,32 @@
     (def rdev (%cu-stat-get st (lit rdev)))
     (def uid (%cu-stat-get st (lit uid)))
     (def gid (%cu-stat-get st (lit gid)))
-    (def nlink (%cu-int->str (%cu-stat-get st (lit nlink))))
+    (def nlink (cu-int->str (%cu-stat-get st (lit nlink))))
     (def device? (if (eq? file-type (lit char)) #t (eq? file-type (lit block))))
     (string-concat
       (list "  File: " name "\n"
-            "  Size: " (%cu-int->str (%cu-stat-get st (lit size)))
-            "\tBlocks: " (%cu-int->str (%cu-stat-get st (lit blocks)))
-            "\tIO Block: " (%cu-int->str (%cu-stat-get st (lit blksize)))
+            "  Size: " (cu-int->str (%cu-stat-get st (lit size)))
+            "\tBlocks: " (cu-int->str (%cu-stat-get st (lit blocks)))
+            "\tIO Block: " (cu-int->str (%cu-stat-get st (lit blksize)))
             "\t" (%cu-file-type-word file-type) "\n"
-            "Device: " (%cu-int->str (%cu-dev-major dev)) ","
-            (%cu-int->str (%cu-dev-minor dev))
+            "Device: " (cu-int->str (%cu-dev-major dev)) ","
+            (cu-int->str (%cu-dev-minor dev))
             "\tInode: "
-            (%cu-pad-right (%cu-int->str (%cu-stat-get st (lit ino))) 10)
+            (cu-pad-right (cu-int->str (%cu-stat-get st (lit ino))) 10)
             "  Links: "
             (if device?
               (string-concat
-                (list (%cu-pad-right nlink 5) " Device type: "
-                      (%cu-int->str (%cu-dev-major rdev)) ","
-                      (%cu-int->str (%cu-dev-minor rdev))))
+                (list (cu-pad-right nlink 5) " Device type: "
+                      (cu-int->str (%cu-dev-major rdev)) ","
+                      (cu-int->str (%cu-dev-minor rdev))))
               nlink)
             "\n"
             "Access: (" (%cu-mode-octal4 mode) "/"
             (%cu-perm-string file-type mode) ")  Uid: ("
-            (%cu-pad-left (%cu-int->str uid) 5) "/"
-            (%cu-pad-left (%cu-stat-user uid) 8) ")   Gid: ("
-            (%cu-pad-left (%cu-int->str gid) 5) "/"
-            (%cu-pad-left (%cu-stat-group gid) 8) ")\n"))))
+            (cu-pad-left (cu-int->str uid) 5) "/"
+            (cu-pad-left (%cu-stat-user uid) 8) ")   Gid: ("
+            (cu-pad-left (cu-int->str gid) 5) "/"
+            (cu-pad-left (%cu-stat-group gid) 8) ")\n"))))
 
 ; the filesystem block under -f, in stat -f's column widths
 (def %cu-stat-fs-default
@@ -225,22 +225,22 @@
     (def sp (fn (_ c) (%cu-stat-fs-spec c name fs)))
     (string-concat
       (list "  File: \"" name "\"\n"
-            "    ID: " (%cu-pad-right (sp 105) 8)
-            " Namelen: " (%cu-pad-right (sp 108) 7)
+            "    ID: " (cu-pad-right (sp 105) 8)
+            " Namelen: " (cu-pad-right (sp 108) 7)
             " Type: " (sp 84) "\n"
-            "Block size: " (%cu-pad-right (sp 115) 10)
+            "Block size: " (cu-pad-right (sp 115) 10)
             " Fundamental block size: " (sp 83) "\n"
-            "Blocks: Total: " (%cu-pad-right (sp 98) 10)
-            " Free: " (%cu-pad-right (sp 102) 10)
+            "Blocks: Total: " (cu-pad-right (sp 98) 10)
+            " Free: " (cu-pad-right (sp 102) 10)
             " Available: " (sp 97) "\n"
-            "Inodes: Total: " (%cu-pad-right (sp 99) 10)
+            "Inodes: Total: " (cu-pad-right (sp 99) 10)
             " Free: " (sp 100) "\n"))))
 
 (def %cu-stat
   (fn (_ argv stdin-thunk)
     ; Read through the declaration, so -c may follow its operands and -L is
     ; reached at all.
-    (def o (%cu-opts "stat" argv))
+    (def o (cu-opts "stat" argv))
     (def fmt (Opts value o "-c"))
     (def fs? (Opts on? o "-f"))
     (def terse? (Opts on? o "-t"))
@@ -340,7 +340,7 @@
 
 (def %cu-du-links
   (fn (_ o)
-    (let ((v (%cu-last-given o (list "-H" "-L" "-P"))))
+    (let ((v (cu-last-given o (list "-H" "-L" "-P"))))
       (if (null? v) (lit none)
         (match
           ((string=? v "-H") (lit args))
@@ -349,7 +349,7 @@
 
 (def %cu-du-depth
   (fn (_ o)
-    (let ((v (Opts value o "-d"))) (if (null? v) (- 0 1) (%cu-num-prefix v)))))
+    (let ((v (Opts value o "-d"))) (if (null? v) (- 0 1) (cu-num-prefix v)))))
 
 (def %cu-du-deep?
   (fn (_ level limit) (if (< limit 0) #t (<= level limit))))
@@ -475,12 +475,12 @@
     ; directory would print as a bare "268" without this scaling.
     (if (Opts on? o "-h") (%ls-human (* n 1024))
       (if (Opts on? o "-m")
-        (%cu-int->str (/ (- n (% n 1024)) 1024))
-        (%cu-int->str n)))))
+        (cu-int->str (/ (- n (% n 1024)) 1024))
+        (cu-int->str n)))))
 
 (def %cu-du
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "du" argv))
+    (def o (cu-opts "du" argv))
     (def ops0 (Opts operands o))
     (def ops (if (null? ops0) (list ".") ops0))
     (def way (%cu-du-way o (> (length ops) 1)))
@@ -520,7 +520,7 @@
 (def %cu-dd-list
   (fn (_ argv key)
     (let ((v (%cu-dd-operand argv key)))
-      (if (null? v) () (%cu-split-byte v 44)))))
+      (if (null? v) () (cu-split-byte v 44)))))
 
 (def %cu-dd-has?
   (fn (self vs name)
@@ -548,10 +548,10 @@
 (def %cu-dd-convert
   (fn (_ raw conv odd)
     (if (%cu-dd-has? conv "swab")
-      (let ((t (if (= (rest odd) 0) raw (%cu-run-join odd raw 0 (rest raw)))))
+      (let ((t (if (= (rest odd) 0) raw (cu-run-join odd raw 0 (rest raw)))))
         (let ((even (- (rest t) (% (rest t) 2))))
           (pair (%cu-dd-bytes (pair (first t) even) conv)
-                (%cu-run-slice t even))))
+                (cu-run-slice t even))))
       (pair (%cu-dd-bytes raw conv) (pair "" 0)))))
 
 ; Run R's bytes as conv= asks: each pair swapped under swab -- an odd byte at
@@ -571,18 +571,18 @@
       (fn (_ i)
         (match
           ((not swab?) i)
-          ((= (%cu& i 1) 1) (%cu- i 1))
-          ((%cu< (%cu+ i 1) n) (%cu+ i 1))
+          ((= (cu& i 1) 1) (cu- i 1))
+          ((cu< (cu+ i 1) n) (cu+ i 1))
           (#t i))))
     (def cased
       (fn (_ b)
-        (let ((lo (if (if lower? (if (%cu< 64 b) (%cu< b 91) #f) #f) (%cu+ b 32) b)))
-          (if (if upper? (if (%cu< 96 lo) (%cu< lo 123) #f) #f) (%cu- lo 32) lo))))
+        (let ((lo (if (if lower? (if (cu< 64 b) (cu< b 91) #f) #f) (cu+ b 32) b)))
+          (if (if upper? (if (cu< 96 lo) (cu< lo 123) #f) #f) (cu- lo 32) lo))))
     (def go
       (fn (self k acc)
-        (if (%cu< k 0) acc
-          (do (if (= (%cu& k %cu-sweep-bytes) 0) (%cu-sweep! k) ())
-              (self (%cu- k 1) (pair (cased (byte-at t (from k))) acc))))))
+        (if (cu< k 0) acc
+          (do (if (= (cu& k cu-sweep-bytes) 0) (cu-sweep! k) ())
+              (self (cu- k 1) (pair (cased (byte-at t (from k))) acc))))))
     (if (if swab? #t (if lower? #t upper?))
       (pair (bytes->str (go (- n 1) ())) n)
       r)))
@@ -594,12 +594,12 @@
   (fn (_ argv key flags flag size none)
     (let ((v (%cu-dd-operand argv key)))
       (if (null? v) none
-        (* (%cu-num-prefix v) (if (%cu-dd-has? flags flag) 1 size))))))
+        (* (cu-num-prefix v) (if (%cu-dd-has? flags flag) 1 size))))))
 
 ; Blocks of SIZE in N bytes, as "WHOLE+PARTIAL".
 (def %cu-dd-records
   (fn (_ n size)
-    (string-append (%cu-int->str (/ (- n (% n size)) size))
+    (string-append (cu-int->str (/ (- n (% n size)) size))
       (string-append "+" (if (= (% n size) 0) "0" "1")))))
 
 (def %cu-dd
@@ -609,11 +609,11 @@
     (def bs (%cu-dd-operand argv "bs"))
     ; bs= sets both sides; ibs= and obs= set one each and win over it.
     (def ibs (let ((v (%cu-dd-operand argv "ibs")))
-               (if (null? v) (if (null? bs) 512 (%cu-num-prefix bs))
-                 (%cu-num-prefix v))))
+               (if (null? v) (if (null? bs) 512 (cu-num-prefix bs))
+                 (cu-num-prefix v))))
     (def obs (let ((v (%cu-dd-operand argv "obs")))
-               (if (null? v) (if (null? bs) 512 (%cu-num-prefix bs))
-                 (%cu-num-prefix v))))
+               (if (null? v) (if (null? bs) 512 (cu-num-prefix bs))
+                 (cu-num-prefix v))))
     (def conv (%cu-dd-list argv "conv"))
     (def iflag (%cu-dd-list argv "iflag"))
     (def oflag (%cu-dd-list argv "oflag"))
@@ -631,8 +631,8 @@
           1)
       ; the input is opened before anything else, as dd opens it first; one
       ; it cannot open is said, and nothing is written
-      (let ((src (if (null? in) (%cu-stdin-pieces stdin-thunk)
-                   (%cu-file-pieces in))))
+      (let ((src (if (null? in) (cu-stdin-pieces stdin-thunk)
+                   (cu-file-pieces in))))
         (if (Err err? src) (%cu-dd-failed in src)
           (do
             (def quiet? (let ((v (%cu-dd-operand argv "status")))
@@ -645,14 +645,14 @@
             ; answered, so an input that will not read writes nothing.
             (def open-out (fn (_) (if (null? out) 1 (%cu-dd-open out at oflag))))
             (def r
-              (%cu-fold-pieces src (%cu-dd-take conv open-out)
+              (cu-fold-pieces src (%cu-dd-take conv open-out)
                 (let ((s (list from want 0 (pair "" 0) ())))
-                  (if (= want 0) (%cu-enough s) s))))
+                  (if (= want 0) (cu-enough s) s))))
             (src (lit close))
-            (def s (%cu-unmarked (first r)))
+            (def s (cu-unmarked (first r)))
             (def fd
-              (if (null? (%cu-nth 4 s)) (if (null? (rest r)) (open-out) ())
-                (%cu-nth 4 s)))
+              (if (null? (cu-nth 4 s)) (if (null? (rest r)) (open-out) ())
+                (cu-nth 4 s)))
             ; a copy whose input would not read, or whose output would not
             ; open, made no records
             (match
@@ -671,8 +671,8 @@
 ; sizes do.
 (def %cu-dd-finish
   (fn (_ fd s at conv oflag ibs obs quiet?)
-    (def n (%cu-nth 2 s))
-    (do (%cu-dd-put fd (%cu-dd-bytes (%cu-nth 3 s) conv))
+    (def n (cu-nth 2 s))
+    (do (%cu-dd-put fd (%cu-dd-bytes (cu-nth 3 s) conv))
         (if (= fd 1) ()
           (do (if (if (%cu-dd-has? conv "notrunc") #t
                     (%cu-dd-has? oflag "append")) ()
@@ -683,7 +683,7 @@
             (string-concat
               (list (%cu-dd-records n ibs) " records in\n"
                     (%cu-dd-records n obs) " records out\n"
-                    (%cu-int->str n) " bytes copied\n"))))
+                    (cu-int->str n) " bytes copied\n"))))
         0)))
 
 ; dd's TAKE: the state is (SKIP LEFT N ODD FD) -- the bytes still to skip, the
@@ -694,20 +694,20 @@
 (def %cu-dd-take
   (fn (_ conv open-out)
     (fn (_ r s)
-      (let ((fd (if (null? (%cu-nth 4 s)) (open-out) (%cu-nth 4 s))))
+      (let ((fd (if (null? (cu-nth 4 s)) (open-out) (cu-nth 4 s))))
         (if (Err err? fd)
-          (%cu-enough (list (first s) (%cu-nth 1 s) (%cu-nth 2 s) (%cu-nth 3 s) fd))
-          (let ((skip (first s)) (left (%cu-nth 1 s)) (end (rest r)))
+          (cu-enough (list (first s) (cu-nth 1 s) (cu-nth 2 s) (cu-nth 3 s) fd))
+          (let ((skip (first s)) (left (cu-nth 1 s)) (end (rest r)))
             (def from (if (> skip end) end skip))
             (def upto
               (if (if (>= left 0) (< (+ from left) end) #f) (+ from left) end))
             (def c
-              (%cu-dd-convert (%cu-run-part r from upto) conv (%cu-nth 3 s)))
+              (%cu-dd-convert (cu-run-part r from upto) conv (cu-nth 3 s)))
             (def left2 (if (< left 0) left (- left (- upto from))))
             (do (%cu-dd-put fd (first c))
-                (let ((s2 (list (- skip from) left2 (+ (%cu-nth 2 s) (- upto from))
+                (let ((s2 (list (- skip from) left2 (+ (cu-nth 2 s) (- upto from))
                             (rest c) fd)))
-                  (if (if (= left2 0) (= skip from) #f) (%cu-enough s2) s2)))))))))
+                  (if (if (= left2 0) (= skip from) #f) (cu-enough s2) s2)))))))))
 
 ; OUT opened for the copy at AT -- to append under oflag=append, and never
 ; truncated as it opens -- or the io Err it would not open with
@@ -737,7 +737,7 @@
 
 (def %cu-truncate
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "truncate" argv))
+    (def o (cu-opts "truncate" argv))
     ; -s TAKES A VALUE, and a value flag is not among the record's
     ; standalone flags -- its presence IS its value being there.
     (def size-arg (Opts value o "-s"))
@@ -746,7 +746,7 @@
     (def no-create? (Opts on? o "-c"))
     (if (null? size-arg)
       (do (file-write 2 "truncate: need -s SIZE\n") 1)
-      (let ((size (%cu-num-prefix size-arg)))
+      (let ((size (cu-num-prefix size-arg)))
         ; The operands come from the parse, not from a fixed position:
         ; with -c in the line the old (rest (rest argv)) ate a file.
         (def ops (Opts operands o))
@@ -779,7 +779,7 @@
       ((null? argv) (do (file-write 2 "unlink: missing operand\n") 1))
       ((pair? (rest argv))
         (do (file-write 2
-              (string-concat (list "unlink: extra operand '" (%cu-nth 1 argv) "'\n")))
+              (string-concat (list "unlink: extra operand '" (cu-nth 1 argv) "'\n")))
             1))
       (#t
         (let ((r (file-or-err (fn (_) (file-unlink (first argv))))))
@@ -823,9 +823,9 @@
 
 (def %cu-shred
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "shred" argv))
+    (def o (cu-opts "shred" argv))
     (def n-arg (Opts value o "-n"))
-    (def passes (if (null? n-arg) 3 (%cu-num-prefix n-arg)))
+    (def passes (if (null? n-arg) 3 (cu-num-prefix n-arg)))
     (def u? (Opts on? o "-u"))
     ; -f takes a file the mode denies: 0600 first, then the passes.
     (def f? (Opts on? o "-f"))
@@ -877,10 +877,10 @@
 ; KILL comes back as 137 rather than 124.
 (def %cu-timeout
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "timeout" argv))
+    (def o (cu-opts "timeout" argv))
     (def fired 7)                     ; the watchdog's "I signalled" status
     (def sig-arg (Opts value o "-s"))
-    (def sig (if (null? sig-arg) cu-sigterm (%cu-num-prefix sig-arg)))
+    (def sig (if (null? sig-arg) cu-sigterm (cu-num-prefix sig-arg)))
     ; -k DURATION: if the command outlives the first signal by DURATION,
     ; follow it with KILL, which cannot be caught.  The watcher sends both,
     ; so the parent still learns the command's own status from one wait.
@@ -889,7 +889,7 @@
     ; too few operands: GNU's refusal is its --help line alone, which no
     ; applet here has, and 125, the status of timeout's own failure
     (if (< (length rest1) 2) 125
-      (let ((secs (%cu-num-prefix (first rest1))))
+      (let ((secs (cu-num-prefix (first rest1))))
         (def cmd (rest rest1))
         (def pid (sys-fork))
         (if (= pid 0)
@@ -899,7 +899,7 @@
               (do (sys-sleep secs)
                   (sys-kill pid sig)
                   (if (null? kill-arg) ()
-                    (do (sys-sleep (%cu-num-prefix kill-arg))
+                    (do (sys-sleep (cu-num-prefix kill-arg))
                         (sys-kill pid cu-sigkill)))
                   (sys-exit fired))
               (let ((st (sys-wait pid)))
@@ -926,8 +926,8 @@
         (if (>= i (byte-len n)) #t
           (if (if (>= (byte-at n i) #\0) (<= (byte-at n i) #\9) #f) (self (+ i 1)) #f))))
     (match
-      ((null? argv) (%cu-usage "usleep"))
-      ((if (> (byte-len n) 0) (digits? 0) #f) (do (sys-usleep (%cu-num-prefix n)) 0))
+      ((null? argv) (cu-usage "usleep"))
+      ((if (> (byte-len n) 0) (digits? 0) #f) (do (sys-usleep (cu-num-prefix n)) 0))
       (#t (do (file-write 2 (string-concat (list "usleep: invalid number '" n "'\n"))) 1)))))
 
 ; tty(1) names the terminal; there is no ttyname door, so this answers
@@ -938,12 +938,12 @@
 ; An operand is refused with 2, the status tty keeps for a usage error.
 (def %cu-tty
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "tty" argv))
+    (def o (cu-opts "tty" argv))
     (def quiet? (Opts on? o "-s"))
     (def ops (Opts operands o))
     (def say (fn (_ s) (if quiet? () (display s))))
     (match
-      ((pair? ops) (do (%cu-extra-operand "tty" (first ops)) 2))
+      ((pair? ops) (do (cu-extra-operand "tty" (first ops)) 2))
       ((sys-isatty 0) (do (say "/dev/tty\n") 0))
       (#t (do (say "not a tty\n") 1)))))
 

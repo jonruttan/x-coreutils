@@ -78,14 +78,14 @@
 (def %mx-pct
   (fn (_ have want)
     (if (= want 0) "-"
-      (string-append (%cu-int->str (/ (- (* have 100) (% (* have 100) want)) want)) "%"))))
+      (string-append (cu-int->str (/ (- (* have 100) (% (* have 100) want)) want)) "%"))))
 
 (def %mx-cell
-  (fn (_ xs) (if (null? xs) "" (%cu-join-with xs " "))))
+  (fn (_ xs) (if (null? xs) "" (cu-join-with xs " "))))
 
 (def %mx-names
-  (%cu-msort (Applets names)
-    (fn (_ a b) (%cu-str< a b))))
+  (cu-msort (Applets names)
+    (fn (_ a b) (cu-str< a b))))
 
 ; one row: applet | busybox | ours | missing | coverage.  Answers the
 ; pair (have . want) so the totals fold over the same walk.
@@ -97,7 +97,7 @@
     ; accepted as one that stands alone.  --help is not one of them: an
     ; applet answers it before its options are read, and test and its
     ; spellings declare it only so that it reaches them as an operand.
-    (def spec (%cu-spec-of name))
+    (def spec (cu-spec-of name))
     (def declared (if (null? spec) ()
                     (filter (fn (_ o) (not (string=? o "--help")))
                       (append (first spec) (first (rest spec))))))
@@ -136,8 +136,8 @@
         (go %mx-names 0 0)))
     (display
       (string-concat
-        (list "\n**Total: " (%cu-int->str (first totals)) " of "
-              (%cu-int->str (rest totals)) " busybox options accepted ("
+        (list "\n**Total: " (cu-int->str (first totals)) " of "
+              (cu-int->str (rest totals)) " busybox options accepted ("
               (%mx-pct (first totals) (rest totals)) ").**\n")))))
 
 (%mx-main)

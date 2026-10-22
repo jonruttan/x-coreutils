@@ -61,7 +61,7 @@ types the bursts, and shows what came of them.
   (fn (self ds n)
     (if (null? ds) n (self (rest ds) (vi-flashes-in (first ds) 0 n)))))
 (def vi-flashes-shown
-  (fn (_ n) (if (= n 0) "" (string-append " flashes " (%cu-int->str n)))))
+  (fn (_ n) (if (= n 0) "" (string-append " flashes " (cu-int->str n)))))
 (def vi-case
   (fn (_ text bursts target . mode)
     (apply vi-case-in (List append (list 10 40 text bursts target) mode))))
@@ -70,7 +70,7 @@ types the bursts, and shows what came of them.
 (def vi-raw
   (fn (_ . parts)
     (def n (vi-raw-len parts))
-    (def s (%str-make-raw n))
+    (def s (str-make-raw n))
     (vi-raw-fill (%vi-str->ptr s) 0 parts)
     (pair s n)))
 (def vi-raw-len
@@ -97,7 +97,7 @@ types the bursts, and shows what came of them.
 (def vi-file-shown
   (fn (_ path)
     (def fd (File open path (lit rdonly)))
-    (def buf (%str-make-raw 65536))
+    (def buf (str-make-raw 65536))
     (def n (File read fd buf 65536))
     (File close fd)
     (string-concat (List map (fn (_ i) (vi-byte (& (byte-at buf i) 255))) (List range 0 n)))))
@@ -110,14 +110,14 @@ types the bursts, and shows what came of them.
     (def f (if (file-exists? "/tmp/x-cu-vs/f") (vi-file-shown "/tmp/x-cu-vs/f") "no file\n"))
     (display
       (string-concat
-        (list "exit " (%cu-int->str st) "\n"
+        (list "exit " (cu-int->str st) "\n"
               (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) #\newline) #t) f
                 (string-append f " (no newline)\n"))
               "--\n"
               (string-concat (List map (fn (_ r) (string-append "|" (vi-trim r) "\n")) %vi-screen))
               "status " (vi-trim %vi-bottom) "\n"
-              "cursor " (%cu-int->str %vi-crow) " " (%cu-int->str %vi-ccol)
-              " bells " (%cu-int->str (vi-bells %vi-drawn 0))
+              "cursor " (cu-int->str %vi-crow) " " (cu-int->str %vi-ccol)
+              " bells " (cu-int->str (vi-bells %vi-drawn 0))
               (vi-flashes-shown (vi-flashes %vi-drawn 0)) "\n")))))
 (display "made")
 ```

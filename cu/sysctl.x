@@ -69,7 +69,7 @@
 (def %sy-setting
   (fn (_ o setting)
     ; a key read or written leaves tens of thousands of objects
-    (%cu-sweep-tick! %cu-sweep-lines)
+    (cu-sweep-tick! cu-sweep-lines)
     (def eq (%dp-find setting 0 #\=))
     (def writing (if (>= eq 0) #t (Opts on? o "-w")))
     (def name (if (>= eq 0) (substring setting 0 eq) setting))
@@ -140,7 +140,7 @@
                          (unless (< eq 0)
                            (%sy-setting o (string-append (%sy-path (%sy-trim (substring t 0 eq))) "="
                                                          (%sy-trim (substring t (+ eq 1) (byte-len t))))))))))
-                 (%cu-lines text))
+                 (cu-lines text))
             #t)))))
 
 (def %sy-space? (fn (_ c) (if (= c #\space) #t (= c #\tab))))
@@ -153,7 +153,7 @@
 
 (def %cu-sysctl
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "sysctl" argv))
+    (def o (cu-opts "sysctl" argv))
     (def ops (Opts operands o))
     (match
       ((Opts on? o "-p")

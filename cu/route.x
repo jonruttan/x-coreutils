@@ -54,14 +54,14 @@
                                            6)
                                  (if extra?
                                    (string-concat
-                                     (list (%cu-pad-left (List ref 8 w) 5) " " (%inet-left (List ref 9 w) 5) " "
-                                           (%cu-pad-left (List ref 10 w) 6)))
+                                     (list (cu-pad-left (List ref 8 w) 5) " " (%inet-left (List ref 9 w) 5) " "
+                                           (cu-pad-left (List ref 10 w) 6)))
                                    (string-concat
-                                     (list (%inet-left (%cu-int->str (%inet-dec (List ref 6 w))) 6) " "
-                                           (%inet-left (%cu-int->str (%inet-dec (List ref 4 w))) 2) " "
-                                           (%cu-pad-left (%cu-int->str (%inet-dec (List ref 5 w))) 7))))
+                                     (list (%inet-left (cu-int->str (%inet-dec (List ref 6 w))) 6) " "
+                                           (%inet-left (cu-int->str (%inet-dec (List ref 4 w))) 2) " "
+                                           (cu-pad-left (cu-int->str (%inet-dec (List ref 5 w))) 7))))
                                  " " (List ref 0 w) "\n")))))))))
-           (rest (%cu-lines text))))
+           (rest (cu-lines text))))
     0))
 
 ; INET6_displayroutes: every route of /proc/net/ipv6_route, up or not
@@ -76,14 +76,14 @@
                (when (= (length w) 10)
                  (file-write 1
                    (string-concat
-                     (list (%inet-left (string-concat (list (%inet-ntop6 (List ref 0 w)) "/" (%cu-int->str (%inet-hex (List ref 1 w))))) 43) " "
+                     (list (%inet-left (string-concat (list (%inet-ntop6 (List ref 0 w)) "/" (cu-int->str (%inet-hex (List ref 1 w))))) 43) " "
                            (%inet-left (%inet-ntop6 (List ref 4 w)) 39) " "
                            (%inet-left (%rt-flags (& (%inet-hex (List ref 8 w)) 19202567)) 5) " "
-                           (%inet-left (%cu-int->str (%inet-int32 (%inet-hex (List ref 5 w)))) 6) " "
-                           (%inet-left (%cu-int->str (%inet-int32 (%inet-hex (List ref 6 w)))) 2) " "
-                           (%cu-pad-left (%cu-int->str (%inet-int32 (%inet-hex (List ref 7 w)))) 7) " "
+                           (%inet-left (cu-int->str (%inet-int32 (%inet-hex (List ref 5 w)))) 6) " "
+                           (%inet-left (cu-int->str (%inet-int32 (%inet-hex (List ref 6 w)))) 2) " "
+                           (cu-pad-left (cu-int->str (%inet-int32 (%inet-hex (List ref 7 w)))) 7) " "
                            (%inet-left (List ref 9 w) 8) "\n"))))))
-           (%cu-lines text)))
+           (cu-lines text)))
     0))
 
 ; --- the ioctls --------------------------------------------------------------------
@@ -191,7 +191,7 @@
         (when (if add? (not (= (& flags 4) 0)) #f) (%inet-sin! rt 40 4294967295))
         (%inet-set! rt 56 flags 2)
         (def devbuf (if (null? dev) () (string-append dev "")))
-        (unless (null? devbuf) (%cu-ptr-set! (%cu-str->ptr rt) 88 (%td-ptr->int (%cu-str->ptr devbuf)) 8))
+        (unless (null? devbuf) (cu-ptr-set! (cu-str->ptr rt) 88 (%td-ptr->int (cu-str->ptr devbuf)) 8))
         (%inet-ioctl (%inet-socket 2 %rt-die) (if add? 35083 35084) rt %rt-die)
         0)))
 
@@ -215,9 +215,9 @@
             (unless (null? dev)
               (let ((ifr (%inet-zeros 40)))
                 (do (map (fn (_ k) (%inet-set! ifr k (char->integer (byte-at dev k)) 1)) (List range 0 (if (> (byte-len dev) 15) 15 (byte-len dev))))
-                    (let ((r (%in-call (%cu-ptr-call (%in-c "ioctl") fd 35123 (%cu-str->ptr ifr)))))
+                    (let ((r (%in-call (cu-ptr-call (%in-c "ioctl") fd 35123 (cu-str->ptr ifr)))))
                       (when (< r 0) (%rt-die (string-concat (list "ioctl 0x8933 failed: " (libc-strerror (Err errno-of r)))))))
-                    (%inet-set! rt 76 (%cu-ptr-ref (%cu-str->ptr ifr) 16 4) 4))))
+                    (%inet-set! rt 76 (cu-ptr-ref (cu-str->ptr ifr) 16 4) 4))))
             (%inet-ioctl fd (if add? 35083 35084) rt %rt-die)
             0)
         (let ((k (%rt-keyword (first ws))))
@@ -237,17 +237,17 @@
 
 (def %cu-route
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "route" argv))
+    (def o (cu-opts "route" argv))
     (def family (Opts value o "-A"))
     (def ops (Opts operands o))
     (def six? (if (null? family) #f (string=? family "inet6")))
     (match
-      ((if (null? family) #f (if (string=? family "inet") #f (not six?))) (%cu-usage "route"))
+      ((if (null? family) #f (if (string=? family "inet") #f (not six?))) (cu-usage "route"))
       ((null? ops) (if six? (%rt-show6) (%rt-show4 (Opts on? o "-n") (Opts on? o "-e"))))
       (#t
         (let ((verb (first ops)))
           (if (if (if (string=? verb "add") #f (if (string=? verb "del") #f (not (string=? verb "delete")))) #t (null? (rest ops)))
-            (%cu-usage "route")
-            (guard (e (if (eq? (%cu-err-label e) (lit route-usage)) (%cu-usage "route")
-                        (if (eq? (%cu-err-label e) (lit route)) 1 (error e))))
+            (cu-usage "route")
+            (guard (e (if (eq? (cu-err-label e) (lit route-usage)) (cu-usage "route")
+                        (if (eq? (cu-err-label e) (lit route)) 1 (error e))))
               (if six? (%rt-set6 (string=? verb "add") (rest ops)) (%rt-set4 (string=? verb "add") (rest ops))))))))))

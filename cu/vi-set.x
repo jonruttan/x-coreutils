@@ -157,8 +157,8 @@
     (def at
       (%vi-found
         (%vi-with-nul-at-end
-          (fn (_) (%cu-ptr-call %vi-c-strcasestr (%vi+ %vi-taddr from) pat)))))
-    (def nul (if (%vi< at 0) (%vi-found (%cu-ptr-call %vi-c-memchr (%vi+ %vi-taddr from) 0 room)) -1))
+          (fn (_) (cu-ptr-call %vi-c-strcasestr (%vi+ %vi-taddr from) pat)))))
+    (def nul (if (%vi< at 0) (%vi-found (cu-ptr-call %vi-c-memchr (%vi+ %vi-taddr from) 0 room)) -1))
     (match
       ((%vi< -1 at) (if (%vi< (%vi+ from room) (%vi+ at len)) -1 at))
       ((%vi< nul 0) -1)

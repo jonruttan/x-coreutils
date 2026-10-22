@@ -53,7 +53,7 @@
 ; N bytes of the archive as a string, up to a NUL among them; dies short
 (def %cp-text
   (fn (_ rd n)
-    (def buf (%str-make-raw (+ n 1)))
+    (def buf (str-make-raw (+ n 1)))
     (if (< (%tar-fill! rd buf 0 n) n) (%cp-die "short read")
       (%tar-field buf 0 n))))
 
@@ -75,7 +75,7 @@
 ; is -R's (UID . GID), -1 where it gives none.
 (def %cp-header
   (fn (_ rd s owner)
-    (def h (%str-make-raw 111))
+    (def h (str-make-raw 111))
     (do (%cp-align! rd)
         (let ((got (%tar-fill! rd h 0 110)))
           (match
@@ -90,7 +90,7 @@
 
 (def %cp-member
   (fn (_ rd s owner fs)
-    (def at (fn (_ k) (%cu-nth k fs)))
+    (def at (fn (_ k) (cu-nth k fs)))
     (def mode (& (at 1) 4294967295))
     (def type (& mode 61440))
     (def name (%cp-unroot (%cp-text rd (& (at 9) 8191))))
@@ -188,7 +188,7 @@
                 (do (file-close fd)
                     (if (< got (%tm-size m)) (%cp-die "short read") ()))))))
         ((= type 16384)
-          (if (< (Sys %sign-fold (%cu-ptr-call %tar-c-mkdir dst (& mode 4095))) 0)
+          (if (< (Sys %sign-fold (cu-ptr-call %tar-c-mkdir dst (& mode 4095))) 0)
             (let ((why (%tar-why (lit mkdir) dst)))
               (if (string=? why "File exists") ()
                 (%cp-say (string-concat (list "can't make dir " dst ": " why)))))
@@ -201,7 +201,7 @@
                 (%cp-die (string-concat (list "can't create symlink '" dst "' to '" l "': "
                                               (%tar-why (lit symlink) dst))))))))
         ((pair? (filter (fn (_ k) (= k type)) (list 8192 24576 4096 49152)))
-          (if (< (Sys %sign-fold (%cu-ptr-call %tar-c-mknod dst mode (%tar-makedev (vec-ref m 9)))) 0)
+          (if (< (Sys %sign-fold (cu-ptr-call %tar-c-mknod dst mode (%tar-makedev (vec-ref m 9)))) 0)
             (%cp-say (string-concat (list "can't create node " dst ": " (%tar-why (lit mknod) dst))))
             ()))
         (#t (%cp-die "unrecognized file type")))
@@ -254,7 +254,7 @@
             ((eq? m (lit end)) ())
             ((eq? m (lit later)) (self))
             ((%cp-wanted? t m)
-              (do (%cp-data! t rd m) (%cp-name! t m) (%cu-sweep-tick! %cu-sweep-lines) (self)))
+              (do (%cp-data! t rd m) (%cp-name! t m) (cu-sweep-tick! cu-sweep-lines) (self)))
             (#t (do (%tar-skip! rd (%tm-size m)) (self)))))))
     (def held
       (fn (self)
@@ -293,7 +293,7 @@
           (get (lit dev)) (get (lit rdev)))))
 
 (def %co-hex8
-  (fn (_ v) (%cu-pad-zero (%dp-udigits (& v 4294967295) 16 #t) 8)))
+  (fn (_ v) (cu-pad-zero (%dp-udigits (& v 4294967295) 16 #t) 8)))
 
 ; N NUL bytes into the archive
 (def %co-nuls!
@@ -310,7 +310,7 @@
 ; file's SIZE bytes
 (def %co-entry!
   (fn (_ c name st)
-    (def at (fn (_ k) (%cu-nth k st)))
+    (def at (fn (_ k) (cu-nth k st)))
     (def devno (fn (_ k) (if (vec-ref c 3) 0 (at k))))
     (def type (& (at 1) 61440))
     (do (if (> (at 6) 4294967295)
@@ -333,7 +333,7 @@
 ; a file's SIZE bytes into the archive
 (def %co-body!
   (fn (_ c name size)
-    (def src (%cu-pieces name ()))
+    (def src (cu-pieces name ()))
     (def go
       (fn (self left)
         (if (<= left 0) ()
@@ -342,7 +342,7 @@
               (let ((k (%tar-min (rest p) left)))
                 (do (file-write-run (%co-fd c) (if (= k (rest p)) p (pair (%tc-sub-run p k) k)))
                     (vec-set! c 6 (+ (vec-ref c 6) k))
-                    (%cu-sweep-tick! %cu-sweep-lines)
+                    (cu-sweep-tick! cu-sweep-lines)
                     (self (- left k)))))))))
     (if (Err err? src) (%cp-die (string-concat (list "can't open '" name "': " (file-err-text src))))
       (do (go size) (src (lit close))))))
@@ -401,7 +401,7 @@
                 (let ((raw (if (vec-ref c 1) (file-stat-full name) (file-lstat-full name))))
                   (if (null? raw) (%cp-die (string-concat (list name ": " (%tar-why (lit stat) name))))
                     (let ((st (%co-stat c raw)))
-                      (do (if (if (= (& (%cu-nth 1 st) 61440) 16384) #f (> (%cu-nth 4 st) 1))
+                      (do (if (if (= (& (cu-nth 1 st) 61440) 16384) #f (> (cu-nth 4 st) 1))
                             (let ((l (filter (fn (_ e) (= (vec-ref e 0) (first st))) (vec-ref c 7))))
                               (if (pair? l) (vec-set! (first l) 2 (pair name (vec-ref (first l) 2)))
                                 (vec-set! c 7 (pair (vec-build 3 (fn (_ i) (match ((= i 0) (first st))
@@ -409,7 +409,7 @@
                                                                               (#t (list name)))))
                                                     (vec-ref c 7)))))
                             (%co-entry! c name (if (vec-ref c 4) (with-ino st (renumber)) st)))
-                          (%cu-sweep-tick! %cu-sweep-lines)
+                          (cu-sweep-tick! cu-sweep-lines)
                           (self)))))))))))
     ; each file of several names, its last name with the data, the rest without
     (def links
@@ -433,7 +433,7 @@
 (def %cp-owner
   (fn (_ spec)
     (def colon (%dp-find spec 0 #\:))
-    (def num (fn (_ s) (if (%si-digits? s) (%cu-num-prefix s) ())))
+    (def num (fn (_ s) (if (%si-digits? s) (cu-num-prefix s) ())))
     (def user
       (fn (_ s) (let ((n (num s))) (if (null? n) (let ((u (sys-user-id s))) (if (null? u) (%cp-die (string-append "unknown user " s)) u)) n))))
     (def group
@@ -455,14 +455,14 @@
 ; cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...
 (def %cu-cpio
   (fn (_ argv stdin-thunk)
-    (guard (e (if (eq? (%cu-err-label e) (lit cpio))
+    (guard (e (if (eq? (cu-err-label e) (lit cpio))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
                 (error e)))
       (%cp-run argv stdin-thunk))))
 
 (def %cp-run
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "cpio" argv))
+    (def o (cu-opts "cpio" argv))
     (def on (fn (_ a b) (if (Opts on? o a) #t (Opts on? o b))))
     (def val (fn (_ a b) (let ((v (Opts value o a))) (if (null? v) (Opts value o b) v))))
     (def owner (let ((r (val "-R" "--owner"))) (if (null? r) (pair -1 -1) (%cp-owner r))))
@@ -471,9 +471,9 @@
     ; -F names the archive read, or with -o the archive written
     (def src
       (if (if (null? file) #f (not create))
-        (let ((s (%cu-pieces file ())))
+        (let ((s (cu-pieces file ())))
           (if (Err err? s) (%cp-die (string-concat (list "can't open '" file "': " (file-err-text s)))) s))
-        (%cu-pieces "-" stdin-thunk)))
+        (cu-pieces "-" stdin-thunk)))
     ; a bare -0 reads to Opts as a number, an operand; it is the flag
     (def nul (if (on "-0" "--null") #t (pair? (filter (fn (_ w) (string=? w "-0")) (Opts operands o)))))
     (def operands (filter (fn (_ w) (not (string=? w "-0"))) (Opts operands o)))
@@ -481,15 +481,15 @@
         (%tar-resolve!)
         (match
           ((on "-p" "--pass-through")
-            (if (null? operands) (%cu-usage "cpio") (%cp-pass o on owner src operands nul)))
+            (if (null? operands) (cu-usage "cpio") (%cp-pass o on owner src operands nul)))
           (create
             (let ((fmt (val "-H" "--format")))
               (if (if (null? fmt) #t (if (= (byte-len fmt) 0) #t (not (= (byte-at fmt 0) #\n))))
-                (%cu-usage "cpio")
+                (cu-usage "cpio")
                 (let ((fd (if (null? file) 1 (%cp-open-out file))))
                   (let ((r (%cp-create o fd src owner nul)))
                     (do (if (= fd 1) () (file-close fd)) r))))))
-          ((not (if (on "-t" "--list") #t (on "-i" "--extract"))) (%cu-usage "cpio"))
+          ((not (if (on "-t" "--list") #t (on "-i" "--extract"))) (cu-usage "cpio"))
           (#t (%cp-extract-run o on owner src operands
                 (match ((on "-t" "--list") (lit list)) ((Opts on? o "--to-stdout") (lit stdout))
                        (#t (lit extract)))))))))
@@ -512,7 +512,7 @@
       (do (src (lit close))
           (%cp-make-links!)
           (if (if (null? blocks) #t (Opts on? o "--quiet")) ()
-            (file-write 2 (string-append (%cu-int->str blocks) " blocks\n")))
+            (file-write 2 (string-append (cu-int->str blocks) " blocks\n")))
           0))))
 
 ; -p DIR: a child writes the archive of the names into a pipe, and the run
@@ -525,7 +525,7 @@
           (let ((pid (sys-fork)))
             (if (= pid 0)
               (do (sys-close (first p))
-                  (sys-exit (guard (e (if (eq? (%cu-err-label e) (lit cpio))
+                  (sys-exit (guard (e (if (eq? (cu-err-label e) (lit cpio))
                                         (do (file-write 2 (string-append (e msg) "\n")) 1) 1))
                               (%cp-create o (rest p) src owner nul))))
               (do (sys-close (rest p))
@@ -535,6 +535,6 @@
                         (do (sys-close (first p)) (sys-wait pid)
                             (%cp-die (string-concat (list "can't change directory to '" dir "': " why)))))
                       (let ((r (guard (e (do (Sys chdir home) (sys-close (first p)) (sys-wait pid) (error e)))
-                                 (%cp-extract-run o on owner (%cu-fd-chunks (first p) "-") (rest operands)
+                                 (%cp-extract-run o on owner (cu-fd-chunks (first p) "-") (rest operands)
                                    (lit extract)))))
                         (do (Sys chdir home) (sys-wait pid) r)))))))))))

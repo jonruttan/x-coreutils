@@ -31,9 +31,9 @@
 
 (def %sg-resolve!
   (fn (_)
-    (def lib (%cu-dlopen () 1))
-    (set! %sg-c-strspn (%cu-dlsym lib "strspn"))
-    (set! %sg-c-strcspn (%cu-dlsym lib "strcspn"))))
+    (def lib (cu-dlopen () 1))
+    (set! %sg-c-strspn (cu-dlsym lib "strspn"))
+    (set! %sg-c-strcspn (cu-dlsym lib "strcspn"))))
 
 ; --- busybox's numbers ----------------------------------------------------------
 
@@ -49,7 +49,7 @@
         (if (>= i end) #t
           (if (if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f)
             (self (+ i 1)) #f))))
-    (def n (if (if (> end 0) (digits? 0) #f) (%cu-num-prefix s) ()))
+    (def n (if (if (> end 0) (digits? 0) #f) (cu-num-prefix s) ()))
     (match
       ((if (null? n) #t (> n 4294967295))
         (do (file-write 2 (string-concat (list applet ": invalid number '" s "'\n")))
@@ -57,8 +57,8 @@
       ((if (< n lo) #t (> n hi))
         (do (file-write 2
               (string-concat
-                (list applet ": number " s " is not in " (%cu-int->str lo) ".."
-                      (%cu-int->str hi) " range\n")))
+                (list applet ": number " s " is not in " (cu-int->str lo) ".."
+                      (cu-int->str hi) " range\n")))
             ()))
       (#t n))))
 
@@ -114,7 +114,7 @@
                     (if (null? %sg-radix-of) ()
                       (%sg-put
                         (string-append
-                          (%cu-pad-left (%sg-radix %sg-start %sg-radix-of) 7) " ")))
+                          (cu-pad-left (%sg-radix %sg-start %sg-radix-of) 7) " ")))
                     (%sg-put (string-concat (reverse %sg-held)))
                     (set! %sg-held ())
                     (set! %sg-on #t))
@@ -133,17 +133,17 @@
     (def go
       (fn (self i)
         (if (>= i n) ()
-          (let ((k (%sg-min (%cu-ptr-call %sg-c-strspn (%sg+ addr i) %sg-printable)
+          (let ((k (%sg-min (cu-ptr-call %sg-c-strspn (%sg+ addr i) %sg-printable)
                              (- n i))))
             (do (if (> k 0) (%sg-run! text i k) ())
                 (let ((j (+ i k)))
                   (if (>= j n) ()
-                    (let ((m (%sg-min (%cu-ptr-call %sg-c-strcspn (%sg+ addr j) %sg-printable)
+                    (let ((m (%sg-min (cu-ptr-call %sg-c-strcspn (%sg+ addr j) %sg-printable)
                                        (- n j))))
                       (let ((e (nuls (+ j m))))
                         (do (%sg-end-run!)
                             (set! %sg-offset (+ %sg-offset (- e j)))
-                            (%cu-sweep-tick! %cu-sweep-lines)
+                            (cu-sweep-tick! cu-sweep-lines)
                             (self e)))))))))))
     (do (go 0)
         (file-write 1 (string-concat (reverse %sg-out)))
@@ -158,7 +158,7 @@
         (set! %sg-count 0)
         (set! %sg-on #f)
         (set! %sg-out ())
-        (let ((r (%cu-fold-one name stdin-thunk %sg-take ())))
+        (let ((r (cu-fold-one name stdin-thunk %sg-take ())))
           (do (%sg-end-run!)
               (file-write 1 (string-concat (reverse %sg-out)))
               (set! %sg-out ())
@@ -167,7 +167,7 @@
 ; strings [-fo] [-t o|d|x] [-n LEN] [FILE]...
 (def %cu-strings-applet
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "strings" argv))
+    (def o (cu-opts "strings" argv))
     (def ops (Opts operands o))
     (def n-arg (let ((v (Opts value o "-n"))) (if (null? v) "4" v)))
     (def t-arg (let ((v (Opts value o "-t"))) (if (null? v) "o" v)))
@@ -197,7 +197,7 @@
                         (self (rest names) 1)))))))))
     (match
       ((null? len) 1)
-      ((null? radix) (%cu-usage "strings"))
+      ((null? radix) (cu-usage "strings"))
       (#t (do (%sg-resolve!)
               (set! %sg-least len)
               (set! %sg-radix-of (if offsets? radix ()))

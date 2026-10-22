@@ -73,14 +73,14 @@
     (match
       ((null? ts) acc)
       ((null? (rest ts))
-        (do (%dn-say (string-concat (list "bad line " (%cu-int->str no) ": 1 tokens found, 2 needed"))) acc))
+        (do (%dn-say (string-concat (list "bad line " (cu-int->str no) ": 1 tokens found, 2 needed"))) acc))
       (#t (let ((ip (net-aton (first (rest ts)))))
             (if (null? ip)
-              (do (%dn-say (string-concat (list "error at line " (%cu-int->str no) ", skipping"))) acc)
+              (do (%dn-say (string-concat (list "error at line " (cu-int->str no) ", skipping"))) acc)
               (do (when %dn-verbose? (%dn-say (string-concat (list "name:" (first ts) ", ip:" (first (rest ts))))))
                   (pair (list (%dn-undot (string-append "." (first ts))) ip
-                              (%dn-undot (string-concat (list "." (%cu-int->str (%cu-nth 3 ip)) "." (%cu-int->str (%cu-nth 2 ip))
-                                                              "." (%cu-int->str (%cu-nth 1 ip)) "." (%cu-int->str (first ip))))))
+                              (%dn-undot (string-concat (list "." (cu-int->str (cu-nth 3 ip)) "." (cu-int->str (cu-nth 2 ip))
+                                                              "." (cu-int->str (cu-nth 1 ip)) "." (cu-int->str (first ip))))))
                         acc))))))))
 
 ; TEXT's lines, without their newlines
@@ -106,7 +106,7 @@
   (fn (self p s)
     (match ((null? p) #t) ((null? s) #f) ((= (first p) (first s)) (self (rest p) (rest s))) (#t #f))))
 
-(def %dn-wild? (fn (_ name) (if (= (first name) 1) (= (%cu-nth 1 name) #\*) #f)))
+(def %dn-wild? (fn (_ name) (if (= (first name) 1) (= (cu-nth 1 name) #\*) #f)))
 
 ; table_lookup: an A query's address bytes, or a PTR query's name bytes and
 ; their NUL; nil when no entry answers
@@ -117,16 +117,16 @@
         (match
           ((= type 1)
             (if (if (%dn-wild? name) #t (%dn-same? name qname))
-              (%cu-nth 1 (first entries))
+              (cu-nth 1 (first entries))
               (self (rest entries) type qname)))
-          ((if (not (%dn-wild? name)) (%dn-prefix? (%cu-nth 2 (first entries)) qname) #f)
+          ((if (not (%dn-wild? name)) (%dn-prefix? (cu-nth 2 (first entries)) qname) #f)
             (append name (list 0)))
           (#t (self (rest entries) type qname)))))))
 
 ; --- a packet -------------------------------------------------------------------------
 
 (def %dn-u16 (fn (_ n) (list (% (%wget-div n 256) 256) (% n 256))))
-(def %dn-word (fn (_ bs i) (+ (* 256 (%cu-nth i bs)) (%cu-nth (+ i 1) bs))))
+(def %dn-word (fn (_ bs i) (+ (* 256 (cu-nth i bs)) (cu-nth (+ i 1) bs))))
 
 ; process_packet: the reply's bytes, or nil when none is sent
 (def %dn-process
@@ -169,7 +169,7 @@
       (append (%cu-take bs 2)
               (%dn-u16 (bit-or (%dn-word bs 2) flags))
               (%dn-u16 1)
-              (if (null? err) (%dn-u16 1) (list (%cu-nth 6 bs) (%cu-nth 7 bs)))
+              (if (null? err) (%dn-u16 1) (list (cu-nth 6 bs) (cu-nth 7 bs)))
               (list 0 0 0 0)
               (%cu-take (%cu-nthrest 12 bs) query-len)
               (if (not (null? err)) ()
@@ -189,7 +189,7 @@
     (def n (%wget-digits s))
     (match ((null? n) (%dn-die (string-concat (list "invalid number '" s "'"))))
            ((if (< n lo) #t (> n hi))
-             (%dn-die (string-concat (list "number " s " is not in " (%cu-int->str lo) ".." (%cu-int->str hi) " range"))))
+             (%dn-die (string-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range"))))
            (#t n))))
 
 (def %dn-bind
@@ -199,7 +199,7 @@
 
 (def %cu-dnsd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "dnsd" argv))
+    (def o (cu-opts "dnsd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
                 (do (file-write 2 (string-concat (list "dnsd: " (e msg) "\n"))) 1)
                 (error e)))
@@ -216,7 +216,7 @@
     (def addr (let ((i (Opts value o "-i"))) (if (null? i) "0.0.0.0" i)))
     (when (null? (%dn-dotted addr)) (%dn-die (string-concat (list "bad address '" addr "'"))))
     (def fd (%dn-bind addr port))
-    (%dn-say (string-concat (list "accepting UDP packets on " addr ":" (%cu-int->str port))))
+    (%dn-say (string-concat (list "accepting UDP packets on " addr ":" (cu-int->str port))))
     (%dn-serve fd entries ttl)))
 
 ; xdotted2sockaddr: a numeric address, four dotted parts, each 0..255
@@ -229,11 +229,11 @@
 
 (def %dn-serve
   (fn (self fd entries ttl)
-    (%cu-sweep-tick! %cu-sweep-lines)
+    (cu-sweep-tick! cu-sweep-lines)
     (let ((got (net-recv-from-run fd 513)))
       (let ((n (rest (first got))))
         (if (if (< n 12) #t (> n 512))
-          (%dn-say (string-concat (list "packet size " (%cu-int->str n) ", ignored")))
+          (%dn-say (string-concat (list "packet size " (cu-int->str n) ", ignored")))
           (do (when %dn-verbose? (%dn-say "got UDP packet"))
               (let ((reply (%dn-process entries ttl (%cu-bytes (first (first got)) 0 n))))
                 (unless (null? reply)

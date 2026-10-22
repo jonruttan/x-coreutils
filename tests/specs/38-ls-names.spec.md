@@ -14,7 +14,7 @@ busybox's own output, from busybox ls in alpine.
 ### a file of the user's own beside root's /etc/hosts, the system's names, and a reader
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-lsn && mkdir -p /tmp/x-cu-lsn && cd /tmp/x-cu-lsn && printf 'x\\n' > f && chmod 644 f && /bin/ls -ld f | awk '{print $3}' > .fo && /bin/ls -ld f | awk '{print $4}' > .fg && /bin/ls -ldn f | awk '{print $3}' > .fu && /bin/ls -ldn f | awk '{print $4}' > .fi && /bin/ls -ld /etc/hosts | awk '{print $3}' > .ho && /bin/ls -ld /etc/hosts | awk '{print $4}' > .hg && /bin/ls -ldn /etc/hosts | awk '{print $3}' > .hu && /bin/ls -ldn /etc/hosts | awk '{print $4}' > .hi")) (def ln (fn (_ n) (string-append "/tmp/x-cu-lsn/" n))) (def said (fn (_ n) (first (%cu-lines (file-read-all (ln n)))))) (def cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write (ln ".cap")))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (%cu-lines (file-read-all (ln ".cap")))))))) (def padr (fn (self s w) (if (>= (byte-len s) w) s (self (string-append s " ") w)))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-lsn && mkdir -p /tmp/x-cu-lsn && cd /tmp/x-cu-lsn && printf 'x\\n' > f && chmod 644 f && /bin/ls -ld f | awk '{print $3}' > .fo && /bin/ls -ld f | awk '{print $4}' > .fg && /bin/ls -ldn f | awk '{print $3}' > .fu && /bin/ls -ldn f | awk '{print $4}' > .fi && /bin/ls -ld /etc/hosts | awk '{print $3}' > .ho && /bin/ls -ld /etc/hosts | awk '{print $4}' > .hg && /bin/ls -ldn /etc/hosts | awk '{print $3}' > .hu && /bin/ls -ldn /etc/hosts | awk '{print $4}' > .hi")) (def ln (fn (_ n) (string-append "/tmp/x-cu-lsn/" n))) (def said (fn (_ n) (first (cu-lines (file-read-all (ln n)))))) (def cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write (ln ".cap")))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (cu-lines (file-read-all (ln ".cap")))))))) (def padr (fn (self s w) (if (>= (byte-len s) w) s (self (string-append s " ") w)))) (display "made"))
 ```
 ---
     made
@@ -25,7 +25,7 @@ A device number is packed as the platform packs it, so it is made from its
 major and minor here.
 
 ```cu
-(do (def lsf-dev (fn (_ ma mi) (if os-darwin? (+ (* ma 16777216) mi) (+ (* ma 256) mi)))) (def lsf (fn (_ name ty mode ino blocks uid gid size rdev) (list name "/nowhere" (list (pair (lit file-type) ty) (pair (lit mode) mode) (pair (lit ino) ino) (pair (lit blocks) blocks) (pair (lit nlink) 1) (pair (lit uid) uid) (pair (lit gid) gid) (pair (lit size) size) (pair (lit rdev) rdev) (pair (lit mtime) 981173100))))) (def lsf-all (list (lsf "big" (lit file) 420 2 16 77777 88888 5000 0) (lsf "noname" (lit file) 420 3 0 77777 88888 0 0) (lsf "wide" (lit file) 420 4 0 1234567890 4321 0 0))) (def lsf-devs (list (lsf "null" (lit char) 438 5 0 0 0 0 (lsf-dev 1 3)) (lsf "sda" (lit block) 420 6 0 0 0 0 (lsf-dev 8 0)))) (def lsf-show (fn (_ flags es) (let ((o (%cu-opts "ls" flags))) (do (map (fn (_ e) (do (display (%ls-cell e o (date-now-unix))) (newline))) es) ())))) (display "made"))
+(do (def lsf-dev (fn (_ ma mi) (if os-darwin? (+ (* ma 16777216) mi) (+ (* ma 256) mi)))) (def lsf (fn (_ name ty mode ino blocks uid gid size rdev) (list name "/nowhere" (list (pair (lit file-type) ty) (pair (lit mode) mode) (pair (lit ino) ino) (pair (lit blocks) blocks) (pair (lit nlink) 1) (pair (lit uid) uid) (pair (lit gid) gid) (pair (lit size) size) (pair (lit rdev) rdev) (pair (lit mtime) 981173100))))) (def lsf-all (list (lsf "big" (lit file) 420 2 16 77777 88888 5000 0) (lsf "noname" (lit file) 420 3 0 77777 88888 0 0) (lsf "wide" (lit file) 420 4 0 1234567890 4321 0 0))) (def lsf-devs (list (lsf "null" (lit char) 438 5 0 0 0 0 (lsf-dev 1 3)) (lsf "sda" (lit block) 420 6 0 0 0 0 (lsf-dev 8 0)))) (def lsf-show (fn (_ flags es) (let ((o (cu-opts "ls" flags))) (do (map (fn (_ e) (do (display (%ls-cell e o (date-now-unix))) (newline))) es) ())))) (display "made"))
 ```
 ---
     made
@@ -98,7 +98,7 @@ Darwin's ls shows a device number in hex, so there its stat says the two
 halves; elsewhere ls says them as `MAJOR, MINOR`.
 
 ```cu
-(let ((ws (%cu-words-line (first (%cu-lines (file-read-all (do (proc-run (list "/bin/sh" "-c" (if os-darwin? "stat -f '%Hr %Lr' /dev/null > /tmp/x-cu-lsn/.dn" "/bin/ls -l /dev/null | awk '{print $5, $6}' | tr -d , > /tmp/x-cu-lsn/.dn"))) "/tmp/x-cu-lsn/.dn"))))))) (display (Str8 includes? (string-concat (list (%cu-pad-left (first ws) 4) ", " (%cu-pad-left (%cu-nth 1 ws) 3) " ")) (first (cap (list "ls" "-l" "/dev/null"))))))
+(let ((ws (cu-words-line (first (cu-lines (file-read-all (do (proc-run (list "/bin/sh" "-c" (if os-darwin? "stat -f '%Hr %Lr' /dev/null > /tmp/x-cu-lsn/.dn" "/bin/ls -l /dev/null | awk '{print $5, $6}' | tr -d , > /tmp/x-cu-lsn/.dn"))) "/tmp/x-cu-lsn/.dn"))))))) (display (Str8 includes? (string-concat (list (cu-pad-left (first ws) 4) ", " (cu-pad-left (cu-nth 1 ws) 3) " ")) (first (cap (list "ls" "-l" "/dev/null"))))))
 ```
 ---
     #t
@@ -108,7 +108,7 @@ halves; elsewhere ls says them as `MAJOR, MINOR`.
 ### -l shows the owner and the group by name
 
 ```cu
-(let ((ws (%cu-words-line (first (cap (list "ls" "-l" (ln "f")))))) (hs (%cu-words-line (first (cap (list "ls" "-l" "/etc/hosts")))))) (display (list (string=? (%cu-nth 2 ws) (said ".fo")) (string=? (%cu-nth 3 ws) (said ".fg")) (%cu-nth 2 hs))))
+(let ((ws (cu-words-line (first (cap (list "ls" "-l" (ln "f")))))) (hs (cu-words-line (first (cap (list "ls" "-l" "/etc/hosts")))))) (display (list (string=? (cu-nth 2 ws) (said ".fo")) (string=? (cu-nth 3 ws) (said ".fg")) (cu-nth 2 hs))))
 ```
 ---
     (#t #t root)

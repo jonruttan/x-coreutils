@@ -89,7 +89,7 @@ types the bursts, and draws what came of them.
 
 (def vt-row
   (fn (_ n)
-    (def s (%str-make-raw n))
+    (def s (str-make-raw n))
     (vt-fill (%vi-str->ptr s) 0 n)
     s))
 (def vt-fill
@@ -208,9 +208,9 @@ types the bursts, and draws what came of them.
                 (List range 0 (%vi- vt-rows 1))))
             "status " vt-lb "\n"
             "cursor " (if (%vi< vt-lbr 0) "0 0"
-                        (string-append (%cu-int->str vt-lbr) " " (%cu-int->str vt-lbc)))
-            " bells " (%cu-int->str vt-bells)
-            (if (= vt-flashes 0) "" (string-append " flashes " (%cu-int->str vt-flashes)))
+                        (string-append (cu-int->str vt-lbr) " " (cu-int->str vt-lbc)))
+            " bells " (cu-int->str vt-bells)
+            (if (= vt-flashes 0) "" (string-append " flashes " (cu-int->str vt-flashes)))
             "\n"))))
 
 (def vi-case
@@ -225,7 +225,7 @@ types the bursts, and draws what came of them.
     (def f (if (file-exists? "/tmp/x-cu-vu/f") (vi-shown (file-read-all "/tmp/x-cu-vu/f")) "no file\n"))
     (display
       (string-concat
-        (list "exit " (%cu-int->str st) "\n"
+        (list "exit " (cu-int->str st) "\n"
               (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) #\newline) #t) f
                 (string-append f " (no newline)\n"))
               "--\n"

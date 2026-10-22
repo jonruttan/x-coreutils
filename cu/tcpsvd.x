@@ -37,8 +37,8 @@
 
 (def %ts-c
   (fn (_ name)
-    (when (null? %ts-libc) (set! %ts-libc (%cu-dlopen () 1)))
-    (%cu-dlsym %ts-libc name)))
+    (when (null? %ts-libc) (set! %ts-libc (cu-dlopen () 1)))
+    (cu-dlsym %ts-libc name)))
 
 ; a libc call's result folded to a signed int, as the platform folds its own
 (def %ts-call (fn (_ r) (Sys %sign-fold r)))
@@ -64,28 +64,28 @@
   (fn (_ s)
     (def n (%wget-digits s))
     (if (if (null? n) #f (<= n 65535)) n
-      (let ((sv (%cu-ptr-call (%ts-c "getservbyname") s (if %ts-tcp "tcp" "udp"))))
+      (let ((sv (cu-ptr-call (%ts-c "getservbyname") s (if %ts-tcp "tcp" "udp"))))
         (if (= sv 0) (%ts-die (string-concat (list "bad port '" s "'")))
-          (let ((p (%cu-ptr-ref (%cu-int->ptr sv) 16 4)))
+          (let ((p (cu-ptr-ref (cu-int->ptr sv) 16 4)))
             (+ (* (% p 256) 256) (% (%wget-div p 256) 256))))))))
 
 ; a length cell for a sockaddr, 16
 (def %ts-len16
   (fn (_)
-    (let ((s (%str-make-raw 4)))
-      (do (%cu-ptr-set! (%cu-str->ptr s) 0 16 4) s))))
+    (let ((s (str-make-raw 4)))
+      (do (cu-ptr-set! (cu-str->ptr s) 0 16 4) s))))
 
-(def %ts-dotted (fn (_ a) (string-concat (list (first a) ":" (%cu-int->str (rest a))))))
+(def %ts-dotted (fn (_ a) (string-concat (list (first a) ":" (cu-int->str (rest a))))))
 
 ; gethostbyaddr's name for QUAD, or nil
 (def %ts-host-name
   (fn (_ quad)
-    (def buf (%str-make-raw 4))
+    (def buf (str-make-raw 4))
     (let go ((i 0) (parts (Str8 split "." quad)))
       (unless (null? parts)
-        (do (%cu-ptr-set! (%cu-str->ptr buf) i (%wget-digits (first parts)) 1) (go (+ i 1) (rest parts)))))
-    (def r (%cu-ptr-call (%ts-c "gethostbyaddr") (%cu-str->ptr buf) 4 2))
-    (if (= r 0) () (%cu-ptr->str (%cu-int->ptr (%cu-ptr-word (%cu-int->ptr r) 0))))))
+        (do (cu-ptr-set! (cu-str->ptr buf) i (%wget-digits (first parts)) 1) (go (+ i 1) (rest parts)))))
+    (def r (cu-ptr-call (%ts-c "gethostbyaddr") (cu-str->ptr buf) 4 2))
+    (if (= r 0) () (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0))))))
 
 ; --- the sockets ----------------------------------------------------------------
 
@@ -100,9 +100,9 @@
 (def %ts-udp-peek
   (fn (_ fd)
     (def sa (net-sockaddr "0.0.0.0" 0))
-    (def buf (%str-make-raw 4))
-    (def r (%ts-call (%cu-ptr-call (%ts-c "recvfrom") fd (%cu-str->ptr buf) 1 2
-                                   (%cu-str->ptr sa) (%cu-str->ptr (%ts-len16)))))
+    (def buf (str-make-raw 4))
+    (def r (%ts-call (cu-ptr-call (%ts-c "recvfrom") fd (cu-str->ptr buf) 1 2
+                                   (cu-str->ptr sa) (cu-str->ptr (%ts-len16)))))
     (if (< r 0) () (net-sockaddr-read sa))))
 
 (def %ts-listen
@@ -116,8 +116,8 @@
     (def fail? (fn (_ r sym)
       (let ((e (%ss-call r (lit call) sym)))
         (unless (null? e) (%ts-die (string-concat (list sym ": " (file-err-text e))))))))
-    (fail? (%cu-ptr-call (%ts-c "setgid") (rest ug)) "setgid")
-    (fail? (%cu-ptr-call (%ts-c "setuid") (first ug)) "setuid")))
+    (fail? (cu-ptr-call (%ts-c "setgid") (rest ug)) "setgid")
+    (fail? (cu-ptr-call (%ts-c "setuid") (first ug)) "setuid")))
 
 ; --- the children ---------------------------------------------------------------
 
@@ -134,10 +134,10 @@
 ; print_waitstat and the bookkeeping for each child that has ended
 (def %ts-reap!
   (fn (self)
-    (def st (%str-make-raw 4))
-    (def pid (%ts-call (%cu-ptr-call (%ts-c "waitpid") -1 (%cu-str->ptr st) 1)))
+    (def st (str-make-raw 4))
+    (def pid (%ts-call (cu-ptr-call (%ts-c "waitpid") -1 (cu-str->ptr st) 1)))
     (when (> pid 0)
-      (do (%ts-ended pid (%cu-ptr-ref (%cu-str->ptr st) 0 4))
+      (do (%ts-ended pid (cu-ptr-ref (cu-str->ptr st) 0 4))
           (self)))))
 
 ; one child ended with wait status RAW
@@ -146,23 +146,23 @@
     (set! %ts-hosts (filter (fn (_ h) (not (= (first h) pid))) %ts-hosts))
     (when (> %ts-cnum 0) (set! %ts-cnum (- %ts-cnum 1)))
     (when (> %ts-verbose 0)
-      (%ts-say (string-concat (list "end " (%cu-int->str pid) " "
+      (%ts-say (string-concat (list "end " (cu-int->str pid) " "
         (if (= (% raw 128) 0)
-          (string-append "exit " (%cu-int->str (% (%wget-div raw 256) 256)))
-          (string-append "signal " (%cu-int->str (% raw 128))))))))
+          (string-append "exit " (cu-int->str (% (%wget-div raw 256) 256)))
+          (string-append "signal " (cu-int->str (% raw 128))))))))
     (%ts-status)))
 
 (def %ts-status
   (fn (_)
     (when (if (> %ts-verbose 0) (> %ts-cmax 1) #f)
-      (%ts-say (string-concat (list "status " (%cu-int->str %ts-cnum) "/" (%cu-int->str %ts-cmax)))))))
+      (%ts-say (string-concat (list "status " (cu-int->str %ts-cnum) "/" (cu-int->str %ts-cmax)))))))
 
 ; sig_term_handler: a fatal signal ends the run with that signal's own death
 (def %ts-fatal-check
   (fn (_ sigs)
     (unless (null? sigs)
       (if (Sys take-signal (first sigs))
-        (do (when (> %ts-verbose 0) (%ts-say (string-concat (list "got signal " (%cu-int->str (first sigs)) ", exit"))))
+        (do (when (> %ts-verbose 0) (%ts-say (string-concat (list "got signal " (cu-int->str (first sigs)) ", exit"))))
             (sys-signal (first sigs) 0)
             (sys-kill (sys-getpid) (first sigs))
             (sys-exit (+ 128 (first sigs))))
@@ -191,7 +191,7 @@
         (if (null? c) () (list c (net-peer c) lfd)))
       (let ((remote (%ts-udp-peek lfd)))
         (if (null? remote) ()
-          (do (%cu-ptr-call (%ts-c "connect") lfd (%cu-str->ptr (net-sockaddr (first remote) (rest remote))) 16)
+          (do (cu-ptr-call (%ts-c "connect") lfd (cu-str->ptr (net-sockaddr (first remote) (rest remote))) 16)
               (list lfd remote (%ts-udp-bind (first %ts-bound) (rest %ts-bound)))))))))
 
 ; ipsvd_perhost_add: how many connections REMOTE's address would have, this one
@@ -208,7 +208,7 @@
       (let ((conn (first n)) (remote (first (rest n))) (next (first (rest (rest n)))))
         (def cur (if (> %ts-maxph 0) (%ts-per-host (first remote)) 0))
         (if (if (> %ts-maxph 0) (> cur %ts-maxph) #f)
-          (do (unless (null? %ts-msg) (guard (_ ()) (%cu-ptr-call (%ts-c "send") conn %ts-msg (byte-len %ts-msg) (if os-darwin? 128 64))))
+          (do (unless (null? %ts-msg) (guard (_ ()) (cu-ptr-call (%ts-c "send") conn %ts-msg (byte-len %ts-msg) (if os-darwin? 128 64))))
               (net-close conn)
               next)
           (do (%ts-fork conn remote cur lfd) next))))))
@@ -253,8 +253,8 @@
                  ()))
     (when (> %ts-verbose 0)
       (do (when (> %ts-maxph 0)
-            (%ts-say (string-concat (list "concurrency " raddr " " (%cu-int->str cur) "/" (%cu-int->str %ts-maxph)))))
-          (%ts-say (string-concat (list "start " (%cu-int->str (sys-getpid)) " " laddr "-" raddr
+            (%ts-say (string-concat (list "concurrency " raddr " " (cu-int->str cur) "/" (cu-int->str %ts-maxph)))))
+          (%ts-say (string-concat (list "start " (cu-int->str (sys-getpid)) " " laddr "-" raddr
                                         (if %ts-h? (string-concat (list " (" lhost "-" rhost ")")) ""))))))
     (when %ts-env?
       (do (sys-setenv "PROTO" proto)
@@ -263,7 +263,7 @@
           (when %ts-h?
             (do (sys-setenv (string-append proto "LOCALHOST") lhost)
                 (sys-setenv (string-append proto "REMOTEHOST") rhost)))
-          (when (> cur 0) (sys-setenv "TCPCONCURRENCY" (%cu-int->str cur)))))
+          (when (> cur 0) (sys-setenv "TCPCONCURRENCY" (cu-int->str cur)))))
     (sys-dup2 0 1)
     (sys-signal 13 0)
     (map (fn (_ s) (sys-signal s 0)) %ts-sigs)
@@ -273,7 +273,7 @@
 
 (def %ts-loop
   (fn (self lfd)
-    (%cu-sweep-tick! %cu-sweep-lines)
+    (cu-sweep-tick! cu-sweep-lines)
     (Sys take-signal %ts-chld)
     (%ts-reap!)
     (%ts-fatal-check %ts-sigs)
@@ -291,8 +291,8 @@
   (fn (_ app argv)
     (set! %ts-app app)
     (set! %ts-tcp (string=? app "tcpsvd"))
-    (def o (%cu-opts app argv))
-    (if (< (length (Opts operands o)) 3) (%cu-usage app)
+    (def o (cu-opts app argv))
+    (if (< (length (Opts operands o)) 3) (cu-usage app)
       (guard (e (if (eq? (Err label e) (lit net))
                   (do (%ts-say (e msg)) 1)
                   (error e)))
@@ -316,7 +316,7 @@
     (set! %ts-cmax (let ((c (Opts value o "-c"))) (if (null? c) 30 (%ts-count c))))
     (def backlog (let ((b (Opts value o "-b"))) (if (null? b) 20 (%ts-count b))))
     (def ph (let ((c (Opts value o "-C"))) (if (null? c) (pair 0 ()) (%ts-per-host-opt c))))
-    (if (null? ph) (%cu-usage app)
+    (if (null? ph) (cu-usage app)
       (do (set! %ts-maxph (if %ts-tcp (if (> (first ph) %ts-cmax) %ts-cmax (first ph)) 0))
           (set! %ts-msg (rest ph))
           (%ts-run o ops backlog)))))
@@ -340,8 +340,8 @@
     (set! %ts-bound (pair quad port))
     (unless (null? ug) (%ts-drop! ug))
     (when (> %ts-verbose 0)
-      (%ts-say (string-concat (list "listening on " quad ":" (%cu-int->str port) ", starting"
-        (if (null? ug) "" (string-concat (list ", uid " (%cu-int->str (first ug)) ", gid " (%cu-int->str (rest ug)))))))))
+      (%ts-say (string-concat (list "listening on " quad ":" (cu-int->str port) ", starting"
+        (if (null? ug) "" (string-concat (list ", uid " (cu-int->str (first ug)) ", gid " (cu-int->str (rest ug)))))))))
     (let ((p (sys-pipe)))
       (do (%ts-fcntl (first p) 2 1) (%ts-fcntl (rest p) 2 1) (set! %ts-idle (first p))))
     (%ts-loop lfd)))

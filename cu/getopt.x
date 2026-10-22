@@ -146,7 +146,7 @@
         (if (= (- (rest m) dashes) 1) (not (null? (%go-short g (byte-at token 1)))) #f) #f))
     (match
       ((if one (not short-too) #f)
-        (let ((opt (%cu-nth (first m) (%go-longs g))) (at (rest m)))
+        (let ((opt (cu-nth (first m) (%go-longs g))) (at (rest m)))
           (let ((name (first opt)) (has (rest opt)) (eq (< at (byte-len token))))
             (match
               ((if eq (= has 0) #f)
@@ -191,10 +191,10 @@
                 (let ((r (if (if longs? (if (%go-alt g) #t (if (> (byte-len a) 2) (= (byte-at a 1) #\-) #f)) #f)
                            (%go-long g a (rest args)) ())))
                   (let ((r2 (if (null? r) (%go-cluster g a (rest args)) r)))
-                    (if (eq? (%cu-nth 2 r2) (lit stop))
+                    (if (eq? (cu-nth 2 r2) (lit stop))
                       (list (append (first r2) out) 1 ())
-                      (self (%cu-nth 2 r2) skipped (append (first r2) out)
-                        (if (= (%cu-nth 1 r2) 0) code 1)))))))))))
+                      (self (cu-nth 2 r2) skipped (append (first r2) out)
+                        (if (= (cu-nth 1 r2) 0) code 1)))))))))))
     (go params () () 0)))
 
 ; --- the applet -------------------------------------------------------------------
@@ -255,9 +255,9 @@
               (string-concat
                 (append (reverse (first r))
                   (pair " --"
-                    (append (map (fn (_ a) (string-append " " (%go-norm g a))) (%cu-nth 2 r))
+                    (append (map (fn (_ a) (string-append " " (%go-norm g a))) (cu-nth 2 r))
                             (list "\n")))))))
-          (%cu-nth 1 r)))))
+          (cu-nth 1 r)))))
 
 ; getopt [OPTIONS] [--] OPTSTRING PARAMS
 (def %cu-getopt
@@ -277,12 +277,12 @@
 
 (def %go-main
   (fn (_ argv)
-    (def o (%cu-opts "getopt" argv))
+    (def o (cu-opts "getopt" argv))
     (def on (fn (_ a b) (if (Opts on? o a) #t (Opts on? o b))))
     (def val (fn (_ a b) (let ((v (Opts value o a))) (if (null? v) (Opts value o b) v))))
     (def ops (Opts operands o))
     (def shell (val "-s" "--shell"))
-    (def tcsh (if (null? shell) #f (%cu-member-s? shell (list "tcsh" "csh"))))
+    (def tcsh (if (null? shell) #f (cu-member-s? shell (list "tcsh" "csh"))))
     (def longs
       (let ((go (fn (self ls acc)
                   (if (null? ls) acc
@@ -290,7 +290,7 @@
                       (if (null? r) (lit empty) (self (rest ls) r)))))))
         (go (append (Opts values o "-l") (Opts values o "--longoptions")) ())))
     (def optstr (val "-o" "--options"))
-    (do (if (if (null? shell) #f (not (%cu-member-s? shell (list "bash" "sh" "tcsh" "csh"))))
+    (do (if (if (null? shell) #f (not (cu-member-s? shell (list "bash" "sh" "tcsh" "csh"))))
           (file-write 2 (string-concat (list "getopt: unknown shell '" shell "', assuming bash\n")))
           ())
         (match

@@ -20,7 +20,7 @@ piece at a time and refuses to answer the whole text.
 ### the files, what dos2unix and unix2dos make of the second, and the helpers
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-bin2 && mkdir -p /tmp/x-cu-bin2 && head -c 40001 /dev/urandom > /tmp/x-cu-bin2/rnd")) (def bp (fn (_ n) (string-append "/tmp/x-cu-bin2/" n))) (def into (fn (_ out argv src) (do (sys-dup2 1 9) (let ((o (file-open-write (bp out)))) (do (sys-dup2 o 1) (if (null? src) (cu-run argv "") (%cu-dispatch (%cu-find-applet (first argv)) (first argv) (rest argv) src)) (sys-dup2 9 1) (file-close o)))))) (def sys (fn (_ out cmd) (proc-run (list "/bin/sh" "-c" (string-concat (list "cd /tmp/x-cu-bin2 && " cmd " > " out)))))) (def same (fn (_ a b) (= 0 (proc-run (list "/usr/bin/cmp" "-s" (bp a) (bp b)))))) (def size (fn (_ n) (%cu-stat-get (file-stat-full (bp n)) (lit size)))) (def pipe-of (fn (_ name) (let ((src (%cu-file-pieces (bp name)))) (fn (_ . how) (if (null? how) (error "asked for the whole input") (src)))))) (def runs-of (fn (_ rs) (let ((left (list rs))) (fn (_ . how) (if (null? how) (error "asked for the whole input") (if (null? (first left)) (pair "" 0) (let ((r (first (first left)))) (do (set-first! left (rest (first left))) r)))))))) (def bytes-of (fn (_ n) (let ((fd (file-open-read (bp n)))) (let ((r (file-read-run fd 64))) (do (file-close fd) (let ((go (fn (self i acc) (if (< i 0) acc (self (- i 1) (pair (+ 0 (byte-at (first r) i)) acc)))))) (go (- (rest r) 1) ()))))))) (def upto (fn (self i acc) (if (< i 0) acc (self (- i 1) (pair i acc))))) (def times (fn (_ n bs k) (let ((fd (file-open-write (bp n))) (r (%cu-run-bytes bs (length bs)))) (let ((go (fn (self j) (if (= j 0) (file-close fd) (do (file-write-run fd r) (self (- j 1))))))) (go k))))) (def crlf (fn (self bs) (match ((null? bs) ()) ((= (first bs) 13) (self (rest bs))) ((= (first bs) 10) (pair 13 (pair 10 (self (rest bs))))) (#t (pair (first bs) (self (rest bs))))))) (def all (upto 255 ())) (times "pat" all 128) (times "d2u" (filter (fn (_ b) (not (= b 13))) all) 128) (times "u2d" (crlf all) 128) (display (list (size "rnd") (size "pat") (size "d2u") (size "u2d"))))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-bin2 && mkdir -p /tmp/x-cu-bin2 && head -c 40001 /dev/urandom > /tmp/x-cu-bin2/rnd")) (def bp (fn (_ n) (string-append "/tmp/x-cu-bin2/" n))) (def into (fn (_ out argv src) (do (sys-dup2 1 9) (let ((o (file-open-write (bp out)))) (do (sys-dup2 o 1) (if (null? src) (cu-run argv "") (cu-dispatch (cu-find-applet (first argv)) (first argv) (rest argv) src)) (sys-dup2 9 1) (file-close o)))))) (def sys (fn (_ out cmd) (proc-run (list "/bin/sh" "-c" (string-concat (list "cd /tmp/x-cu-bin2 && " cmd " > " out)))))) (def same (fn (_ a b) (= 0 (proc-run (list "/usr/bin/cmp" "-s" (bp a) (bp b)))))) (def size (fn (_ n) (%cu-stat-get (file-stat-full (bp n)) (lit size)))) (def pipe-of (fn (_ name) (let ((src (cu-file-pieces (bp name)))) (fn (_ . how) (if (null? how) (error "asked for the whole input") (src)))))) (def runs-of (fn (_ rs) (let ((left (list rs))) (fn (_ . how) (if (null? how) (error "asked for the whole input") (if (null? (first left)) (pair "" 0) (let ((r (first (first left)))) (do (set-first! left (rest (first left))) r)))))))) (def bytes-of (fn (_ n) (let ((fd (file-open-read (bp n)))) (let ((r (file-read-run fd 64))) (do (file-close fd) (let ((go (fn (self i acc) (if (< i 0) acc (self (- i 1) (pair (+ 0 (byte-at (first r) i)) acc)))))) (go (- (rest r) 1) ()))))))) (def upto (fn (self i acc) (if (< i 0) acc (self (- i 1) (pair i acc))))) (def times (fn (_ n bs k) (let ((fd (file-open-write (bp n))) (r (cu-run-bytes bs (length bs)))) (let ((go (fn (self j) (if (= j 0) (file-close fd) (do (file-write-run fd r) (self (- j 1))))))) (go k))))) (def crlf (fn (self bs) (match ((null? bs) ()) ((= (first bs) 13) (self (rest bs))) ((= (first bs) 10) (pair 13 (pair 10 (self (rest bs))))) (#t (pair (first bs) (self (rest bs))))))) (def all (upto 255 ())) (times "pat" all 128) (times "d2u" (filter (fn (_ b) (not (= b 13))) all) 128) (times "u2d" (crlf all) 128) (display (list (size "rnd") (size "pat") (size "d2u") (size "u2d"))))
 ```
 ---
     (40001 32768 32640 32768)
@@ -68,7 +68,7 @@ piece at a time and refuses to answer the whole text.
 Three pieces: a NUL; a NUL and `A`; a NUL.
 
 ```cu
-(do (into "b4" (list "base64") (runs-of (list (%cu-run-bytes (list 0) 1) (%cu-run-bytes (list 0 65) 2) (%cu-run-bytes (list 0) 1)))) (display (file-read-all (bp "b4"))))
+(do (into "b4" (list "base64") (runs-of (list (cu-run-bytes (list 0) 1) (cu-run-bytes (list 0 65) 2) (cu-run-bytes (list 0) 1)))) (display (file-read-all (bp "b4"))))
 ```
 ---
     AABBAA==
@@ -78,7 +78,7 @@ Three pieces: a NUL; a NUL and `A`; a NUL.
 What comes before the NUL is put out, and the status is 1.
 
 ```cu
-(do (into "b3" (list "base64" "-d" (bp "b1s")) ()) (display (list (same "b3" "rnd"))) (newline) (display (%cu-dispatch (%cu-find-applet "base64") "base64" (list "-d") (runs-of (list (%cu-run-bytes (list 81 85 74 68 0 82 69 86 71) 9))))))
+(do (into "b3" (list "base64" "-d" (bp "b1s")) ()) (display (list (same "b3" "rnd"))) (newline) (display (cu-dispatch (cu-find-applet "base64") "base64" (list "-d") (runs-of (list (cu-run-bytes (list 81 85 74 68 0 82 69 86 71) 9))))))
 ```
 ---
 ```output
@@ -105,7 +105,7 @@ locale; in a UTF-8 one it raises bytes past 127 as well, as Latin-1.
 Two pieces of three bytes: 0 1 2, then 3 4 5.
 
 ```cu
-(do (into "d7" (list "dd" "conv=swab" "status=none") (runs-of (list (%cu-run-bytes (list 0 1 2) 3) (%cu-run-bytes (list 3 4 5) 3)))) (display (bytes-of "d7")))
+(do (into "d7" (list "dd" "conv=swab" "status=none") (runs-of (list (cu-run-bytes (list 0 1 2) 3) (cu-run-bytes (list 3 4 5) 3)))) (display (bytes-of "d7")))
 ```
 ---
     (1 0 3 2 5 4)
