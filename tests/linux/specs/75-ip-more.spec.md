@@ -230,17 +230,21 @@ same
 
 ### shown: all of them, one by name, one by mode
 
+/proc/net/dev, which the listing walks, gives the tunnels in the hash order
+of their indexes, which differ between two sets made alike, so the lines are
+compared sorted.
+
 ```cu
-(do (lx-case lx-tmore (list "ip" "tunnel"))
-    (lx-case lx-tmore (list "ip" "tunnel" "show"))
-    (lx-case lx-tmore (list "ip" "tun" "list" "lxt2"))
-    (lx-case lx-tmore (list "ip" "tunnel" "show" "mode" "sit"))
-    (lx-case lx-tmore (list "ip" "tunnel" "show" "name" "lxt1"))
-    (lx-case lx-tmore (list "ip" "tunnel" "show" "sit0"))
-    (lx-case lx-tmore (list "ip" "tunnel" "show" "remote" "10.1.1.2"))
-    (lx-case lx-tmore (list "ip" "-o" "tunnel" "show" "lxt2"))
-    (lx-case lx-tmore (list "iptunnel"))
-    (lx-case lx-tmore (list "ip" "tunnel" "show" "mode" "gre" "nosuch0")))
+(do (lx-case-sorted lx-tmore (list "ip" "tunnel") ":")
+    (lx-case-sorted lx-tmore (list "ip" "tunnel" "show") ":")
+    (lx-case-sorted lx-tmore (list "ip" "tun" "list" "lxt2") ":")
+    (lx-case-sorted lx-tmore (list "ip" "tunnel" "show" "mode" "sit") ":")
+    (lx-case-sorted lx-tmore (list "ip" "tunnel" "show" "name" "lxt1") ":")
+    (lx-case-sorted lx-tmore (list "ip" "tunnel" "show" "sit0") ":")
+    (lx-case-sorted lx-tmore (list "ip" "tunnel" "show" "remote" "10.1.1.2") ":")
+    (lx-case-sorted lx-tmore (list "ip" "-o" "tunnel" "show" "lxt2") ":")
+    (lx-case-sorted lx-tmore (list "iptunnel") ":")
+    (lx-case-sorted lx-tmore (list "ip" "tunnel" "show" "mode" "gre" "nosuch0") ":"))
 ```
 ---
 ```output

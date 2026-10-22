@@ -83,13 +83,16 @@ same
 
 ### -s sets an entry, permanent unless temp, published with pub, with a netmask; the cache after says so
 
+The cache after leaves out the gateway's entry, which the gateway's own
+traffic can add between the two sides.
+
 ```cu
-(do (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "2:0:0:0:0:a" "temp") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-i" "eth0" "-s" "10.77.0.5" "02-00" "pub") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05" "netmask" "255.255.255.255" "pub" "dev" "eth0") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-Ds" "10.77.0.6" "eth0" "pub") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05" "dontpub" "auto" "trail") "cat /proc/net/arp")
+(do (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05") "grep -v \"^$(ip route | awk '/^default/ {print $3}') \" /proc/net/arp")
+    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "2:0:0:0:0:a" "temp") "grep -v \"^$(ip route | awk '/^default/ {print $3}') \" /proc/net/arp")
+    (lx-case-after lx-clear (list "arp" "-i" "eth0" "-s" "10.77.0.5" "02-00" "pub") "grep -v \"^$(ip route | awk '/^default/ {print $3}') \" /proc/net/arp")
+    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05" "netmask" "255.255.255.255" "pub" "dev" "eth0") "grep -v \"^$(ip route | awk '/^default/ {print $3}') \" /proc/net/arp")
+    (lx-case-after lx-clear (list "arp" "-Ds" "10.77.0.6" "eth0" "pub") "grep -v \"^$(ip route | awk '/^default/ {print $3}') \" /proc/net/arp")
+    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05" "dontpub" "auto" "trail") "grep -v \"^$(ip route | awk '/^default/ {print $3}') \" /proc/net/arp")
     (lx-sh lx-clear) (display ""))
 ```
 ---
