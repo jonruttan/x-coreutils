@@ -9,6 +9,8 @@
 ; The arc's rules: byte doors for anything per-character, the raw
 ; allocation door for read buffers, no defs at depth in anything hot.
 
+(module cu/prims)
+
 (import x/sys/file)
 (import x/platform/syscall stat-layout)
 (import x/sys/proc)
@@ -23,46 +25,6 @@
 (import x/type/regex)
 (import x/num/float)
 (import x/num/bigint)
-
-(provide cu/prims
-  char->integer integer->char byte-at byte-len
-  string-length substring string-append string-concat string=?
-  list->string length reverse append map filter set-first!
-  bit-and bit-or bit-xor bit-shl bit-shr
-  file-read-all file-write-all file-exists? file-unlink file-mkdir
-  file-open-write file-open-append file-close file-write file-read-fd
-  file-list-dir file-rename file-rmdir file-open-excl file-dir?
-  file-open-update
-  file-stat file-stat-wide file-lstat-wide file-chmod file-chown file-lchown
-  file-link file-symlink file-readlink
-  file-or-err file-err-text file-err-sym file-err-op
-  file-utimes file-set-times file-mkfifo file-statfs file-statfs-full file-mounts file-lstat-file-type file-copy
-  file-write-nuls file-write-random file-write-field cu-stdin-fields!
-  file-seek file-truncate file-open-read file-open-wronly file-open-err
-  file-open-or-err
-  file-stat-full file-lstat-full
-  vec-make vec-build vec-ref vec-set!
-  proc-run sys-exit sys-dup2 sys-close
-  sys-fork sys-pipe sys-wait sys-exec sys-exec-or-err sys-kill sys-signal sys-isatty sys-usleep
-  cu-sigterm cu-sigkill cu-sigint cu-sighup cu-sig-ign
-  sys-getcwd sys-environ sys-getenv sys-setenv sys-unsetenv sys-sleep sys-umask
-  date-now-iso date-now-unix rng-make rng-int
-  sys-getuid sys-geteuid sys-getgid sys-getegid sys-getgroups
-  sys-user-name sys-group-name sys-user-id sys-user-group sys-group-id
-  sys-user-groups
-  sys-uname sys-cpu-count sys-sync sys-fsync sys-nice sys-chroot
-  host-boot-time load-centi host-load-centi host-memory host-users host-utmp
-  host-processes host-args host-process host-exe host-files host-cwd sys-signals sys-getpid re-compile re-search
-  host-load-fixed host-tasks host-cpu host-cpus host-threads host-maps host-regions host-files-of host-holders
-  host-counters host-disks host-interfaces host-interrupts
-  cu-stdin! cu-stdin-chunk! cu-stdin-to-command!
-  net-resolve http-open http-read http-close http-status http-headers http-head
-  net-base64 net-connect net-send net-recv-run net-close
-  net-listen net-listen-on net-accept net-local-port net-peer net-shutdown sys-poll
-  net-udp-connect sys-time-ms
-  net-udp-bind net-send-to-run net-recv-from-run
-  net-sock-addr net-stdin-socket net-aton net-sockaddr net-sockaddr-read net-udp-open
-  net-send-run)
 
 (def char->integer (prim-ref (lit char) (lit ->int)))
 (def integer->char (prim-ref (lit int) (lit ->char)))
@@ -1258,3 +1220,44 @@
 
 (def cu-nth
   (fn (self n l) (if (= n 0) (first l) (self (- n 1) (rest l)))))
+
+; date-now-unix, file-write-run, host-memory and sys-kill are seams: the files
+; above reach them through the root, where a spec puts a stand-in with set!
+(provide cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
+  byte-len char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
+  cu-dlopen cu-dlsym cu-err-label cu-fd-fields cu-file-read cu-heap-collect
+  cu-hexs cu-int->ptr cu-int->str cu-lines cu-mode-file-type cu-nth
+  cu-piece-bytes cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word
+  cu-rev cu-run-bytes cu-run-list cu-run-of cu-sig-ign cu-sighup cu-sigint
+  cu-sigkill cu-sigterm cu-stdin! cu-stdin-chunk! cu-stdin-fields!
+  cu-stdin-moved cu-stdin-to-command! cu-str->ptr cu-string-type cu-sweep!
+  cu-sweep-at cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick!
+  cu-sweeps-cell cu-type-of cu-words-line cu/ cu< cu<< cu>> cvt date-now-unix
+  file-chmod file-chown file-close file-copy file-dir? file-err-op
+  file-err-sym file-err-text file-exists? file-lchown file-link file-list-dir
+  file-lstat-file-type file-lstat-full file-lstat-wide file-mkdir file-mkfifo
+  file-mounts file-open-append file-open-err file-open-excl file-open-or-err
+  file-open-read file-open-update file-open-write file-open-wronly file-or-err
+  file-read-all file-read-fd file-read-run file-read-to-end file-read-unsized
+  file-readlink file-rename file-rmdir file-seek file-set-times file-stat
+  file-stat-full file-stat-wide file-statfs-full file-symlink file-truncate
+  file-unlink file-utimes file-write file-write-all file-write-field
+  file-write-nuls file-write-random file-write-run filter host-args
+  host-boot-time host-counters host-cpu host-cpus host-cwd host-disks host-exe
+  host-files host-files-of host-holders host-interfaces host-interrupts
+  host-load-centi host-load-fixed host-maps host-memory host-process
+  host-processes host-regions host-tasks host-threads host-users host-utmp
+  http-close http-head http-open http-read http-status integer->char length
+  libc-strerror list->string load-centi map net-accept net-aton net-base64
+  net-close net-connect net-listen net-listen-on net-peer net-recv-from-run
+  net-recv-run net-resolve net-send net-send-run net-send-to-run net-shutdown
+  net-sock-addr net-sockaddr net-sockaddr-read net-stdin-socket net-udp-bind
+  net-udp-connect net-udp-open proc-run re-compile re-search reverse rng-int
+  rng-make set-first! str-make-raw string-append string-concat string=?
+  substring sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ sys-exec
+  sys-exec-or-err sys-exit sys-fork sys-fsync sys-getcwd sys-getegid
+  sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid sys-getuid
+  sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe sys-poll
+  sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms sys-umask
+  sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
+  sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!)

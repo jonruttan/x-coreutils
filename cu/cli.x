@@ -12,6 +12,13 @@
 ; INPUT standing for stdin.  cu-main reads the real stdin lazily and
 ; caches it, so an applet that never asks never blocks.
 
+(module cu/cli)
+
+(import cu/prims append byte-at byte-len cu-nth cu-stdin! cu-stdin-chunk!
+  file-write filter length map net-stdin-socket reverse set-first!
+  string-append string-concat string=? substring sys-exit)
+(import cu/text cu-member-s?)
+
 ; the applet NAME names, a static of Applets, or nil
 (def cu-find-applet
   (fn (_ name) (class-static-ref Applets (Str8 ->sym name))))
@@ -323,3 +330,8 @@
         (if (null? h)
           (sys-exit (cu-run argv ""))
           (sys-exit (cu-dispatch h (first argv) (rest argv) stdin-thunk)))))))
+
+(provide cu/cli cu-argv cu-dispatch cu-extra-operand cu-find-applet
+  cu-last-given cu-last-valued cu-main cu-missing-file-operand
+  cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of
+  cu-string-stdin cu-usage)

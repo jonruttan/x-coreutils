@@ -11,6 +11,20 @@
 ; shared %cu-gather answers the operands' concatenated text (stdin when
 ; none, - meaning stdin among them).
 
+(module cu/text)
+
+(import cu/prims append byte-at byte-len cu-fd-fields cu-file-read cu-int->str
+  cu-lines cu-nth cu-piece-bytes cu-rev cu-run-bytes cu-run-list cu-run-of
+  cu-stdin-fields! cu-sweep! cu-sweep-at cu-sweep-bytes cu-sweep-lines
+  cu-sweep-steps cu-sweep-tick! cu-words-line file-close file-dir? file-err-op
+  file-err-text file-open-or-err file-open-read file-or-err file-read-all
+  file-read-fd file-seek file-stat-full file-write file-write-field filter
+  length map reverse set-first! str-make-raw string-append string-concat
+  string=? substring)
+
+; cu-opts, cu-operands, cu-last-given, cu-last-valued and cu-missing-operand
+; are cu/cli's, which loads after this file: they are reached through the root
+
 ; --- the inputs head and tail read --------------------------------------------
 ;
 ; Each operand is read whole and handed to SHOW as (NAME TEXT FILE?), in order;
@@ -1689,3 +1703,15 @@
                           (string-append (%cu-dirname-of (first ps)) "\n"))
                         (self (rest ps)))))))
         (go argv)))))
+
+(provide cu/text cu-basename cu-byte-in? cu-comm cu-delim-fields
+  cu-delim-fields-said cu-dirname cu-each-run-said cu-each-said cu-enough
+  cu-fd-chunks cu-file-pieces cu-first-unopened cu-fold-lines-said cu-fold-one
+  cu-fold-pieces cu-fold-said cu-fold-stdin cu-gather-said cu-head cu-join
+  cu-join-with cu-map-swept cu-member-s? cu-merge cu-msort cu-newlines-from
+  cu-num-prefix cu-pad-left cu-pad-right cu-pad-zero cu-pieces cu-pieces-past
+  cu-print-fields cu-print-fields-to cu-print-lines cu-print-lines-to
+  cu-put-each cu-read-error cu-read-run-said cu-read-said cu-run-from
+  cu-run-join cu-run-nul? cu-run-part cu-run-slice cu-run-text cu-say cu-says
+  cu-says-open cu-says-read cu-split-byte cu-stdin-pieces cu-str< cu-tail
+  cu-tail-follow cu-tail-round cu-text-from cu-unmarked cu-wc cu-with-sources)
