@@ -43,8 +43,8 @@
 ; herror's words for the lookup that just failed: the C library's
 (def %ar-herror
   (fn (_ name)
-    (let ((err (cu-ptr-ref (cu-int->ptr (cu-ptr-call (%in-c "__h_errno_location"))) 0 4)))
-      (%ar-die (string-concat (list name ": " (cu-ptr->str (cu-int->ptr (cu-ptr-call (%in-c "hstrerror") err)))))))))
+    (let ((err (cu-ptr-ref (cu-int->ptr (cu-ptr-call (in-c "__h_errno_location"))) 0 4)))
+      (%ar-die (string-concat (list name ": " (cu-ptr->str (cu-int->ptr (cu-ptr-call (in-c "hstrerror") err)))))))))
 
 ; INET_input: NAME's address, the run ended with herror's words where it has none
 (def %ar-input
@@ -175,8 +175,8 @@
     (def ifr (inet-zeros 40))
     (map (fn (_ k) (inet-set! ifr k (char->integer (byte-at ifname k)) 1)) (List range 0 (if (> (byte-len ifname) 15) 15 (byte-len ifname))))
     (def fd (inet-socket 2 %ar-die))
-    (def r (%in-call (cu-ptr-call (%in-c "ioctl") fd 35111 (cu-str->ptr ifr))))
-    (cu-ptr-call (%in-c "close") fd)
+    (def r (in-call (cu-ptr-call (in-c "ioctl") fd 35111 (cu-str->ptr ifr))))
+    (cu-ptr-call (in-c "close") fd)
     (when (< r 0) (%ar-die (string-concat (list "can't get HW-Address for '" ifname "': " (libc-strerror (Err errno-of r))))))
     (when (if (null? hw) #f (not (= (cu-ptr-ref (cu-str->ptr ifr) 16 2) (List ref 1 hw)))) (%ar-die "protocol type mismatch"))
     (map (fn (_ k) (inet-set! req (+ 16 k) (cu-ptr-ref (cu-str->ptr ifr) (+ 16 k) 1) 1)) (List range 0 16))))
@@ -201,8 +201,8 @@
     (def try (fn (_ flags)
                (do (inet-set! req 32 flags 4)
                    (let ((fd (inet-socket 2 %ar-die)))
-                     (let ((r (%in-call (cu-ptr-call (%in-c "ioctl") fd 35155 (cu-str->ptr req)))))
-                       (do (cu-ptr-call (%in-c "close") fd)
+                     (let ((r (in-call (cu-ptr-call (in-c "ioctl") fd 35155 (cu-str->ptr req)))))
+                       (do (cu-ptr-call (in-c "close") fd)
                            (if (< r 0) (Err errno-of r) 0)))))))
     (def none (fn (_) (do (file-write 1 (string-concat (list "No ARP entry for " host "\n"))) 255)))
     (def flags (first (rest kind)))

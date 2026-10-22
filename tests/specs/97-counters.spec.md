@@ -16,7 +16,7 @@ then checked for its shape, since what it shows changes from run to run.  A
 ### a run of an applet, with its stdout, stderr and status; the fixture's two samples
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-counters && mkdir -p /tmp/x-cu-counters")) (def nf (fn (_ n) (string-append "/tmp/x-cu-counters/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def lines (fn (_ s) (filter (fn (_ l) (> (byte-len l) 0)) (cu-lines s)))) (def real-memory host-memory) (def real-wait %vm-wait) (def real-uptime %vm-uptime) (def real-now %vm-now) (def mem (fn (_ free dirty) (map (fn (_ p) (pair (first p) (* 1024 (rest p)))) (list (pair 'total 16384000) (pair 'free free) (pair 'shared 0) (pair 'buffers 234567) (pair 'cached 3456789) (pair 'reclaimable 123456) (pair 'available 13000000) (pair 'swap-total 2097152) (pair 'swap-free 1048576) (pair 'anon 0) (pair 'mapped 0) (pair 'slab 345678) (pair 'dirty dirty) (pair 'writeback 56))))) (def sample (fn (_ s) (do (Host source 'linux) (Host proc-root (string-append "tests/fixtures/procstat/" s)) (set! host-memory (fn (_) (if (str=? s "a") (mem 12345678 1234) (mem 12000000 4321)))) (set! %vm-uptime (fn (_) (if (str=? s "a") 1234567 1234667))) (set! %vm-now (fn (_) (if (str=? s "a") 0 1))) (set! %vm-wait (fn (_ us) (sample "b")))))) (def back (fn (_) (do (Host source (if os-darwin? 'darwin 'linux)) (Host proc-root "/proc") (set! host-memory real-memory) (set! %vm-wait real-wait) (set! %vm-uptime real-uptime) (set! %vm-now real-now)))) (def fixture (fn (_ argv) (do (sample "a") (def r (run argv)) (back) r))) (def mark (fn (_ s) (bytes->str ((fn (self i acc) (if (< i 0) acc (self (- i 1) (if (= (byte-at s i) 10) (pair 124 (pair 10 acc)) (pair (byte-at s i) acc))))) (- (byte-len s) 1) ())))) (def after-first (fn (_ s) ((fn (self i) (if (>= i (byte-len s)) "" (if (= (byte-at s i) 10) (substring s (+ i 1) (byte-len s)) (self (+ i 1))))) 0))) (def body (fn (_ r) (do (display (mark (after-first (first r)))) (list (first (rest r)) (first (rest (rest r))))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-counters && mkdir -p /tmp/x-cu-counters")) (def nf (fn (_ n) (string-append "/tmp/x-cu-counters/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def lines (fn (_ s) (filter (fn (_ l) (> (byte-len l) 0)) (cu-lines s)))) (def real-memory host-memory) (def real-wait host-wait) (def real-uptime host-uptime) (def real-now host-now) (def mem (fn (_ free dirty) (map (fn (_ p) (pair (first p) (* 1024 (rest p)))) (list (pair 'total 16384000) (pair 'free free) (pair 'shared 0) (pair 'buffers 234567) (pair 'cached 3456789) (pair 'reclaimable 123456) (pair 'available 13000000) (pair 'swap-total 2097152) (pair 'swap-free 1048576) (pair 'anon 0) (pair 'mapped 0) (pair 'slab 345678) (pair 'dirty dirty) (pair 'writeback 56))))) (def sample (fn (_ s) (do (Host source 'linux) (Host proc-root (string-append "tests/fixtures/procstat/" s)) (set! host-memory (fn (_) (if (str=? s "a") (mem 12345678 1234) (mem 12000000 4321)))) (set! host-uptime (fn (_) (if (str=? s "a") 1234567 1234667))) (set! host-now (fn (_) (if (str=? s "a") 0 1))) (set! host-wait (fn (_ us) (sample "b")))))) (def back (fn (_) (do (Host source (if os-darwin? 'darwin 'linux)) (Host proc-root "/proc") (set! host-memory real-memory) (set! host-wait real-wait) (set! host-uptime real-uptime) (set! host-now real-now)))) (def fixture (fn (_ argv) (do (sample "a") (def r (run argv)) (back) r))) (def mark (fn (_ s) (bytes->str ((fn (self i acc) (if (< i 0) acc (self (- i 1) (if (= (byte-at s i) 10) (pair 124 (pair 10 acc)) (pair (byte-at s i) acc))))) (- (byte-len s) 1) ())))) (def after-first (fn (_ s) ((fn (self i) (if (>= i (byte-len s)) "" (if (= (byte-at s i) 10) (substring s (+ i 1) (byte-len s)) (self (+ i 1))))) 0))) (def body (fn (_ r) (do (display (mark (after-first (first r)))) (list (first (rest r)) (first (rest (rest r))))))) (display "made"))
 ```
 ---
     made
@@ -26,7 +26,7 @@ then checked for its shape, since what it shows changes from run to run.  A
 ### smart_ulltoa5: five characters, scaled by 1024 past 99999
 
 ```cu
-(map (fn (_ n) (%vm-five n " kmgtpezy")) (list 0 7 9999 10000 10239 10240 99999 100000 102400 1023999 1048576 9437184 123456789 104857600 1073741824 1099511627776))
+(map (fn (_ n) (vm-five n " kmgtpezy")) (list 0 7 9999 10000 10239 10240 99999 100000 102400 1023999 1048576 9437184 123456789 104857600 1073741824 1099511627776))
 ```
 ---
     ("    0" "    7" " 9999" "10000" "10239" "10240" "99999" "97.6k" " 100k" " 999k" "1024k" "9216k" " 117m" " 100m" "1024m" "1024g")
@@ -34,7 +34,7 @@ then checked for its shape, since what it shows changes from run to run.  A
 ### smart_ulltoa4: four characters, scaled by 1024 past 9999
 
 ```cu
-(map (fn (_ n) (%vm-four n " kmgtpezy")) (list 0 7 9999 10000 10239 10240 99999 100000 102400 1023999 1048576 9437184 123456789 104857600 1073741824 1099511627776))
+(map (fn (_ n) (vm-four n " kmgtpezy")) (list 0 7 9999 10000 10239 10240 99999 100000 102400 1023999 1048576 9437184 123456789 104857600 1073741824 1099511627776))
 ```
 ---
     ("   0" "   7" "9999" "9.7k" "9.9k" " 10k" " 97k" " 97k" "100k" "999k" "1.0m" "9.0m" "117m" "100m" "1.0g" "1.0t")
@@ -42,7 +42,7 @@ then checked for its shape, since what it shows changes from run to run.  A
 ### a rate as printf's %.2f writes (double)A / B * 100: the double's own value, a tie to even
 
 ```cu
-(map (fn (_ r) (%vm-fixed (%vm-rate (first r) (first (rest r)) 100) 2)) (list (list 0 1) (list 1 800) (list 1 3) (list 2 3) (list 123 1000) (list 5 8) (list 1 8000) (list 7 40000) (list 1234567 1000) (list 200 1) (list 3 1600) (list 1 6) (list 99999 100000)))
+(map (fn (_ r) (vm-fixed (vm-rate (first r) (first (rest r)) 100) 2)) (list (list 0 1) (list 1 800) (list 1 3) (list 2 3) (list 123 1000) (list 5 8) (list 1 8000) (list 7 40000) (list 1234567 1000) (list 200 1) (list 3 1600) (list 1 6) (list 99999 100000)))
 ```
 ---
     ("0.00" "0.12" "33.33" "66.67" "12.30" "62.50" "0.01" "0.02" "123456.70" "20000.00" "0.19" "16.67" "100.00")

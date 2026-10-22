@@ -103,7 +103,7 @@
       (fn (_ r)
         (def id (%fu-id r))
         (List any? (fn (_ w) (if (%fu-same? (first w) (first id)) (if mount? #t (%fu-same? (rest w) (rest id))) #f)) ids)))
-    (filter (fn (_ pid) (do (%top-sweep-if-due!) (List any? hit? (host-files-of pid (list (lit fd)))))) pids)))
+    (filter (fn (_ pid) (do (top-sweep-if-due!) (List any? hit? (host-files-of pid (list (lit fd)))))) pids)))
 
 (def cu-fuser
   (fn (_ argv stdin-thunk)

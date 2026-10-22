@@ -10,7 +10,7 @@
 ; and each disk's transfers a second, since boot and then over each interval.
 ; It reads Host's cpu and disks records; a disk's sectors are its bytes over
 ; 512, as /proc/diskstats counts them.  The rates are busybox's doubles,
-; printed as its printf prints them (%vm-fixed).
+; printed as its printf prints them (vm-fixed).
 ;
 ; busybox's quirks are kept: a disk's rates are a count over the interval in
 ; USER_HZ ticks times 100, a partition is an sd name and a digit, and a disk
@@ -49,7 +49,7 @@
 (def %io-cpu
   (fn (_)
     (def t (host-cpu))
-    (def ts (map (fn (_ k) (%vm-ticks (Assoc get k t)))
+    (def ts (map (fn (_ k) (vm-ticks (Assoc get k t)))
               (lit (user nice system idle iowait irq softirq steal guest))))
     (append ts (list (- (List fold + 0 ts) (cu-nth 8 ts))))))
 
@@ -59,8 +59,8 @@
   (fn (_ d)
     (def name (Assoc get (lit name) d))
     (list (if (> (byte-len name) 12) (substring name 0 12) name)
-          (%vm-get (lit reads) d) (ps-div (%vm-get (lit read-bytes) d) 512)
-          (%vm-get (lit writes) d) (ps-div (%vm-get (lit write-bytes) d) 512))))
+          (vm-get (lit reads) d) (ps-div (vm-get (lit read-bytes) d) 512)
+          (vm-get (lit writes) d) (ps-div (vm-get (lit write-bytes) d) 512))))
 
 ; is_partition: an sd name, then a digit
 (def %io-partition?
@@ -75,7 +75,7 @@
 
 (def %io-cpu-report
   (fn (_ p c itv)
-    (def pc (fn (_ a b) (%vm-right (%vm-fixed (%vm-rate (- b a) itv 100) 2) 7)))
+    (def pc (fn (_ a b) (vm-right (vm-fixed (vm-rate (- b a) itv 100) 2) 7)))
     (def at (fn (_ v i) (cu-nth i v)))
     (def sys (fn (_ v) (+ (+ (at v 2) (at v 6)) (at v 5))))
     (string-concat
@@ -86,22 +86,22 @@
 (def %io-dev-header
   (fn (_ unit)
     (string-concat
-      (list "Device:" (%vm-right "tps" 15) (%vm-right unit 6) "_read/s" (%vm-right unit 6) "_wrtn/s"
-            (%vm-right unit 6) "_read" (%vm-right unit 6) "_wrtn\n"))))
+      (list "Device:" (vm-right "tps" 15) (vm-right unit 6) "_read/s" (vm-right unit 6) "_wrtn/s"
+            (vm-right unit 6) "_read" (vm-right unit 6) "_wrtn\n"))))
 
 ; One disk's line from its last sample P and this one C, both
 ; (NAME RD-OPS RD-SECTORS WR-OPS WR-SECTORS)
 (def %io-dev-line
   (fn (_ p c itv div)
     (def at (fn (_ v i) (cu-nth i v)))
-    (def rate (fn (_ a b) (Float / (%vm-rate (- b a) itv 100) (Float from div))))
+    (def rate (fn (_ a b) (Float / (vm-rate (- b a) itv 100) (Float from div))))
     (string-concat
       (list (cu-pad-right (first c) 13) " "
-            (%vm-right (%vm-fixed (%vm-rate (- (+ (at c 1) (at c 3)) (+ (at p 1) (at p 3))) itv 100) 2) 8) " "
-            (%vm-right (%vm-fixed (rate (at p 2) (at c 2)) 2) 12) " "
-            (%vm-right (%vm-fixed (rate (at p 4) (at c 4)) 2) 12) " "
-            (%vm-right (cu-int->str (ps-div (- (at c 2) (at p 2)) div)) 10) " "
-            (%vm-right (cu-int->str (ps-div (- (at c 4) (at p 4)) div)) 10) "\n"))))
+            (vm-right (vm-fixed (vm-rate (- (+ (at c 1) (at c 3)) (+ (at p 1) (at p 3))) itv 100) 2) 8) " "
+            (vm-right (vm-fixed (rate (at p 2) (at c 2)) 2) 12) " "
+            (vm-right (vm-fixed (rate (at p 4) (at c 4)) 2) 12) " "
+            (vm-right (cu-int->str (ps-div (- (at c 2) (at p 2)) div)) 10) " "
+            (vm-right (cu-int->str (ps-div (- (at c 4) (at p 4)) div)) 10) "\n"))))
 
 ; The disks' lines, and the last samples kept: (TEXT . PREVS), PREVS an alist
 ; by name.  With NAMES, those disks alone; otherwise every disk but a
@@ -137,7 +137,7 @@
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "iostat" argv))
     (def ops (Opts operands o))
-    (def unknown (if (null? (Opts unknown o)) (%vm-dash-number ops) (Opts unknown o)))
+    (def unknown (if (null? (Opts unknown o)) (vm-dash-number ops) (Opts unknown o)))
     (def on (fn (_ f) (Opts on? o f)))
     ; the device names lead, up to the first word that starts with a digit
     (def split
@@ -179,12 +179,12 @@
   (fn (_ cpu dev stamp z unit names all interval count)
     (def cpus (length (host-cpus)))
     (def smp (> cpus 1))
-    (file-write 1 (string-append (io-uname-line (%vm-now) (if (= cpus 0) 1 cpus) #t) "\n"))
+    (file-write 1 (string-append (io-uname-line (host-now) (if (= cpus 0) 1 cpus) #t) "\n"))
     (def go
       (fn (self prev prev-up prevs count)
-        (def now (%vm-now))
+        (def now (host-now))
         (def c (%io-cpu))
-        (def up (if smp (%vm-uptime) 0))
+        (def up (if smp (host-uptime) 0))
         (def itv (let ((d (- (cu-nth 9 c) (cu-nth 9 prev)))) (if (= d 0) 1 d)))
         (if stamp (file-write 1 (string-concat (list (%io-date now) " " (io-time now) "\n"))))
         (if cpu (file-write 1 (string-append (%io-cpu-report prev c itv) (if dev "\n" ""))))
@@ -197,7 +197,7 @@
         (file-write 1 "\n")
         (def left (if (> count 0) (- count 1) count))
         (if (if (> count 0) (= left 0) #f) 0
-          (do (%vm-wait (* interval 1000000))
+          (do (host-wait (* interval 1000000))
               (self c up (rest r) left)))))
     (go (list 0 0 0 0 0 0 0 0 0 0) 0 () count)))
 

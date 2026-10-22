@@ -26,11 +26,23 @@
 ; once standard input ends, it reads no keys and waits the delay between
 ; screens.
 
+(module cu/top)
+
+(import cu/cli cu-opts cu-refuse-option)
+(import cu/prims append byte-at byte-len cu-heap-collect cu-int->str cu-nth
+  cu-stdin-to-command! file-read-fd file-write filter host-args host-cpu
+  host-cpus host-load-fixed host-maps host-processes host-tasks host-threads
+  length map reverse string-append string-concat substring sys-poll
+  sys-user-name sys-usleep)
+(import cu/procps ps-args ps-div ps-four ps-sorted ps-stat)
+(import cu/strings cu-range-number)
+(import cu/text cu-join-with cu-msort cu-pad-left cu-pad-right cu-pad-zero)
+
 (def %top-tick 10000000)                ; nanoseconds in a USER_HZ tick
 (def %top-line-max 446)                 ; busybox's LINE_BUF_SIZE less 2
 (def %top-esc (bytes->str (list 27)))
 
-; --- the run's state, set by %cu-top ------------------------------------------
+; --- the run's state, set by cu-top ------------------------------------------
 
 (def %top-batch #f)
 (def %top-eof #f)                       ; no keys: -b, or standard input ended
@@ -56,9 +68,9 @@
 (def %top-u16 (fn (_ n) (& n 65535)))
 (def %top-ticks (fn (_ ns) (if (null? ns) 0 (ps-div ns %top-tick))))
 
-; --- %cu-top ------------------------------------------------------------------
+; --- cu-top ------------------------------------------------------------------
 
-(def %cu-top
+(def cu-top
   (fn (_ argv stdin-thunk)
     ; busybox's make_all_argv_opts: an argument without its dash gets one, so
     ; `top bn1` is `top -bn1`
@@ -67,7 +79,7 @@
     (def unknown (Opts unknown o))
     (def d (value "-d"))
     (def n (value "-n"))
-    (def interval (if (null? d) 5000 (%top-duration-ms d)))
+    (def interval (if (null? d) 5000 (top-duration-ms d)))
     ; -d is read before -n, as busybox reads them: a bad -d is the one named
     (match
       ((not (null? unknown)) (cu-refuse-option "top" unknown))
@@ -78,7 +90,7 @@
 
 ; parse_duration_str with busybox's FLOAT_DURATION: seconds, a fraction
 ; allowed, and an s, m, h or d after them; nil when it is not one
-(def %top-duration-ms
+(def top-duration-ms
   (fn (_ s)
     (def end (byte-len s))
     (def last (if (> end 0) (byte-at s (- end 1)) 0))
@@ -153,9 +165,9 @@
             (%top-mem-view
               (do (set! %top-rows (cu-msort rows %top-mem-less)) (%top-screens self iterations interval interval)))
             ((null? %top-hist)
-              (do (%top-stats! rows) (sys-usleep 100000) (self iterations interval)))
+              (do (top-stats! rows) (sys-usleep 100000) (self iterations interval)))
             (#t
-              (do (set! %top-rows (cu-msort (%top-stats! rows) %top-less))
+              (do (set! %top-rows (cu-msort (top-stats! rows) %top-less))
                   (%top-screens self iterations interval interval)))))))))
 
 ; A screen of the scan, then the keys: a redraw shows the same scan again,
@@ -216,7 +228,7 @@
 ; Fewer ticks than last time is a process whose times the kernel no longer
 ; gives -- Darwin answers none for a zombie -- and counts as none used, where
 ; busybox's unsigned difference would wrap to a share of millions of percent.
-(def %top-stats!
+(def top-stats!
   (fn (_ rows)
     (def by-pid (cu-msort rows (fn (_ a b) (< (first a) (first b)))))
     (def used (fn (_ now was) (if (< now was) 0 (- now was))))
@@ -287,7 +299,7 @@
 
 ; smart_ulltoa5: N in five characters, "12345" up to 99999, then "92.1m" or
 ; " 123m" in steps of 1024 through " mgtpezy"
-(def %top-five
+(def top-five
   (fn (_ n)
     (def digit (fn (_ k) (substring "0123456789" k (+ k 1))))
     (def lead (fn (_ k z) (if (if (= k 0) z #f) " " (digit k))))
@@ -310,7 +322,7 @@
             (string-concat (list a (lead (% u 10) (str=? a " ")) "." (digit (% (first r) 10)) unit))))))))
 
 ; fmt_100percent_8: VALUE of TOTAL as " NN.N% ", seven characters
-(def %top-percent
+(def top-percent
   (fn (_ value total)
     (if (>= value total) "  100% "
       (let ((v (ps-div (%top-u32 (* 1000 value)) total)))
@@ -365,7 +377,7 @@
       (fn (_ name cur prev)
         (def d (fn (_ i) (%top-u32 (- (cu-nth i cur) (cu-nth i prev)))))
         (def total (let ((t (d 8))) (if (= t 0) 1 t)))
-        (def p (fn (_ i) (%top-percent (d i) total)))
+        (def p (fn (_ i) (top-percent (d i) total)))
         (string-concat (list "CPU" name ":" (p 0) "usr" (p 2) "sys" (p 1) "nic" (p 3) "idle"
                              (p 4) "io" (p 5) "irq" (p 6) "sirq"))))
     (if (if %top-smp (not (null? %top-cpu-jif)) #f)
@@ -379,10 +391,10 @@
 ; the load line: /proc/loadavg as the kernel writes it, each average with the
 ; kernel's rounding (FIXED_1/200 added) and two decimals, then the run queue
 ; and the last pid where the kernel keeps them
-(def %top-load (fn (_) (%top-load-line (host-load-fixed) (host-tasks))))
+(def %top-load (fn (_) (top-load-line (host-load-fixed) (host-tasks))))
 
 ; the same from the fixed-point LOADS and the tasks record T
-(def %top-load-line
+(def top-load-line
   (fn (_ loads t)
     (def avg
       (fn (_ a)
@@ -407,7 +419,7 @@
 ; "%5u %5u %-8.8s", then squeezed to twenty characters as busybox squeezes a
 ; wide pid: spaces before the pid go, then those between it and the ppid,
 ; then the user is cut
-(def %top-ppu
+(def top-ppu
   (fn (_ pid ppid user)
     (def u (if (> (byte-len user) 8) (substring user 0 8) user))
     (def s (string-concat (list (cu-pad-left (cu-int->str pid) 5) " "
@@ -433,11 +445,11 @@
     (def left (let ((n (room (length head))) (more (- (length %top-rows) %top-scroll)))
                 (if (> n more) more n)))
     (def scale (%top-scales total-kb))
-    (def rows (%top-take (%top-drop %top-rows %top-scroll) left))
+    (def rows (top-take (top-drop %top-rows %top-scroll) left))
     (%top-frame (append head (%top-swept-map (fn (_ e) (pair #f (%top-row-line e scale))) rows)))))
 
-(def %top-drop (fn (self l n) (if (if (> n 0) (not (null? l)) #f) (self (rest l) (- n 1)) l)))
-(def %top-take
+(def top-drop (fn (self l n) (if (if (> n 0) (not (null? l)) #f) (self (rest l) (- n 1)) l)))
+(def top-take
   (fn (_ l n)
     (def go (fn (self l n acc) (if (if (> n 0) (not (null? l)) #f) (self (rest l) (- n 1) (pair (first l) acc)) (reverse acc))))
     (go l n ())))
@@ -446,14 +458,14 @@
 ; mem-half cpu-scale cpu-shift cpu-half), in its unsigned 32-bit arithmetic
 (def %top-scales
   (fn (_ total-kb)
-    (%top-scales-of total-kb
+    (top-scales-of total-kb
       (%top-u32 (- (cu-nth 9 %top-jif) (cu-nth 9 %top-jif-prev)))
       (%top-u32 (- (cu-nth 8 %top-jif) (cu-nth 8 %top-jif-prev)))
       %top-total-pcpu)))
 
 ; the same from MemTotal in kilobytes, the BUSY and TOTAL ticks since the last
 ; scan and the ticks the processes used, TOTAL-PCPU
-(def %top-scales-of
+(def top-scales-of
   (fn (_ total-kb busy total total-pcpu)
     (def down (fn (self s sh limit) (if (>= s limit) (self (ps-div s 4) (- sh 2) limit) (pair s sh))))
     (def up (fn (self s sh) (if (< s 1073741824) (self (%top-u32 (* s 4)) (+ sh 2)) (pair s sh))))
@@ -466,20 +478,20 @@
           (first c) (rest c) (ps-div (<< 1 (rest c)) 20))))
 
 ; a row's %RSS and %CPU in tenths, from its kilobytes, its ticks and the scales
-(def %top-shares
+(def top-shares
   (fn (_ kb pcpu s)
     (pair (>> (+ (* kb (first s)) (cu-nth 2 s)) (cu-nth 1 s))
           (>> (%top-u32 (+ (%top-u32 (* pcpu (cu-nth 3 s))) (cu-nth 5 s))) (cu-nth 4 s)))))
 
 (def %top-row-line
   (fn (_ e s)
-    (def shares (%top-shares (cu-nth 2 e) (cu-nth 8 e) s))
+    (def shares (top-shares (cu-nth 2 e) (cu-nth 8 e) s))
     (def pmem (first shares))
     (def pcpu (rest shares))
     (def cpu (cu-nth 7 e))
     (def col (string-concat
-               (list (%top-ppu (first e) (cu-nth 1 e) (%top-user (cu-nth 4 e))) " "
-                     (cu-nth 5 e) "  " (%top-five (cu-nth 2 e))
+               (list (top-ppu (first e) (cu-nth 1 e) (%top-user (cu-nth 4 e))) " "
+                     (cu-nth 5 e) "  " (top-five (cu-nth 2 e))
                      (%top-tenths pmem (> (ps-div pmem 10) 99))
                      " " (if (null? cpu) "   " (cu-pad-left (cu-int->str cpu) 3))
                      (%top-tenths pcpu #f) " ")))
@@ -548,7 +560,7 @@
     (def left (let ((room (- %top-lines (length lines))) (more (- (length %top-rows) %top-scroll)))
                 (if (> room more) more room)))
     (%top-frame (append lines (%top-swept-map (fn (_ e) (pair #f (%top-mem-line e)))
-                                   (%top-take (%top-drop %top-rows %top-scroll) left))))))
+                                   (top-take (top-drop %top-rows %top-scroll) left))))))
 
 ; busybox marks the sort column from its start through the spaces after it
 (def %top-run-on?
@@ -559,7 +571,7 @@
 (def %top-mem-line
   (fn (_ e)
     (def pid (cu-int->str (first e)))
-    (def five (fn (_ k) (string-append (%top-five (cu-nth k e)) " ")))
+    (def five (fn (_ k) (string-append (top-five (cu-nth k e)) " ")))
     (def four (fn (_ k) (string-append (ps-four (cu-nth k e) " mgtpezy") " ")))
     (def p (string-append (cu-pad-left pid 5) " "))
     (def lead
@@ -663,7 +675,7 @@
 ; live count is the engine's, read without a walk, as vi reads it.
 (def %top-floor 0)
 (def %top-live (fn (_) (%cell-int (first (%reflect-base-cell (lit alloc-count))))))
-(def %top-sweep-if-due!
+(def top-sweep-if-due!
   (fn (_)
     (if (< (* 2 %top-floor) (%top-live))
       (do (cu-heap-collect) (set! %top-floor (%top-live)))
@@ -675,6 +687,10 @@
       (fn (self l acc)
         (if (null? l) (reverse acc)
           (let ((v (f (first l))))
-            (%top-sweep-if-due!)
+            (top-sweep-if-due!)
             (self (rest l) (pair v acc))))))
     (go l ())))
+
+(provide cu/top cu-top top-drop top-duration-ms top-five top-load-line
+  top-percent top-ppu top-scales-of top-shares top-stats! top-sweep-if-due!
+  top-take)

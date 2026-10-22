@@ -67,13 +67,13 @@
 (def inet-aton
   (fn (_ s)
     (def buf (str-make-raw 4))
-    (if (= (%in-call (cu-ptr-call (%in-c "inet_aton") s (cu-str->ptr buf))) 0) ()
+    (if (= (in-call (cu-ptr-call (in-c "inet_aton") s (cu-str->ptr buf))) 0) ()
       (%inet-peek4 (cu-str->ptr buf)))))
 
 ; gethostbyname: the first address NAME has, or nil
 (def inet-host-addr
   (fn (_ name)
-    (let ((h (cu-ptr-call (%in-c "gethostbyname") name)))
+    (let ((h (cu-ptr-call (in-c "gethostbyname") name)))
       (if (= h 0) ()
         ; h_addr_list, after h_name, h_aliases, h_addrtype and h_length
         (let ((list (cu-ptr-word (cu-int->ptr h) 24)))
@@ -84,7 +84,7 @@
   (fn (_ n)
     (def buf (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr buf) 0 n 4)
-    (let ((h (cu-ptr-call (%in-c "gethostbyaddr") (cu-str->ptr buf) 4 2)))
+    (let ((h (cu-ptr-call (in-c "gethostbyaddr") (cu-str->ptr buf) 4 2)))
       (if (= h 0) () (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr h) 0)))))))
 
 ; INET_resolve: NAME as (ISNET . ADDRESS) -- isnet 1 for default, 0 for an
@@ -119,33 +119,33 @@
 (def inet-ntop6-bytes
   (fn (_ buf)
     (def out (str-make-raw 64))
-    (cu-ptr-call (%in-c "inet_ntop") 10 (cu-str->ptr buf) (cu-str->ptr out) 64)
+    (cu-ptr-call (in-c "inet_ntop") 10 (cu-str->ptr buf) (cu-str->ptr out) 64)
     (cu-ptr->str (cu-str->ptr out))))
 
 ; gethostbyaddr: the name of the IPv6 address in the 16 bytes of BUF, or nil
 (def inet-addr-host6
   (fn (_ buf)
-    (let ((h (cu-ptr-call (%in-c "gethostbyaddr") (cu-str->ptr buf) 16 10)))
+    (let ((h (cu-ptr-call (in-c "gethostbyaddr") (cu-str->ptr buf) 16 10)))
       (if (= h 0) () (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr h) 0)))))))
 
 ; getservbyport: the name of PORT for PROTO, from /etc/services, or nil
 (def inet-service
   (fn (_ port proto)
-    (let ((s (cu-ptr-call (%in-c "getservbyport") (| (<< (& port 255) 8) (& (>> port 8) 255)) proto)))
+    (let ((s (cu-ptr-call (in-c "getservbyport") (| (<< (& port 255) 8) (& (>> port 8) 255)) proto)))
       (if (= s 0) () (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr s) 0)))))))
 
 ; an AF_INET datagram socket, or the run ended as xsocket ends it
 (def inet-socket
   (fn (_ family die)
-    (let ((fd (%in-call (cu-ptr-call (%in-c "socket") family 2 0))))
+    (let ((fd (in-call (cu-ptr-call (in-c "socket") family 2 0))))
       (if (< fd 0) (die (string-append "socket: " (libc-strerror (Err errno-of fd)))) fd))))
 
 ; xioctl: REQ on FD with the buffer, the run ended as busybox's ends it where it
 ; fails, "ioctl 0x890b failed: REASON"
 (def inet-ioctl
   (fn (_ fd req buf die)
-    (let ((r (%in-call (cu-ptr-call (%in-c "ioctl") fd req (cu-str->ptr buf)))))
-      (do (cu-ptr-call (%in-c "close") fd)
+    (let ((r (in-call (cu-ptr-call (in-c "ioctl") fd req (cu-str->ptr buf)))))
+      (do (cu-ptr-call (in-c "close") fd)
           (when (< r 0) (die (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of r))))))))))
 
 ; a zeroed buffer of N bytes
@@ -171,7 +171,7 @@
 (def inet-pton6!
   (fn (_ buf at name)
     (let ((tmp (str-make-raw 16)))
-      (if (= (%in-call (cu-ptr-call (%in-c "inet_pton") 10 name (cu-str->ptr tmp))) 1)
+      (if (= (in-call (cu-ptr-call (in-c "inet_pton") 10 name (cu-str->ptr tmp))) 1)
         (do (map (fn (_ k) (inet-set! buf (+ at k) (cu-ptr-ref (cu-str->ptr tmp) k 1) 1)) (List range 0 16)) #t)
         #f))))
 

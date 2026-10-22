@@ -351,6 +351,16 @@
 (def host-load-centi
   (fn (_) (map load-centi (Host load))))
 (def host-memory (fn (_) (Host memory)))
+; the clock the counter applets read, a seam their specs replace: now in unix
+; seconds, a wait in microseconds, and the time since boot in hundredths of a
+; second as /proc/uptime gives it, the wall clock less Host's boot time
+(def host-now (fn (_) (date-now-unix)))
+(def host-wait (fn (_ us) (sys-usleep us)))
+(def host-uptime
+  (fn (_)
+    (def t (Sys time-of-day))
+    (def us (rest t))
+    (+ (* 100 (- (first t) (host-boot-time))) (/ (- us (% us 10000)) 10000))))
 (def host-users (fn (_) (Host users)))
 (def host-utmp (fn (_) (Host utmp)))
 (def host-processes (fn (_) (Host processes)))
@@ -1245,19 +1255,20 @@
   file-write-nuls file-write-random file-write-run filter host-args
   host-boot-time host-counters host-cpu host-cpus host-cwd host-disks host-exe
   host-files host-files-of host-holders host-interfaces host-interrupts
-  host-load-centi host-load-fixed host-maps host-memory host-process
-  host-processes host-regions host-tasks host-threads host-users host-utmp
-  http-close http-head http-open http-read http-status integer->char length
-  libc-strerror list->string load-centi map net-accept net-aton net-base64
-  net-close net-connect net-listen net-listen-on net-peer net-recv-from-run
-  net-recv-run net-resolve net-send net-send-run net-send-to-run net-shutdown
-  net-sock-addr net-sockaddr net-sockaddr-read net-stdin-socket net-udp-bind
-  net-udp-connect net-udp-open proc-run re-compile re-search reverse rng-int
-  rng-make set-first! str-make-raw string-append string-concat string=?
-  substring sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ sys-exec
-  sys-exec-or-err sys-exit sys-fork sys-fsync sys-getcwd sys-getegid
-  sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid sys-getuid
-  sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe sys-poll
-  sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms sys-umask
-  sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
-  sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!)
+  host-load-centi host-load-fixed host-maps host-memory host-now host-process
+  host-processes host-regions host-tasks host-threads host-uptime host-users
+  host-utmp host-wait http-close http-head http-open http-read http-status
+  integer->char length libc-strerror list->string load-centi map net-accept
+  net-aton net-base64 net-close net-connect net-listen net-listen-on net-peer
+  net-recv-from-run net-recv-run net-resolve net-send net-send-run
+  net-send-to-run net-shutdown net-sock-addr net-sockaddr net-sockaddr-read
+  net-stdin-socket net-udp-bind net-udp-connect net-udp-open proc-run
+  re-compile re-search reverse rng-int rng-make set-first! str-make-raw
+  string-append string-concat string=? substring sys-chroot sys-close
+  sys-cpu-count sys-dup2 sys-environ sys-exec sys-exec-or-err sys-exit
+  sys-fork sys-fsync sys-getcwd sys-getegid sys-getenv sys-geteuid sys-getgid
+  sys-getgroups sys-getpid sys-getuid sys-group-id sys-group-name sys-isatty
+  sys-kill sys-nice sys-pipe sys-poll sys-setenv sys-signal sys-signals
+  sys-sleep sys-sync sys-time-ms sys-umask sys-uname sys-unsetenv
+  sys-user-group sys-user-groups sys-user-id sys-user-name sys-usleep sys-wait
+  vec-build vec-make vec-ref vec-set!)

@@ -67,7 +67,7 @@
     (if (< (length head) 8)
       (do (file-write 2 "dumpleases: short read\n") 1)
       (let ((curr (first (si-now))))
-        (let ((written (%nt-imin (%dl-be head) curr)))
+        (let ((written (nt-imin (%dl-be head) curr)))
           (let go ()
             (let ((lease (%dl-read fd 36)))
               (when (= (length lease) 36)

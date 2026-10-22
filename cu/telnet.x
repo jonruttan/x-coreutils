@@ -323,9 +323,9 @@
 (def tn-port
   (fn (_ s)
     (if (null? s) 23
-      (let ((n (%in-strtou s)))
+      (let ((n (in-strtou s)))
         (if (if (null? n) #f (<= n 65535)) n
-          (let ((p (%in-servport s "tcp")))
+          (let ((p (in-servport s "tcp")))
             (if (null? p) (%net-die (string-concat (list "bad port '" s "'"))) p)))))))
 
 (def %tn-main

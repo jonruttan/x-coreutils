@@ -44,7 +44,7 @@ weight and timeout are the TLS engines' build, which a session pays once.
             (let ((p (sys-pipe)))
               (do (when (= (sys-fork) 0)
                     (do (sys-dup2 (rest p) 1) (sys-close (first p))
-                        (%in-exec "/bin/sh" (list "/bin/sh" "-c" "cat /tmp/x-cu-ssl/in; sleep 3"))
+                        (in-exec "/bin/sh" (list "/bin/sh" "-c" "cat /tmp/x-cu-ssl/in; sleep 3"))
                         (sys-exit 1)))
                   (sys-close (rest p))
                   (sys-dup2 (first p) 0)))

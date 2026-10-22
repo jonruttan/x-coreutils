@@ -27,7 +27,7 @@
   map reverse string-append string-concat substring)
 (import cu/text cu-pad-zero)
 
-(def %nm-scale (fn (_ n) (%vm-four n " kmgtpezy")))
+(def %nm-scale (fn (_ n) (vm-four n " kmgtpezy")))
 (def %nm-marks (fn (_ k) (%str-make-raw-of k #\?)))
 
 ; K copies of the byte C
@@ -54,8 +54,8 @@
   (fn (_ size)
     (fn (_ s old)
       (def t (Assoc get (lit cpu) s))
-      (def now (map (fn (_ k) (%vm-ticks (Assoc get k t))) (lit (user nice system idle iowait irq softirq))))
-      (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (%vm-zip now (if (null? old) (map (fn (_ x) 0) now) old))))
+      (def now (map (fn (_ k) (vm-ticks (Assoc get k t))) (lit (user nice system idle iowait irq softirq))))
+      (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (vm-zip now (if (null? old) (map (fn (_ x) 0) now) old))))
       (def all (List fold + 0 d))
       (if (= all 0) (pair (%nm-marks size) now)
         (let ((shares (map (fn (_ v) (ps-div (* size v) all)) d))
@@ -110,7 +110,7 @@
     (match
       ((null? (Assoc get (lit interrupts) (Assoc get (lit counters) s))) ())
       ((null? hits) 0)
-      (#t (%vm-get (lit total) (first hits))))))
+      (#t (vm-get (lit total) (first hits))))))
 
 ; %n: an interface's bytes in and out, a * before each where errors came
 (def %nm-if
@@ -118,8 +118,8 @@
     (fn (_ s old)
       (def r (filter (fn (_ r) (str=? (Assoc get (lit name) r) name)) (Assoc get (lit interfaces) s)))
       (if (null? r) (pair "??????????" old)
-        (let ((now (map (fn (_ k) (%vm-get k (first r))) (lit (rx-bytes rx-errors tx-bytes tx-errors)))))
-          (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (%vm-zip now (if (null? old) (list 0 0 0 0) old))))
+        (let ((now (map (fn (_ k) (vm-get k (first r))) (lit (rx-bytes rx-errors tx-bytes tx-errors)))))
+          (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (vm-zip now (if (null? old) (list 0 0 0 0) old))))
           (pair (string-concat (list (if (> (cu-nth 1 d) 0) "*" " ") (%nm-scale (first d))
                                      (if (> (cu-nth 3 d) 0) "*" " ") (%nm-scale (cu-nth 2 d))))
                 now))))))
@@ -130,7 +130,7 @@
   (fn (_ opt)
     (fn (_ s old)
       (def m (Assoc get (lit memory) s))
-      (def g (fn (_ k) (%vm-get k m)))
+      (def g (fn (_ k) (vm-get k m)))
       (def free (+ (+ (g (lit free)) (g (lit buffers))) (+ (g (lit cached)) (g (lit slab)))))
       (pair (%nm-scale
               (match
@@ -144,7 +144,7 @@
 (def %nm-swap
   (fn (_ s old)
     (def m (Assoc get (lit memory) s))
-    (pair (%nm-scale (- (%vm-get (lit swap-total) m) (%vm-get (lit swap-free) m))) old)))
+    (pair (%nm-scale (- (vm-get (lit swap-total) m) (vm-get (lit swap-free) m))) old)))
 
 ; %f: the file handles in use
 (def %nm-files
@@ -171,8 +171,8 @@
                     (if (str=? (substring n 0 (byte-len last)) last)
                       (let ((c (byte-at n (byte-len last)))) (if (>= c #\0) (<= c #\9) #f)) #f) #f))
               (self (rest ds) last rd wr)
-              (self (rest ds) n (+ rd (ps-div (%vm-get (lit read-bytes) (first ds)) 512))
-                (+ wr (ps-div (%vm-get (lit write-bytes) (first ds)) 512))))))))
+              (self (rest ds) n (+ rd (ps-div (vm-get (lit read-bytes) (first ds)) 512))
+                (+ wr (ps-div (vm-get (lit write-bytes) (first ds)) 512))))))))
     (def now (go (Assoc get (lit disks) s) () 0 0))
     (def o (if (null? old) (list 0 0) old))
     (pair (string-concat (list (%nm-scale (* 512 (%nm-delta (first now) (first o)))) " "
@@ -327,7 +327,7 @@
     (def primed (rest (nm-line fields (nm-sample))))
     (def us (fn (_ t) (if seconds (% (+ (* (first t) 1000000) (rest t)) nz) (% (rest t) nz))))
     (if (>= delta 0)
-      (let ((t (Sys time-of-day))) (%vm-wait (if (> delta 1000000) 1000000 (- delta (% (rest t) nz))))))
+      (let ((t (Sys time-of-day))) (host-wait (if (> delta 1000000) 1000000 (- delta (% (rest t) nz))))))
     (def first-sample (nm-sample))
     (def t0 (Assoc get (lit time) first-sample))
     (set! %nm-t0 (if (> delta 0) (pair (first t0) (- (rest t0) (% (rest t0) delta))) t0))
@@ -337,7 +337,7 @@
         (file-write 1 (string-append (first r) end))
         (if (>= delta 0)
           (let ((rem (- delta (us (Sys time-of-day)))))
-            (%vm-wait (if (< rem (ps-div delta 128)) (+ rem delta) rem))))
+            (host-wait (if (< rem (ps-div delta 128)) (+ rem delta) rem))))
         (self (rest r) (nm-sample))))
     (go primed first-sample)))
 

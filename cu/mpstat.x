@@ -30,7 +30,7 @@
 
 (def %mp-ticks
   (fn (_ r)
-    (map (fn (_ k) (%vm-ticks (Assoc get k r))) (lit (user nice system idle iowait irq softirq steal guest)))))
+    (map (fn (_ k) (vm-ticks (Assoc get k r))) (lit (user nice system idle iowait irq softirq steal guest)))))
 
 ; The ticks a CPU has counted: its fields but guest, which user counts already
 (def %mp-up (fn (_ v) (- (List fold + 0 v) (cu-nth 8 v))))
@@ -44,7 +44,7 @@
            (def counts (Assoc get (lit counts) r))
            (pair (Assoc get (lit name) r)
              (if (null? counts)
-               (pair (& (%vm-get (lit total) r) 4294967295) (map (fn (_ c) 0) (if (null? cpus) () (rest cpus))))
+               (pair (& (vm-get (lit total) r) 4294967295) (map (fn (_ c) 0) (if (null? cpus) () (rest cpus))))
                (map (fn (_ c) (let ((e (Assoc find c counts))) (if (null? e) 0 (& (rest e) 4294967295)))) cpus))))
       records)))
 
@@ -80,9 +80,9 @@
       (map (fn (_ i)
              (List fold + 0 (map (fn (_ s) (if (%mp-numbered? (first s)) (%mp-col s cols i) 0)) hard)))
         (%mp-range 0 n)))
-    (list (%vm-now) (pair all each) (%mp-up all)
+    (list (host-now) (pair all each) (%mp-up all)
           (if (> n 1) (if (null? each) 0 (%mp-up (first each))) 0)
-          (pair (%vm-get (lit interrupts) (host-counters)) per-cpu)
+          (pair (vm-get (lit interrupts) (host-counters)) per-cpu)
           hard (%mp-table soft-recs (%mp-columns soft-recs)))))
 
 ; A source's count on processor number I, 0 when the table has no column for it
@@ -102,8 +102,8 @@
 ; --- the reports ---------------------------------------------------------------
 
 (def %mp-label (fn (_ s) (cu-pad-right s 11)))
-(def %mp-cpu-label (fn (_ s cpu) (string-append (%mp-label s) (if (= cpu 0) "  all" (%vm-right (cu-int->str (- cpu 1)) 5)))))
-(def %mp-pct (fn (_ d itv) (string-append " " (%vm-right (%vm-fixed (%vm-rate d itv 100) 2) 7))))
+(def %mp-cpu-label (fn (_ s cpu) (string-append (%mp-label s) (if (= cpu 0) "  all" (vm-right (cu-int->str (- cpu 1)) 5)))))
+(def %mp-pct (fn (_ d itv) (string-append " " (vm-right (vm-fixed (vm-rate d itv 100) 2) 7))))
 (def %mp-gap (fn (_ a b) (let ((d (- b a))) (if (= d 0) 1 d))))
 
 ; The shares: user less guest, nice, system, iowait, irq, softirq, steal,
@@ -122,7 +122,7 @@
 (def %mp-zeros
   (fn (_ idle)
     (string-append (string-concat (map (fn (_ i) (%mp-pct 0 1)) (%mp-range 0 8)))
-      (string-append " " (%vm-right (%vm-fixed (Float from idle) 2) 7) "\n"))))
+      (string-append " " (vm-right (vm-fixed (Float from idle) 2) 7) "\n"))))
 
 (def %mp-cpu-report
   (fn (_ p c pl cl bitmap)
@@ -148,9 +148,9 @@
         (def per (if (= cpu 0) itv
                    (- (%mp-up (cu-nth cpu (cu-nth 1 c))) (%mp-up (cu-nth cpu (cu-nth 1 p))))))
         (string-append (%mp-cpu-label cl cpu) " "
-          (%vm-right
-            (%vm-fixed (if (= per 0) (Float from 0)
-                         (%vm-rate (- (cu-nth cpu (cu-nth 4 c)) (cu-nth cpu (cu-nth 4 p))) per 100))
+          (vm-right
+            (vm-fixed (if (= per 0) (Float from 0)
+                         (vm-rate (- (cu-nth cpu (cu-nth 4 c)) (cu-nth cpu (cu-nth 4 p))) per 100))
               2)
             9)
           "\n")))
@@ -176,7 +176,7 @@
       (fn (self js printed expected acc)
         (if (null? js) (string-concat (reverse acc))
           (let ((w (- 7 (- printed expected))))
-            (def s (string-concat (list " " (%vm-right (first (cu-nth (first js) ctab)) (if (> w 0) w 0)) "/s")))
+            (def s (string-concat (list " " (vm-right (first (cu-nth (first js) ctab)) (if (> w 0) w 0)) "/s")))
             (self (rest js) (+ printed (byte-len s)) (+ expected 10) (pair s acc))))))
     (def count (fn (_ tab j cpu) (if (< j (length tab)) (cu-nth (+ cpu 1) (cu-nth j tab)) 0)))
     (def js (%mp-range 0 (length ctab)))
@@ -188,8 +188,8 @@
               (map (fn (_ j)
                      (def k (match-at j (first (cu-nth j ctab))))
                      (if (null? k) "        N/A"
-                       (%vm-right
-                         (%vm-fixed (%vm-rate (& (- (count ctab j cpu) (count ptab k cpu)) 4294967295) itv 100) 2)
+                       (vm-right
+                         (vm-fixed (vm-rate (& (- (count ctab j cpu) (count ptab k cpu)) 4294967295) itv 100) 2)
                          10)))
                 js))
             "\n"))))
@@ -213,7 +213,7 @@
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "mpstat" argv))
     (def ops (Opts operands o))
-    (def unknown (if (null? (Opts unknown o)) (%vm-dash-number ops) (Opts unknown o)))
+    (def unknown (if (null? (Opts unknown o)) (vm-dash-number ops) (Opts unknown o)))
     (def n (length (host-cpus)))
     (def i-arg (Opts value o "-I"))
     (def ints (if (null? i-arg) ()
@@ -283,7 +283,7 @@
     (if (= interval 0)
       (do (file-write 1 (%mp-report (%mp-zero n) first-sample (clock first-sample) (clock first-sample) shows bitmap only n 0)) 0)
       (let ((go (fn (self prev count)
-                  (%vm-wait (* interval 1000000))
+                  (host-wait (* interval 1000000))
                   (def c (%mp-sample n))
                   (file-write 1 (%mp-report prev c (clock prev) (clock c) shows bitmap only n interval))
                   (def left (if (> count 0) (- count 1) count))

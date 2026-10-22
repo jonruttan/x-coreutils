@@ -810,7 +810,7 @@
   (fn (_ argv stdin-thunk)
     (def ops (Opts operands (cu-opts "pwdx" argv)))
     ; getopt reads -5 as the option 5, before any pid
-    (def dash (%vm-dash-number ops))
+    (def dash (vm-dash-number ops))
     (match
       ((not (null? dash)) (cu-refuse-option "pwdx" dash))
       ((null? ops) (cu-usage "pwdx"))

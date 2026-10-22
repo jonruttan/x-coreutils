@@ -29,22 +29,23 @@
   file-write-nuls file-write-random file-write-run filter host-args
   host-boot-time host-counters host-cpu host-cpus host-cwd host-disks host-exe
   host-files host-files-of host-holders host-interfaces host-interrupts
-  host-load-centi host-load-fixed host-maps host-memory host-process
-  host-processes host-regions host-tasks host-threads host-users host-utmp
-  http-close http-head http-open http-read http-status integer->char length
-  libc-strerror list->string load-centi map net-accept net-aton net-base64
-  net-close net-connect net-listen net-listen-on net-peer net-recv-from-run
-  net-recv-run net-resolve net-send net-send-run net-send-to-run net-shutdown
-  net-sock-addr net-sockaddr net-sockaddr-read net-stdin-socket net-udp-bind
-  net-udp-connect net-udp-open proc-run re-compile re-search reverse rng-int
-  rng-make set-first! str-make-raw string-append string-concat string=?
-  substring sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ sys-exec
-  sys-exec-or-err sys-exit sys-fork sys-fsync sys-getcwd sys-getegid
-  sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid sys-getuid
-  sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe sys-poll
-  sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms sys-umask
-  sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
-  sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!)
+  host-load-centi host-load-fixed host-maps host-memory host-now host-process
+  host-processes host-regions host-tasks host-threads host-uptime host-users
+  host-utmp host-wait http-close http-head http-open http-read http-status
+  integer->char length libc-strerror list->string load-centi map net-accept
+  net-aton net-base64 net-close net-connect net-listen net-listen-on net-peer
+  net-recv-from-run net-recv-run net-resolve net-send net-send-run
+  net-send-to-run net-shutdown net-sock-addr net-sockaddr net-sockaddr-read
+  net-stdin-socket net-udp-bind net-udp-connect net-udp-open proc-run
+  re-compile re-search reverse rng-int rng-make set-first! str-make-raw
+  string-append string-concat string=? substring sys-chroot sys-close
+  sys-cpu-count sys-dup2 sys-environ sys-exec sys-exec-or-err sys-exit
+  sys-fork sys-fsync sys-getcwd sys-getegid sys-getenv sys-geteuid sys-getgid
+  sys-getgroups sys-getpid sys-getuid sys-group-id sys-group-name sys-isatty
+  sys-kill sys-nice sys-pipe sys-poll sys-setenv sys-signal sys-signals
+  sys-sleep sys-sync sys-time-ms sys-umask sys-uname sys-unsetenv
+  sys-user-group sys-user-groups sys-user-id sys-user-name sys-usleep sys-wait
+  vec-build vec-make vec-ref vec-set!)
 (import cu/applets)
 
 (provide cu/base cu-version cu-run cu-argv cu-main cu-sha256
@@ -137,14 +138,18 @@
 (import cu/httpd cu-httpd hd-crypt-equal? hd-daemonize hd-salt
   hd-system-password hd-ugid)
 (import cu/dnsd cu-dnsd)
-(include-once "./inetd.x")
+(import cu/inetd cu-inetd in-af in-bind in-c in-call in-count in-dontwait
+  in-errtext in-exec in-index-of in-lines in-now in-percent in-recvfrom
+  in-reuse! in-sendto in-servport in-sockaddr6 in-strtou in-tokens-max
+  in-zeroed)
 (import cu/fakeidentd cu-fakeidentd)
 (import cu/telnet cu-telnet tn-port tn-run tn-str-bytes)
 (import cu/telnetd cu-telnetd td-ptr->int)
 (include-once "./mime.x")
 (include-once "./sendmail.x")
 (import cu/popmaildir cu-popmaildir)
-(include-once "./ntpd.x")
+(import cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-sha1-bytes nt-unhex
+  nt-zeros)
 (import cu/dumpleases cu-dumpleases)
 (import cu/sslclient cu-ssl-client sc-copy sc-run-prog)
 (import cu/sslserver cu-ssl-server)
@@ -194,13 +199,16 @@
   ip-req ip-req-bytes ip-rta ip-send-check ip-set ip-strtoul ip-talk
   ip-unsigned)
 (import cu/iproute cu-iproute ip-route)
-(include-once "./top.x")
-(include-once "./vmstat.x")
+(import cu/top cu-top top-drop top-duration-ms top-five top-load-line
+  top-percent top-ppu top-scales-of top-shares top-stats! top-sweep-if-due!
+  top-take)
+(import cu/vmstat cu-vmstat vm-dash-number vm-five vm-fixed vm-four vm-get
+  vm-rate vm-right vm-ticks vm-zip)
 (import cu/iostat cu-iostat io-time io-uname-line)
 (import cu/mpstat cu-mpstat)
 (import cu/nmeter cu-nmeter nm-line nm-parse nm-sample)
 (import cu/pmap cu-pmap)
-(include-once "./watch.x")
+(import cu/watch cu-watch)
 (import cu/fuser cu-fuser fu-args)
 (import cu/options cu-option-spec)
 (import cu/cli cu-argv cu-dispatch cu-extra-operand cu-find-applet

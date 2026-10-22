@@ -229,7 +229,7 @@
 ; the connected socket, or the run ended (label net) as busybox ends it
 (def %cu-dial
   (fn (_ spec default)
-    (def colon (%in-index-of spec #\:))
+    (def colon (in-index-of spec #\:))
     (def host (%cu-dial-host spec))
     (def port (if (null? colon) default (tn-port (substring spec (+ colon 1) (byte-len spec)))))
     (def ip (let ((q (guard (_ ()) (net-resolve host))))
@@ -242,7 +242,7 @@
 ; the HOST of HOST[:PORT]
 (def %cu-dial-host
   (fn (_ spec)
-    (let ((colon (%in-index-of spec #\:)))
+    (let ((colon (in-index-of spec #\:)))
       (if (null? colon) spec (substring spec 0 colon)))))
 
 ; the call an io Err came from, or nil for an Err that names none

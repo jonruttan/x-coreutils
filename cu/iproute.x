@@ -59,7 +59,7 @@
     (def text (file-or-err (fn (_) (file-read-unsized "/proc/net/psched"))))
     (def ws (if (Err err? text) () (inet-words (first (cu-lines text)))))
     (if (if (>= (length ws) 4) (= (inet-hex (List ref 2 ws)) 1000000) #f) (inet-hex (List ref 3 ws))
-      (%in-call (cu-ptr-call (%in-c "sysconf") 2)))))
+      (in-call (cu-ptr-call (in-c "sysconf") 2)))))
 
 ; --- the routes -------------------------------------------------------------------
 
@@ -296,7 +296,7 @@
     (def req (append (ip-le 28 4) (ip-le 26 2) (ip-le 257 2) (ip-le seq 4) (ip-le 0 4)
                      (list family 0 0 0 0 0 0 0) (ip-le 512 4)))
     (let ((out (ip-buf req)))
-      (let ((r (%in-call (cu-ptr-call (%in-c "write") fd (cu-str->ptr out) 28))))
+      (let ((r (in-call (cu-ptr-call (in-c "write") fd (cu-str->ptr out) 28))))
         (when (< r 0) (ip-die f (string-append "sendto: " (libc-strerror (Err errno-of r)))))))
     (ip-dump-read f fd seq %ip-route-of)))
 
@@ -307,18 +307,18 @@
     (def routes (if (= (ip-get f (lit tb)) -1) (%ip-cache-dump f fd (ip-get f (lit dump-family)) 2)
                   (ip-dump f fd 26 (ip-get f (lit dump-family)) 2 %ip-route-of)))
     (map (fn (_ r) (when (%ip-route-kept? f r) (file-write 1 (%ip-route-text f r)))) routes)
-    (cu-ptr-call (%in-c "close") fd)
+    (cu-ptr-call (in-c "close") fd)
     0))
 
 ; iproute_flush_cache
 (def %ip-flush-cache
   (fn (_ f)
     (def path "/proc/sys/net/ipv4/route/flush")
-    (def fd (%in-call (cu-ptr-call (%in-c "open") path 1)))
+    (def fd (in-call (cu-ptr-call (in-c "open") path 1)))
     (if (< fd 0) (ip-say f (string-concat (list "can't open '" path "': " (libc-strerror (Err errno-of fd)))))
-      (let ((n (%in-call (cu-ptr-call (%in-c "write") fd "-1" 2))))
+      (let ((n (in-call (cu-ptr-call (in-c "write") fd "-1" 2))))
         (if (< n 2) (ip-say f (string-append "can't flush routing cache: " (libc-strerror (Err errno-of n))))
-          (cu-ptr-call (%in-c "close") fd))))))
+          (cu-ptr-call (in-c "close") fd))))))
 
 ; a route flush keeps: what the listing keeps, less IPv6's catch-all unreachable
 (def %ip-route-flushed?
@@ -442,7 +442,7 @@
     (def body (list (if (= (ip-get s4 (lit family)) 0) 2 (ip-get s4 (lit family))) (ip-get s4 (lit dst-len)) 0 0
                     (if (> table 255) 0 table) (ip-get s4 (lit protocol)) (%ip-route-scope s4 del?) (ip-get s4 (lit type))))
     (def r (ip-talk f fd (ip-req-bytes (ip-get s4 (lit req)) (append body (ip-le (ip-get s4 (lit flags)) 4)) 3) 3))
-    (cu-ptr-call (%in-c "close") fd)
+    (cu-ptr-call (in-c "close") fd)
     (if (< r 0) 2 0)))
 
 ; --- get --------------------------------------------------------------------------
@@ -452,7 +452,7 @@
 (def %ip-ask
   (fn (_ f fd bytes seq)
     (def out (ip-buf bytes))
-    (let ((r (%in-call (cu-ptr-call (%in-c "write") fd (cu-str->ptr out) (length bytes)))))
+    (let ((r (in-call (cu-ptr-call (in-c "write") fd (cu-str->ptr out) (length bytes)))))
       (if (< r 0) (do (ip-say f (string-append "can't talk to rtnetlink: " (libc-strerror (Err errno-of r)))) -1)
         (%ip-dump-answer f fd seq (fn (_ p len kind) (if (= kind 2)
                                                        (let ((e (cu-ptr-ref p 16 4)))
@@ -465,7 +465,7 @@
   (fn (_ f fd seq of)
     (def buf (str-make-raw 8192))
     (let go ()
-      (let ((n (%in-call (cu-ptr-call (%in-c "recv") fd (cu-str->ptr buf) 8192 0))))
+      (let ((n (in-call (cu-ptr-call (in-c "recv") fd (cu-str->ptr buf) 8192 0))))
         (match
           ((< n 0) (do (ip-say f (string-append "OVERRUN: " (libc-strerror (Err errno-of n)))) (go)))
           ((= n 0) (do (ip-say f "EOF on netlink") -1))

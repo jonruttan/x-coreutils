@@ -224,7 +224,7 @@
             (unless (null? dev)
               (let ((ifr (inet-zeros 40)))
                 (do (map (fn (_ k) (inet-set! ifr k (char->integer (byte-at dev k)) 1)) (List range 0 (if (> (byte-len dev) 15) 15 (byte-len dev))))
-                    (let ((r (%in-call (cu-ptr-call (%in-c "ioctl") fd 35123 (cu-str->ptr ifr)))))
+                    (let ((r (in-call (cu-ptr-call (in-c "ioctl") fd 35123 (cu-str->ptr ifr)))))
                       (when (< r 0) (%rt-die (string-concat (list "ioctl 0x8933 failed: " (libc-strerror (Err errno-of r)))))))
                     (inet-set! rt 76 (cu-ptr-ref (cu-str->ptr ifr) 16 4) 4))))
             (inet-ioctl fd (if add? 35083 35084) rt %rt-die)
