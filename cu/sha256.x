@@ -40,9 +40,6 @@
         1955562222 2024104815 2227730452 2361852424
         2428436474 2756734187 3204031479 3329325298))
 
-(def %cu-nth
-  (fn (self n l) (if (= n 0) (first l) (self (- n 1) (rest l)))))
-
 (def %cu-rotr
   (fn (_ x n)
     (bit-and (bit-or (bit-shr x n) (bit-shl x (- 32 n))) %cu-m32)))

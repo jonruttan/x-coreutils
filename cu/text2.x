@@ -45,16 +45,6 @@
                     (self (/ (- t (% t 8)) 8) (pair (+ 48 (% t 8)) acc))))))
         (go n ())))))
 
-(def %cu-hexs
-  (fn (_ n)
-    (if (= n 0) "0"
-      (let ((go (fn (self t acc)
-                  (if (= t 0) (bytes->str acc)
-                    (let ((d (% t 16)))
-                      (self (/ (- t d) 16)
-                        (pair (if (< d 10) (+ 48 d) (+ 87 d)) acc)))))))
-        (go n ())))))
-
 (def %cu-pad
   (fn (_ s w left)
     (if left (%cu-pad-right s w) (%cu-pad-left s w))))

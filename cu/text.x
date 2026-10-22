@@ -11,26 +11,6 @@
 ; shared %cu-gather answers the operands' concatenated text (stdin when
 ; none, - meaning stdin among them).
 
-; --- shared helpers ----------------------------------------------------------
-
-; the byte B as a one-byte string.  bytes->str packs the byte itself; a
-; character of that code would be written in UTF-8, as two bytes above 0x7F.
-(def %cu-b->s
-  (fn (_ b) (bytes->str (list b))))
-
-(def %cu-lines-go
-  (fn (self s end i start acc)
-    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
-      (if (>= i end)
-        (if (> i start)
-          (reverse (pair (substring s start i) acc))
-          (reverse acc))
-        (if (= (byte-at s i) 10)
-          (self s end (+ i 1) (+ i 1) (pair (substring s start i) acc))
-          (self s end (+ i 1) start acc))))))
-(def %cu-lines
-  (fn (_ s) (%cu-lines-go s (byte-len s) 0 0 ())))
-
 ; --- the inputs head and tail read --------------------------------------------
 ;
 ; Each operand is read whole and handed to SHOW as (NAME TEXT FILE?), in order;
@@ -448,19 +428,6 @@
               (go i1 0 #f)))
     (if (not (rest ir)) 0
       (if neg (- 0 (first ir)) (first ir)))))
-
-; N in decimal.  Its digits are packed as bytes by bytes->str, at a third of
-; what the list->string conversion costs; the tower's % and / keep a bignum
-; right.
-(def %cu-int->str
-  (fn (_ n)
-    (if (= n 0) "0"
-      (let ((go (fn (self t acc)
-                  (if (= t 0) acc
-                    (self (/ (- t (% t 10)) 10) (pair (+ 48 (% t 10)) acc))))))
-        (if (< n 0)
-          (bytes->str (pair 45 (go (- 0 n) ())))
-          (bytes->str (go n ())))))))
 
 ; S padded to W columns with spaces, before it or after it.  %str-make-raw
 ; answers a run of spaces in one allocation, where a space at a time was one
@@ -1578,20 +1545,6 @@
     (if (null? delim)
       (%cu-words-line line)
       (%cu-split-byte line (byte-at delim 0)))))
-
-(def %cu-words-line
-  (fn (_ s)
-    (def end (byte-len s))
-    (def go
-      (fn (self i start acc in)
-        (if (>= i end)
-          (reverse (if in (pair (substring s start i) acc) acc))
-          (let ((ws (let ((b (byte-at s i)))
-                      (if (= b 32) #t (= b 9)))))
-            (if ws
-              (self (+ i 1) (+ i 1) (if in (pair (substring s start i) acc) acc) #f)
-              (self (+ i 1) (if in start i) acc #t))))))
-    (go 0 0 () #f)))
 
 (def %cu-split-byte
   (fn (_ s b)

@@ -1197,3 +1197,64 @@
     (match ((not (null? (net-sock-addr 0))) 0)
            ((not (null? (net-sock-addr 3))) 3)
            (#t ()))))
+
+; --- the helpers the other files share, below the text layer ------------
+
+; the byte B as a one-byte string.  bytes->str packs the byte itself; a
+; character of that code would be written in UTF-8, as two bytes above 0x7F.
+(def %cu-b->s
+  (fn (_ b) (bytes->str (list b))))
+
+(def %cu-lines-go
+  (fn (self s end i start acc)
+    (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+      (if (>= i end)
+        (if (> i start)
+          (reverse (pair (substring s start i) acc))
+          (reverse acc))
+        (if (= (byte-at s i) 10)
+          (self s end (+ i 1) (+ i 1) (pair (substring s start i) acc))
+          (self s end (+ i 1) start acc))))))
+
+(def %cu-lines
+  (fn (_ s) (%cu-lines-go s (byte-len s) 0 0 ())))
+
+(def %cu-words-line
+  (fn (_ s)
+    (def end (byte-len s))
+    (def go
+      (fn (self i start acc in)
+        (if (>= i end)
+          (reverse (if in (pair (substring s start i) acc) acc))
+          (let ((ws (let ((b (byte-at s i)))
+                      (if (= b 32) #t (= b 9)))))
+            (if ws
+              (self (+ i 1) (+ i 1) (if in (pair (substring s start i) acc) acc) #f)
+              (self (+ i 1) (if in start i) acc #t))))))
+    (go 0 0 () #f)))
+
+; N in decimal.  Its digits are packed as bytes by bytes->str, at a third of
+; what the list->string conversion costs; the tower's % and / keep a bignum
+; right.
+(def %cu-int->str
+  (fn (_ n)
+    (if (= n 0) "0"
+      (let ((go (fn (self t acc)
+                  (if (= t 0) acc
+                    (self (/ (- t (% t 10)) 10) (pair (+ 48 (% t 10)) acc))))))
+        (if (< n 0)
+          (bytes->str (pair 45 (go (- 0 n) ())))
+          (bytes->str (go n ())))))))
+
+(def %cu-hexs
+  (fn (_ n)
+    (if (= n 0) "0"
+      (let ((go (fn (self t acc)
+                  (if (= t 0) (bytes->str acc)
+                    (let ((d (% t 16)))
+                      (self (/ (- t d) 16)
+                        (pair (if (< d 10) (+ 48 d) (+ 87 d)) acc)))))))
+        (go n ())))))
+
+(def %cu-nth
+  (fn (self n l) (if (= n 0) (first l) (self (- n 1) (rest l)))))
