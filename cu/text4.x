@@ -16,20 +16,32 @@
 ; fields and -s chars, cut to -w, folded when -i asks.  The options are read
 ; here and not per line -- each read costs thousands of objects, and nothing
 ; is collected while an applet runs.
+(module cu/text4)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-len cu-int->str cu-lines cu-nth cu-sweep-at
+  cu-sweep-lines cu-words-line file-close file-err-text file-open-or-err
+  file-open-write file-write length reverse string-append string-concat
+  string=? substring)
+(import cu/sort sort-fold)
+(import cu/text cu-first-unopened cu-fold-lines-said cu-join-with
+  cu-num-prefix cu-pad-left cu-pad-zero cu-say cu-says cu-says-read)
+(import cu/text2 cu-pad)
+
 (def %uniq-key
   (fn (_ o)
     (def skip-f (let ((v (Opts value o "-f")))
-                  (if (null? v) 0 (%cu-num-prefix v))))
+                  (if (null? v) 0 (cu-num-prefix v))))
     (def skip-s (let ((v (Opts value o "-s")))
-                  (if (null? v) 0 (%cu-num-prefix v))))
+                  (if (null? v) 0 (cu-num-prefix v))))
     (def width (let ((v (Opts value o "-w")))
-                 (if (null? v) (- 0 1) (%cu-num-prefix v))))
+                 (if (null? v) (- 0 1) (cu-num-prefix v))))
     (def fold? (Opts on? o "-i"))
     (fn (_ line)
       (def after-fields
         (if (= skip-f 0) line
-          (let ((fs (%cu-words-line line)))
-            (%cu-join-with
+          (let ((fs (cu-words-line line)))
+            (cu-join-with
               (let ((go (fn (self xs i acc)
                           (if (null? xs) (reverse acc)
                             (self (rest xs) (+ i 1)
@@ -41,7 +53,7 @@
       (def cut (if (= from 0) after-fields (substring after-fields from end)))
       (def sized (if (< width 0) cut
                    (if (> width (byte-len cut)) cut (substring cut 0 width))))
-      (if fold? (%sort-fold sized) sized))))
+      (if fold? (sort-fold sized) sized))))
 
 ; -d prints only what repeated, -u only what did not; neither is both
 (def %uniq-show?
@@ -54,22 +66,22 @@
 ; opens.  IN is opened before OUT, as uniq opens them, so an IN that will not
 ; open leaves OUT uncreated; OUT is truncated before IN is read, so the same
 ; file for both comes out empty.
-(def %cu-uniq
+(def cu-uniq
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "uniq" argv))
+    (def o (cu-opts "uniq" argv))
     (def ops (Opts operands o))
     (match
       ((> (length ops) 2)
         (do (file-write 2
-              (string-concat (list "uniq: extra operand '" (%cu-nth 2 ops) "'\n")))
+              (string-concat (list "uniq: extra operand '" (cu-nth 2 ops) "'\n")))
             1))
       ((null? ops) (%uniq-into o "-" "-" stdin-thunk))
       ((null? (rest ops)) (%uniq-into o (first ops) "-" stdin-thunk))
-      (#t (%uniq-into o (first ops) (%cu-nth 1 ops) stdin-thunk)))))
+      (#t (%uniq-into o (first ops) (cu-nth 1 ops) stdin-thunk)))))
 
 ; a file that opened and would not read is "error reading" to uniq
 (def %uniq-says
-  (%cu-says-read "uniq"
+  (cu-says-read "uniq"
     (fn (_ name err)
       (string-concat
         (list "uniq: error reading '" name "': " (file-err-text err))))))
@@ -78,13 +90,13 @@
 ; runs written to OUT as they end
 (def %uniq-into
   (fn (_ o in out stdin-thunk)
-    (let ((shut (%cu-first-unopened (list in) %uniq-says)))
+    (let ((shut (cu-first-unopened (list in) %uniq-says)))
       (if (Err err? shut) 1
         (let ((fd (if (string=? out "-") 1 (file-open-or-err file-open-write out))))
           (if (Err err? fd)
-            (do (%cu-say (%cu-says "uniq") out fd) 1)
+            (do (cu-say (cu-says "uniq") out fd) 1)
             (let ((runs (%uniq-runs o fd)))
-              (let ((r (%cu-fold-lines-said (list in) stdin-thunk %uniq-says
+              (let ((r (cu-fold-lines-said (list in) stdin-thunk %uniq-says
                          (first runs) (list () "" 0 0))))
                 (do ((rest runs) (first r))
                     (if (= fd 1) () (file-close fd))
@@ -107,20 +119,20 @@
           (file-write fd
             (if count?
               (string-concat
-                (list (%cu-pad-left (%cu-int->str n) 7) " " line "\n"))
+                (list (cu-pad-left (cu-int->str n) 7) " " line "\n"))
               (string-append line "\n"))))))
     (def go
       (fn (self ls cur key n i)
         (if (null? ls) (list cur key n i)
-          (let ((k (do (%cu-sweep-at i %cu-sweep-lines) (key-of (first ls)))))
+          (let ((k (do (cu-sweep-at i cu-sweep-lines) (key-of (first ls)))))
             (if (if (null? cur) #f (string=? k key))
               (self (rest ls) cur key (+ n 1) (+ i 1))
               (do (if (null? cur) () (emit n cur))
                   (self (rest ls) (first ls) k 1 (+ i 1))))))))
     (pair
       (fn (_ block s)
-        (go (%cu-lines block) (first s) (%cu-nth 1 s) (%cu-nth 2 s) (%cu-nth 3 s)))
-      (fn (_ s) (if (null? (first s)) () (emit (%cu-nth 2 s) (first s)))))))
+        (go (cu-lines block) (first s) (cu-nth 1 s) (cu-nth 2 s) (cu-nth 3 s)))
+      (fn (_ s) (if (null? (first s)) () (emit (cu-nth 2 s) (first s)))))))
 
 ; --- nl -----------------------------------------------------------------------
 
@@ -140,20 +152,20 @@
 (def %nl-format
   (fn (_ style width)
     (match
-      ((string=? style "ln") (fn (_ n) (%cu-pad (%cu-int->str n) width #t)))
-      ((string=? style "rz") (fn (_ n) (%cu-pad-zero (%cu-int->str n) width)))
-      (#t (fn (_ n) (%cu-pad-left (%cu-int->str n) width))))))
+      ((string=? style "ln") (fn (_ n) (cu-pad (cu-int->str n) width #t)))
+      ((string=? style "rz") (fn (_ n) (cu-pad-zero (cu-int->str n) width)))
+      (#t (fn (_ n) (cu-pad-left (cu-int->str n) width))))))
 
-(def %cu-nl
+(def cu-nl
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "nl" argv))
+    (def o (cu-opts "nl" argv))
     (def sep (let ((v (Opts value o "-s"))) (if (null? v) "\t" v)))
     (def start (let ((v (Opts value o "-v")))
-                 (if (null? v) 1 (%cu-num-prefix v))))
+                 (if (null? v) 1 (cu-num-prefix v))))
     (def step (let ((v (Opts value o "-i")))
-                (if (null? v) 1 (%cu-num-prefix v))))
+                (if (null? v) 1 (cu-num-prefix v))))
     (def width (let ((v (Opts value o "-w")))
-                 (if (null? v) 6 (%cu-num-prefix v))))
+                 (if (null? v) 6 (cu-num-prefix v))))
     (def numbered? (%nl-number? (let ((v (Opts value o "-b"))) (if (null? v) "t" v))))
     (def layout (%nl-format (let ((v (Opts value o "-n"))) (if (null? v) "rn" v)) width))
     (def ops (Opts operands o))
@@ -165,7 +177,7 @@
     (def go
       (fn (self ls n i)
         (if (null? ls) n
-          (do (%cu-sweep-at i %cu-sweep-lines)
+          (do (cu-sweep-at i cu-sweep-lines)
             (if (numbered? (first ls))
               (do (display
                     (string-concat
@@ -176,6 +188,8 @@
     ; each block of whole lines numbered and put out as it is read, the
     ; numbering going on from one block to the next
     (rest
-      (%cu-fold-lines-said ops stdin-thunk (%cu-says "nl")
-        (fn (_ block n) (go (%cu-lines block) n 0))
+      (cu-fold-lines-said ops stdin-thunk (cu-says "nl")
+        (fn (_ block n) (go (cu-lines block) n 0))
         start))))
+
+(provide cu/text4 cu-nl cu-uniq)

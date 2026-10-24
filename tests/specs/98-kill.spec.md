@@ -12,7 +12,7 @@ A `|` marks the end of each line written to standard output.
 ### a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-kill && mkdir -p /tmp/x-cu-kill")) (def nf (fn (_ n) (string-append "/tmp/x-cu-kill/" n))) (def capture (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def run (fn (_ argv) (let ((r (capture argv))) (display (string-concat (list (Str8 replace "\n" "|\n" (first r)) "stderr:\n" (first (rest r)) "status " (%cu-int->str (first (rest (rest r)))) "\n")))))) (def kill (fn (_ . words) (run (pair "kill" words)))) (def same (fn (_ a b) (if (null? a) (null? b) (if (null? b) #f (= a b))))) (def child (fn (_) (let ((kid (sys-fork))) (if (= kid 0) (do (sys-exec "/bin/sleep" (list "30.4343")) (sys-exit 127)) kid)))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-kill && mkdir -p /tmp/x-cu-kill")) (def nf (fn (_ n) (string-append "/tmp/x-cu-kill/" n))) (def capture (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def run (fn (_ argv) (let ((r (capture argv))) (display (string-concat (list (Str8 replace "\n" "|\n" (first r)) "stderr:\n" (first (rest r)) "status " (cu-int->str (first (rest (rest r)))) "\n")))))) (def kill (fn (_ . words) (run (pair "kill" words)))) (def same (fn (_ a b) (if (null? a) (null? b) (if (null? b) #f (= a b))))) (def child (fn (_) (let ((kid (sys-fork))) (if (= kid 0) (do (sys-exec "/bin/sleep" (list "30.4343")) (sys-exit 127)) kid)))) (display "made"))
 ```
 ---
     made
@@ -147,7 +147,7 @@ status 1
 ### alone, it lists the kernel's signals, then libc's RTMIN and RTMAX where it has them
 
 ```cu
-(let ((r (capture (list "kill" "-l"))) (rt (%pg-rt)) (line (fn (_ n name) (string-concat (list (%cu-pad-left (%cu-int->str n) 2) ") " name "\n"))))) (list (str=? (first r) (string-concat (append (map (fn (_ e) (line (rest e) (first e))) (sys-signals)) (if (null? rt) () (list (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))))) (str=? (first r) (first (capture (list "pkill" "-l")))) (first (rest r)) (first (rest (rest r))) (= (length (sys-signals)) 31) (if (null? rt) os-darwin? (if (< (first rt) (rest rt)) (= (rest rt) 64) #f))))
+(let ((r (capture (list "kill" "-l"))) (rt (pg-rt)) (line (fn (_ n name) (string-concat (list (cu-pad-left (cu-int->str n) 2) ") " name "\n"))))) (list (str=? (first r) (string-concat (append (map (fn (_ e) (line (rest e) (first e))) (sys-signals)) (if (null? rt) () (list (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))))) (str=? (first r) (first (capture (list "pkill" "-l")))) (first (rest r)) (first (rest (rest r))) (= (length (sys-signals)) 31) (if (null? rt) os-darwin? (if (< (first rt) (rest rt)) (= (rest rt) 64) #f))))
 ```
 ---
     (#t #t "" 0 #t #t)
@@ -155,7 +155,7 @@ status 1
 ### the names each kernel numbers its own way
 
 ```cu
-(map (fn (_ e) (same (%pg-signum (first e)) (if os-darwin? (first (rest e)) (first (rest (rest e)))))) (list (list "USR1" 30 10) (list "USR2" 31 12) (list "CHLD" 20 17) (list "STOP" 17 19) (list "SYS" 12 31) (list "BUS" 10 7) (list "IO" 23 29) (list "io" 23 29) (list "SIGIO" 23 29) (list "POLL" () 29) (list "PWR" () 30) (list "STKFLT" () 16) (list "EMT" 7 ()) (list "INFO" 29 ())))
+(map (fn (_ e) (same (pg-signum (first e)) (if os-darwin? (first (rest e)) (first (rest (rest e)))))) (list (list "USR1" 30 10) (list "USR2" 31 12) (list "CHLD" 20 17) (list "STOP" 17 19) (list "SYS" 12 31) (list "BUS" 10 7) (list "IO" 23 29) (list "io" 23 29) (list "SIGIO" 23 29) (list "POLL" () 29) (list "PWR" () 30) (list "STKFLT" () 16) (list "EMT" 7 ()) (list "INFO" 29 ())))
 ```
 ---
     (#t #t #t #t #t #t #t #t #t #t #t #t #t #t)
@@ -163,7 +163,7 @@ status 1
 ### a number is a signal below NSIG: 65 where libc has real-time signals, 32 where it has none
 
 ```cu
-(let ((rt (%pg-rt))) (list (= (%pg-nsig) (if os-darwin? 32 65)) (same (%pg-signum "31") 31) (same (%pg-signum "64") (if os-darwin? () 64)) (%pg-signum "65") (%pg-signum "99") (%pg-signum "9x") (%pg-signum "9 ") (%pg-signum "9,") (%pg-signum "+9") (%pg-signum "")))
+(let ((rt (pg-rt))) (list (= (pg-nsig) (if os-darwin? 32 65)) (same (pg-signum "31") 31) (same (pg-signum "64") (if os-darwin? () 64)) (pg-signum "65") (pg-signum "99") (pg-signum "9x") (pg-signum "9 ") (pg-signum "9,") (pg-signum "+9") (pg-signum "")))
 ```
 ---
     (#t #t #t () () () 9 9 () ())
@@ -171,7 +171,7 @@ status 1
 ### RTMIN+N and RTMAX-N stay inside libc's range; where libc has none, no name reads
 
 ```cu
-(let ((rt (%pg-rt)) (none (fn (_ s) (null? (%pg-signum s))))) (if (null? rt) (map none (list "RTMIN" "RTMAX" "RTMIN+1" "sigrtmin+1" "RTMAX-2" "RTMAX-0" "RTMIN+0" "RTMIN-1" "RTMINX")) (list (same (%pg-signum "RTMIN") (first rt)) (same (%pg-signum "sigrtmin+1") (+ (first rt) 1)) (same (%pg-signum "RTMAX-2") (- (rest rt) 2)) (same (%pg-signum "RTMAX-0") (rest rt)) (same (%pg-signum (string-append "RTMIN+" (%cu-int->str (- (rest rt) (first rt))))) (rest rt)) (none (string-append "RTMIN+" (%cu-int->str (+ (- (rest rt) (first rt)) 1)))) (none "RTMAX-40") (none "RTMIN-1") (none "RTMINX"))))
+(let ((rt (pg-rt)) (none (fn (_ s) (null? (pg-signum s))))) (if (null? rt) (map none (list "RTMIN" "RTMAX" "RTMIN+1" "sigrtmin+1" "RTMAX-2" "RTMAX-0" "RTMIN+0" "RTMIN-1" "RTMINX")) (list (same (pg-signum "RTMIN") (first rt)) (same (pg-signum "sigrtmin+1") (+ (first rt) 1)) (same (pg-signum "RTMAX-2") (- (rest rt) 2)) (same (pg-signum "RTMAX-0") (rest rt)) (same (pg-signum (string-append "RTMIN+" (cu-int->str (- (rest rt) (first rt))))) (rest rt)) (none (string-append "RTMIN+" (cu-int->str (+ (- (rest rt) (first rt)) 1)))) (none "RTMAX-40") (none "RTMIN-1") (none "RTMINX"))))
 ```
 ---
     (#t #t #t #t #t #t #t #t #t)
@@ -327,7 +327,7 @@ status 0
 ### TERM by default, -SIG, -s SIG and -- signal this spec's children; -0 only asks
 
 ```cu
-(let ((a (child)) (b (child)) (c (child)) (d (child))) (def as (fn (_ pid) (%cu-int->str pid))) (def r0 (capture (list "kill" "-0" (as a)))) (def r1 (capture (list "kill" "--" (as a)))) (def r2 (capture (list "kill" "-INT" (as b)))) (def r3 (capture (list "kill" "-s" "hup" (string-concat (list (as c) " " (as d)))))) (list r0 (sys-wait a) r1 (sys-wait b) r2 (sys-wait c) (sys-wait d) r3))
+(let ((a (child)) (b (child)) (c (child)) (d (child))) (def as (fn (_ pid) (cu-int->str pid))) (def r0 (capture (list "kill" "-0" (as a)))) (def r1 (capture (list "kill" "--" (as a)))) (def r2 (capture (list "kill" "-INT" (as b)))) (def r3 (capture (list "kill" "-s" "hup" (string-concat (list (as c) " " (as d)))))) (list r0 (sys-wait a) r1 (sys-wait b) r2 (sys-wait c) (sys-wait d) r3))
 ```
 ---
     (("" "" 0) 143 ("" "" 0) 130 ("" "" 0) 129 129 ("" "" 0))

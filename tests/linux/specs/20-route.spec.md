@@ -20,7 +20,7 @@ one on the container's own interfaces, and the case after it takes it away.
           (sys-dup2 lx-o 1) (sys-dup2 lx-e 2)
           (def lx-st (cu-run argv ""))
           (sys-dup2 9 1) (sys-dup2 8 2) (file-close lx-o) (file-close lx-e)
-          (string-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (%cu-int->str lx-st) "\n")))))
+          (string-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n")))))
     (def lx-bb (fn (_ argv)
       (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be")))
           (string-concat (list (lx-read "/tmp/lx-bo") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))

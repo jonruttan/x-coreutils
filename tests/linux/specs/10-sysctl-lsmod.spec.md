@@ -22,7 +22,7 @@ the writes are to kernel.domainname, which is the container's own.
           (sys-dup2 lx-o 1) (sys-dup2 lx-e 2)
           (def lx-st (cu-run argv ""))
           (sys-dup2 9 1) (sys-dup2 8 2) (file-close lx-o) (file-close lx-e)
-          (string-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (%cu-int->str lx-st) "\n")))))
+          (string-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n")))))
     (def lx-bb (fn (_ argv)
       (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be")))
           (string-concat (list (lx-read "/tmp/lx-bo") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))
@@ -67,8 +67,8 @@ bundle.  So the keys read are compared by name and the ones not read are
 counted.
 
 ```cu
-(do (def lx-names (fn (_ text) (Str8 join "\n" (map (fn (_ l) (substring l 0 (%dp-find l 0 #\=))) (filter (fn (_ l) (>= (%dp-find l 0 #\=) 0)) (%cu-lines text))))))
-    (def lx-errors (fn (_ text) (length (filter (fn (_ l) (Str8 starts? "sysctl: error reading key" l)) (%cu-lines text)))))
+(do (def lx-names (fn (_ text) (Str8 join "\n" (map (fn (_ l) (substring l 0 (dp-find l 0 #\=))) (filter (fn (_ l) (>= (dp-find l 0 #\=) 0)) (cu-lines text))))))
+    (def lx-errors (fn (_ text) (length (filter (fn (_ l) (Str8 starts? "sysctl: error reading key" l)) (cu-lines text)))))
     (def lx-xa (lx-x (list "sysctl" "-a")))
     (def lx-ba (lx-bb (list "sysctl" "-a")))
     (display (list (string=? (lx-names lx-xa) (lx-names lx-ba)) (= (lx-errors lx-xa) (lx-errors lx-ba)))))

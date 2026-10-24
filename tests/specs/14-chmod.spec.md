@@ -81,7 +81,7 @@ status 0
 ### stat and ls -l spell them the same way, and stat's Access line has four digits
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "cd /tmp/x-cu-chm && : > s && chmod 4755 s && : > n && chmod 1776 n && : > p && chmod 644 p")) (display (cu-out (list "stat" "-c" "%a %A" (chm "f") (chm "s") (chm "n") (chm "d")))) (display (substring (cu-out (list "ls" "-ld" (chm "n"))) 0 10)) (newline) (display (substring (%cu-nth 3 (%cu-lines (cu-out (list "stat" (chm "p"))))) 0 25)) (newline))
+(do (proc-run (list "/bin/sh" "-c" "cd /tmp/x-cu-chm && : > s && chmod 4755 s && : > n && chmod 1776 n && : > p && chmod 644 p")) (display (cu-out (list "stat" "-c" "%a %A" (chm "f") (chm "s") (chm "n") (chm "d")))) (display (substring (cu-out (list "ls" "-ld" (chm "n"))) 0 10)) (newline) (display (substring (cu-nth 3 (cu-lines (cu-out (list "stat" (chm "p"))))) 0 25)) (newline))
 ```
 ---
 ```output

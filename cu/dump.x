@@ -21,12 +21,23 @@
 ; libc's printf, which the platform does not reach.
 ;
 ; The engine's state is the run's own: an applet sets it up with
-; %cu-dump-reset!, adds formats, and runs %cu-dump.
+; cu-dump-reset!, adds formats, and runs %cu-dump.
 
 ; --- the state of a run -------------------------------------------------------
 
+(module cu/dump)
+
+(import cu/cal cal-sum)
+(import cu/prims append byte-at byte-len cal/ cu-nth cu-stat-get
+  cu-sweep-tick! file-err-text file-stat-full file-write file-write-run map
+  reverse string-append string-concat string=? substring vec-build vec-ref
+  vec-set!)
+(import cu/text cu-pad-left cu-pad-zero cu-pieces cu-pieces-past)
+(import cu/tsort ts-space?)
+
 (def %dp-applet "hexdump")
 (def %dp-fss ())            ; the format strings, each (FUS . BCNT) in a cell
+(def dp-formats (fn (_) %dp-fss))
 (def %dp-error ())          ; the first refusal, said and fatal
 (def %dp-skip 0)            ; -s: the bytes still to pass over
 (def %dp-length -1)         ; -n: the bytes still to read, -1 for all
@@ -53,7 +64,7 @@
 (def %dp-out ())            ; what is to be written, newest first
 (def %dp-stop #f)
 
-(def %cu-dump-reset!
+(def cu-dump-reset!
   (fn (_ applet stdin-thunk)
     (do (set! %dp-applet applet)
         (set! %dp-fss ())
@@ -83,12 +94,12 @@
         (set! %dp-out ())
         (set! %dp-stop #f))))
 
-(def %cu-dump-skip! (fn (_ n) (set! %dp-skip n)))
-(def %cu-dump-length! (fn (_ n) (set! %dp-length n)))
-(def %cu-dump-all! (fn (_) (set! %dp-vflag (lit all))))
-(def %cu-dump-xxd-eof! (fn (_ s) (set! %dp-xxd-eof s)))
-(def %cu-dump-displayoff! (fn (_ n) (set! %dp-displayoff n)))
-(def %cu-dump-address (fn (_) %dp-address))
+(def cu-dump-skip! (fn (_ n) (set! %dp-skip n)))
+(def cu-dump-length! (fn (_ n) (set! %dp-length n)))
+(def cu-dump-all! (fn (_) (set! %dp-vflag (lit all))))
+(def cu-dump-xxd-eof! (fn (_ s) (set! %dp-xxd-eof s)))
+(def cu-dump-displayoff! (fn (_ n) (set! %dp-displayoff n)))
+(def cu-dump-address (fn (_) %dp-address))
 
 ; the first refusal: said once, and the run ends with 1
 (def %dp-fail!
@@ -125,31 +136,31 @@
 
 ; --- bytes and characters -----------------------------------------------------
 
-(def %dp-digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
+(def dp-digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
 
 ; C in the string SET
-(def %dp-in?
+(def dp-in?
   (fn (_ c set)
     (def n (byte-len set))
     (def go (fn (self i) (if (>= i n) #f (if (= (byte-at set i) c) #t (self (+ i 1))))))
     (go 0)))
 
 ; the byte of S at I, 0 past its end, as C reads its terminator
-(def %dp-at (fn (_ s i) (if (< i (byte-len s)) (byte-at s i) 0)))
+(def dp-at (fn (_ s i) (if (< i (byte-len s)) (byte-at s i) 0)))
 
-(def %dp-skip-ws
-  (fn (self s i) (if (if (< i (byte-len s)) (%ts-space? (byte-at s i)) #f) (self s (+ i 1)) i)))
+(def dp-skip-ws
+  (fn (self s i) (if (if (< i (byte-len s)) (ts-space? (byte-at s i)) #f) (self s (+ i 1)) i)))
 
 ; the decimal digits of S from I, as atoi reads them
 (def %dp-atoi
   (fn (_ s i)
     (def go
       (fn (self j acc)
-        (if (%dp-digit? (%dp-at s j)) (self (+ j 1) (+ (* acc 10) (- (byte-at s j) #\0))) acc)))
+        (if (dp-digit? (dp-at s j)) (self (+ j 1) (+ (* acc 10) (- (byte-at s j) #\0))) acc)))
     (go i 0)))
 
 (def %dp-digits-end
-  (fn (self s i) (if (%dp-digit? (%dp-at s i)) (self s (+ i 1)) i)))
+  (fn (self s i) (if (dp-digit? (dp-at s i)) (self s (+ i 1)) i)))
 
 ; --- the escapes of a format ------------------------------------------------------
 
@@ -159,7 +170,7 @@
 ; after it left to be read.
 (def %dp-escape
   (fn (_ s q)
-    (def hex (= (%dp-at s q) #\x))
+    (def hex (= (dp-at s q) #\x))
     (def base (if hex 16 8))
     (def digit
       (fn (_ c)
@@ -170,7 +181,7 @@
     (def go
       (fn (self j n k)
         ; K counts the digits as busybox's num_digits does, \x as one
-        (let ((d (digit (%dp-at s j))))
+        (let ((d (digit (dp-at s j))))
           (if (if (< d 0) #t (>= d base))
             (if (if hex (= k 1) #f) (lit bad) (list n j k))
             (let ((r (+ (* n base) d)))
@@ -180,9 +191,9 @@
     (let ((r (go (if hex (+ q 1) q) 0 (if hex 1 0))))
       (match
         ((eq? r (lit bad)) (pair #\\ q))
-        ((> (%cu-nth 2 r) 0) (pair (first r) (%cu-nth 1 r)))
+        ((> (cu-nth 2 r) 0) (pair (first r) (cu-nth 1 r)))
         (#t
-          (let ((c (%dp-at s q)))
+          (let ((c (dp-at s q)))
             (match
               ((= c #\a) (pair #\alarm (+ q 1)))
               ((= c #\b) (pair #\backspace (+ q 1)))
@@ -223,7 +234,7 @@
 
 ; busybox's bb_dump_add: FMT broken into its format units, added as a format
 ; string of its own
-(def %cu-dump-add
+(def cu-dump-add
   (fn (_ fmt)
     (def n (byte-len fmt))
     (def bad (fn (_) (do (%dp-fail! (string-concat (list "bad format {" fmt "}"))) ())))
@@ -231,21 +242,21 @@
       (fn (_ p)
         ; a unit from P: (FU . NEXT), or nil once refused
         (let ((rep-end (%dp-digits-end fmt p)))
-          (if (if (> rep-end p) (not (if (%ts-space? (%dp-at fmt rep-end)) #t
-                                       (= (%dp-at fmt rep-end) #\/)))
+          (if (if (> rep-end p) (not (if (ts-space? (dp-at fmt rep-end)) #t
+                                       (= (dp-at fmt rep-end) #\/)))
                 #f)
             (bad)
             (let ((reps (if (> rep-end p) (%dp-atoi fmt p) 1))
-                  (p1 (if (> rep-end p) (%dp-skip-ws fmt (+ rep-end 1)) p)))
-              (let ((p2 (if (= (%dp-at fmt p1) #\/) (%dp-skip-ws fmt (+ p1 1)) p1)))
+                  (p1 (if (> rep-end p) (dp-skip-ws fmt (+ rep-end 1)) p)))
+              (let ((p2 (if (= (dp-at fmt p1) #\/) (dp-skip-ws fmt (+ p1 1)) p1)))
                 (let ((b-end (%dp-digits-end fmt p2)))
-                  (if (if (> b-end p2) (not (%ts-space? (%dp-at fmt b-end))) #f)
+                  (if (if (> b-end p2) (not (ts-space? (dp-at fmt b-end))) #f)
                     (bad)
                     (let ((bcnt (if (> b-end p2) (%dp-atoi fmt p2) 0))
-                          (p3 (if (> b-end p2) (%dp-skip-ws fmt (+ b-end 1)) p2)))
-                      (if (not (= (%dp-at fmt p3) #\"))
+                          (p3 (if (> b-end p2) (dp-skip-ws fmt (+ b-end 1)) p2)))
+                      (if (not (= (dp-at fmt p3) #\"))
                         (bad)
-                        (let ((close (%dp-find fmt (+ p3 1) #\")))
+                        (let ((close (dp-find fmt (+ p3 1) #\")))
                           (if (< close 0) (bad)
                             (pair (vec-build 6
                                     (fn (_ i)
@@ -259,7 +270,7 @@
                                   (+ close 1))))))))))))))
     (def go
       (fn (self p acc)
-        (let ((q (%dp-skip-ws fmt p)))
+        (let ((q (dp-skip-ws fmt p)))
           (if (>= q n) (reverse acc)
             (let ((r (unit q)))
               (if (null? r) ()
@@ -270,7 +281,7 @@
         ()))))
 
 ; the index of C in S from I, or -1
-(def %dp-find
+(def dp-find
   (fn (_ s i c)
     (def n (byte-len s))
     (def go (fn (self j) (if (>= j n) -1 (if (= (byte-at s j) c) j (self (+ j 1))))))
@@ -289,19 +300,19 @@
           (fn (self i bcnt prec)
             (if (>= i n) bcnt
               (if (not (= (byte-at fmt i) #\%)) (self (+ i 1) bcnt prec)
-                (let ((j (%dp-skip-in fmt (+ i 1) %dp-flag-chars)))
-                  (let ((dot (= (%dp-at fmt j) #\.)))
+                (let ((j (dp-skip-in fmt (+ i 1) %dp-flag-chars)))
+                  (let ((dot (= (dp-at fmt j) #\.)))
                     (let ((k (if dot (+ j 1) j)))
-                      (let ((prec2 (if (if dot (%dp-digit? (%dp-at fmt k)) #f) (%dp-atoi fmt k) prec))
-                            (k2 (if (if dot (%dp-digit? (%dp-at fmt k)) #f) (%dp-digits-end fmt k) k)))
-                        (let ((c (%dp-at fmt k2)))
+                      (let ((prec2 (if (if dot (dp-digit? (dp-at fmt k)) #f) (%dp-atoi fmt k) prec))
+                            (k2 (if (if dot (dp-digit? (dp-at fmt k)) #f) (%dp-digits-end fmt k) k)))
+                        (let ((c (dp-at fmt k2)))
                           (match
                             ((= c #\c) (self (+ k2 1) (+ bcnt 1) prec2))
-                            ((%dp-in? c "diouxX") (self (+ k2 1) (+ bcnt 4) prec2))
-                            ((%dp-in? c "eEfgG") (self (+ k2 1) (+ bcnt 8) prec2))
+                            ((dp-in? c "diouxX") (self (+ k2 1) (+ bcnt 4) prec2))
+                            ((dp-in? c "eEfgG") (self (+ k2 1) (+ bcnt 8) prec2))
                             ((= c #\s) (self (+ k2 1) (+ bcnt prec2) prec2))
                             ((= c #\_)
-                              (if (%dp-in? (%dp-at fmt (+ k2 1)) "cpu")
+                              (if (dp-in? (dp-at fmt (+ k2 1)) "cpu")
                                 (self (+ k2 2) (+ bcnt 1) prec2)
                                 (self (+ k2 2) bcnt prec2)))
                             (#t (self (+ k2 1) bcnt prec2))))))))))))
@@ -317,9 +328,9 @@
     (go fus 0)))
 
 ; the index past the run of SET's characters in S from I
-(def %dp-skip-in
+(def dp-skip-in
   (fn (self s i set)
-    (if (if (< i (byte-len s)) (%dp-in? (byte-at s i) set) #f) (self s (+ i 1) set) i)))
+    (if (if (< i (byte-len s)) (dp-in? (byte-at s i) set) #f) (self s (+ i 1) set) i)))
 
 ; --- the print units --------------------------------------------------------------
 
@@ -350,13 +361,13 @@
         (def go
           (fn (self fmtp nconv acc)
             (if (if (>= fmtp n) #t (not (null? %dp-error))) (reverse acc)
-              (let ((pct (%dp-find fmt fmtp #\%)))
+              (let ((pct (dp-find fmt fmtp #\%)))
                 (if (< pct 0)
                   (reverse (pair (%dp-pr (lit text) 0 (substring fmt fmtp n) "" 0 "") acc))
                   (let ((r (%dp-conversion fmt pct fbcnt fu)))
                     (if (null? r) (reverse acc)
                       (let ((pr (first r)) (p2 (rest r)))
-                        (let ((p3 (let ((f (%dp-find fmt p2 #\%))) (if (< f 0) n f))))
+                        (let ((p3 (let ((f (dp-find fmt p2 #\%))) (if (< f 0) n f))))
                           ; busybox counts a conversion only where the unit
                           ; has a byte count and it is not an offset
                           (let ((counts (if (eq? (vec-ref pr 0) (lit address)) #f (> fbcnt 0))))
@@ -369,7 +380,7 @@
         (let ((prs (go 0 0 ())))
           (do (vec-set! fu 5 prs)
               (if (= fbcnt 0)
-                (vec-set! fu 1 (%cal-sum (map (fn (_ pr) (vec-ref pr 1)) prs)))
+                (vec-set! fu 1 (cal-sum (map (fn (_ pr) (vec-ref pr 1)) prs)))
                 ())))))
     (def adjust
       (fn (self us)
@@ -379,7 +390,7 @@
                       (if (< (vec-ref fs 1) %dp-blocksize)
                         (if (not (%dp-fu-setrep fu)) (> (%dp-fu-bcnt fu) 0) #f) #f) #f)
                   (vec-set! fu 0 (+ (%dp-fu-reps fu)
-                                    (%cal/ (- %dp-blocksize (vec-ref fs 1)) (%dp-fu-bcnt fu))))
+                                    (cal/ (- %dp-blocksize (vec-ref fs 1)) (%dp-fu-bcnt fu))))
                   ())
                 (if (if (> (%dp-fu-reps fu) 1) (pair? (%dp-fu-prs fu)) #f)
                   (let ((last (List last (%dp-fu-prs fu))))
@@ -393,7 +404,7 @@
 (def %dp-ends-in-space?
   (fn (_ pr)
     (let ((s (if (eq? (vec-ref pr 0) (lit text)) (vec-ref pr 2) (vec-ref pr 5))))
-      (if (= (byte-len s) 0) #f (%ts-space? (byte-at s (- (byte-len s) 1)))))))
+      (if (= (byte-len s) 0) #f (ts-space? (byte-at s (- (byte-len s) 1)))))))
 
 ; the refusal of the conversion character at AT of FMT
 (def %dp-bad
@@ -420,18 +431,18 @@
 ; unsigned, of 4 2 or 1
 (def %dp-int-conv
   (fn (_ fmt pct fbcnt at)
-    (let ((c (%dp-at fmt at)))
+    (let ((c (dp-at fmt at)))
       (match
-        ((%dp-in? c "di") (%dp-counted fmt pct fbcnt (lit int) (list 8 4 2 1) at c (+ at 1)))
-        ((%dp-in? c "ouxX") (%dp-counted fmt pct fbcnt (lit uint) (list 4 2 1) at c (+ at 1)))
+        ((dp-in? c "di") (%dp-counted fmt pct fbcnt (lit int) (list 8 4 2 1) at c (+ at 1)))
+        ((dp-in? c "ouxX") (%dp-counted fmt pct fbcnt (lit uint) (list 4 2 1) at c (+ at 1)))
         (#t (%dp-bad fmt at))))))
 
 ; dump's own conversions, at P1 the _: %_a and %_A (d o or x), %_c, %_p, %_u
 (def %dp-underscore
   (fn (_ fmt pct fbcnt fu p1)
-    (let ((k (%dp-at fmt (+ p1 1))) (x (%dp-at fmt (+ p1 2))))
+    (let ((k (dp-at fmt (+ p1 1))) (x (dp-at fmt (+ p1 2))))
       (match
-        ((if (if (= k #\a) #t (= k #\A)) (not (%dp-in? x "dox")) #f) (%dp-bad fmt p1))
+        ((if (if (= k #\a) #t (= k #\A)) (not (dp-in? x "dox")) #f) (%dp-bad fmt p1))
         ((if (= k #\a) #t (= k #\A))
           (do (if (= k #\A) (do (set! %dp-endfu fu) (vec-set! fu 4 #t)) ())
               (pair (%dp-pr (lit address) 0 "" (substring fmt (+ pct 1) p1) x "") (+ p1 3))))
@@ -445,19 +456,19 @@
 ; precision is part of the flags; without one, it is %s's byte count.
 (def %dp-conversion
   (fn (_ fmt pct fbcnt fu)
-    (def p1a (%dp-skip-in fmt (+ pct 1) (if (> fbcnt 0) %dp-dot-flag-chars %dp-flag-chars)))
-    (def dot (if (> fbcnt 0) #f (= (%dp-at fmt p1a) #\.)))
+    (def p1a (dp-skip-in fmt (+ pct 1) (if (> fbcnt 0) %dp-dot-flag-chars %dp-flag-chars)))
+    (def dot (if (> fbcnt 0) #f (= (dp-at fmt p1a) #\.)))
     (def p1b (if dot (+ p1a 1) p1a))
-    (def prec? (if dot (%dp-digit? (%dp-at fmt p1b)) #f))
+    (def prec? (if dot (dp-digit? (dp-at fmt p1b)) #f))
     (def p1 (if prec? (%dp-digits-end fmt p1b) p1b))
-    (def c (%dp-at fmt p1))
+    (def c (dp-at fmt p1))
     (match
       ((= c #\c) (%dp-counted fmt pct fbcnt (lit char) (list 1) p1 c (+ p1 1)))
       ((= c #\l)
-        (let ((q (if (= (%dp-at fmt (+ p1 1)) #\l) (+ p1 2) (+ p1 1))))
+        (let ((q (if (= (dp-at fmt (+ p1 1)) #\l) (+ p1 2) (+ p1 1))))
           (%dp-int-conv fmt pct fbcnt q)))
-      ((%dp-in? c "diouxX") (%dp-int-conv fmt pct fbcnt p1))
-      ((%dp-in? c "eEfgG")
+      ((dp-in? c "diouxX") (%dp-int-conv fmt pct fbcnt p1))
+      ((dp-in? c "eEfgG")
         (do (%dp-fail! (string-concat
                          (list "floating-point conversion %" (bytes->str (list c))
                                " is not supported")))
@@ -477,14 +488,14 @@
 ; --- printf, one conversion -----------------------------------------------------
 
 ; N's digits in RADIX, N read as an unsigned 64-bit number
-(def %dp-udigits
+(def dp-udigits
   (fn (_ n radix upper)
     (def digit (fn (_ d) (if (< d 10) (+ #\0 d) (+ (if upper #\A #\a) (- d 10)))))
     (def go
       (fn (self t acc)
         (if (= t 0) acc
           (let ((d (% t radix)))
-            (self (%cal/ (- t d) radix) (pair (digit d) acc))))))
+            (self (cal/ (- t d) radix) (pair (digit d) acc))))))
     (match
       ((= n 0) "0")
       ((> n 0) (bytes->str (go n ())))
@@ -496,15 +507,15 @@
         (bytes->str (go (& (>> n 3) 2305843009213693951) (list (digit (& n 7))))))
       (#t
         (let ((hi (& (>> n 1) 9223372036854775807)))
-          (let ((q (%cal/ hi 5)))
+          (let ((q (cal/ hi 5)))
             (bytes->str (go q (list (digit (+ (* 2 (- hi (* 5 q))) (& n 1))))))))))))
 
 ; SPEC read as printf reads it: (FLAGS WIDTH PREC), PREC nil when not given
 (def %dp-spec
   (fn (_ spec)
-    (def flags-end (%dp-skip-in spec 0 "#-+ 0"))
+    (def flags-end (dp-skip-in spec 0 "#-+ 0"))
     (def w-end (%dp-digits-end spec flags-end))
-    (def dot (= (%dp-at spec w-end) #\.))
+    (def dot (= (dp-at spec w-end) #\.))
     (list (substring spec 0 flags-end)
           (if (> w-end flags-end) (%dp-atoi spec flags-end) 0)
           (if dot (%dp-atoi spec (+ w-end 1)) ()))))
@@ -514,24 +525,24 @@
 (def %dp-conv!
   (fn (_ spec conv value)
     (let ((sp (%dp-spec spec)))
-      (%dp-conv-p! (%dp-flagset (first sp)) (%cu-nth 1 sp) (%cu-nth 2 sp) conv value))))
+      (%dp-conv-p! (%dp-flagset (first sp)) (cu-nth 1 sp) (cu-nth 2 sp) conv value))))
 
 ; FLAGS as (LEFT ZERO PLUS SPACE ALT), read once
 (def %dp-flagset
   (fn (_ flags)
-    (map (fn (_ c) (%dp-in? c flags)) (list #\- #\0 #\+ #\space #\#))))
+    (map (fn (_ c) (dp-in? c flags)) (list #\- #\0 #\+ #\space #\#))))
 
 ; %dp-conv! with its spec read: FL the flag set, WIDTH, PREC nil or a count
 (def %dp-conv-p!
   (fn (_ fl width prec conv value)
     (def left (first fl))
-    (def zero (%cu-nth 1 fl))
-    (def alt (%cu-nth 4 fl))
+    (def zero (cu-nth 1 fl))
+    (def alt (cu-nth 4 fl))
     ; the sign or prefix, and the body: a string, or for %c the byte
     (def lead
       (match
         ((if (= conv #\d) #t (= conv #\i))
-          (match ((< value 0) "-") ((%cu-nth 2 fl) "+") ((%cu-nth 3 fl) " ") (#t "")))
+          (match ((< value 0) "-") ((cu-nth 2 fl) "+") ((cu-nth 3 fl) " ") (#t "")))
         ((if (if alt (not (= value 0)) #f) (= conv #\x) #f) "0x")
         ((if (if alt (not (= value 0)) #f) (= conv #\X) #f) "0X")
         (#t "")))
@@ -540,14 +551,14 @@
         ((= conv #\c) value)
         ((= conv #\s)
           (if (if (null? prec) #t (<= (byte-len value) prec)) value (substring value 0 prec)))
-        ((= conv #\x) (%dp-precise (%dp-udigits value 16 #f) prec value))
-        ((= conv #\X) (%dp-precise (%dp-udigits value 16 #t) prec value))
+        ((= conv #\x) (%dp-precise (dp-udigits value 16 #f) prec value))
+        ((= conv #\X) (%dp-precise (dp-udigits value 16 #t) prec value))
         ((= conv #\o)
-          (let ((b (%dp-precise (%dp-udigits value 8 #f) prec value)))
+          (let ((b (%dp-precise (dp-udigits value 8 #f) prec value)))
             (if (if alt (not (if (> (byte-len b) 0) (= (byte-at b 0) #\0) #f)) #f)
               (string-append "0" b) b)))
-        ((= conv #\u) (%dp-precise (%dp-udigits value 10 #f) prec value))
-        (#t (%dp-precise (%dp-udigits (if (< value 0) (- 0 value) value) 10 #f) prec value))))
+        ((= conv #\u) (%dp-precise (dp-udigits value 10 #f) prec value))
+        (#t (%dp-precise (dp-udigits (if (< value 0) (- 0 value) value) 10 #f) prec value))))
     (def gap (- width (+ (byte-len lead) (if (= conv #\c) 1 (byte-len body)))))
     (def put-body
       (fn (_)
@@ -557,10 +568,10 @@
           (#t (%dp-put (bytes->str (list body)))))))
     (match
       ((<= gap 0) (do (%dp-put lead) (put-body)))
-      (left (do (%dp-put lead) (put-body) (%dp-put (%cu-pad-left "" gap))))
+      (left (do (%dp-put lead) (put-body) (%dp-put (cu-pad-left "" gap))))
       ((if zero (if (null? prec) (not (if (= conv #\c) #t (= conv #\s))) #f) #f)
-        (do (%dp-put lead) (%dp-put (%cu-pad-zero "" gap)) (put-body)))
-      (#t (do (%dp-put (%cu-pad-left "" gap)) (%dp-put lead) (put-body))))))
+        (do (%dp-put lead) (%dp-put (cu-pad-zero "" gap)) (put-body)))
+      (#t (do (%dp-put (cu-pad-left "" gap)) (%dp-put lead) (put-body))))))
 
 ; DIGITS to at least PREC of them; a precision of 0 prints no digit for 0
 (def %dp-precise
@@ -568,7 +579,7 @@
     (match
       ((null? prec) digits)
       ((if (= prec 0) (= value 0) #f) "")
-      (#t (%cu-pad-zero digits prec)))))
+      (#t (cu-pad-zero digits prec)))))
 
 ; --- the block's values -------------------------------------------------------------
 
@@ -599,7 +610,7 @@
         "cr" "so" "si" "dle" "dc1" "dc2" "dc3" "dc4" "nak" "syn" "etb" "can" "em"
         "sub" "esc" "fs" "gs" "rs" "us"))
 
-(def %dp-octal3 (fn (_ b) (%cu-pad-zero (%dp-udigits b 8 #f) 3)))
+(def %dp-octal3 (fn (_ b) (cu-pad-zero (dp-udigits b 8 #f) 3)))
 
 ; A print unit compiled, once, for the display: (BCNT NOSPACE . PRINT), PRINT
 ; called with the block's bytes from the unit's place, DROP to leave off the
@@ -616,10 +627,10 @@
     (def text-dropped (if (vec-ref pr 6) (substring text 0 (- (byte-len text) 1)) text))
     (def sp (%dp-spec spec))
     (def fl (%dp-flagset (first sp)))
-    (def width (%cu-nth 1 sp))
-    (def prec (%cu-nth 2 sp))
-    (def blank (%cu-pad-left "" width))
-    (def long (%dp-in? #\l spec))
+    (def width (cu-nth 1 sp))
+    (def prec (cu-nth 2 sp))
+    (def blank (cu-pad-left "" width))
+    (def long (dp-in? #\l spec))
     (def conv! (fn (_ c v) (%dp-conv-p! fl width prec c v)))
     (def value
       (fn (_ bp)
@@ -629,7 +640,7 @@
             ((eq? kind (lit c))
               (match
                 ((= b 0) (conv! #\s "\\0"))
-                ((if (>= b 7) (<= b 13) #f) (conv! #\s (%cu-nth (- b 6) %dp-c-escapes)))
+                ((if (>= b 7) (<= b 13) #f) (conv! #\s (cu-nth (- b 6) %dp-c-escapes)))
                 ((if (>= b 32) (< b 127) #f) (conv! #\c b))
                 (#t (conv! #\s (%dp-octal3 b)))))
             ((eq? kind (lit char)) (conv! #\c b))
@@ -644,7 +655,7 @@
             ((eq? kind (lit str)) (conv! #\s (%dp-cstring bp bcnt)))
             ((eq? kind (lit u))
               (match
-                ((<= b 31) (conv! #\s (%cu-nth b %dp-u-names)))
+                ((<= b 31) (conv! #\s (cu-nth b %dp-u-names)))
                 ((= b 127) (conv! #\s "del"))
                 ((< b 127) (conv! #\c b))
                 (#t (conv! #\x b))))
@@ -680,7 +691,7 @@
     (if (pair? %dp-argv)
       (let ((name (first %dp-argv)))
         (do (set! %dp-argv (rest %dp-argv))
-            (let ((src (%cu-pieces name %dp-stdin)))
+            (let ((src (cu-pieces name %dp-stdin)))
               (if (Err err? src)
                 (do (%dp-say name src) (set! %dp-exit 1) (set! %dp-done #t) (self))
                 (do (%dp-close!)
@@ -688,7 +699,7 @@
                     (set! %dp-name name)
                     (%dp-opened! name))))))
       (if %dp-done #f
-        (do (if (null? %dp-src) (set! %dp-src (%cu-pieces "-" %dp-stdin)) ())
+        (do (if (null? %dp-src) (set! %dp-src (cu-pieces "-" %dp-stdin)) ())
             (set! %dp-name "stdin")
             (%dp-opened! ()))))))
 
@@ -707,11 +718,11 @@
   (fn (_ name)
     (let ((st (if (if (null? name) #t (string=? name "-")) () (file-stat-full name))))
       (if (if (null? st) #f
-            (if (= (& (%cu-stat-get st (lit mode)) 61440) 32768)
-              (>= %dp-skip (%cu-stat-get st (lit size))) #f))
-        (do (set! %dp-skip (- %dp-skip (%cu-stat-get st (lit size))))
-            (set! %dp-address (+ %dp-address (%cu-stat-get st (lit size)))))
-        (do (set! %dp-src (%cu-pieces-past %dp-src %dp-skip))
+            (if (= (& (cu-stat-get st (lit mode)) 61440) 32768)
+              (>= %dp-skip (cu-stat-get st (lit size))) #f))
+        (do (set! %dp-skip (- %dp-skip (cu-stat-get st (lit size))))
+            (set! %dp-address (+ %dp-address (cu-stat-get st (lit size)))))
+        (do (set! %dp-src (cu-pieces-past %dp-src %dp-skip))
             (set! %dp-piece ())
             (set! %dp-address (+ %dp-address %dp-skip))
             (set! %dp-savaddress %dp-address)
@@ -751,7 +762,7 @@
       ((= (first a) (first b)) (self (rest a) (rest b) (- k 1)))
       (#t #f))))
 
-(def %dp-zeros (fn (self k acc) (if (<= k 0) acc (self (- k 1) (pair 0 acc)))))
+(def dp-zeros (fn (self k acc) (if (<= k 0) acc (self (- k 1) (pair 0 acc)))))
 
 ; busybox's get: the next block, in order, or nil at the end of the input.  A
 ; block the same as the last is folded: the first of a run is `*`.
@@ -762,7 +773,7 @@
       (fn (self need nread)
         (if (if (= %dp-length 0) #t (if %dp-ateof (not (%dp-next!)) #f))
           (if (= need bs) ()
-            (let ((block (append (reverse %dp-cur) (%dp-zeros need ()))))
+            (let ((block (append (reverse %dp-cur) (dp-zeros need ()))))
               (do (if (if (eq? %dp-vflag (lit all)) #f
                         (if (eq? %dp-vflag (lit first)) #f (%dp-same? (reverse %dp-cur) %dp-sav nread)))
                     (if (eq? %dp-vflag (lit dup)) () (%dp-put "*\n"))
@@ -793,7 +804,7 @@
               (set! %dp-address %dp-savaddress))
           (do (set! %dp-started #t)
               (set! %dp-address 0)
-              (set! %dp-sav (%dp-zeros bs ()))))
+              (set! %dp-sav (dp-zeros bs ()))))
         (go bs 0))))
 
 ; --- the dump ---------------------------------------------------------------------------
@@ -833,7 +844,7 @@
       (fn (self fus bp)
         (if (if (null? fus) #t (if %dp-stop #t (first (first fus)))) ()
           (let ((fu (first fus)))
-            (self (rest fus) (rep-loop (%cu-nth 2 fu) bp (%cu-nth 1 fu)))))))
+            (self (rest fus) (rep-loop (cu-nth 2 fu) bp (cu-nth 1 fu)))))))
     (def fs-loop
       (fn (self fss)
         (if (if (null? fss) #t %dp-stop) ()
@@ -864,7 +875,7 @@
 
 ; busybox's bb_dump_dump: the formats sized and rewritten, then FILES dumped
 ; (standard input when there are none).  Answers the status.
-(def %cu-dump
+(def cu-dump
   (fn (_ files)
     (def size-all
       (fn (self fss)
@@ -880,7 +891,7 @@
             (if (null? block) ()
               (do (%dp-block! block)
                   (%dp-flush!)
-                  (%cu-sweep-tick! 7)
+                  (cu-sweep-tick! 7)
                   (self (+ k 1))))))))
     (if (not (null? %dp-error)) 1
       (do (size-all %dp-fss)
@@ -893,3 +904,8 @@
                 (%dp-flush!)
                 (%dp-close!)
                 %dp-exit))))))
+
+(provide cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
+  cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
+  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-in? dp-skip-in
+  dp-skip-ws dp-udigits dp-zeros)

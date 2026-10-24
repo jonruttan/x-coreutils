@@ -12,38 +12,25 @@
 
 ; --- busybox's numbers ------------------------------------------------------------
 
+(module cu/hexdump)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
+  cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
+  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-skip-ws dp-zeros)
+(import cu/prims byte-at byte-len cu-int->str cu-lines cu-nth file-err-text
+  file-exists? file-read-all file-write file-write-run hx-hex-digit hx-strtoul
+  length map reverse string-append string-concat string=? substring vec-build
+  vec-ref vec-set!)
+(import cu/strings cu-range-number)
+(import cu/text cu-pieces cu-run-text)
+(import cu/tsort ts-space?)
+
 (def %hx-suffixes
   (list (pair "KiB" 1024) (pair "kiB" 1024) (pair "K" 1024) (pair "k" 1024)
         (pair "MiB" 1048576) (pair "miB" 1048576) (pair "M" 1048576) (pair "m" 1048576)
         (pair "GiB" 1073741824) (pair "giB" 1073741824) (pair "G" 1073741824)
         (pair "g" 1073741824) (pair "KB" 1000) (pair "MB" 1000000) (pair "GB" 1000000000)))
-
-(def %hx-hex-digit
-  (fn (_ c)
-    (match
-      ((if (>= c #\0) (<= c #\9) #f) (- c #\0))
-      ((if (>= (| c 32) #\a) (<= (| c 32) #\f) #f) (+ (- (| c 32) #\a) 10))
-      (#t -1))))
-
-; S read by strtoul with base 0 from I: 0x hex, 0 octal, else decimal.
-; Answers (VALUE . END), VALUE nil past LIMIT, END where the digits stop.
-(def %hx-strtoul
-  (fn (_ s i base limit)
-    (def n (byte-len s))
-    (def at (fn (_ k) (if (< k n) (byte-at s k) 0)))
-    (def hex-prefix
-      (if (if (= (at i) #\0) (= (| (at (+ i 1)) 32) #\x) #f)
-        (>= (%hx-hex-digit (at (+ i 2))) 0) #f))
-    (def b (match ((> base 0) base) (hex-prefix 16) ((= (at i) #\0) 8) (#t 10)))
-    (def start (if (if hex-prefix (if (= base 0) #t (= base 16)) #f) (+ i 2) i))
-    (def go
-      (fn (self k acc)
-        (let ((d (%hx-hex-digit (at k))))
-          (if (if (< d 0) #t (>= d b)) (pair acc k)
-            (if (if (null? acc) #t (> acc (%cal/ (- limit d) b)))
-              (self (+ k 1) ())
-              (self (+ k 1) (+ (* acc b) d)))))))
-    (go start 0)))
 
 ; S as busybox's xstrtou_range_sfx reads it for APPLET: no sign, no blank,
 ; base 0, then one of SUFFIXES or nothing; past LIMIT, what the type holds,
@@ -53,8 +40,8 @@
   (fn (_ applet s lo hi limit suffixes)
     (def c0 (if (> (byte-len s) 0) (byte-at s 0) 0))
     ; a sign or a blank first is refused before strtoul sees it
-    (def signed (match ((= (byte-len s) 0) #t) ((= c0 #\-) #t) ((= c0 #\+) #t) (#t (%ts-space? c0))))
-    (def r (if signed (pair () 0) (%hx-strtoul s 0 0 limit)))
+    (def signed (match ((= (byte-len s) 0) #t) ((= c0 #\-) #t) ((= c0 #\+) #t) (#t (ts-space? c0))))
+    (def r (if signed (pair () 0) (hx-strtoul s 0 0 limit)))
     (def tail (substring s (rest r) (byte-len s)))
     (def e (%hx-assoc tail suffixes))
     (def scale (match ((= (byte-len tail) 0) 1) ((null? e) ()) (#t (rest e))))
@@ -65,8 +52,8 @@
       ((if (> v hi) #t (< v lo))
         (do (file-write 2
               (string-concat
-                (list applet ": number " s " is not in " (%cu-int->str lo) ".."
-                      (%cu-int->str hi) " range\n")))
+                (list applet ": number " s " is not in " (cu-int->str lo) ".."
+                      (cu-int->str hi) " range\n")))
             ()))
       (#t v))))
 
@@ -82,14 +69,14 @@
 ; busybox's add_format: the offset at each line, and once at the end
 (def %hx-add-format
   (fn (_ fmt)
-    (do (%cu-dump-add "\"%07_Ax\n\"")
-        (%cu-dump-add (string-concat (list "\"%07_ax\"" fmt "\"\"\n\""))))))
+    (do (cu-dump-add "\"%07_Ax\n\"")
+        (cu-dump-add (string-concat (list "\"%07_ax\"" fmt "\"\"\n\""))))))
 
 (def %hx-add-c
   (fn (_)
-    (do (%cu-dump-add "\"%08_Ax\n\"")
-        (%cu-dump-add "\"%08_ax \"8/1 \" %02x\"\" \"8/1 \" %02x\"")
-        (%cu-dump-add "\"  |\"16/1 \"%_p\"\"|\n\""))))
+    (do (cu-dump-add "\"%08_Ax\n\"")
+        (cu-dump-add "\"%08_ax \"8/1 \" %02x\"\" \"8/1 \" %02x\"")
+        (cu-dump-add "\"  |\"16/1 \"%_p\"\"|\n\""))))
 
 (def %hx-flag-formats
   (list (pair "-b" "16/1 \" %03o")
@@ -108,25 +95,25 @@
                                                "': No such file or directory\n")))
             ())
         (do (map (fn (_ line)
-                   (let ((i (%dp-skip-ws line 0)))
+                   (let ((i (dp-skip-ws line 0)))
                      (if (if (< i (byte-len line)) (not (= (byte-at line i) #\#)) #f)
-                       (%cu-dump-add (substring line i (byte-len line)))
+                       (cu-dump-add (substring line i (byte-len line)))
                        ())))
-                 (%cu-lines text))
+                 (cu-lines text))
             #t)))))
 
-(def %cu-hd
+(def cu-hd
   (fn (_ argv stdin-thunk)
-    (do (%cu-dump-reset! "hd" stdin-thunk)
+    (do (cu-dump-reset! "hd" stdin-thunk)
         (%hx-add-c)
-        (%cu-dump argv))))
+        (cu-dump argv))))
 
 ; hexdump [-bcdoxCv] [-e FMT] [-f FMT_FILE] [-n LEN] [-s OFS] [FILE]...  Each
 ; of -b -c -d -o -x -C adds its formats, each -e and -f its own; with none,
 ; -x's two-byte hex less one space.
-(def %cu-hexdump
+(def cu-hexdump
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "hexdump" argv))
+    (def o (cu-opts "hexdump" argv))
     (def on (Assoc get (lit on) o))
     (def n-arg (Opts value o "-n"))
     (def s-arg (Opts value o "-s"))
@@ -147,15 +134,15 @@
         (if (null? names) #t
           (if (%hx-add-file (first names)) (self (rest names)) #f))))
     (if (if (null? len) #t (null? skip)) 1
-      (do (%cu-dump-reset! "hexdump" stdin-thunk)
+      (do (cu-dump-reset! "hexdump" stdin-thunk)
           (add-flags on)
-          (map %cu-dump-add (Opts values o "-e"))
+          (map cu-dump-add (Opts values o "-e"))
           (if (add-files (Opts values o "-f"))
-            (do (if (null? %dp-fss) (%hx-add-format "8/2 \" %04x") ())
-                (%cu-dump-length! len)
-                (%cu-dump-skip! skip)
-                (if (Opts on? o "-v") (%cu-dump-all!) ())
-                (%cu-dump (Opts operands o)))
+            (do (if (null? (dp-formats)) (%hx-add-format "8/2 \" %04x") ())
+                (cu-dump-length! len)
+                (cu-dump-skip! skip)
+                (if (Opts on? o "-v") (cu-dump-all!) ())
+                (cu-dump (Opts operands o)))
             1)))))
 
 ; --- xxd ----------------------------------------------------------------------------
@@ -171,7 +158,7 @@
         (if (>= i (byte-len name)) (bytes->str (reverse acc))
           (self (+ i 1) (pair (if (alnum? (byte-at name i)) (byte-at name i) #\_) acc)))))
     (string-append
-      (if (if (> (byte-len name) 0) (%dp-digit? (byte-at name 0)) #f) "__" "")
+      (if (if (> (byte-len name) 0) (dp-digit? (byte-at name 0)) #f) "__" "")
       (go 0 ()))))
 
 ; -o: busybox's xstrtoll, base 0, a leading - allowed
@@ -186,28 +173,28 @@
 (def %xxd-formats
   (fn (_ p? i? bytes cols)
     (do (if p? ()
-          (if i? (%cu-dump-add "\" \"") (%cu-dump-add "\"%08_ax: \"")))
+          (if i? (cu-dump-add "\" \"") (cu-dump-add "\"%08_ax: \"")))
         (match
           ((if (< bytes 1) #t (>= bytes cols))
-            (%cu-dump-add (string-concat (list (%cu-int->str cols) "/1 \"%02x\""))))
+            (cu-dump-add (string-concat (list (cu-int->str cols) "/1 \"%02x\""))))
           ((= bytes 1)
-            (%cu-dump-add
-              (string-concat (list (%cu-int->str cols) (if i? "/1 \" 0x%02x,\"" "/1 \"%02x \"")))))
+            (cu-dump-add
+              (string-concat (list (cu-int->str cols) (if i? "/1 \" 0x%02x,\"" "/1 \"%02x \"")))))
           (#t
-            (%cu-dump-add
+            (cu-dump-add
               (string-concat
                 (map (fn (_ i) (if (if (= i cols) #t (not (= (% i bytes) 0)))
                                  "/1 \"%02x\"" "/1 \"%02x \""))
                      (List range 1 (+ cols 1)))))))
         (if (if p? #t i?)
-          (do (%cu-dump-add "\"\n\"") (%cu-dump-xxd-eof! "\n"))
-          (%cu-dump-add
-            (string-concat (list "\"  \"" (%cu-int->str cols) "/1 \"%_p\"\"\n\"")))))))
+          (do (cu-dump-add "\"\n\"") (cu-dump-xxd-eof! "\n"))
+          (cu-dump-add
+            (string-concat (list "\"  \"" (cu-int->str cols) "/1 \"%_p\"\"\n\"")))))))
 
 ; xxd [-ri] [-ps] [-g N] [-c N] [-l LEN] [-s OFS] [-o OFS] [FILE]
-(def %cu-xxd
+(def cu-xxd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "xxd" argv))
+    (def o (cu-opts "xxd" argv))
     (def ops (Opts operands o))
     (def p? (if (Opts on? o "-p") #t (Opts on? o "-ps")))
     (def num
@@ -217,7 +204,7 @@
     (def len (num "-l" 0 %hx-int-max %hx-uint-max -1))
     (def skip (if (null? len) () (num "-s" 0 %hx-off-max %hx-off-max 0)))
     (match
-      ((> (length ops) 1) (%cu-usage "xxd"))
+      ((> (length ops) 1) (cu-usage "xxd"))
       ((null? skip) 1)
       ((Opts on? o "-r") (%xxd-reverse p? (if (null? ops) "-" (first ops)) skip stdin-thunk))
       (#t (%xxd-dump o ops p? len skip stdin-thunk)))))
@@ -228,8 +215,8 @@
   (fn (_ o ops p? len skip stdin-thunk)
     (def i? (Opts on? o "-i"))
     (def off (let ((v (Opts value o "-o"))) (if (null? v) 0 (%xxd-signed v))))
-    (def g (let ((v (Opts value o "-g"))) (if (null? v) 2 (%cu-range-number "xxd" v 0 %hx-int-max))))
-    (def c (let ((v (Opts value o "-c"))) (if (null? v) 0 (%cu-range-number "xxd" v 0 %hx-int-max))))
+    (def g (let ((v (Opts value o "-g"))) (if (null? v) 2 (cu-range-number "xxd" v 0 %hx-int-max))))
+    (def c (let ((v (Opts value o "-c"))) (if (null? v) 0 (cu-range-number "xxd" v 0 %hx-int-max))))
     (def cols (match ((null? c) 0) ((> c 0) c) (p? 30) (i? 12) (#t 16)))
     (def named (if i? (pair? ops) #f))
     (match
@@ -237,21 +224,21 @@
       ((null? g) 1)
       ((null? c) 1)
       (#t
-        (do (%cu-dump-reset! "xxd" stdin-thunk)
-            (%cu-dump-all!)
-            (%cu-dump-length! len)
-            (%cu-dump-skip! skip)
-            (%cu-dump-displayoff! off)
+        (do (cu-dump-reset! "xxd" stdin-thunk)
+            (cu-dump-all!)
+            (cu-dump-length! len)
+            (cu-dump-skip! skip)
+            (cu-dump-displayoff! off)
             (%xxd-formats p? i? (match (p? cols) (i? 1) (#t g)) cols)
             (if named
               (file-write 1 (string-concat
                               (list "unsigned char " (%xxd-c-name (first ops)) "[] = {\n")))
               ())
-            (let ((st (%cu-dump ops)))
+            (let ((st (cu-dump ops)))
               (do (if (if named (= st 0) #f)
                     (file-write 1 (string-concat
                                     (list "};\nunsigned int " (%xxd-c-name (first ops)) "_len = "
-                                          (%cu-int->str (%cu-dump-address)) ";\n")))
+                                          (cu-int->str (cu-dump-address)) ";\n")))
                     ())
                   st)))))))
 
@@ -265,17 +252,17 @@
     (def next
       (fn (self)
         (let ((t (first held)))
-          (let ((nl (%dp-find t 0 #\newline)))
+          (let ((nl (dp-find t 0 #\newline)))
             (if (>= nl 0)
               (do (%set-first! held (substring t (+ nl 1) (byte-len t)))
                   (substring t 0 nl))
-              (if (%cu-nth 1 held)
+              (if (cu-nth 1 held)
                 (if (= (byte-len t) 0) ()
                   (do (%set-first! held "") t))
                 (let ((p (src)))
                   (if (if (Err err? p) #t (= (rest p) 0))
                     (do (%set-first! (rest held) #t) (self))
-                    (do (%set-first! held (string-append t (%cu-run-text p))) (self))))))))))
+                    (do (%set-first! held (string-append t (cu-run-text p))) (self))))))))))
     next))
 
 ; busybox's reverse: a dump read back, the offset at each line's start (not
@@ -308,7 +295,7 @@
     (do (%xr-flush! rv) (file-write 2 (string-concat (list "xxd: " msg "\n"))) 1)))
 
 (def %hx-alnum?
-  (fn (_ c) (if (>= (%hx-hex-digit c) 0) #t (if (>= (| c 32) #\a) (<= (| c 32) #\z) #f))))
+  (fn (_ c) (if (>= (hx-hex-digit c) 0) #t (if (>= (| c 32) #\a) (<= (| c 32) #\z) #f))))
 
 ; standard output moved to OFS: sought, or where it will not seek, zeros
 ; written up to it; #f where it is behind and will not seek
@@ -318,7 +305,7 @@
       ((= ofs (%xr-cur rv)) #t)
       ((>= (do (%xr-flush! rv) (File seek 1 ofs)) 0) (do (vec-set! rv 1 ofs) #t))
       ((< ofs (%xr-cur rv)) #f)
-      (#t (do (vec-set! rv 0 (%dp-zeros (- ofs (%xr-cur rv)) ()))
+      (#t (do (vec-set! rv 0 (dp-zeros (- ofs (%xr-cur rv)) ()))
               (vec-set! rv 1 ofs)
               (%xr-flush! rv)
               #t)))))
@@ -327,14 +314,14 @@
 ; and its colon, #f where it would not seek, or the text that is not a number
 (def %xr-address
   (fn (_ rv buf)
-    (def p (%dp-skip-ws buf 0))
-    (def r (if (%hx-alnum? (%dp-at buf p)) (%hx-strtoul buf p 16 %hx-off-max) (pair () p)))
+    (def p (dp-skip-ws buf 0))
+    (def r (if (%hx-alnum? (dp-at buf p)) (hx-strtoul buf p 16 %hx-off-max) (pair () p)))
     (def e (rest r))
     (match
       ((null? (first r)) (substring buf p (byte-len buf)))
-      ((%hx-alnum? (%dp-at buf e)) (substring buf p (byte-len buf)))
+      ((%hx-alnum? (dp-at buf e)) (substring buf p (byte-len buf)))
       ((%xr-seek! rv (+ (first r) (%xr-skip rv)))
-        (pair #t (if (= (%dp-at buf e) #\:) (+ e 1) e)))
+        (pair #t (if (= (dp-at buf e) #\:) (+ e 1) e)))
       (#t #f))))
 
 ; The walk, from a STEP: `line` starts BUF, a line (nil at the end); `high`
@@ -343,9 +330,9 @@
 (def %xr-walk
   (fn (self rv step buf p val bad)
     (def p? (%xr-p? rv))
-    (def p1 (if (if p? (not (eq? step (lit line))) #f) (%dp-skip-ws buf p) p))
-    (def c (if (eq? step (lit line)) 0 (%dp-at buf p1)))
-    (def d (%hx-hex-digit c))
+    (def p1 (if (if p? (not (eq? step (lit line))) #f) (dp-skip-ws buf p) p))
+    (def c (if (eq? step (lit line)) 0 (dp-at buf p1)))
+    (def d (hx-hex-digit c))
     (match
       ((eq? step (lit line))
         (match
@@ -382,7 +369,7 @@
 
 (def %xxd-reverse
   (fn (_ p? name skip stdin-thunk)
-    (def src (%cu-pieces name stdin-thunk))
+    (def src (cu-pieces name stdin-thunk))
     (if (Err err? src)
       (do (file-write 2 (string-concat (list "xxd: can't open '" name "': "
                                              (file-err-text src) "\n")))
@@ -397,4 +384,6 @@
 (def %hx-next-xdigit
   (fn (self s i)
     (if (>= i (byte-len s)) -1
-      (if (>= (%hx-hex-digit (byte-at s i)) 0) i (self s (+ i 1))))))
+      (if (>= (hx-hex-digit (byte-at s i)) 0) i (self s (+ i 1))))))
+
+(provide cu/hexdump cu-hd cu-hexdump cu-xxd)

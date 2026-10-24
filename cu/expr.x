@@ -23,9 +23,16 @@
 
 ; an atom is (LABEL DATA STAR?): ch/any/cls take a byte, gopen/gclose
 ; mark the capture, eol anchors the end.
-(def %cu-re-label (fn (_ a) (%cu-nth 0 a)))
-(def %cu-re-data (fn (_ a) (%cu-nth 1 a)))
-(def %cu-re-star? (fn (_ a) (%cu-nth 2 a)))
+(module cu/expr)
+
+(import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-last
+  cu-nth file-write length reverse string-append string-concat string=?
+  substring)
+(import cu/text cu-num-prefix cu-str<)
+
+(def %cu-re-label (fn (_ a) (cu-nth 0 a)))
+(def %cu-re-data (fn (_ a) (cu-nth 1 a)))
+(def %cu-re-star? (fn (_ a) (cu-nth 2 a)))
 
 ; a bracket expression: an optional leading ^ negates, a ] first is
 ; literal, and A-Z is a range.  Answers (pair (NEG . RANGES) next-i).
@@ -198,9 +205,9 @@
     (def r (%cu-re-match atoms s 0 (- 0 1) (- 0 1)))
     (if (%cu-re-has-group? atoms)
       (if (null? r) ""
-        (if (< (%cu-nth 1 r) 0) ""
-          (substring s (%cu-nth 1 r) (%cu-nth 2 r))))
-      (if (null? r) "0" (%cu-int->str (first r))))))
+        (if (< (cu-nth 1 r) 0) ""
+          (substring s (cu-nth 1 r) (cu-nth 2 r))))
+      (if (null? r) "0" (cu-int->str (first r))))))
 
 ; --- values --------------------------------------------------------------------
 
@@ -215,7 +222,7 @@
             (if (if (>= b 48) (<= b 57) #f) (self (+ i 1)) #f)))))
     (if (= end 0) #f (go start))))
 
-(def %cu-expr-int (fn (_ s) (%cu-num-prefix s)))
+(def %cu-expr-int (fn (_ s) (cu-num-prefix s)))
 
 ; the truth expr tests: neither empty nor the number zero
 (def %cu-expr-true?
@@ -228,12 +235,12 @@
     (def x (%cu-expr-int a))
     (def y (%cu-expr-int b))
     (match
-      ((string=? op "+") (%cu-int->str (+ x y)))
-      ((string=? op "-") (%cu-int->str (- x y)))
-      ((string=? op "*") (%cu-int->str (* x y)))
+      ((string=? op "+") (cu-int->str (+ x y)))
+      ((string=? op "-") (cu-int->str (- x y)))
+      ((string=? op "*") (cu-int->str (* x y)))
       ((= y 0) (Err raise (lit cu) "expr: division by zero" ()))
-      ((string=? op "/") (%cu-int->str (/ (- x (% x y)) y)))
-      (#t (%cu-int->str (% x y))))))
+      ((string=? op "/") (cu-int->str (/ (- x (% x y)) y)))
+      (#t (cu-int->str (% x y))))))
 
 ; a comparison is numeric when BOTH sides look like numbers, and a
 ; byte-wise string comparison otherwise
@@ -246,7 +253,7 @@
           (let ((x (%cu-expr-int a)) (y (%cu-expr-int b)))
             (if (< x y) (- 0 1) (if (> x y) 1 0))))
         ((string=? a b) 0)
-        ((%cu-str< a b) (- 0 1))
+        ((cu-str< a b) (- 0 1))
         (#t 1)))
     (def yes
       (match
@@ -351,12 +358,12 @@
               (self (%cu-expr-colon v (first r2)) (rest r2)))))))
     (go (first r) (rest r))))
 
-; expr's syntax error, WHAT, raised for %cu-expr to say, with status 2
+; expr's syntax error, WHAT, raised for cu-expr to say, with status 2
 (def %cu-expr-syntax
   (fn (_ what)
     (Err raise (lit cu) (string-append "expr: syntax error: " what) ())))
 
-; the same where WHAT is after the last argument, which %cu-expr names
+; the same where WHAT is after the last argument, which cu-expr names
 (def %cu-expr-at-end
   (fn (_ what)
     (Err raise (lit cu-at-end) (string-append "expr: syntax error: " what) ())))
@@ -371,7 +378,7 @@
           ((string=? t ")") (%cu-expr-syntax "unexpected ')'"))
           ((string=? t "length")
             (let ((r (%cu-expr-prim (rest ts))))
-              (pair (%cu-int->str (byte-len (first r))) (rest r))))
+              (pair (cu-int->str (byte-len (first r))) (rest r))))
           ((string=? t "match")  (%cu-expr-match-op (rest ts)))
           ((string=? t "substr") (%cu-expr-substr (rest ts)))
           ((string=? t "index")  (%cu-expr-index (rest ts)))
@@ -429,26 +436,26 @@
       (fn (self i)
         (if (>= i end) 0
           (if (has? (byte-at str i)) (+ i 1) (self (+ i 1))))))
-    (pair (%cu-int->str (go 0)) (rest c))))
+    (pair (cu-int->str (go 0)) (rest c))))
 
 ; An expression that will not parse, or divides by zero, is said as GNU's
 ; expr says it, with status 2: an argument left over past the whole of it is
 ; unexpected, and what the parse raised at the end names the last argument.
-(def %cu-expr
+(def cu-expr
   (fn (_ argv stdin-thunk)
     (def said
       (fn (_ e end?)
         (do (file-write 2
               (string-concat
                 (list (e msg)
-                      (if end? (string-append " after '" (%cu-last argv)) "")
+                      (if end? (string-append " after '" (cu-last argv)) "")
                       (if end? "'\n" "\n"))))
             2)))
     (if (null? argv)
       (do (file-write 2 "expr: missing operand\n") 2)
       (guard (e (match
-                  ((eq? (%cu-err-label e) (lit cu)) (said e #f))
-                  ((eq? (%cu-err-label e) (lit cu-at-end)) (said e #t))
+                  ((eq? (cu-err-label e) (lit cu)) (said e #f))
+                  ((eq? (cu-err-label e) (lit cu-at-end)) (said e #t))
                   (#t (error e))))
         (let ((r (%cu-expr-or argv)))
           (if (pair? (rest r))
@@ -457,3 +464,5 @@
                 (list "unexpected argument '" (first (rest r)) "'")))
             (do (display (string-append (first r) "\n"))
                 (if (%cu-expr-true? (first r)) 0 1))))))))
+
+(provide cu/expr cu-expr)

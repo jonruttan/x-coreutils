@@ -22,6 +22,25 @@
 ; A question on stderr, answered yes or no.  With no terminal to answer it the
 ; answer is no and the question is left standing, unended, as the tools leave
 ; it when their input ends.
+(module cu/fs)
+
+(import cu/cli cu-last-given cu-missing-file-operand cu-opts)
+(import cu/fs2 cu-mkdir-p!)
+(import cu/fs3 cu-path-join)
+(import cu/perm cu-basename-of cu-octal->int)
+(import cu/prims append bit-and byte-at byte-len cu-b->s cu-dirname-of
+  cu-int->str cu-last cu-lines cu-stat-get cu-sweep! cu-sweep-bytes
+  cu-sweep-lines cu-sweep-tick! cu-walk-worst file-chmod file-copy file-dir?
+  file-err-sym file-err-text file-exists? file-link file-lstat-file-type
+  file-lstat-full file-lstat-wide file-mkdir file-or-err file-read-fd
+  file-readlink file-rename file-rmdir file-stat-wide file-symlink file-unlink
+  file-utimes file-write file-write-run length reverse set-first!
+  string-append string-concat string=? sys-isatty)
+(import cu/sys2 cu-drop-last)
+(import cu/text cu-fold-lines-said cu-fold-said cu-map-swept cu-pad-left
+  cu-put-each cu-says)
+(import cu/walk cu-walk-names cu-walk-status)
+
 (def %fs-ask
   (fn (_ question)
     (do (file-write 2 question)
@@ -44,7 +63,7 @@
       (let ((s (file-lstat-full src)) (d (file-lstat-full dst)))
         (if (null? s) #t
           (if (null? d) #t
-            (> (%cu-stat-get s (lit mtime)) (%cu-stat-get d (lit mtime)))))))))
+            (> (cu-stat-get s (lit mtime)) (cu-stat-get d (lit mtime)))))))))
 
 ; --- cat ----------------------------------------------------------------------
 
@@ -55,14 +74,14 @@
 (def %cat-visible
   (fn (_ b)
     (match
-      ((< b 32) (string-append "^" (%cu-b->s (+ b 64))))
+      ((< b 32) (string-append "^" (cu-b->s (+ b 64))))
       ((= b 127) "^?")
-      ((< b 128) (%cu-b->s b))
+      ((< b 128) (cu-b->s b))
       (#t
         (string-append "M-"
           (let ((low (- b 128)))
-            (if (< low 32) (string-append "^" (%cu-b->s (+ low 64)))
-              (if (= low 127) "^?" (%cu-b->s low)))))))))
+            (if (< low 32) (string-append "^" (cu-b->s (+ low 64)))
+              (if (= low 127) "^?" (cu-b->s low)))))))))
 
 ; What -v, -e, -t and -A make of a text, from the options read once: a
 ; function of S, FROM and TO, rendering S's bytes from FROM up to TO -- a NUL
@@ -80,30 +99,30 @@
     ; LEFT counts down the bytes until the next sweep, across pieces: a piece
     ; as short as a line never reaches a step of its own that sweeps
     (if (if v? #f (if e? #f (not t?))) ()
-      (let ((left (list (+ %cu-sweep-bytes 1))))
+      (let ((left (list (+ cu-sweep-bytes 1))))
         (fn (_ s from to)
           (def go
             (fn (self i acc)
               (if (>= i to) (string-concat (reverse acc))
                 (let ((b (byte-at s i)))
-                  (do (if (= (& i %cu-sweep-bytes) 0) (%cu-sweep! i) ())
+                  (do (if (= (& i cu-sweep-bytes) 0) (cu-sweep! i) ())
                     (self (+ i 1)
                       (pair
                         (match
                           ((= b 10) (if e? "$\n" "\n"))
                           ((= b 9) (if t? "^I" "\t"))
                           (v? (%cat-visible b))
-                          (#t (%cu-b->s b)))
+                          (#t (cu-b->s b)))
                         acc)))))))
           (let ((r (go from ())))
             (do (set-first! left (- (first left) (- to from)))
                 (if (> (first left) 0) ()
-                  (do (set-first! left (+ %cu-sweep-bytes 1)) (%cu-sweep! 1)))
+                  (do (set-first! left (+ cu-sweep-bytes 1)) (cu-sweep! 1)))
                 r)))))))
 
 ; the ranges of a piece of COUNT bytes from START on, 4,096 bytes to a range,
 ; as (FROM . TO)
-(def %cat-ranges
+(def cat-ranges
   (fn (self count start acc)
     (if (>= start count) (reverse acc)
       (let ((stop (if (> (+ start 4096) count) count (+ start 4096))))
@@ -117,26 +136,26 @@
     (def go
       (fn (self xs n acc)
         (if (null? xs) (pair (reverse acc) n)
-          (do (%cu-sweep-tick! %cu-sweep-lines)
+          (do (cu-sweep-tick! cu-sweep-lines)
             (if (if b? (= (byte-len (first xs)) 0) #f)
               (self (rest xs) n (pair "\n" acc))
               (self (rest xs) (+ n 1)
                 (pair (string-concat
-                        (list (%cu-pad-left (%cu-int->str n) 6) "\t"
+                        (list (cu-pad-left (cu-int->str n) 6) "\t"
                               (first xs) "\n"))
                   acc)))))))
-    (go (%cu-lines text) n ())))
+    (go (cu-lines text) n ())))
 
 ; The input goes out as it is read.  Without -n or -b it goes piece by piece,
 ; and a rendering takes each piece 4,096 bytes at a time, so it holds that
 ; many bytes' rendering rather than the whole text's.  -n and -b take whole
 ; lines, and the numbering goes on from one block of them to the next (-b
 ; wins).
-(def %cu-cat
+(def cu-cat
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "cat" argv))
+    (def o (cu-opts "cat" argv))
     (def ops (Opts operands o))
-    (def says (%cu-says "cat"))
+    (def says (cu-says "cat"))
     (def b? (Opts on? o "-b"))
     (def render (%cat-renderer o))
     ; numbering counts the SOURCE lines, so it runs before the rendering
@@ -145,22 +164,22 @@
     ; alternate between methods, and pay for it in dispatch.
     (def put
       (fn (_ pieces)
-        (%cu-put-each
+        (cu-put-each
           (if (null? render) pieces
-            (%cu-map-swept (fn (_ l) (render l 0 (byte-len l))) pieces)))))
+            (cu-map-swept (fn (_ l) (render l 0 (byte-len l))) pieces)))))
     ; a piece goes out by its count, NULs and all, or rendered a range of its
     ; bytes at a time
     (rest
       (if (if b? #f (not (Opts on? o "-n")))
-        (%cu-fold-said ops stdin-thunk says
+        (cu-fold-said ops stdin-thunk says
           (fn (_ p s)
             (do (if (null? render) (file-write-run 1 p)
-                  (%cu-put-each
-                    (%cu-map-swept (fn (_ c) (render (first p) (first c) (rest c)))
-                      (%cat-ranges (rest p) 0 ()))))
+                  (cu-put-each
+                    (cu-map-swept (fn (_ c) (render (first p) (first c) (rest c)))
+                      (cat-ranges (rest p) 0 ()))))
                 s))
           ())
-        (%cu-fold-lines-said ops stdin-thunk says
+        (cu-fold-lines-said ops stdin-thunk says
           (fn (_ block n)
             (let ((r (%cat-number block b? n)))
               (do (put (first r)) (rest r))))
@@ -182,7 +201,7 @@
 ;          is copied as a link -- what cp does when told nothing else
 (def %cp-links
   (fn (_ o)
-    (let ((v (%cu-last-given o (list "-H" "-L" "-P" "-a"))))
+    (let ((v (cu-last-given o (list "-H" "-L" "-P" "-a"))))
       (if (null? v) (lit unsaid)
         (match
           ((string=? v "-H") (lit args))
@@ -209,7 +228,7 @@
     (if (not (%cp-preserve? o)) ()
       (let ((st (file-lstat-full src)))
         (if (null? st) ()
-          (do (file-chmod dst (bit-and (%cu-stat-get st (lit mode)) 4095))
+          (do (file-chmod dst (bit-and (cu-stat-get st (lit mode)) 4095))
               (file-utimes dst)))))))
 
 ; a name a link is about to be written to: symlink refuses one that is taken,
@@ -242,7 +261,7 @@
               (string-concat
                 (list "cp: cannot stat '" src "': " (file-err-text st) "\n")))
             1)
-        (let ((file-type (%cu-stat-get st (lit file-type))))
+        (let ((file-type (cu-stat-get st (lit file-type))))
           (match
             ((eq? file-type (lit dir))
               (if (not (%cp-recursive? o))
@@ -251,9 +270,9 @@
                         (list "cp: omitting directory '" src "'\n")))
                     1)
                 (do (if (file-exists? dst) () (file-mkdir dst))
-                    (let ((r (%cu-walk-status src
-                               (fn (_ n) (self (%cu-path-join src n)
-                                           (%cu-path-join dst n) o #f)))))
+                    (let ((r (cu-walk-status src
+                               (fn (_ n) (self (cu-path-join src n)
+                                           (cu-path-join dst n) o #f)))))
                       (do (%cp-preserve! src dst o) r)))))
             ((file-dir? dst)
               (do (file-write 2
@@ -293,15 +312,15 @@
 (def %cp-target
   (fn (_ dst name o)
     (if (Opts on? o "-T") dst
-      (if (file-dir? dst) (%cu-path-join dst (%cu-basename-of name)) dst))))
+      (if (file-dir? dst) (cu-path-join dst (cu-basename-of name)) dst))))
 
-(def %cu-cp
+(def cu-cp
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "cp" argv))
+    (def o (cu-opts "cp" argv))
     (def ops (Opts operands o))
     (if (< (length ops) 2)
-      (%cu-missing-file-operand "cp" ops)
-      (let ((dst (%cu-last ops)) (srcs (%cu-drop-last ops)))
+      (cu-missing-file-operand "cp" ops)
+      (let ((dst (cu-last ops)) (srcs (cu-drop-last ops)))
         (if (if (> (length srcs) 1) (not (file-dir? dst)) #f)
           (do (file-write 2
                 (string-concat
@@ -326,7 +345,7 @@
 ; were, and mv says so in its status; -n passing one over is no failure.
 (def %mv-one
   (fn (_ src dst o)
-    (let ((told (%cu-last-given o (list "-f" "-i" "-n"))))
+    (let ((told (cu-last-given o (list "-f" "-i" "-n"))))
       (match
         ((not (file-exists? dst)) (%mv-move src dst))
         ((null? told) (%mv-move src dst))
@@ -344,13 +363,13 @@
         ; across devices rename refuses: copy, then drop the original
         (do (file-copy src dst) (file-unlink src) 0)))))
 
-(def %cu-mv
+(def cu-mv
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "mv" argv))
+    (def o (cu-opts "mv" argv))
     (def ops (Opts operands o))
     (if (< (length ops) 2)
-      (%cu-missing-file-operand "mv" ops)
-      (let ((dst (%cu-last ops)) (srcs (%cu-drop-last ops)))
+      (cu-missing-file-operand "mv" ops)
+      (let ((dst (cu-last ops)) (srcs (cu-drop-last ops)))
         (let ((go (fn (self ss st)
                     (if (null? ss) st
                       (let ((target (%cp-target dst (first ss) o)))
@@ -366,7 +385,7 @@
 ; path where it is, and is no failure.
 (def %rm-told?
   (fn (_ o flag)
-    (let ((v (%cu-last-given o (list "-f" "-i"))))
+    (let ((v (cu-last-given o (list "-f" "-i"))))
       (if (null? v) #f (string=? v flag)))))
 
 (def %rm-one
@@ -377,7 +396,7 @@
           (if (if (%rm-told? o "-f") (eq? (file-err-sym st) (lit enoent)) #f)
             0
             (%rm-cannot path (file-err-text st))))
-        ((eq? (%cu-stat-get st (lit file-type)) (lit dir))
+        ((eq? (cu-stat-get st (lit file-type)) (lit dir))
           (if (%rm-recursive? o) (%rm-dir self path o st)
             (%rm-cannot path "Is a directory")))
         ((not (%rm-may? o path st)) 0)
@@ -391,13 +410,13 @@
 ; about, and its removal fails as not empty.
 (def %rm-dir
   (fn (_ one path o st)
-    (let ((names (file-or-err (fn (_) (%cu-walk-names path)))))
+    (let ((names (file-or-err (fn (_) (cu-walk-names path)))))
       (match
         ((Err err? names) (%rm-cannot path (file-err-text names)))
         ((not (%rm-may-enter? o path names)) 0)
         (#t
-          (let ((r (%cu-walk-worst names
-                     (fn (_ n) (one (%cu-path-join path n) o)) 0)))
+          (let ((r (cu-walk-worst names
+                     (fn (_ n) (one (cu-path-join path n) o)) 0)))
             (match
               ((> r 0) r)
               ((not (%rm-may? o path st)) 0)
@@ -426,7 +445,7 @@
 ; what rm calls a path, in the file-type words the coreutils share
 (def %rm-file-type-words
   (fn (_ st)
-    (let ((file-type (%cu-stat-get st (lit file-type))))
+    (let ((file-type (cu-stat-get st (lit file-type))))
       (match
         ((eq? file-type (lit dir)) "directory")
         ((eq? file-type (lit link)) "symbolic link")
@@ -434,7 +453,7 @@
         ((eq? file-type (lit socket)) "socket")
         ((eq? file-type (lit char)) "character special file")
         ((eq? file-type (lit block)) "block special file")
-        ((= (%cu-stat-get st (lit size)) 0) "regular empty file")
+        ((= (cu-stat-get st (lit size)) 0) "regular empty file")
         (#t "regular file")))))
 
 ; the removal made, and said under -v -- SAID is how -v begins the line -- or
@@ -453,9 +472,9 @@
           (string-concat (list "rm: cannot remove '" path "': " why "\n")))
         1)))
 
-(def %cu-rm
+(def cu-rm
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "rm" argv))
+    (def o (cu-opts "rm" argv))
     (def go
       (fn (self os st)
         (if (null? os) st
@@ -465,22 +484,22 @@
 
 ; --- mkdir, rmdir -------------------------------------------------------------
 
-(def %cu-mkdir
+(def cu-mkdir
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "mkdir" argv))
+    (def o (cu-opts "mkdir" argv))
     (def p? (Opts on? o "-p"))
     ; -m TAKES A VALUE, so it lives in the record's values and not among
     ; the flags: asking (Opts on? o "-m") is always false.  Its presence
     ; is its value being there.
     (def m (Opts value o "-m"))
-    (def mode (if (null? m) () (%cu-octal->int m)))
+    (def mode (if (null? m) () (cu-octal->int m)))
     (def stamp! (fn (_ path) (if (null? mode) () (file-chmod path mode))))
     (def go
       (fn (self os st)
         (match
           ((null? os) st)
           (p?
-            (do (%cu-mkdir-p! (first os)) (stamp! (first os))
+            (do (cu-mkdir-p! (first os)) (stamp! (first os))
                 (self (rest os) st)))
           ((file-exists? (first os))
             (do (file-write 2
@@ -501,13 +520,13 @@
 
 (def %rmdir-parents!
   (fn (self path)
-    (let ((parent (%cu-dirname-of path)))
+    (let ((parent (cu-dirname-of path)))
       (if (if (string=? parent "/") #t (string=? parent ".")) ()
         (if (%rmdir-try parent) (self parent) ())))))
 
-(def %cu-rmdir
+(def cu-rmdir
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "rmdir" argv))
+    (def o (cu-opts "rmdir" argv))
     (def p? (Opts on? o "-p"))
     (def go
       (fn (self os st)
@@ -525,9 +544,9 @@
 
 ; TARGET... [NAME]: one target and no name makes the link here; several, or
 ; -t DIR, make them in a directory, which a NAME that is not one refuses.
-(def %cu-ln
+(def cu-ln
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ln" argv))
+    (def o (cu-opts "ln" argv))
     (def ops (Opts operands o))
     ; -t DIR names the directory the links go in, and then every
     ; operand is a target
@@ -535,16 +554,16 @@
     (if (null? ops)
       (do (file-write 2 "ln: usage: ln [-sfnbtv] TARGET... [NAME]\n") 1)
       (let ((targets (if (null? dir)
-                       (if (null? (rest ops)) ops (%cu-drop-last ops))
+                       (if (null? (rest ops)) ops (cu-drop-last ops))
                        ops))
             (into (if (null? dir)
-                    (if (null? (rest ops)) "." (%cu-last ops))
+                    (if (null? (rest ops)) "." (cu-last ops))
                     dir))
             (here? (if (null? dir) (null? (rest ops)) #f)))
         (if (if (if (null? dir) (> (length ops) 2) #t)
               (not (%ln-dir? into o)) #f)
           (%ln-fails (list (%ln-not-dir into o (not (null? dir)))))
-          (%cu-walk-worst targets
+          (cu-walk-worst targets
             (fn (_ t) (%ln-one t (%ln-name t into here? o) o))
             0))))))
 
@@ -578,8 +597,8 @@
 (def %ln-name
   (fn (_ t into here? o)
     (match
-      (here? (%cu-basename-of t))
-      ((%ln-dir? into o) (%cu-path-join into (%cu-basename-of t)))
+      (here? (cu-basename-of t))
+      ((%ln-dir? into o) (cu-path-join into (cu-basename-of t)))
       (#t into))))
 
 ; One link, NAME to T: a symbolic one under -s, a hard one otherwise -- which
@@ -620,3 +639,5 @@
 (def %ln-fails
   (fn (_ line)
     (do (file-write 2 (string-concat (append line (list "\n")))) 1)))
+
+(provide cu/fs cat-ranges cu-cat cu-cp cu-ln cu-mkdir cu-mv cu-rm cu-rmdir)

@@ -38,7 +38,17 @@
 ; [...] from PI, which is just past the '['.  Answers (MATCHED? . PI-AFTER),
 ; or nil when the class never closes -- an unclosed [ is a literal byte, which
 ; is what the shells settle on.
-(def %cu-glob-class
+(module cu/find)
+
+(import cu/fs2 cu-base-of)
+(import cu/fs3 cu-path-join)
+(import cu/prims byte-at byte-len cu-b->s cu-stat-get file-lstat-full
+  file-write file-write-field map proc-run reverse string-append string-concat
+  string=? substring)
+(import cu/text cu-num-prefix)
+(import cu/walk cu-walk-names)
+
+(def cu-glob-class
   (fn (_ pat pi c)
     (def pn (byte-len pat))
     (def neg
@@ -69,7 +79,7 @@
         (not (= (byte-at pat (+ i 2)) 93))
         #f))))
 
-(def %cu-glob?
+(def cu-glob?
   (fn (_ pat s)
     (def pn (byte-len pat))
     (def sn (byte-len s))
@@ -86,7 +96,7 @@
                 (if (>= si sn) #f (self (+ pi 1) (+ si 1))))
               ((= p 91)
                 (if (>= si sn) #f
-                  (let ((r (%cu-glob-class pat (+ pi 1) (byte-at s si))))
+                  (let ((r (cu-glob-class pat (+ pi 1) (byte-at s si))))
                     (if (null? r) #f
                       (if (first r) (self (rest r) (+ si 1)) #f)))))
               ((if (= p 92) (< (+ pi 1) pn) #f)
@@ -108,7 +118,7 @@
         (if (>= i end) (string-concat (reverse acc))
           (let ((b (byte-at s i)))
             (self (+ i 1)
-              (pair (%cu-b->s (if (if (>= b 65) (<= b 90) #f) (+ b 32) b))
+              (pair (cu-b->s (if (if (>= b 65) (<= b 90) #f) (+ b 32) b))
                 acc))))))
     (go 0 ())))
 
@@ -131,7 +141,7 @@
     (def end (byte-len arg))
     (if (= end 0) #f
       (let ((lead (byte-at arg 0)))
-        (def n (%cu-num-prefix
+        (def n (cu-num-prefix
                  (if (if (= lead 43) #t (= lead 45)) (substring arg 1 end) arg)))
         (match
           ((= lead 43) (> v n))
@@ -167,16 +177,16 @@
 
 (def %find-empty?
   (fn (_ path st)
-    (let ((file-type (%cu-stat-get st (lit file-type))))
+    (let ((file-type (cu-stat-get st (lit file-type))))
       (match
-        ((eq? file-type (lit dir)) (null? (%cu-walk-names path)))
-        ((eq? file-type (lit file)) (= (%cu-stat-get st (lit size)) 0))
+        ((eq? file-type (lit dir)) (null? (cu-walk-names path)))
+        ((eq? file-type (lit file)) (= (cu-stat-get st (lit size)) 0))
         (#t #f)))))
 
 (def %find-mtime-of
   (fn (_ path)
     (let ((st (file-lstat-full path)))
-      (if (null? st) (- 0 1) (%cu-stat-get st (lit mtime))))))
+      (if (null? st) (- 0 1) (cu-stat-get st (lit mtime))))))
 
 ; --- -exec --------------------------------------------------------------------
 ;
@@ -350,41 +360,41 @@
       ((null? more) (%find-bad ()))
       ((string=? a "-name")
         (pair (let ((pat arg))
-                (fn (_ path name depth st) (%cu-glob? pat name)))
+                (fn (_ path name depth st) (cu-glob? pat name)))
           (rest more)))
       ((string=? a "-iname")
         (pair (let ((pat (%find-lower arg)))
                 (fn (_ path name depth st)
-                  (%cu-glob? pat (%find-lower name))))
+                  (cu-glob? pat (%find-lower name))))
           (rest more)))
       ((string=? a "-path")
         (pair (let ((pat arg))
-                (fn (_ path name depth st) (%cu-glob? pat path)))
+                (fn (_ path name depth st) (cu-glob? pat path)))
           (rest more)))
       ((string=? a "-type")
         (pair (let ((file-type (%find-file-type arg)))
                 (fn (_ path name depth st)
-                  (eq? (%cu-stat-get st (lit file-type)) file-type)))
+                  (eq? (cu-stat-get st (lit file-type)) file-type)))
           (rest more)))
       ((string=? a "-size")
         (pair (let ((spec arg))
                 (fn (_ path name depth st)
-                  (%find-size? spec (%cu-stat-get st (lit size)))))
+                  (%find-size? spec (cu-stat-get st (lit size)))))
           (rest more)))
       ((string=? a "-newer")
         (pair (let ((when (%find-mtime-of arg)))
                 (fn (_ path name depth st)
-                  (> (%cu-stat-get st (lit mtime)) when)))
+                  (> (cu-stat-get st (lit mtime)) when)))
           (rest more)))
       ; -maxdepth and -mindepth are tested per entry like any other primary;
       ; -maxdepth additionally stops the descent, which the walk reads off the
       ; argument list rather than the predicate.
       ((string=? a "-maxdepth")
-        (pair (let ((n (%cu-num-prefix arg)))
+        (pair (let ((n (cu-num-prefix arg)))
                 (fn (_ path name depth st) (<= depth n)))
           (rest more)))
       ((string=? a "-mindepth")
-        (pair (let ((n (%cu-num-prefix arg)))
+        (pair (let ((n (cu-num-prefix arg)))
                 (fn (_ path name depth st) (>= depth n)))
           (rest more)))
       (#t (%find-bad args)))))
@@ -402,7 +412,7 @@
         (match
           ((null? xs) (- 0 1))
           ((null? (rest xs)) (- 0 1))
-          ((string=? (first xs) "-maxdepth") (%cu-num-prefix (first (rest xs))))
+          ((string=? (first xs) "-maxdepth") (cu-num-prefix (first (rest xs))))
           ((%find-takes-arg? (first xs)) (self (rest (rest xs))))
           (#t (self (rest xs))))))
     (go args)))
@@ -411,7 +421,7 @@
   (fn (self path name depth pred limit st)
     (do
       (pred path name depth st)
-      (if (eq? (%cu-stat-get st (lit file-type)) (lit dir))
+      (if (eq? (cu-stat-get st (lit file-type)) (lit dir))
         (if (if (< limit 0) #t (< depth limit))
           (%find-descend path depth pred limit)
           ())
@@ -423,17 +433,17 @@
     (def go
       (fn (self ns)
         (if (null? ns) 0
-          (let ((child (%cu-path-join dir (first ns))))
+          (let ((child (cu-path-join dir (first ns))))
             (do
               (let ((cst (file-lstat-full child)))
                 (if (null? cst) ()
                   (%find-visit child (first ns) (+ depth 1) pred limit cst)))
               (self (rest ns)))))))
-    (go (%cu-walk-names dir))))
+    (go (cu-walk-names dir))))
 
 ; --- the applet ----------------------------------------------------------------
 
-(def %cu-find
+(def cu-find
   (fn (_ argv stdin-thunk)
     ; The operands are the leading words: find takes its paths first and the
     ; expression after them, so the split is at the first dash-word (or at a
@@ -466,7 +476,7 @@
                       (do (file-write 2
                             (string-append "find: " (string-append p ": not found\n")))
                           (self (rest ps) 1))
-                      (do (%find-visit p (%cu-base-of p) 0 pred limit pst)
+                      (do (%find-visit p (cu-base-of p) 0 pred limit pst)
                           (self (rest ps) st))))))))
           (go paths 0))))))
 
@@ -490,3 +500,5 @@
             (pair (reverse acc) xs)
             (self (rest xs) (pair (first xs) acc))))))
     (go argv ())))
+
+(provide cu/find cu-find cu-glob-class cu-glob?)

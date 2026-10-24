@@ -20,14 +20,25 @@
 ; closed on exec: the child writes why its exec failed into it, and the
 ; parent reads nothing there when the exec went through.
 
+(module cu/runparts)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/dump dp-in?)
+(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
+  cu-ptr-call cu-stat-get cu-string-type cu-type-of file-err-text
+  file-list-dir file-read-fd file-stat-full file-write filter hx-strtoul
+  length map reverse string-append string-concat sys-close sys-exec-or-err
+  sys-exit sys-fork sys-wait)
+(import cu/text cu-msort cu-str<)
+
 (def %rp-c-access ())
 (def %rp-c-umask ())
 
 (def %rp-resolve!
   (fn (_)
-    (def lib (%cu-dlopen () 1))
-    (set! %rp-c-access (%cu-dlsym lib "access"))
-    (set! %rp-c-umask (%cu-dlsym lib "umask"))))
+    (def lib (cu-dlopen () 1))
+    (set! %rp-c-access (cu-dlsym lib "access"))
+    (set! %rp-c-umask (cu-dlsym lib "umask"))))
 
 ; NAME as busybox's invalid_name reads it: letters, digits, _ - and ., and no
 ; leading dot
@@ -39,7 +50,7 @@
         (match
           ((if (>= c #\0) (<= c #\9) #f) #t)
           ((if (>= (| c 32) #\a) (<= (| c 32) #\z) #f) #t)
-          (#t (%dp-in? c "_-.")))))
+          (#t (dp-in? c "_-.")))))
     (def go (fn (self i) (if (>= i n) #t (if (ok? (byte-at name i)) (self (+ i 1)) #f))))
     (if (= n 0) #f (if (= (byte-at name 0) #\.) #f (go 0)))))
 
@@ -57,15 +68,15 @@
         (let ((st (file-stat-full path)))
           (match
             ((null? st) #f)
-            ((= (& (& (%cu-stat-get st (lit mode)) 61440) 40960) 0) #f)
+            ((= (& (& (cu-stat-get st (lit mode)) 61440) 40960) 0) #f)
             ((not (%rp-valid? name)) #f)
             (list? #t)
-            (#t (= (Sys %sign-fold (%cu-ptr-call %rp-c-access path 1)) 0))))))
+            (#t (= (Sys %sign-fold (cu-ptr-call %rp-c-access path 1)) 0))))))
     (if (Err err? listed) listed
-      (%cu-msort
+      (cu-msort
         (map (fn (_ name) (string-append base name))
              (filter (fn (_ name) (taken? (string-append base name) name)) listed))
-        %cu-str<))))
+        cu-str<))))
 
 ; COMMAND run in a child: its status as busybox's wait4pid answers it -- the
 ; exit status, or 128 and a signal's number -- or the text of why the exec
@@ -91,7 +102,7 @@
 ; an octal number from 0 to 07777, or nil once said
 (def %rp-umask
   (fn (_ s)
-    (def r (%hx-strtoul s 0 8 4294967295))
+    (def r (hx-strtoul s 0 8 4294967295))
     (match
       ((if (= (byte-len s) 0) #t (if (null? (first r)) #t (not (= (rest r) (byte-len s)))))
         (do (file-write 2 (string-concat (list "run-parts: invalid number '" s "'\n"))) ()))
@@ -100,9 +111,9 @@
       (#t (first r)))))
 
 ; run-parts [-a ARG]... [-u UMASK] [--reverse] [--test] [--exit-on-error] [--list] DIRECTORY
-(def %cu-run-parts
+(def cu-run-parts
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "run-parts" argv))
+    (def o (cu-opts "run-parts" argv))
     (def ops (Opts operands o))
     (def args (append (Opts values o "-a") (Opts values o "--arg")))
     (def u (let ((v (Opts value o "-u"))) (if (null? v) (Opts value o "--umask") v)))
@@ -116,21 +127,21 @@
             (do (file-write 1 (string-append (first names) "\n")) (self (rest names) st))
             (let ((r (%rp-spawn (pair (first names) args))))
               (match
-                ((eq? (%cu-type-of r) %cu-string-type)
+                ((eq? (cu-type-of r) cu-string-type)
                   (do (file-write 2 (string-concat (list "run-parts: can't execute '" (first names)
                                                          "': " r "\n")))
                       (if (Opts on? o "--exit-on-error") 1 (self (rest names) 1))))
                 ((= r 0) (self (rest names) st))
                 (#t
                   (do (file-write 2 (string-concat (list "run-parts: " (first names) ": exit status "
-                                                         (%cu-int->str r) "\n")))
+                                                         (cu-int->str r) "\n")))
                       (if (Opts on? o "--exit-on-error") 1 (self (rest names) 1))))))))))
     (match
-      ((not (= (length ops) 1)) (%cu-usage "run-parts"))
+      ((not (= (length ops) 1)) (cu-usage "run-parts"))
       ((null? mask) 1)
       (#t
         (do (%rp-resolve!)
-            (%cu-ptr-call %rp-c-umask mask)
+            (cu-ptr-call %rp-c-umask mask)
             (let ((names (%rp-names (first ops) list?)))
               (match
                 ; a file that is not a directory has nothing under it
@@ -140,3 +151,5 @@
                                                          (file-err-text names) "\n")))
                       0))
                 (#t (each (if (Opts on? o "--reverse") (reverse names) names) 0)))))))))
+
+(provide cu/runparts cu-run-parts)

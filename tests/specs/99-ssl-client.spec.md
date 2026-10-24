@@ -24,17 +24,17 @@ weight and timeout are the TLS engines' build, which a session pays once.
   (def sc-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
   (def sc-lines (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def sc-port (let ((l (Socket tcp-listen 0))) (let ((p (Socket local-port l))) (do (Socket close l) p))))
-  (sys-setenv "SC_PORT" (%cu-int->str sc-port))
+  (sys-setenv "SC_PORT" (cu-int->str sc-port))
   (sc-sh (string-concat (list
     "d=/tmp/x-cu-ssl; rm -rf $d; mkdir -p $d && cd $d"
     " && openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 1 -subj /CN=localhost >/dev/null 2>&1"
     " && { openssl s_server -quiet -www -tls1_3 -accept $SC_PORT -cert cert.pem -key key.pem >/dev/null 2>&1 & echo $! > pid; } && sleep 1")))
   (def sc (fn (_ args input socket?)
-    (%cu-heap-collect)
+    (cu-heap-collect)
     (sys-setenv "SC_ARGS" args) (sys-setenv "SC_IN" input)
     (sc-sh "d=/tmp/x-cu-ssl; printf '%b' \"$SC_IN\" > $d/in; eval \"set -- $(printf ' %s ' \"$SC_ARGS\" | sed \"s/ P / $SC_PORT /g; s/:P /:$SC_PORT /g\")\"; for a; do printf '%s\\n' \"$a\"; done > $d/argv")
     (def argv (sc-lines (file-read-all (sc-f "argv"))))
@@ -44,19 +44,19 @@ weight and timeout are the TLS engines' build, which a session pays once.
             (let ((p (sys-pipe)))
               (do (when (= (sys-fork) 0)
                     (do (sys-dup2 (rest p) 1) (sys-close (first p))
-                        (%in-exec "/bin/sh" (list "/bin/sh" "-c" "cat /tmp/x-cu-ssl/in; sleep 3"))
+                        (in-exec "/bin/sh" (list "/bin/sh" "-c" "cat /tmp/x-cu-ssl/in; sleep 3"))
                         (sys-exit 1)))
                   (sys-close (rest p))
                   (sys-dup2 (first p) 0)))
             (sys-dup2 (file-open-read (sc-f "in")) 0))
           (sys-dup2 (file-open-write (sc-f "out")) 1)
           (sys-dup2 (file-open-write (sc-f "err")) 2)
-          (def full (if socket? (append (list "-s" (%cu-int->str (net-connect "127.0.0.1" sc-port))) argv) argv))
+          (def full (if socket? (append (list "-s" (cu-int->str (net-connect "127.0.0.1" sc-port))) argv) argv))
           (sys-exit (guard (e (do (file-write 2 "uncaught\n") 99)) (cu-run (pair "ssl_client" full) "")))))
     (def st (sys-wait pid))
     (sc-sh (string-concat (list
       "d=/tmp/x-cu-ssl; { if [ -s $d/out ]; then head -1 $d/out | tr -d '\\r'; grep -q TLSv1.3 $d/out && echo 'the page names TLSv1.3'; fi;"
-      " echo \"[status " (%cu-int->str st) "]\"; cat $d/err; } > $d/report")))
+      " echo \"[status " (cu-int->str st) "]\"; cat $d/err; } > $d/report")))
     (display (file-read-all (sc-f "report")))))
   (display "made"))
 ```

@@ -15,7 +15,7 @@ standard output.
 ### a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-who && mkdir -p /tmp/x-cu-who")) (def nf (fn (_ n) (string-append "/tmp/x-cu-who/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def out (fn (_ argv) (first (run argv)))) (def lines (fn (_ s) (filter (fn (_ l) (> (byte-len l) 0)) (%cu-lines s)))) (def trim (fn (_ s) (let ((go (fn (self i) (if (if (> i 0) (= (byte-at s (- i 1)) #\space) #f) (self (- i 1)) i)))) (substring s 0 (go (byte-len s)))))) (def zip (fn (self a b) (if (if (null? a) #t (null? b)) () (pair (list (first a) (first b)) (self (rest a) (rest b)))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-who && mkdir -p /tmp/x-cu-who")) (def nf (fn (_ n) (string-append "/tmp/x-cu-who/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def out (fn (_ argv) (first (run argv)))) (def lines (fn (_ s) (filter (fn (_ l) (> (byte-len l) 0)) (cu-lines s)))) (def trim (fn (_ s) (let ((go (fn (self i) (if (if (> i 0) (= (byte-at s (- i 1)) #\space) #f) (self (- i 1)) i)))) (substring s 0 (go (byte-len s)))))) (def zip (fn (self a b) (if (if (null? a) #t (null? b)) () (pair (list (first a) (first b)) (self (rest a) (rest b)))))) (display "made"))
 ```
 ---
     made
@@ -41,7 +41,7 @@ standard output.
 ### each line: the user to column 16, the tty to 32, the idle to 40, the login time to 57, then the host
 
 ```cu
-(let ((idle-rx (re-compile "^([0-9][0-9]:[0-9][0-9]|old|[?])$"))) (null? (filter (fn (_ r) (not (null? (filter (fn (_ v) (not v)) r)))) (map (fn (_ pr) (let ((l (first pr)) (u (first (rest pr)))) (def d (Date local (Assoc get (lit time) u))) (def two (fn (_ k) (%cu-pad-zero (%cu-int->str (Assoc get k d)) 2))) (list (str=? (trim (substring l 0 15)) (Assoc get (lit user) u)) (= (byte-at l 15) #\space) (str=? (trim (substring l 16 31)) (Assoc get (lit tty) u)) (not (null? (re-search idle-rx (trim (substring l 32 39))))) (str=? (substring l 40 56) (string-concat (list (%cu-nth (- (Assoc get (lit month) d) 1) %cu-date-mon-abbr) (%cu-pad-left (%cu-int->str (Assoc get (lit day) d)) 3) " " (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second)) " "))) (str=? (substring l 57 (byte-len l)) (let ((h (Assoc get (lit host) u))) (if (null? h) "" h)))))) (zip (lines (out (list "who"))) (host-users))))))
+(let ((idle-rx (re-compile "^([0-9][0-9]:[0-9][0-9]|old|[?])$"))) (null? (filter (fn (_ r) (not (null? (filter (fn (_ v) (not v)) r)))) (map (fn (_ pr) (let ((l (first pr)) (u (first (rest pr)))) (def d (Date local (Assoc get (lit time) u))) (def two (fn (_ k) (cu-pad-zero (cu-int->str (Assoc get k d)) 2))) (list (str=? (trim (substring l 0 15)) (Assoc get (lit user) u)) (= (byte-at l 15) #\space) (str=? (trim (substring l 16 31)) (Assoc get (lit tty) u)) (not (null? (re-search idle-rx (trim (substring l 32 39))))) (str=? (substring l 40 56) (string-concat (list (cu-nth (- (Assoc get (lit month) d) 1) cu-date-mon-abbr) (cu-pad-left (cu-int->str (Assoc get (lit day) d)) 3) " " (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second)) " "))) (str=? (substring l 57 (byte-len l)) (let ((h (Assoc get (lit host) u))) (if (null? h) "" h)))))) (zip (lines (out (list "who"))) (host-users))))))
 ```
 ---
     #t
@@ -49,7 +49,7 @@ standard output.
 ### users: the names on one line, a space between
 
 ```cu
-(let ((r (run (list "users")))) (list (str=? (first r) (string-append (%cu-join-with (map (fn (_ u) (Assoc get (lit user) u)) (host-users)) " ") "\n")) (first (rest (rest r)))))
+(let ((r (run (list "users")))) (list (str=? (first r) (string-append (cu-join-with (map (fn (_ u) (Assoc get (lit user) u)) (host-users)) " ") "\n")) (first (rest (rest r)))))
 ```
 ---
     (#t 0)

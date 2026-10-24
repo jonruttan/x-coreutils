@@ -25,7 +25,7 @@ The time is 1790000000, 14:13:20 in the zone TZ=UTC0 names.  The loads are
 hundredths, as load-centi makes them from the kernel's fixed-point counts.
 
 ```cu
-(with-tz "UTC0" (fn (_) (display (%ps-uptime-line 1790000000 59 0 (list 0 0 0))) (display (%ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (%ps-uptime-line 1790000000 3600 2 (list 384 530 708))) (display (%ps-uptime-line 1790000000 87000 3 (list 188 99 0))) (display (%ps-uptime-line 1790000000 191220 12 (list 1525 1525 1500))) (display (%ps-uptime-line 1790036309 38700 1 (list 0 199 10000)))))
+(with-tz "UTC0" (fn (_) (display (ps-uptime-line 1790000000 59 0 (list 0 0 0))) (display (ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (ps-uptime-line 1790000000 3600 2 (list 384 530 708))) (display (ps-uptime-line 1790000000 87000 3 (list 188 99 0))) (display (ps-uptime-line 1790000000 191220 12 (list 1525 1525 1500))) (display (ps-uptime-line 1790036309 38700 1 (list 0 199 10000)))))
 ```
 ---
 ```output
@@ -42,7 +42,7 @@ hundredths, as load-centi makes them from the kernel's fixed-point counts.
 POSIX rule strings, which glibc and Darwin read alike with no zone database.
 
 ```cu
-(do (with-tz "EST5EDT,M3.2.0,M11.1.0" (fn (_) (display (%ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (%ps-uptime-line 1790036309 38700 1 (list 0 199 10000))))) (with-tz "<+0530>-5:30" (fn (_) (display (%ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (%ps-uptime-line 1790036309 38700 1 (list 0 199 10000))))))
+(do (with-tz "EST5EDT,M3.2.0,M11.1.0" (fn (_) (display (ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (ps-uptime-line 1790036309 38700 1 (list 0 199 10000))))) (with-tz "<+0530>-5:30" (fn (_) (display (ps-uptime-line 1790000000 3599 1 (list 100 50 0))) (display (ps-uptime-line 1790036309 38700 1 (list 0 199 10000))))))
 ```
 ---
 ```output
@@ -65,7 +65,7 @@ Counts over 65536, sysinfo's scale, and over 2048, Darwin's fscale.
 ### uptime -s: the boot time, in UTC and in local zones
 
 ```cu
-(map (fn (_ tz) (with-tz tz (fn (_) (%ps-boot-line 1790000000)))) (list "UTC0" "EST5EDT,M3.2.0,M11.1.0" "<+0530>-5:30"))
+(map (fn (_ tz) (with-tz tz (fn (_) (ps-boot-line 1790000000)))) (list "UTC0" "EST5EDT,M3.2.0,M11.1.0" "<+0530>-5:30"))
 ```
 ---
     ("2026-09-21 14:13:20\n" "2026-09-21 10:13:20\n" "2026-09-21 19:43:20\n")
@@ -80,7 +80,7 @@ reclaimable or available -- busybox's lines not there, so its
 ### in kilobytes, busybox's default and -k
 
 ```cu
-(do (display (%ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 1024)) (display (%ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 1024)))
+(do (display (ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 1024)) (display (ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 1024)))
 ```
 ---
 ```output
@@ -96,7 +96,7 @@ Swap:      16777216    15343424     1433792
 ### -b: in bytes
 
 ```cu
-(do (display (%ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 1)) (display (%ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 1)))
+(do (display (ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 1)) (display (ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 1)))
 ```
 ---
 ```output
@@ -112,7 +112,7 @@ Swap:   17179869184 15711666176  1468203008
 ### -m: in mebibytes
 
 ```cu
-(do (display (%ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 1048576)) (display (%ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 1048576)))
+(do (display (ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 1048576)) (display (ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 1048576)))
 ```
 ---
 ```output
@@ -128,7 +128,7 @@ Swap:         16384       14984        1400
 ### -g: in gibibytes
 
 ```cu
-(do (display (%ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 1073741824)) (display (%ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 1073741824)))
+(do (display (ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 1073741824)) (display (ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 1073741824)))
 ```
 ---
 ```output
@@ -144,7 +144,7 @@ Swap:            16          15           1
 ### -h: to a tenth, in the largest unit under 1024
 
 ```cu
-(do (display (%ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 0)) (display (%ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 0)))
+(do (display (ps-free-text (list (pair (lit total) 8192000000) (pair (lit free) 1024000000) (pair (lit shared) 51200000) (pair (lit buffers) 102400000) (pair (lit cached) 2048000000) (pair (lit reclaimable) 307200000) (pair (lit available) 5120000000) (pair (lit swap-total) 2147483648) (pair (lit swap-free) 1073741824)) 0)) (display (ps-free-text (list (pair (lit total) 17179869184) (pair (lit free) 106414080) (pair (lit shared) ()) (pair (lit buffers) ()) (pair (lit cached) 3298534400) (pair (lit reclaimable) ()) (pair (lit available) ()) (pair (lit swap-total) 17179869184) (pair (lit swap-free) 1468203008)) 0)))
 ```
 ---
 ```output
@@ -160,7 +160,7 @@ Swap:         16.0G       14.6G        1.4G
 ### -h at the edges: under 1024 bare, 1023.95K up to 1024.0K, a tenth rounded down
 
 ```cu
-(display (%ps-free-text (list (pair (lit total) 5242880) (pair (lit free) 1023) (pair (lit shared) 1048575) (pair (lit buffers) 1048524) (pair (lit cached) 0) (pair (lit reclaimable) 0) (pair (lit available) 1024) (pair (lit swap-total) 1048576000) (pair (lit swap-free) 1048051)) 0))
+(display (ps-free-text (list (pair (lit total) 5242880) (pair (lit free) 1023) (pair (lit shared) 1048575) (pair (lit buffers) 1048524) (pair (lit cached) 0) (pair (lit reclaimable) 0) (pair (lit available) 1024) (pair (lit swap-total) 1048576000) (pair (lit swap-free) 1048051)) 0))
 ```
 ---
 ```output
@@ -201,7 +201,7 @@ compares the line with itself.
 ### free -m and free -h run; the unit is the first word's first letter, as busybox reads it
 
 ```cu
-(list (first (rest (rest (run-out (list "free" "-m"))))) (first (rest (rest (run-out (list "free" "-h"))))) (map %ps-free-unit (list () (list "-b") (list "-k") (list "-m") (list "-g") (list "-h") (list "-mg") (list "-m" "-g") (list "-gm"))))
+(list (first (rest (rest (run-out (list "free" "-m"))))) (first (rest (rest (run-out (list "free" "-h"))))) (map ps-free-unit (list () (list "-b") (list "-k") (list "-m") (list "-g") (list "-h") (list "-mg") (list "-m" "-g") (list "-gm"))))
 ```
 ---
     (0 0 (1024 1 1024 1048576 1073741824 0 1048576 1048576 1073741824))

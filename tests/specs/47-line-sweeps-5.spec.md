@@ -39,7 +39,7 @@ all ones and all zeros; the items are the numbers 1 to 4,000, and the vector
 holds them.
 
 ```cu
-(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def kv (fn (self n from acc) (if (= n 0) (string-concat acc) (self (- n 1) from (pair (%cu-int->str (+ from n)) (pair " alpha\n" acc)))))) (def kblocks (fn (self k acc) (if (= k 0) (string-concat acc) (self (- k 1) (pair (kv 100 (+ 10000 (* 100 (- k 1))) ()) acc))))) (def k2 (kblocks 20 ())) (file-write-all "/tmp/x-cu-ls5-k" (kblocks 10 ())) (file-write-all "/tmp/x-cu-ls5-c" k2) (def put-z (fn (self fd ls i) (if (null? ls) () (do (%cu-sweep-at i %cu-sweep-steps) (file-write-field fd (first ls) 0) (self fd (rest ls) (+ i 1)))))) (let ((fd (file-open-write "/tmp/x-cu-ls5-z"))) (do (put-z fd (%cu-lines k2) 0) (file-close fd))) (def same (fn (self s k acc) (if (= k 0) acc (self s (- k 1) (pair s acc))))) (def ones (same "1" 20000 ())) (def zeros (same "0" 20000 ())) (def cheap< (fn (_ a b) (< (byte-at a 0) (byte-at b 0)))) (def items (%cu-shuf-range "1-4000")) (def v (%cu-list->vec items 4000)) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (%cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (def under-th? (fn (_ th bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (%cu-heap-collect) (limit! (+ (Heap count) bound)) (th) (sys-exit 0)) (sys-wait pid)))))) (display "made"))
+(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def kv (fn (self n from acc) (if (= n 0) (string-concat acc) (self (- n 1) from (pair (cu-int->str (+ from n)) (pair " alpha\n" acc)))))) (def kblocks (fn (self k acc) (if (= k 0) (string-concat acc) (self (- k 1) (pair (kv 100 (+ 10000 (* 100 (- k 1))) ()) acc))))) (def k2 (kblocks 20 ())) (file-write-all "/tmp/x-cu-ls5-k" (kblocks 10 ())) (file-write-all "/tmp/x-cu-ls5-c" k2) (def put-z (fn (self fd ls i) (if (null? ls) () (do (cu-sweep-at i cu-sweep-steps) (file-write-field fd (first ls) 0) (self fd (rest ls) (+ i 1)))))) (let ((fd (file-open-write "/tmp/x-cu-ls5-z"))) (do (put-z fd (cu-lines k2) 0) (file-close fd))) (def same (fn (self s k acc) (if (= k 0) acc (self s (- k 1) (pair s acc))))) (def ones (same "1" 20000 ())) (def zeros (same "0" 20000 ())) (def cheap< (fn (_ a b) (< (byte-at a 0) (byte-at b 0)))) (def items (cu-shuf-range "1-4000")) (def v (cu-list->vec items 4000)) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (def under-th? (fn (_ th bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-heap-collect) (limit! (+ (Heap count) bound)) (th) (sys-exit 0)) (sys-wait pid)))))) (display "made"))
 ```
 ---
     made
@@ -59,7 +59,7 @@ holds them.
 ### the merge of two lists of 20,000 lines
 
 ```cu
-(display (list (under-th? (fn (_) (%cu-merge ones zeros cheap< ())) 1100000)))
+(display (list (under-th? (fn (_) (cu-merge ones zeros cheap< ())) 1100000)))
 ```
 ---
     (#t)
@@ -67,7 +67,7 @@ holds them.
 ### the line printer and the field printer, on 4,000 lines
 
 ```cu
-(display (list (under-th? (fn (_) (%cu-print-lines-to (file-open-write "/dev/null") items)) 1400000) (under-th? (fn (_) (%cu-print-fields-to (file-open-write "/dev/null") items 0)) 2800000)))
+(display (list (under-th? (fn (_) (cu-print-lines-to (file-open-write "/dev/null") items)) 1400000) (under-th? (fn (_) (cu-print-fields-to (file-open-write "/dev/null") items 0)) 2800000)))
 ```
 ---
     (#t #t)
@@ -75,7 +75,7 @@ holds them.
 ### the -z reader, on 2,000 fields
 
 ```cu
-(display (list (under-th? (fn (_) (%cu-fd-fields (file-open-read "/tmp/x-cu-ls5-z") 0 "")) 900000)))
+(display (list (under-th? (fn (_) (cu-fd-fields (file-open-read "/tmp/x-cu-ls5-z") 0 "")) 900000)))
 ```
 ---
     (#t)
@@ -83,7 +83,7 @@ holds them.
 ### shuf's range, and its copies into a vector and out, on 4,000 items
 
 ```cu
-(display (list (under-th? (fn (_) (%cu-shuf-range "1-4000")) 2300000) (under-th? (fn (_) (%cu-list->vec items 4000)) 500000) (under-th? (fn (_) (%cu-vec->list v 4000)) 1300000)))
+(display (list (under-th? (fn (_) (cu-shuf-range "1-4000")) 2300000) (under-th? (fn (_) (cu-list->vec items 4000)) 500000) (under-th? (fn (_) (cu-vec->list v 4000)) 1300000)))
 ```
 ---
     (#t #t #t)

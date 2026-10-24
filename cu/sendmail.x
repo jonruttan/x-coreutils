@@ -17,6 +17,23 @@
 ; said and passed over, and a DATA no recipient was taken for ends the
 ; exchange with QUIT.
 
+(module cu/sendmail)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/inetd in-c in-call in-count in-errtext in-exec)
+(import cu/mime mm-b64 mm-ci= mm-gets mm-in mm-source!)
+(import cu/nc nc-count)
+(import cu/net cu-dial)
+(import cu/prims append byte-at byte-len cu-int->ptr cu-int->str cu-ptr->str
+  cu-ptr-call cu-ptr-ref cu-ptr-word cu-sig-ign cu-str->ptr file-read-run
+  file-write in-index-of map reverse set-first! str-make-raw string-append
+  string-concat substring sys-close sys-dup2 sys-exit sys-fork sys-getenv
+  sys-getuid sys-pipe sys-poll sys-signal sys-sleep sys-uname sys-user-name
+  wget-div wget-index wget-memv)
+(import cu/telnet tn-str-bytes)
+(import cu/telnetd td-ptr->int)
+(import cu/who cu-uname-field)
+
 (def %sm-rd -1)                 ; the server, read
 (def %sm-wr -1)                 ; the server, written
 (def %sm-verbose 0)
@@ -24,6 +41,8 @@
 (def %sm-helper -1)
 (def %sm-buf "")                ; the server's bytes read and not yet a line
 (def %sm-eof? #f)
+; popmaildir records and clears its helper with this
+(def sm-helper-pid! (fn (_ pid) (set! %sm-helper pid)))
 
 (def %sm-say (fn (_ msg) (file-write 2 (string-concat (list "sendmail: " msg "\n")))))
 (def %sm-die (fn (_ msg) (Err raise (lit net) msg ())))
@@ -34,7 +53,7 @@
 ; seconds without one end the run
 (def %sm-getline
   (fn (self)
-    (let ((nl (%wget-index %sm-buf #\newline 0)))
+    (let ((nl (wget-index %sm-buf #\newline 0)))
       (match
         ((not (null? nl))
           (let ((line (substring %sm-buf 0 nl)))
@@ -48,7 +67,7 @@
                     (set! %sm-buf (string-append %sm-buf (substring (first r) 0 (rest r))))))
                 (self)))))))
 
-(def %sm-cr-cut (fn (_ s) (let ((cr (%wget-index s #\return 0))) (if (null? cr) s (substring s 0 cr)))))
+(def %sm-cr-cut (fn (_ s) (let ((cr (wget-index s #\return 0))) (if (null? cr) s (substring s 0 cr)))))
 
 ; send_r_n
 (def %sm-send
@@ -56,7 +75,7 @@
     (when (> %sm-verbose 0) (%sm-say (string-concat (list "send:'" s "'"))))
     (guard (_ ()) (file-write %sm-wr (string-append s "\r\n")))))
 
-(def %sm-atoi
+(def sm-atoi
   (fn (_ s)
     (let go ((i 0) (n 0))
       (if (if (< i (byte-len s)) (if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f) #f)
@@ -72,49 +91,49 @@
         (let ((a (%sm-getline)))
           (do (when (if (null? a) #f (> %sm-verbose 0)) (%sm-say (string-concat (list "recv:'" (%sm-cr-cut a) "'"))))
               (if (if (null? a) #f (if (> (byte-len a) 3) (= (byte-at a 3) #\-) #f)) (go) a)))))
-    (def n (if (null? answer) () (%sm-atoi answer)))
+    (def n (if (null? answer) () (sm-atoi answer)))
     (if (if (null? n) #f (if (= code -1) #t (= n code))) n
-      (do (%sm-helper-check)
+      (do (sm-helper-check)
           (%sm-die (string-append (if (null? msg) "(null)" msg) " failed"))))))
 
 ; the helper's own end, said as busybox's SIGCHLD handler says it
-(def %sm-helper-check
+(def sm-helper-check
   (fn (_)
     (when (> %sm-helper 0)
-      (let ((st (%str-make-raw 4)))
-        (when (> (%in-call (%cu-ptr-call (%in-c "waitpid") %sm-helper (%cu-str->ptr st) 1)) 0)
-          (let ((raw (%cu-ptr-ref (%cu-str->ptr st) 0 4)))
-            (match ((> (% raw 128) 0) (%sm-die (string-append "helper killed by signal " (%cu-int->str (% raw 128)))))
-                   ((> (% (%wget-div raw 256) 256) 0)
-                     (%sm-die (string-concat (list "helper exited (" (%cu-int->str (% (%wget-div raw 256) 256)) ")"))))
+      (let ((st (str-make-raw 4)))
+        (when (> (in-call (cu-ptr-call (in-c "waitpid") %sm-helper (cu-str->ptr st) 1)) 0)
+          (let ((raw (cu-ptr-ref (cu-str->ptr st) 0 4)))
+            (match ((> (% raw 128) 0) (%sm-die (string-append "helper killed by signal " (cu-int->str (% raw 128)))))
+                   ((> (% (wget-div raw 256) 256) 0)
+                     (%sm-die (string-concat (list "helper exited (" (cu-int->str (% (wget-div raw 256) 256)) ")"))))
                    (#t ()))))))))
 
 ; --- addresses ------------------------------------------------------------------
 
-(def %sm-space? (fn (_ c) (match ((= c #\space) #t) ((= c #\tab) #t) ((= c #\newline) #t) ((= c #\return) #t) ((= c 11) #t) (#t (= c 12)))))
+(def sm-space? (fn (_ c) (match ((= c #\space) #t) ((= c #\tab) #t) ((= c #\newline) #t) ((= c #\return) #t) ((= c 11) #t) (#t (= c 12)))))
 
 (def %sm-trim
   (fn (_ s)
     (def n (byte-len s))
-    (def a (let go ((i 0)) (if (if (< i n) (%sm-space? (byte-at s i)) #f) (go (+ i 1)) i)))
-    (def b (let go ((e n)) (if (if (> e a) (%sm-space? (byte-at s (- e 1))) #f) (go (- e 1)) e)))
+    (def a (let go ((i 0)) (if (if (< i n) (sm-space? (byte-at s i)) #f) (go (+ i 1)) i)))
+    (def b (let go ((e n)) (if (if (> e a) (sm-space? (byte-at s (- e 1))) #f) (go (- e 1)) e)))
     (substring s a b)))
 
 (def %sm-safe? (fn (_ c) (match ((if (>= c #\a) (<= c #\z) #f) #t) ((if (>= c #\A) (<= c #\Z) #f) #t)
-                                ((if (>= c #\0) (<= c #\9) #f) #t) (#t (%wget-memv c (list #\= #\+ #\_ #\- #\. #\@))))))
+                                ((if (>= c #\0) (<= c #\9) #f) #t) (#t (wget-memv c (list #\= #\+ #\_ #\- #\. #\@))))))
 
 ; sane_address: S trimmed, or "" said as a bad address
 (def %sm-sane
   (fn (_ s)
     (def t (%sm-trim s))
-    (if (List all? %sm-safe? (%tn-str-bytes t)) t
+    (if (List all? %sm-safe? (tn-str-bytes t)) t
       (do (%sm-say (string-concat (list "bad address '" t "'"))) ""))))
 
 ; angle_address: the address inside a trailing <...>, else all of S
 (def %sm-angle
   (fn (_ s)
     (def t (%sm-trim s))
-    (def lt (%in-index-of t #\<))
+    (def lt (in-index-of t #\<))
     (%sm-sane (if (if (> (byte-len t) 0) (if (= (byte-at t (- (byte-len t) 1)) #\>) (not (null? lt)) #f) #f)
                 (substring t (+ lt 1) (- (byte-len t) 1)) t))))
 
@@ -138,7 +157,7 @@
 
 ; --- the message ---------------------------------------------------------------
 
-(def %sm-ci-prefix? (fn (_ s p) (if (< (byte-len s) (byte-len p)) #f (%mm-ci= (substring s 0 (byte-len p)) p))))
+(def %sm-ci-prefix? (fn (_ s p) (if (< (byte-len s) (byte-len p)) #f (mm-ci= (substring s 0 (byte-len p)) p))))
 
 ; the recipients named on the command line, each a RCPT TO, and the To header
 ; they make when the message has none
@@ -165,19 +184,19 @@
 (def %sm-message
   (fn (_ argv t?)
     (let go ((headers ()) (has-to? #f) (last (lit other)) (n 0))
-      (let ((s (%mm-gets)))
+      (let ((s (mm-gets)))
         (def line (if (null? s) () (if (Str8 ends? "\n" s) (substring s 0 (- (byte-len s) 1)) s)))
         (def to? (if (null? line) #f (%sm-ci-prefix? line "To:")))
         (def cc? (if (null? line) #f (%sm-ci-prefix? line "cc:")))
         (def bcc? (if (null? line) #f (%sm-ci-prefix? line "Bcc:")))
-        (def cont? (match ((null? line) #f) ((null? headers) #f) ((= (byte-len line) 0) #f) (#t (%sm-space? (byte-at line 0)))))
+        (def cont? (match ((null? line) #f) ((null? headers) #f) ((= (byte-len line) 0) #f) (#t (sm-space? (byte-at line 0)))))
         (match
           ((if (not (null? line)) (if t? (if to? #t cc?) #f) #f)
             (do (%sm-rcpt-list (substring line 3 (byte-len line)))
                 (if (>= (+ n 1) 256) (%sm-bail) (go (append headers (list line)) (if has-to? #t to?) (lit tocc) (+ n 1)))))
           ((if (not (null? line)) (if t? bcc? #f) #f)
             (do (%sm-rcpt-list (substring line 4 (byte-len line))) (go headers (if has-to? #t to?) (lit bcc) n)))
-          ((if (null? line) #f (if (not (null? (%wget-index line #\: 0))) #t cont?))
+          ((if (null? line) #f (if (not (null? (wget-index line #\: 0))) #t cont?))
             (let ((has2 (if has-to? #t to?)))
               (if (if cont? (not (eq? last (lit other))) #f)
                 (do (%sm-rcpt-list (substring line 1 (byte-len line)))
@@ -189,7 +208,7 @@
               (if (not (%sm-data! hs)) (%sm-bail)
                 (do (if (null? line) (%sm-send "")
                       (do (%sm-body-line line)
-                          (let body () (let ((b (%mm-gets))) (unless (null? b) (do (%sm-body-line (if (Str8 ends? "\n" b) (substring b 0 (- (byte-len b) 1)) b)) (body)))))))
+                          (let body () (let ((b (mm-gets))) (unless (null? b) (do (%sm-body-line (if (Str8 ends? "\n" b) (substring b 0 (- (byte-len b) 1)) b)) (body)))))))
                     (%sm-check "." 250)
                     (%sm-bail))))))))))
 
@@ -200,7 +219,7 @@
 ; the server HOST[:PORT], port 25 by default
 (def %sm-connect!
   (fn (_ spec)
-    (def fd (%cu-dial spec 25))
+    (def fd (cu-dial spec 25))
     (set! %sm-rd fd)
     (set! %sm-wr fd)))
 
@@ -214,8 +233,8 @@
       (do (sys-close (rest to)) (sys-close (first from))
           (sys-dup2 (first to) 0) (sys-dup2 (rest from) 1)
           (sys-close (first to)) (sys-close (rest from)) (sys-close 3)
-          (let ((r (%in-exec "sh" (list "sh" "-c" cmd))))
-            (do (%sm-say (string-concat (list "can't execute 'sh': " (%in-errtext r)))) (sys-exit 127)))))
+          (let ((r (in-exec "sh" (list "sh" "-c" cmd))))
+            (do (%sm-say (string-concat (list "can't execute 'sh': " (in-errtext r)))) (sys-exit 127)))))
     (sys-close (first to))
     (sys-close (rest from))
     (set! %sm-helper pid)
@@ -224,21 +243,21 @@
 
 ; --- the applet ----------------------------------------------------------------------
 
-(def %cu-sendmail
+(def cu-sendmail
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "sendmail" argv))
-    (if (if (Opts on? o "-H") (not (null? (Opts value o "-S"))) #f) (%cu-usage "sendmail")
+    (def o (cu-opts "sendmail" argv))
+    (if (if (Opts on? o "-H") (not (null? (Opts value o "-S"))) #f) (cu-usage "sendmail")
       (guard (e (if (eq? (Err label e) (lit net))
                   (do (%sm-say (e msg)) 1)
                   (error e)))
-        (do (set! %mm-thunk stdin-thunk)
-            (set-first! %mm-in ())
+        (do (mm-source! stdin-thunk)
+            (set-first! mm-in ())
             (%sm-main o))))))
 
 (def %sm-main
   (fn (_ o)
-    (set! %sm-verbose (%nc-count o "-v"))
-    (set! %sm-timeout (let ((w (Opts value o "-w"))) (if (null? w) 0 (%in-count w))))
+    (set! %sm-verbose (nc-count o "-v"))
+    (set! %sm-timeout (let ((w (Opts value o "-w"))) (if (null? w) 0 (in-count w))))
     (set! %sm-buf "")
     (set! %sm-eof? #f)
     (set! %sm-helper -1)
@@ -252,11 +271,11 @@
                                acc))
                            #f (Opts values o "-a")))
     (def auth? (not (null? (Opts values o "-a"))))
-    (def host (%sm-sane (%cu-uname-field (sys-uname) (lit nodename))))
+    (def host (%sm-sane (cu-uname-field (sys-uname) (lit nodename))))
     (sys-signal 13 cu-sig-ign)
     (if (Opts on? o "-H")
       (do (%sm-helper! (Opts value o "-H"))
-          (let ((delay (sys-getenv "SMTP_ANTISPAM_DELAY"))) (unless (null? delay) (sys-sleep (%sm-atoi delay))))
+          (let ((delay (sys-getenv "SMTP_ANTISPAM_DELAY"))) (unless (null? delay) (sys-sleep (sm-atoi delay))))
           (let ((code (%sm-check "NOOP" -1)))
             (match ((= code 220) (%sm-check () 250))
                    ((not (= code 250)) (%sm-die "SMTP init failed"))
@@ -276,9 +295,9 @@
 ; xgethostbyname's h_name for HOST
 (def %sm-canonical
   (fn (_ host)
-    (def h (%cu-ptr-call (%in-c "gethostbyname") host))
-    (if (= (%td-ptr->int h) 0) (%sm-die (string-concat (list "bad address '" host "'")))
-      (%cu-ptr->str (%cu-int->ptr (%cu-ptr-word h 0))))))
+    (def h (cu-ptr-call (in-c "gethostbyname") host))
+    (if (= (td-ptr->int h) 0) (%sm-die (string-concat (list "bad address '" host "'")))
+      (cu-ptr->str (cu-int->ptr (cu-ptr-word h 0))))))
 
 ; AUTH LOGIN or PLAIN; without -au and -ap, the user and password are fd 4's
 ; first two lines
@@ -289,11 +308,11 @@
     (def p (rest cred))
     (if plain?
       (do (%sm-check "AUTH PLAIN" 334)
-          (guard (_ ()) (file-write %sm-wr (%mm-b64 (append (list 0) (%tn-str-bytes u) (list 0) (%tn-str-bytes p))))))
+          (guard (_ ()) (file-write %sm-wr (mm-b64 (append (list 0) (tn-str-bytes u) (list 0) (tn-str-bytes p))))))
       (do (%sm-check "AUTH LOGIN" 334)
-          (guard (_ ()) (file-write %sm-wr (%mm-b64 (%tn-str-bytes u))))
+          (guard (_ ()) (file-write %sm-wr (mm-b64 (tn-str-bytes u))))
           (%sm-check "" 334)
-          (guard (_ ()) (file-write %sm-wr (%mm-b64 (%tn-str-bytes p))))))
+          (guard (_ ()) (file-write %sm-wr (mm-b64 (tn-str-bytes p))))))
     (%sm-check "" 235)))
 
 (def %sm-fd4-cred
@@ -306,3 +325,6 @@
     (def u (line))
     (def p (line))
     (if (if (null? u) #t (if (= (byte-len u) 0) #t (null? p))) (%sm-die "no username or password") (pair u p))))
+
+(provide cu/sendmail cu-sendmail sm-atoi sm-helper-check sm-helper-pid!
+  sm-space?)

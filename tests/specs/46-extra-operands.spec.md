@@ -18,7 +18,7 @@ bytes to skip in each file; a fifth is the usage line and 1.
 The working directory shows as `CWD`.
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-eo && mkdir -p /tmp/x-cu-eo && cd /tmp/x-cu-eo && echo a > a && echo b > b && echo c > c && echo x > a.c")) (def nf (fn (_ n) (string-append "/tmp/x-cu-eo/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (Str8 replace (sys-getcwd) "CWD" (Str8 replace "/tmp/x-cu-eo/" "" (string-concat (list (file-read-all (nf ".out")) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n")))))))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-eo && mkdir -p /tmp/x-cu-eo && cd /tmp/x-cu-eo && echo a > a && echo b > b && echo c > c && echo x > a.c")) (def nf (fn (_ n) (string-append "/tmp/x-cu-eo/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (Str8 replace (sys-getcwd) "CWD" (Str8 replace "/tmp/x-cu-eo/" "" (string-concat (list (file-read-all (nf ".out")) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))))) (display "made"))
 ```
 ---
     made
@@ -137,7 +137,7 @@ status 0
 The shuffled order is chance's, so the lines are counted.
 
 ```cu
-(do (run (list "shuf" "-i" "1-3" "x")) (cu-run (list "shuf" "-e" "a" "b" "c" "-o" (nf "sh")) "") (display (length (%cu-lines (file-read-all (nf "sh"))))) (newline))
+(do (run (list "shuf" "-i" "1-3" "x")) (cu-run (list "shuf" "-e" "a" "b" "c" "-o" (nf "sh")) "") (display (length (cu-lines (file-read-all (nf "sh"))))) (newline))
 ```
 ---
 ```output

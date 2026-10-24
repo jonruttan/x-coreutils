@@ -72,7 +72,7 @@ a shell uses it.
 ### chgrp sets the group stat reads back
 
 ```cu
-(do (cu-run (list "chgrp" (%cu-int->str (sys-getegid)) "/tmp/x-cu-dr/f") "") (display (if (= (%cu-stat-get (file-stat-full "/tmp/x-cu-dr/f") (lit gid)) (sys-getegid)) "same" "different")))
+(do (cu-run (list "chgrp" (cu-int->str (sys-getegid)) "/tmp/x-cu-dr/f") "") (display (if (= (cu-stat-get (file-stat-full "/tmp/x-cu-dr/f") (lit gid)) (sys-getegid)) "same" "different")))
 ```
 ---
     same
@@ -179,7 +179,7 @@ fifo
 ### id -u is the effective uid, and whoami names it
 
 ```cu
-(do (display (if (string=? (cu-out (list "id" "-u")) (string-append (%cu-int->str (sys-geteuid)) "\n")) "same" "different")) (newline) (display (> (byte-len (cu-out (list "whoami"))) 1)))
+(do (display (if (string=? (cu-out (list "id" "-u")) (string-append (cu-int->str (sys-geteuid)) "\n")) "same" "different")) (newline) (display (> (byte-len (cu-out (list "whoami"))) 1)))
 ```
 ---
 ```output
@@ -190,7 +190,7 @@ same
 ### uname names this system, and arch is its machine
 
 ```cu
-(do (display (if (string=? (cu-out (list "uname")) (string-append (%cu-uname-field (sys-uname) (lit sysname)) "\n")) "named" "wrong")) (newline) (display (if (string=? (cu-out (list "arch")) (cu-out (list "uname" "-m"))) "same" "different")))
+(do (display (if (string=? (cu-out (list "uname")) (string-append (cu-uname-field (sys-uname) (lit sysname)) "\n")) "named" "wrong")) (newline) (display (if (string=? (cu-out (list "arch")) (cu-out (list "uname" "-m"))) "same" "different")))
 ```
 ---
 ```output
@@ -201,7 +201,7 @@ same
 ### nproc counts at least one processor
 
 ```cu
-(display (>= (%cu-num-prefix (cu-out (list "nproc"))) 1))
+(display (>= (cu-num-prefix (cu-out (list "nproc"))) 1))
 ```
 ---
     #t

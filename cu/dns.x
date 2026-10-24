@@ -19,6 +19,18 @@
 
 ; --- the command line ------------------------------------------------------------
 
+(module cu/dns)
+
+(import cu/cli cu-usage)
+(import cu/net whois-trim)
+(import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-nth
+  file-err-text file-exists? file-open-err file-read-all file-read-run
+  file-write file-write-run filter integer->char length list->string map
+  net-close net-die net-resolve net-udp-connect reverse set-first!
+  string-append string-concat string=? substring sys-poll sys-time-ms
+  sys-uname vec-build vec-ref wget-digits wget-div wget-find wget-index
+  wget-last-index wget-memv)
+
 (def %ns-port 53)
 (def %ns-retry 2)
 (def %ns-timeout 5)
@@ -37,12 +49,12 @@
 ; busybox's xatou_range: VAL's digits within LO..HI, or the run ends
 (def %ns-number
   (fn (_ val lo hi)
-    (def n (%wget-digits val))
+    (def n (wget-digits val))
     (match
-      ((null? n) (%net-die (string-concat (list "invalid number '" val "'"))))
+      ((null? n) (net-die (string-concat (list "invalid number '" val "'"))))
       ((if (< n lo) #t (> n hi))
-        (%net-die (string-concat (list "number " val " is not in "
-          (%cu-int->str lo) ".." (%cu-int->str hi) " range"))))
+        (net-die (string-concat (list "number " val " is not in "
+          (cu-int->str lo) ".." (cu-int->str hi) " range"))))
       (#t n))))
 
 ; the qtype number for NAME, any case, or the run ends
@@ -51,7 +63,7 @@
     (def up (%ns-upper val))
     (let go ((ts %ns-types))
       (match
-        ((null? ts) (%net-die (string-concat (list "invalid query type \"" val "\""))))
+        ((null? ts) (net-die (string-concat (list "invalid query type \"" val "\""))))
         ((string=? (first (first ts)) up) (rest (first ts)))
         (#t (go (rest ts)))))))
 
@@ -75,24 +87,24 @@
       ((not (= (byte-at (first argv) 0) #\-)) (pair (reverse types) argv))
       (#t
         (let ((arg (substring (first argv) 1 (byte-len (first argv)))))
-          (let ((eq (%wget-index arg #\= 0)))
+          (let ((eq (wget-index arg #\= 0)))
             (let ((name (if (null? eq) arg (substring arg 0 eq)))
                   (val (if (null? eq) "" (substring arg (+ eq 1) (byte-len arg)))))
               (match
-                ((%cu-member-s? name (list "type" "querytype"))
+                ((cu-member-s? name (list "type" "querytype"))
                   (self (rest argv) (%ns-add-type types (%ns-type val))))
                 ((string=? name "port")
                   (do (set! %ns-port (%ns-number val 1 65535)) (self (rest argv) types)))
                 ((string=? name "retry")
                   (do (set! %ns-retry (%ns-number val 1 2147483647)) (self (rest argv) types)))
                 ((string=? name "debug") (do (set! %ns-debug #t) (self (rest argv) types)))
-                ((%cu-member-s? name (list "t" "timeout"))
+                ((cu-member-s? name (list "t" "timeout"))
                   (do (set! %ns-timeout (%ns-number val 1 2147483)) (self (rest argv) types)))
                 (#t (lit usage))))))))))
 
 ; TYPES with T added once
 (def %ns-add-type
-  (fn (_ types t) (if (%wget-memv t types) types (pair t types))))
+  (fn (_ types t) (if (wget-memv t types) types (pair t types))))
 
 ; --- names and queries -------------------------------------------------------------
 
@@ -114,12 +126,12 @@
             ((if (= i l1) #t (= (byte-at name i) #\.))
               (let ((n (- i start)))
                 (if (> (- n 1) 61) ()
-                  (let ((acc2 (append (reverse (%ns-bytes name start i)) (pair n acc))))
+                  (let ((acc2 (append (reverse (ns-bytes name start i)) (pair n acc))))
                     (if (= i l1) (reverse (pair 0 acc2)) (go (+ i 1) (+ i 1) acc2))))))
             (#t (go (+ i 1) start acc))))))))
 
 ; S's bytes from A to B, as a list
-(def %ns-bytes
+(def ns-bytes
   (fn (_ s a b)
     (let go ((i (- b 1)) (acc ()))
       (if (< i a) acc (go (- i 1) (pair (& (byte-at s i) 255) acc))))))
@@ -132,7 +144,7 @@
     (list name
           (if (null? wire) ()
             (append (list 0 0 1 32 0 1 0 0 0 0 0 0)
-                    (append wire (list (%wget-div type 256) (% type 256) 0 1))))
+                    (append wire (list (wget-div type 256) (% type 256) 0 1))))
           #f)))
 
 ; the dotted quad S's four numbers, or nil
@@ -140,7 +152,7 @@
   (fn (_ s)
     (def parts (%ns-split s #\.))
     (if (= (length parts) 4)
-      (let ((ns (map (fn (_ p) (if (> (byte-len p) 3) () (%wget-digits p))) parts)))
+      (let ((ns (map (fn (_ p) (if (> (byte-len p) 3) () (wget-digits p))) parts)))
         (if (null? (filter (fn (_ n) (if (null? n) #t (> n 255))) ns)) ns ()))
       ())))
 
@@ -156,12 +168,12 @@
 ; S's eight 16-bit groups when it reads as an IPv6 address, or nil
 (def %ns-ipv6
   (fn (_ s)
-    (def dc (%wget-find s "::"))
+    (def dc (wget-find s "::"))
     (def group (fn (_ g)
       (if (if (> (byte-len g) 0) (<= (byte-len g) 4) #f)
         (let go ((i 0) (v 0))
           (if (= i (byte-len g)) v
-            (let ((h (%ns-hex (byte-at g i)))) (if (< h 0) () (go (+ i 1) (+ (* v 16) h))))))
+            (let ((h (ns-hex (byte-at g i)))) (if (< h 0) () (go (+ i 1) (+ (* v 16) h))))))
         ())))
     (def groups (fn (_ part) (if (= (byte-len part) 0) () (map group (%ns-split part #\:)))))
     (def all
@@ -174,7 +186,7 @@
 
 (def %ns-zeros (fn (self n) (if (<= n 0) () (pair 0 (self (- n 1))))))
 
-(def %ns-hex
+(def ns-hex
   (fn (_ c)
     (match
       ((if (>= c #\0) (<= c #\9) #f) (- c #\0))
@@ -187,7 +199,7 @@
   (fn (_ s)
     (def v6 (%ns-ipv6 s))
     (def v4 (%ns-ipv4 s))
-    (def join (fn (_ ns) (string-concat (map (fn (_ n) (string-append (%cu-int->str n) ".")) ns))))
+    (def join (fn (_ ns) (string-concat (map (fn (_ n) (string-append (cu-int->str n) ".")) ns))))
     (match
       ((not (null? v6))
         (if (if (= (first v6) 0) (if (= (first (rest v6)) 0) (if (= (first (rest (rest v6))) 0)
@@ -197,11 +209,11 @@
           ; a v4-mapped address reverses as its IPv4
           (let ((a (first (rest (rest (rest (rest (rest (rest v6))))))))
                 (b (first (rest (rest (rest (rest (rest (rest (rest v6))))))))))
-            (string-append (join (list (% b 256) (%wget-div b 256) (% a 256) (%wget-div a 256)))
+            (string-append (join (list (% b 256) (wget-div b 256) (% a 256) (wget-div a 256)))
                            "in-addr.arpa"))
           (string-append
             (string-concat
-              (map (fn (_ n) (list->string (list (%ns-hexch (% n 16)) #\. (%ns-hexch (%wget-div n 16)) #\.)))
+              (map (fn (_ n) (list->string (list (%ns-hexch (% n 16)) #\. (%ns-hexch (wget-div n 16)) #\.)))
                    (reverse (%ns-nibbles v6))))
             "ip6.arpa")))
       ((not (null? v4)) (string-append (join (reverse v4)) "in-addr.arpa"))
@@ -212,7 +224,7 @@
   (fn (_ groups)
     (let go ((gs groups) (acc ()))
       (if (null? gs) (reverse acc)
-        (go (rest gs) (pair (% (first gs) 256) (pair (%wget-div (first gs) 256) acc)))))))
+        (go (rest gs) (pair (% (first gs) 256) (pair (wget-div (first gs) 256) acc)))))))
 
 (def %ns-hexch (fn (_ n) (integer->char (if (< n 10) (+ n #\0) (+ n 87)))))
 
@@ -220,7 +232,7 @@
 ; else the name itself, as busybox's add_query_with_search
 (def %ns-with-search
   (fn (_ type host search)
-    (if (if (= type 12) #t (if (null? search) #t (not (null? (%wget-index host #\. 0)))))
+    (if (if (= type 12) #t (if (null? search) #t (not (null? (wget-index host #\. 0)))))
       (list (%ns-query host type))
       (map (fn (_ d) (%ns-query (string-append host (string-append "." d)) type))
            (filter (fn (_ d) (> (byte-len d) 0)) (%ns-split-blanks search))))))
@@ -245,8 +257,8 @@
             (if (if (null? words) #t (null? (rest words)))
               (go (rest ls) servers search has-search)
               (let ((key (first words))
-                    (arg (%whois-trim (substring (first ls)
-                            (+ (%wget-find (first ls) (first words)) (byte-len (first words)))
+                    (arg (whois-trim (substring (first ls)
+                            (+ (wget-find (first ls) (first words)) (byte-len (first words)))
                             (byte-len (first ls))))))
                 (match
                   ((string=? key "nameserver") (go (rest ls) (pair (first (rest words)) servers) search has-search))
@@ -256,18 +268,18 @@
     (def search0
       (if (null? (first (rest st)))
         (let ((h (Assoc get (lit nodename) (sys-uname))))
-          (let ((d (%wget-index h #\. 0))) (if (null? d) () (substring h (+ d 1) (byte-len h)))))
+          (let ((d (wget-index h #\. 0))) (if (null? d) () (substring h (+ d 1) (byte-len h)))))
         (first (rest st))))
     (pair (first st) (if (if (null? search0) #f (string=? search0 ".")) () search0))))
 
 ; a server's (NAME IP PORT): NAME's own ":PORT" overrides -port
 (def %ns-server
   (fn (_ name)
-    (def colon (%wget-last-index name #\:))
-    (def port (if (null? colon) () (%wget-digits (substring name (+ colon 1) (byte-len name)))))
+    (def colon (wget-last-index name #\:))
+    (def port (if (null? colon) () (wget-digits (substring name (+ colon 1) (byte-len name)))))
     (def host (if (null? port) name (substring name 0 colon)))
     (def ip (guard (_ ()) (net-resolve host)))
-    (when (null? ip) (%net-die (string-concat (list "bad address '" name "'"))))
+    (when (null? ip) (net-die (string-concat (list "bad address '" name "'"))))
     (list name ip (if (null? port) %ns-port port))))
 
 ; --- the exchange: busybox's send_queries ---------------------------------------------
@@ -295,7 +307,7 @@
   (fn (_ server queries)
     (def fd (net-udp-connect (first (rest server)) (first (rest (rest server)))))
     (def timeout (* %ns-timeout 1000))
-    (def interval (%wget-div timeout %ns-retry))
+    (def interval (wget-div timeout %ns-retry))
     (def tstart (sys-time-ms))
     (def r (%ns-loop fd server queries timeout interval tstart tstart #t 0 (* 2 (length queries)) #f))
     (net-close fd)
@@ -327,8 +339,8 @@
     (unless printed?
       (file-write 1 (string-concat
         (list "Server:\t\t" (first server) "\nAddress:\t" (first (rest server)) ":"
-              (%cu-int->str (first (rest (rest server)))) "\n\n"))))
-    (def bs (%ns-bytes (first r) 0 (rest r)))
+              (cu-int->str (first (rest (rest server)))) "\n\n"))))
+    (def bs (ns-bytes (first r) 0 (rest r)))
     (def q (if (< (length bs) 4) () (%ns-match queries (first bs) (first (rest bs)))))
     (def rcode (if (null? q) 0 (& (first (rest (rest (rest bs)))) 15)))
     (match
@@ -342,14 +354,14 @@
         (do (set-first! (rest (rest q)) #t)
             (when %ns-debug
               (file-write 1 (string-concat
-                (list "Query #" (%cu-int->str (%ns-index queries q 0)) " completed in "
-                      (%cu-int->str (- (sys-time-ms) tstart)) "ms:\n"))))
+                (list "Query #" (cu-int->str (%ns-index queries q 0)) " completed in "
+                      (cu-int->str (- (sys-time-ms) tstart)) "ms:\n"))))
             (if (= rcode 0)
               (when (< (%ns-print-reply bs) 0)
                 (do (file-write 1 (string-concat (list "*** Can't find " (first q) ": Parse error\n")))
                     (set! %ns-exit 1)))
               (do (file-write 1 (string-concat (list "** server can't find " (first q) ": "
-                    (%cu-nth rcode %ns-rcodes) "\n")))
+                    (cu-nth rcode %ns-rcodes) "\n")))
                   (set! %ns-exit 1)))
             (file-write 1 "\n")
             (if (>= (+ replies 1) (length queries)) (+ replies 1)
@@ -370,12 +382,12 @@
 
 ; byte I of the list BS, as a vector would answer it
 (def %ns-at (fn (_ v i) (vec-ref v i)))
-(def %ns-u16 (fn (_ v i) (+ (* 256 (vec-ref v i)) (vec-ref v (+ i 1)))))
-(def %ns-u32 (fn (_ v i) (+ (* 65536 (%ns-u16 v i)) (%ns-u16 v (+ i 2)))))
+(def ns-u16 (fn (_ v i) (+ (* 256 (vec-ref v i)) (vec-ref v (+ i 1)))))
+(def %ns-u32 (fn (_ v i) (+ (* 65536 (ns-u16 v i)) (ns-u16 v (+ i 2)))))
 
 ; dn_expand: the name at I as dotted text, and how many bytes it takes there
 ; -- (TEXT . LENGTH), or nil for a name that runs off the end or loops
-(def %ns-name
+(def ns-name
   (fn (_ v n i)
     (let go ((j i) (parts ()) (len ()) (hops 0))
       (match
@@ -407,9 +419,9 @@
     (def v (vec-build n (let ((l bs)) (fn (_ i) (let ((b (first l))) (do (set! l (rest l)) b))))))
     (%ns-print-aa v)
     (if (< n 12) -1
-      (let ((after-q (%ns-skip-questions v n 12 (%ns-u16 v 4))))
+      (let ((after-q (%ns-skip-questions v n 12 (ns-u16 v 4))))
         (if (null? after-q) -1
-          (%ns-answers v n after-q 0 (%ns-u16 v 6)))))))
+          (%ns-answers v n after-q 0 (ns-u16 v 6)))))))
 
 (def %ns-print-aa
   (fn (_ v)
@@ -421,7 +433,7 @@
 (def %ns-skip-questions
   (fn (self v n i k)
     (if (= k 0) i
-      (let ((nm (%ns-name v n i)))
+      (let ((nm (ns-name v n i)))
         (if (if (null? nm) #t (> (+ (+ i (rest nm)) 4) n)) ()
           (self v n (+ (+ i (rest nm)) 4) (- k 1)))))))
 
@@ -429,10 +441,10 @@
 (def %ns-answers
   (fn (self v n i k count)
     (if (= k count) k
-      (let ((nm (%ns-name v n i)))
+      (let ((nm (ns-name v n i)))
         (if (if (null? nm) #t (> (+ (+ i (rest nm)) 10) n)) -1
           (let ((at (+ i (rest nm))))
-            (let ((type (%ns-u16 v at)) (rdlen (%ns-u16 v (+ at 8))) (rd (+ at 10)))
+            (let ((type (ns-u16 v at)) (rdlen (ns-u16 v (+ at 8))) (rd (+ at 10)))
               (if (> (+ rd rdlen) n) -1
                 (if (< (%ns-print-rr v n (first nm) type rd rdlen) 0) -1
                   (self v n (+ rd rdlen) (+ k 1) count))))))))))
@@ -442,13 +454,13 @@
   (fn (_ v n name type rd rdlen)
     (def say (fn (_ parts) (do (file-write 1 (string-concat parts)) 0)))
     (def named (fn (_ fmt-mid at)
-      (let ((d (%ns-name v n at)))
+      (let ((d (ns-name v n at)))
         (if (null? d) -1 (say (list name fmt-mid (first d) "\n"))))))
     (match
       ((= type 1)
         (if (= rdlen 4)
           (say (list "Name:\t" name "\nAddress: "
-                     (%ns-join (map %cu-int->str (list (vec-ref v rd) (vec-ref v (+ rd 1)) (vec-ref v (+ rd 2)) (vec-ref v (+ rd 3))))) "\n"))
+                     (%ns-join (map cu-int->str (list (vec-ref v rd) (vec-ref v (+ rd 1)) (vec-ref v (+ rd 2)) (vec-ref v (+ rd 3))))) "\n"))
           -1))
       ((= type 28)
         (if (= rdlen 16)
@@ -459,9 +471,9 @@
       ((= type 12) (named "\tname = " rd))
       ((= type 15)
         (if (< rdlen 2) (do (file-write 1 "MX record too short\n") -1)
-          (let ((d (%ns-name v n (+ rd 2))))
+          (let ((d (ns-name v n (+ rd 2))))
             (if (null? d) -1
-              (say (list name "\tmail exchanger = " (%cu-int->str (%ns-u16 v rd)) " " (first d) "\n"))))))
+              (say (list name "\tmail exchanger = " (cu-int->str (ns-u16 v rd)) " " (first d) "\n"))))))
       ((= type 16)
         (if (< rdlen 1) -1
           (let ((k (vec-ref v rd)))
@@ -473,34 +485,34 @@
                          "\"\n"))))))
       ((= type 33)
         (if (< rdlen 6) -1
-          (let ((d (%ns-name v n (+ rd 6))))
+          (let ((d (ns-name v n (+ rd 6))))
             (if (null? d) -1
-              (say (list name "\tservice = " (%cu-int->str (%ns-u16 v rd)) " "
-                         (%cu-int->str (%ns-u16 v (+ rd 2))) " " (%cu-int->str (%ns-u16 v (+ rd 4)))
+              (say (list name "\tservice = " (cu-int->str (ns-u16 v rd)) " "
+                         (cu-int->str (ns-u16 v (+ rd 2))) " " (cu-int->str (ns-u16 v (+ rd 4)))
                          " " (first d) "\n"))))))
       ((= type 6) (%ns-print-soa v n name rd rdlen))
       (#t 0))))
 
 (def %ns-print-soa
   (fn (_ v n name rd rdlen)
-    (def origin (if (< rdlen 20) () (%ns-name v n rd)))
-    (def mail (if (null? origin) () (%ns-name v n (+ rd (rest origin)))))
+    (def origin (if (< rdlen 20) () (ns-name v n rd)))
+    (def mail (if (null? origin) () (ns-name v n (+ rd (rest origin)))))
     (if (null? mail) -1
       (let ((at (+ (+ rd (rest origin)) (rest mail))))
         (do (file-write 1 (string-concat
               (list name "\n\torigin = " (first origin) "\n\tmail addr = " (first mail)
-                    "\n\tserial = " (%cu-int->str (%ns-u32 v at))
-                    "\n\trefresh = " (%cu-int->str (%ns-u32 v (+ at 4)))
-                    "\n\tretry = " (%cu-int->str (%ns-u32 v (+ at 8)))
-                    "\n\texpire = " (%cu-int->str (%ns-u32 v (+ at 12)))
-                    "\n\tminimum = " (%cu-int->str (%ns-u32 v (+ at 16))) "\n")))
+                    "\n\tserial = " (cu-int->str (%ns-u32 v at))
+                    "\n\trefresh = " (cu-int->str (%ns-u32 v (+ at 4)))
+                    "\n\tretry = " (cu-int->str (%ns-u32 v (+ at 8)))
+                    "\n\texpire = " (cu-int->str (%ns-u32 v (+ at 12)))
+                    "\n\tminimum = " (cu-int->str (%ns-u32 v (+ at 16))) "\n")))
             0)))))
 
 ; inet_ntop for 16 bytes at I: lowercase groups without leading zeros, the
 ; longest run of two or more zero groups as ::
 (def %ns-ntop6
   (fn (_ v i)
-    (def groups (let go ((k 7) (acc ())) (if (< k 0) acc (go (- k 1) (pair (%ns-u16 v (+ i (* 2 k))) acc)))))
+    (def groups (let go ((k 7) (acc ())) (if (< k 0) acc (go (- k 1) (pair (ns-u16 v (+ i (* 2 k))) acc)))))
     (def best (%ns-zero-run groups 0 -1 0 -1 0))
     (def hex (fn (_ g) (%ns-hex-group g)))
     (def bs (first best))
@@ -509,7 +521,7 @@
       (%ns-join-colon (map hex groups))
       (string-concat
         (list (%ns-join-colon (map hex (%ns-take bs groups))) "::"
-              (%ns-join-colon (map hex (%ns-drop (+ bs bl) groups))))))))
+              (%ns-join-colon (map hex (ns-drop (+ bs bl) groups))))))))
 
 ; the longest run of zeros in GS: (START . LENGTH), the first of the longest
 (def %ns-zero-run
@@ -522,17 +534,17 @@
       (#t (self (rest gs) (+ i 1) -1 0 best-start best-len)))))
 
 (def %ns-take (fn (self n l) (if (<= n 0) () (pair (first l) (self (- n 1) (rest l))))))
-(def %ns-drop (fn (self n l) (if (<= n 0) l (self (- n 1) (rest l)))))
+(def ns-drop (fn (self n l) (if (<= n 0) l (self (- n 1) (rest l)))))
 (def %ns-join-colon
   (fn (_ ss) (if (null? ss) "" (string-concat (pair (first ss) (map (fn (_ s) (string-append ":" s)) (rest ss)))))))
 (def %ns-hex-group
   (fn (_ g)
     (if (= g 0) "0"
-      (list->string (let go ((v g) (acc ())) (if (= v 0) acc (go (%wget-div v 16) (pair (%ns-hexch (% v 16)) acc))))))))
+      (list->string (let go ((v g) (acc ())) (if (= v 0) acc (go (wget-div v 16) (pair (%ns-hexch (% v 16)) acc))))))))
 
 ; --- the applet ------------------------------------------------------------------
 
-(def %cu-nslookup
+(def cu-nslookup
   (fn (_ argv stdin-thunk)
     (set! %ns-port 53) (set! %ns-retry 2) (set! %ns-timeout 5)
     (set! %ns-debug #f) (set! %ns-exit 0)
@@ -545,9 +557,9 @@
   (fn (_ argv)
     (def parsed (%ns-options argv ()))
     (match
-      ((eq? parsed (lit usage)) (%cu-usage "nslookup"))
-      ((null? (rest parsed)) (%cu-usage "nslookup"))
-      ((if (not (null? (rest (rest parsed)))) (not (null? (rest (rest (rest parsed))))) #f) (%cu-usage "nslookup"))
+      ((eq? parsed (lit usage)) (cu-usage "nslookup"))
+      ((null? (rest parsed)) (cu-usage "nslookup"))
+      ((if (not (null? (rest (rest parsed)))) (not (null? (rest (rest (rest parsed))))) #f) (cu-usage "nslookup"))
       (#t (%ns-lookup (first parsed) (first (rest parsed))
                       (if (null? (rest (rest parsed))) () (first (rest (rest parsed)))))))))
 
@@ -566,7 +578,7 @@
         ((null? types) (append (%ns-with-search 1 host search) (%ns-with-search 28 host search)))
         (#t (%ns-flatten
               (map (fn (_ t) (%ns-with-search t host search))
-                   (filter (fn (_ t) (%wget-memv t types)) (map (fn (_ e) (rest e)) %ns-types)))))))
+                   (filter (fn (_ t) (wget-memv t types)) (map (fn (_ e) (rest e)) %ns-types)))))))
     (%ns-set-ids queries)
     (def answered (%ns-each-server servers queries))
     (if (not answered)
@@ -586,7 +598,7 @@
       (unless (null? qs)
         (do (unless (null? (first (rest (first qs))))
               (let ((bs (first (rest (first qs)))))
-                (do (set-first! bs (% (%wget-div id 256) 256))
+                (do (set-first! bs (% (wget-div id 256) 256))
                     (set-first! (rest bs) (% id 256)))))
             (go (rest qs) (+ id 1)))))))
 
@@ -596,3 +608,5 @@
     (if (null? servers) #f
       (if (> (%ns-send-queries (first servers) queries) 0) #t
         (self (rest servers) queries)))))
+
+(provide cu/dns cu-nslookup ns-bytes ns-drop ns-hex ns-name ns-u16)

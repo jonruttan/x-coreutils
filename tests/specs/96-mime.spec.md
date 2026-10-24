@@ -18,12 +18,12 @@ and its pid) as UNIQ.
   (def mm-f (fn (_ n) (string-append "/tmp/x-cu-mime/" n)))
   (def mm-lines (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def mm-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
   (def mm (fn (_ setup cmd input)
-    (%cu-heap-collect)
+    (cu-heap-collect)
     (sys-setenv "MM_SETUP" setup) (sys-setenv "MM_CMD" cmd)
     (mm-sh "rm -rf /tmp/x-cu-mime && mkdir -p /tmp/x-cu-mime/out && cd /tmp/x-cu-mime && sh -c \"$MM_SETUP\" && eval \"set -- $MM_CMD\" && for a; do printf '%s\\n' \"$a\"; done > /tmp/x-cu-mime/.argv")
     (def argv (mm-lines (file-read-all (mm-f ".argv"))))
@@ -36,7 +36,7 @@ and its pid) as UNIQ.
     (def st (sys-wait pid))
     (mm-sh (string-concat (list
       "cd /tmp/x-cu-mime; norm() { LC_ALL=C sed -E -e 's/[0-9]+-[0-9]+-[0-9]+/BOUNDARY/g' -e 's/[0-9]{6,}\\.[0-9]+/UNIQ/g'; }; "
-      "{ LC_ALL=C cat -v .so | norm; echo \"[status " (%cu-int->str st) "]\"; norm < .se; "
+      "{ LC_ALL=C cat -v .so | norm; echo \"[status " (cu-int->str st) "]\"; norm < .se; "
       "for f in $(ls out | sort); do echo \"--- $f\" | norm; LC_ALL=C cat -v out/$f | norm; echo; done; } > .report")))
     (display (file-read-all (mm-f ".report")))))
   (display "made"))

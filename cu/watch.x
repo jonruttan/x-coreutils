@@ -16,6 +16,17 @@
 ; a command that will not run says nothing.  -d is taken and does nothing, as
 ; busybox's.
 
+(module cu/watch)
+
+(import cu/cli cu-opts cu-refuse-option cu-usage)
+(import cu/prims byte-at byte-len cu-stdin-to-command! cu-sweep-at
+  date-now-unix file-write string-append string-concat substring
+  sys-exec-or-err sys-exit sys-fork sys-getenv sys-signal sys-usleep sys-wait)
+(import cu/procps ps-boot-line)
+(import cu/text cu-pad-right)
+(import cu/vi vi-dim)
+(import cu/vmstat vm-fixed)
+
 (def %watch-esc (bytes->str (list 27)))
 (def %watch-most 9007199254740992)      ; 2^53: the microseconds a period may be
 
@@ -23,18 +34,18 @@
 (def %watch-wait (fn (_ us) (sys-usleep us)))
 (def %watch-now (fn (_) (date-now-unix)))
 
-; --- %cu-watch ----------------------------------------------------------------
+; --- cu-watch ----------------------------------------------------------------
 
-(def %cu-watch
+(def cu-watch
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "watch" argv))
+    (def o (cu-opts "watch" argv))
     (def words (Opts operands o))
     (def n (Opts value o "-n"))
     (def period (if (null? n) (Float from 2) (%watch-period n)))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option "watch" (Opts unknown o)))
-      ((null? words) (%cu-usage "watch"))
-      ((eq? period (lit usage)) (%cu-usage "watch"))
+      ((not (null? (Opts unknown o))) (cu-refuse-option "watch" (Opts unknown o)))
+      ((null? words) (cu-usage "watch"))
+      ((eq? period (lit usage)) (cu-usage "watch"))
       ((str? period) (do (file-write 2 (string-concat (list "watch: invalid number '" period "'\n"))) 1))
       ; the engine keeps SIGINT to itself; busybox's watch dies of it
       (#t (do (%watch-signals! (Sys sig-dfl))
@@ -116,7 +127,7 @@
 ; command, the wait; the rounds' garbage collected every 16th
 (def %watch-loop
   (fn (self round words cmd exec? header? period)
-    (%cu-sweep-at round 15)
+    (cu-sweep-at round 15)
     (file-write 1 (string-concat (list %watch-esc "[H" %watch-esc "[J")))
     (when header?
       (file-write 1 (string-append (%watch-header period cmd (%watch-width) (%watch-now)) "\n\n")))
@@ -128,9 +139,9 @@
 ; one, the last 19 the local time
 (def %watch-header
   (fn (_ period cmd width now)
-    (def line (string-concat (list "Every " (%vm-fixed period 1) "s: " (%cu-pad-right cmd width))))
+    (def line (string-concat (list "Every " (vm-fixed period 1) "s: " (cu-pad-right cmd width))))
     (if (> width 20)
-      (string-append (substring line 0 (- width 20)) (substring (%ps-boot-line now) 0 19))
+      (string-append (substring line 0 (- width 20)) (substring (ps-boot-line now) 0 19))
       line)))
 
 ; get_terminal_width on standard error: $COLUMNS over the terminal's, 80 for
@@ -138,7 +149,7 @@
 (def %watch-width
   (fn (_)
     (def m (Term measure 2))
-    (%vi-dim (if (pair? m) (first m) 0) (sys-getenv "COLUMNS") 80)))
+    (vi-dim (if (pair? m) (first m) 0) (sys-getenv "COLUMNS") 80)))
 
 ; busybox's spawn_and_wait: the words run, a child that cannot exec them
 ; ending 111 without a word
@@ -167,3 +178,5 @@
           (sys-exit 127))
       (let ((st (sys-wait pid)))
         (do (%watch-signals! (Sys sig-dfl)) st)))))
+
+(provide cu/watch cu-watch)

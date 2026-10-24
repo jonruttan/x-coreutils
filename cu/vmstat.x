@@ -17,27 +17,23 @@
 ; in USER_HZ ticks, and the wait between samples, which a spec replaces to
 ; step a fixture /proc from one sample to the next.
 
+(module cu/vmstat)
+
+(import cu/cli cu-opts cu-refuse-option)
+(import cu/prims byte-at byte-len cu-int->str file-write filter host-counters
+  host-cpu host-memory host-wait map ps-div reverse string-append
+  string-concat substring vm-dash-number)
+(import cu/strings cu-range-number)
+(import cu/text cu-pad-left cu-pad-zero)
+
 (def %vm-tick 10000000)                 ; nanoseconds in a USER_HZ tick
 
 ; Host's nanoseconds as USER_HZ ticks, the unit of /proc's times and of
 ; Darwin's CLK_TCK both; 0 for a time the kernel does not report
-(def %vm-ticks (fn (_ ns) (if (null? ns) 0 (%ps-div ns %vm-tick))))
+(def vm-ticks (fn (_ ns) (if (null? ns) 0 (ps-div ns %vm-tick))))
 
 ; A record's field, 0 when the kernel does not report it
-(def %vm-get (fn (_ k r) (let ((v (Assoc get k r))) (if (null? v) 0 v))))
-
-; The wait between two samples, in microseconds
-(def %vm-wait (fn (_ us) (sys-usleep us)))
-
-; Now, in unix seconds, for the times a report shows
-(def %vm-now (fn (_) (date-now-unix)))
-
-; The time since boot in hundredths of a second, as /proc/uptime gives it:
-; the wall clock less Host's boot time
-(def %vm-uptime
-  (fn (_)
-    (def t (Sys time-of-day))
-    (+ (* 100 (- (first t) (host-boot-time))) (%ps-div (rest t) 10000))))
+(def vm-get (fn (_ k r) (let ((v (Assoc get k r))) (if (null? v) 0 v))))
 
 ; --- busybox's compact numbers ------------------------------------------------
 
@@ -50,44 +46,44 @@
 ; (TENS . IDX), IDX the scale letter's place in SCALE
 (def %vm-scale-down
   (fn (_ n limit)
-    (def up (fn (self v idx) (if (>= v limit) (self (%ps-div v 1024) (+ idx 1)) (pair v idx))))
-    (up (%ps-div (* n 10) 1024) 1)))
+    (def up (fn (self v idx) (if (>= v limit) (self (ps-div v 1024) (+ idx 1)) (pair v idx))))
+    (up (ps-div (* n 10) 1024) 1)))
 
 ; smart_ulltoa5: N in five characters, "12345" up to 99999, then scaled by
 ; 1024 as "92.1M" or " 123M" with SCALE's letter for the step
-(def %vm-five
+(def vm-five
   (fn (_ n scale)
     (if (<= n 99999)
-      (let ((u (%ps-div n 10)))
-        (def a (%vm-lead (%ps-div u 1000) #t))
-        (def b (%vm-lead (% (%ps-div u 100) 10) (str=? a " ")))
-        (def c (%vm-lead (% (%ps-div u 10) 10) (str=? b " ")))
+      (let ((u (ps-div n 10)))
+        (def a (%vm-lead (ps-div u 1000) #t))
+        (def b (%vm-lead (% (ps-div u 100) 10) (str=? a " ")))
+        (def c (%vm-lead (% (ps-div u 10) 10) (str=? b " ")))
         (string-concat (list a b c (%vm-lead (% u 10) (str=? c " ")) (%vm-digit (% n 10)))))
       (let ((r (%vm-scale-down n 100000)))
-        (def u (%ps-div (first r) 10))
+        (def u (ps-div (first r) 10))
         (def unit (substring scale (rest r) (+ (rest r) 1)))
         (if (>= u 100)
-          (let ((a (%vm-lead (%ps-div u 1000) #t)))
-            (def b (%vm-lead (% (%ps-div u 100) 10) (str=? a " ")))
-            (string-concat (list a b (%vm-lead (% (%ps-div u 10) 10) (str=? b " ")) (%vm-digit (% u 10)) unit)))
-          (let ((a (%vm-lead (%ps-div u 10) #t)))
+          (let ((a (%vm-lead (ps-div u 1000) #t)))
+            (def b (%vm-lead (% (ps-div u 100) 10) (str=? a " ")))
+            (string-concat (list a b (%vm-lead (% (ps-div u 10) 10) (str=? b " ")) (%vm-digit (% u 10)) unit)))
+          (let ((a (%vm-lead (ps-div u 10) #t)))
             (string-concat (list a (%vm-lead (% u 10) (str=? a " ")) "." (%vm-digit (% (first r) 10)) unit))))))))
 
 ; smart_ulltoa4: N in four characters, "1234" up to 9999, then "9.2M" or
 ; " 27M" with SCALE's letter
-(def %vm-four
+(def vm-four
   (fn (_ n scale)
     (if (<= n 9999)
-      (let ((u (%ps-div n 10)))
-        (def a (%vm-lead (%ps-div u 100) #t))
-        (def b (%vm-lead (% (%ps-div u 10) 10) (str=? a " ")))
+      (let ((u (ps-div n 10)))
+        (def a (%vm-lead (ps-div u 100) #t))
+        (def b (%vm-lead (% (ps-div u 10) 10) (str=? a " ")))
         (string-concat (list a b (%vm-lead (% u 10) (str=? b " ")) (%vm-digit (% n 10)))))
       (let ((r (%vm-scale-down n 10000)))
-        (def u (%ps-div (first r) 10))
+        (def u (ps-div (first r) 10))
         (def unit (substring scale (rest r) (+ (rest r) 1)))
         (if (>= u 10)
-          (let ((a (%vm-lead (%ps-div u 100) #t)))
-            (string-concat (list a (%vm-lead (% (%ps-div u 10) 10) (str=? a " ")) (%vm-digit (% u 10)) unit)))
+          (let ((a (%vm-lead (ps-div u 100) #t)))
+            (string-concat (list a (%vm-lead (% (ps-div u 10) 10) (str=? a " ")) (%vm-digit (% u 10)) unit)))
           (string-concat (list (%vm-digit u) "." (%vm-digit (% (first r) 10)) unit)))))))
 
 ; S with its leading spaces gone, as skip_whitespace leaves it
@@ -101,7 +97,7 @@
 ; A double as printf's %.PREC f writes it: the exact value of its bits rounded
 ; to PREC places, a tie to even, as the C library rounds.  X is a Float.  PREC
 ; is at most 6, so the scaled mantissa fits a machine integer.
-(def %vm-fixed
+(def vm-fixed
   (fn (_ x prec)
     (def bits (first x))
     (def ex (& (>> bits 52) 2047))
@@ -115,22 +111,22 @@
         ((>= e 0) (* (* m scale) (<< 1 e)))
         ((> (- 0 e) 62) 0)
         (#t (let ((p (<< 1 (- 0 e))) (num (* m scale)))
-              (def whole (%ps-div num p))
+              (def whole (ps-div num p))
               (def twice (* 2 (- num (* whole p))))
               (match
                 ((> twice p) (+ whole 1))
                 ((< twice p) whole)
                 (#t (+ whole (% whole 2))))))))
-    (def int-part (%cu-int->str (%ps-div q scale)))
+    (def int-part (cu-int->str (ps-div q scale)))
     (string-append (if (< bits 0) "-" "")
       (if (= prec 0) int-part
-        (string-concat (list int-part "." (%cu-pad-zero (%cu-int->str (% q scale)) prec)))))))
+        (string-concat (list int-part "." (cu-pad-zero (cu-int->str (% q scale)) prec)))))))
 
 ; A divided by B times K, as C computes (double)A / B * K
-(def %vm-rate (fn (_ a b k) (Float * (Float / (Float from a) (Float from b)) (Float from k))))
+(def vm-rate (fn (_ a b k) (Float * (Float / (Float from a) (Float from b)) (Float from k))))
 
 ; S right-aligned in W columns, as printf's %*s puts it
-(def %vm-right (fn (_ s w) (%cu-pad-left s w)))
+(def vm-right (fn (_ s w) (cu-pad-left s w)))
 
 ; --- vmstat -------------------------------------------------------------------
 
@@ -142,15 +138,15 @@
     (def c (host-counters))
     (def m (host-memory))
     (def t (host-cpu))
-    (def kb (fn (_ k) (%ps-div (%vm-get k m) 1024)))
-    (def tk (fn (_ k) (%vm-ticks (Assoc get k t))))
+    (def kb (fn (_ k) (ps-div (vm-get k m) 1024)))
+    (def tk (fn (_ k) (vm-ticks (Assoc get k t))))
     (def guest (+ (tk (lit guest)) (tk (lit guest-nice))))
-    (list (%vm-get (lit running) c) (%vm-get (lit blocked) c)
+    (list (vm-get (lit running) c) (vm-get (lit blocked) c)
           (- (kb (lit swap-total)) (kb (lit swap-free))) (kb (lit free)) (kb (lit buffers))
           (+ (kb (lit cached)) (kb (lit reclaimable)))
-          (%vm-get (lit swap-ins) c) (%vm-get (lit swap-outs) c)
-          (%ps-div (%vm-get (lit paged-in) c) 1024) (%ps-div (%vm-get (lit paged-out) c) 1024)
-          (%vm-get (lit interrupts) c) (%vm-get (lit context-switches) c)
+          (vm-get (lit swap-ins) c) (vm-get (lit swap-outs) c)
+          (ps-div (vm-get (lit paged-in) c) 1024) (ps-div (vm-get (lit paged-out) c) 1024)
+          (vm-get (lit interrupts) c) (vm-get (lit context-switches) c)
           (- (+ (tk (lit user)) (tk (lit nice))) guest)
           (+ (+ (tk (lit system)) (tk (lit irq))) (tk (lit softirq)))
           (tk (lit idle)) (tk (lit iowait)) (tk (lit steal)) guest)))
@@ -196,7 +192,7 @@
                        (if (eq? (rest (first c)) (lit self)) (first (rest c))
                          (%vm-delta (first (rest c)) (rest (rest c))))))
         (%vm-zip3 %vm-columns data prev)))
-    (def shares (map rest (filter (fn (_ p) (eq? (rest (first p)) (lit share))) (%vm-zip %vm-columns deltas))))
+    (def shares (map rest (filter (fn (_ p) (eq? (rest (first p)) (lit share))) (vm-zip %vm-columns deltas))))
     (def ss (%vm-share-sum shares))
     (def value
       (fn (_ col v)
@@ -204,16 +200,16 @@
           ((= v 0) 0)
           ((eq? (rest col) (lit share))
             (if (= (first ss) 0) v
-              (let ((p (%ps-div (* 100 (>> v (rest ss))) (first ss)))) (if (>= p 100) 99 p))))
+              (let ((p (ps-div (* 100 (>> v (rest ss))) (first ss)))) (if (>= p 100) 99 p))))
           ((eq? (rest col) (lit self)) (- v 1))
           (#t v))))
     (def field
       (fn (_ col v overrun)
         (def width (if (>= (- (first col) overrun) 0) (- (first col) overrun) 0))
         (if (eq? (rest col) (lit rate))
-          (let ((r (if (= interval 0) v (%ps-div v interval))))
-            (%vm-right (%vm-trim-left (if (= (first col) 4) (%vm-four r " kmgtpezy") (%vm-five r " kmgtpezy"))) width))
-          (%vm-right (%cu-int->str v) width))))
+          (let ((r (if (= interval 0) v (ps-div v interval))))
+            (vm-right (%vm-trim-left (if (= (first col) 4) (vm-four r " kmgtpezy") (vm-five r " kmgtpezy"))) width))
+          (vm-right (cu-int->str v) width))))
     (def go
       (fn (self cols vs overrun acc)
         (if (null? cols) (string-concat (reverse (pair "\n" acc)))
@@ -222,35 +218,26 @@
               (pair s (if (null? acc) acc (pair " " acc))))))))
     (go %vm-columns deltas 0 ())))
 
-; The first of OPS that is a dash and more, or nil: Opts reads -2 as a number,
-; where getopt, and so busybox, reads it as the option 2
-(def %vm-dash-number
-  (fn (self ops)
-    (match
-      ((null? ops) ())
-      ((if (> (byte-len (first ops)) 1) (= (byte-at (first ops) 0) #\-) #f) (first ops))
-      (#t (self (rest ops))))))
-
-(def %vm-zip
+(def vm-zip
   (fn (self a b) (if (if (null? a) #t (null? b)) () (pair (pair (first a) (first b)) (self (rest a) (rest b))))))
 (def %vm-zip3
   (fn (self a b c)
     (if (null? a) () (pair (pair (first a) (pair (first b) (first c))) (self (rest a) (rest b) (rest c))))))
 
-(def %cu-vmstat
+(def cu-vmstat
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "vmstat" argv))
+    (def o (cu-opts "vmstat" argv))
     (def ops (Opts operands o))
-    (def unknown (if (null? (Opts unknown o)) (%vm-dash-number ops) (Opts unknown o)))
+    (def unknown (if (null? (Opts unknown o)) (vm-dash-number ops) (Opts unknown o)))
     ; the options are refused before an operand is read, as getopt runs first
-    (if (not (null? unknown)) (%cu-refuse-option "vmstat" unknown)
-      (let ((interval (if (null? ops) 0 (%cu-range-number "vmstat" (first ops) 0 2147483647))))
+    (if (not (null? unknown)) (cu-refuse-option "vmstat" unknown)
+      (let ((interval (if (null? ops) 0 (cu-range-number "vmstat" (first ops) 0 2147483647))))
         (def count
           (match
             ((null? interval) ())
             ((null? ops) 1)
             ((null? (rest ops)) 0)
-            (#t (let ((n (%cu-range-number "vmstat" (first (rest ops)) 0 2147483647)))
+            (#t (let ((n (cu-range-number "vmstat" (first (rest ops)) 0 2147483647)))
                   (if (null? n) () (if (= n 0) 1 n))))))
         (if (null? count) 1
           (%vm-main interval count (if (Opts on? o "-n") 0 (- (rest (Term window 1)) 3))))))))
@@ -267,6 +254,9 @@
         (file-write 1 (%vm-row data prev interval))
         (def more (if (< count 0) count (- count 1)))
         (if (= more 0) 0
-          (do (%vm-wait (* interval 1000000))
+          (do (host-wait (* interval 1000000))
               (self data left (if (< more 0) -1 more))))))
     (go (%vm-sample) 0 (if (= count 0) -1 count))))
+
+(provide cu/vmstat cu-vmstat vm-five vm-fixed vm-four vm-get vm-rate vm-right
+  vm-ticks vm-zip)

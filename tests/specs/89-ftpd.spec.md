@@ -34,12 +34,12 @@ bundle's ls to the widest entry.
         (do (set! fd-ctl (string-append fd-ctl s)) (self c ms))))))
   (def fd-epsv-port (fn (_ c)
     (let wait ((n 0))
-      (let ((i (%wget-find fd-ctl "(|||")))
+      (let ((i (wget-find fd-ctl "(|||")))
         (if (if (null? i) (< n 20) #f)
           (do (fd-drain c 100) (wait (+ n 1)))
           (if (null? i) () (let ((s (substring fd-ctl (+ i 4) (byte-len fd-ctl))))
                              (do (set! fd-ctl (string-append (substring fd-ctl 0 i) "(|=|" s))
-                                 (%wget-digits (substring s 0 (%wget-index s #\| 0)))))))))))
+                                 (wget-digits (substring s 0 (wget-index s #\| 0)))))))))))
   (def fd-data-all (fn (self d acc)
     (let ((s (fd-recv d 2000)))
       (if (if (null? s) #t (= (byte-len s) 0)) acc (self d (string-append acc s))))))
@@ -49,7 +49,7 @@ bundle's ls to the widest entry.
     (file-read-all (fd-f "t"))))
   (def fd-data-step (fn (_ c s)
     (def body (substring s 2 (byte-len s)))
-    (def colon (if (Str8 starts? "W:" s) (%wget-index body #\: 0) ()))
+    (def colon (if (Str8 starts? "W:" s) (wget-index body #\: 0) ()))
     (def cmd (if (null? colon) body (substring body 0 colon)))
     (def text (if (null? colon) "" (fd-text (substring body (+ colon 1) (byte-len body)))))
     (Socket send c "EPSV\r\n")
@@ -66,7 +66,7 @@ bundle's ls to the widest entry.
                     (string-concat (list "---\n" got "<EOF>\n"))))))))))
   (def fd-step (fn (_ c s)
     (match ((if (Str8 starts? "D:" s) #t (Str8 starts? "W:" s)) (fd-data-step c s))
-           ((Str8 starts? "S:" s) (do (sys-usleep (* 1000000 (%wget-digits (substring s 2 (byte-len s))))) (fd-drain c 100) ""))
+           ((Str8 starts? "S:" s) (do (sys-usleep (* 1000000 (wget-digits (substring s 2 (byte-len s))))) (fd-drain c 100) ""))
            (#t (do (Socket send c (string-append s "\r\n")) (sys-usleep 200000) (fd-drain c 100) "")))))
   (def fd-run (fn (_ args pre steps)
     (sys-setenv "FD_PRE" pre) (sys-setenv "FD_ARGS" args)
@@ -552,7 +552,7 @@ the status.  The suite's stdin is not a socket, as busybox's was not.
 ### the fixture: a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (def nf (fn (_ n) (string-append "/tmp/x-cu-fd/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n")))))))) (display "made"))
+(do (def nf (fn (_ n) (string-append "/tmp/x-cu-fd/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
 ```
 ---
     made

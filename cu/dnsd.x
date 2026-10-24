@@ -18,6 +18,17 @@
 ; strcasecmp's folding of every byte, the lengths too.  -d daemonizes and, as
 ; busybox then logs to syslog, says nothing more.
 
+(module cu/dnsd)
+
+(import cu/cli cu-opts)
+(import cu/hash cu-bytes)
+(import cu/prims append bit-and bit-or byte-at byte-len cu-int->str cu-nth
+  cu-nthrest cu-sweep-lines cu-sweep-tick! cu-take file-close file-err-text
+  file-open-or-err file-open-read file-read-all file-write length map net-aton
+  net-recv-from-run net-send-to-run net-udp-open reverse string-append
+  string-concat substring wget-digits wget-div wget-index wget-memv)
+(import cu/session hd-daemonize)
+
 (def %dn-verbose? #f)
 (def %dn-quiet? #f)            ; -d: what busybox sends to syslog is not said
 (def %dn-say
@@ -33,7 +44,7 @@
     (let go ((labels (rest (Str8 split "." s))) (acc ()))
       (if (null? labels) acc
         (go (rest labels)
-            (append acc (pair (byte-len (first labels)) (%cu-bytes (first labels) 0 (byte-len (first labels))))))))))
+            (append acc (pair (byte-len (first labels)) (cu-bytes (first labels) 0 (byte-len (first labels))))))))))
 
 ; --- the config file ---------------------------------------------------------------
 
@@ -41,16 +52,16 @@
 ; the words split on spaces and tabs, the second taking the rest of the line
 (def %dn-tokens
   (fn (_ line)
-    (def hash (%wget-index line #\# 0))
+    (def hash (wget-index line #\# 0))
     (def text (%dn-trim (if (null? hash) line (substring line 0 hash))))
-    (def sp (let go ((i 0)) (if (if (< i (byte-len text)) (not (%wget-memv (byte-at text i) (list #\space #\tab))) #f) (go (+ i 1)) i)))
+    (def sp (let go ((i 0)) (if (if (< i (byte-len text)) (not (wget-memv (byte-at text i) (list #\space #\tab))) #f) (go (+ i 1)) i)))
     (if (= (byte-len text) 0) ()
       (if (= sp (byte-len text)) (list text)
         (list (substring text 0 sp) (%dn-trim (substring text sp (byte-len text))))))))
 
 (def %dn-trim
   (fn (_ s)
-    (def ws? (fn (_ c) (%wget-memv c (list #\space #\tab #\return))))
+    (def ws? (fn (_ c) (wget-memv c (list #\space #\tab #\return))))
     (def a (let go ((i 0)) (if (if (< i (byte-len s)) (ws? (byte-at s i)) #f) (go (+ i 1)) i)))
     (def b (let go ((i (byte-len s))) (if (if (> i a) (ws? (byte-at s (- i 1))) #f) (go (- i 1)) i)))
     (substring s a b)))
@@ -73,21 +84,21 @@
     (match
       ((null? ts) acc)
       ((null? (rest ts))
-        (do (%dn-say (string-concat (list "bad line " (%cu-int->str no) ": 1 tokens found, 2 needed"))) acc))
+        (do (%dn-say (string-concat (list "bad line " (cu-int->str no) ": 1 tokens found, 2 needed"))) acc))
       (#t (let ((ip (net-aton (first (rest ts)))))
             (if (null? ip)
-              (do (%dn-say (string-concat (list "error at line " (%cu-int->str no) ", skipping"))) acc)
+              (do (%dn-say (string-concat (list "error at line " (cu-int->str no) ", skipping"))) acc)
               (do (when %dn-verbose? (%dn-say (string-concat (list "name:" (first ts) ", ip:" (first (rest ts))))))
                   (pair (list (%dn-undot (string-append "." (first ts))) ip
-                              (%dn-undot (string-concat (list "." (%cu-int->str (%cu-nth 3 ip)) "." (%cu-int->str (%cu-nth 2 ip))
-                                                              "." (%cu-int->str (%cu-nth 1 ip)) "." (%cu-int->str (first ip))))))
+                              (%dn-undot (string-concat (list "." (cu-int->str (cu-nth 3 ip)) "." (cu-int->str (cu-nth 2 ip))
+                                                              "." (cu-int->str (cu-nth 1 ip)) "." (cu-int->str (first ip))))))
                         acc))))))))
 
 ; TEXT's lines, without their newlines
 (def %dn-lines
   (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
 
@@ -106,7 +117,7 @@
   (fn (self p s)
     (match ((null? p) #t) ((null? s) #f) ((= (first p) (first s)) (self (rest p) (rest s))) (#t #f))))
 
-(def %dn-wild? (fn (_ name) (if (= (first name) 1) (= (%cu-nth 1 name) #\*) #f)))
+(def %dn-wild? (fn (_ name) (if (= (first name) 1) (= (cu-nth 1 name) #\*) #f)))
 
 ; table_lookup: an A query's address bytes, or a PTR query's name bytes and
 ; their NUL; nil when no entry answers
@@ -117,16 +128,16 @@
         (match
           ((= type 1)
             (if (if (%dn-wild? name) #t (%dn-same? name qname))
-              (%cu-nth 1 (first entries))
+              (cu-nth 1 (first entries))
               (self (rest entries) type qname)))
-          ((if (not (%dn-wild? name)) (%dn-prefix? (%cu-nth 2 (first entries)) qname) #f)
+          ((if (not (%dn-wild? name)) (%dn-prefix? (cu-nth 2 (first entries)) qname) #f)
             (append name (list 0)))
           (#t (self (rest entries) type qname)))))))
 
 ; --- a packet -------------------------------------------------------------------------
 
-(def %dn-u16 (fn (_ n) (list (% (%wget-div n 256) 256) (% n 256))))
-(def %dn-word (fn (_ bs i) (+ (* 256 (%cu-nth i bs)) (%cu-nth (+ i 1) bs))))
+(def %dn-u16 (fn (_ n) (list (% (wget-div n 256) 256) (% n 256))))
+(def %dn-word (fn (_ bs i) (+ (* 256 (cu-nth i bs)) (cu-nth (+ i 1) bs))))
 
 ; process_packet: the reply's bytes, or nil when none is sent
 (def %dn-process
@@ -139,7 +150,7 @@
 
 (def %dn-question
   (fn (_ entries ttl bs n)
-    (def after (let go ((xs (%cu-nthrest 12 bs)) (acc ()))
+    (def after (let go ((xs (cu-nthrest 12 bs)) (acc ()))
                  (if (if (null? xs) #t (= (first xs) 0)) (reverse acc) (go (rest xs) (pair (first xs) acc)))))
     (def qname after)
     (def query-len (+ (length qname) 1 4))
@@ -166,16 +177,16 @@
     (when (if %dn-verbose? (not (null? err)) #f)
       (%dn-say (string-concat (list err ", " (if %dn-quiet-s? "dropping query" "sending error reply")))))
     (if (if (not (null? err)) %dn-quiet-s? #f) ()
-      (append (%cu-take bs 2)
+      (append (cu-take bs 2)
               (%dn-u16 (bit-or (%dn-word bs 2) flags))
               (%dn-u16 1)
-              (if (null? err) (%dn-u16 1) (list (%cu-nth 6 bs) (%cu-nth 7 bs)))
+              (if (null? err) (%dn-u16 1) (list (cu-nth 6 bs) (cu-nth 7 bs)))
               (list 0 0 0 0)
-              (%cu-take (%cu-nthrest 12 bs) query-len)
+              (cu-take (cu-nthrest 12 bs) query-len)
               (if (not (null? err)) ()
-                (append (%cu-take (%cu-nthrest 12 bs) query-len)
-                        (list (% (%wget-div ttl 16777216) 256) (% (%wget-div ttl 65536) 256)
-                              (% (%wget-div ttl 256) 256) (% ttl 256))
+                (append (cu-take (cu-nthrest 12 bs) query-len)
+                        (list (% (wget-div ttl 16777216) 256) (% (wget-div ttl 65536) 256)
+                              (% (wget-div ttl 256) 256) (% ttl 256))
                         (%dn-u16 rlen)
                         found))))))
 
@@ -186,10 +197,10 @@
 ; xatou_range: S as a number from LO to HI, or the run ends naming it
 (def %dn-range
   (fn (_ s lo hi)
-    (def n (%wget-digits s))
+    (def n (wget-digits s))
     (match ((null? n) (%dn-die (string-concat (list "invalid number '" s "'"))))
            ((if (< n lo) #t (> n hi))
-             (%dn-die (string-concat (list "number " s " is not in " (%cu-int->str lo) ".." (%cu-int->str hi) " range"))))
+             (%dn-die (string-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range"))))
            (#t n))))
 
 (def %dn-bind
@@ -197,9 +208,9 @@
     (let ((fd (net-udp-open addr port #f)))
       (if (Err err? fd) (%dn-die (string-append "bind: " (file-err-text fd))) fd))))
 
-(def %cu-dnsd
+(def cu-dnsd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "dnsd" argv))
+    (def o (cu-opts "dnsd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
                 (do (file-write 2 (string-concat (list "dnsd: " (e msg) "\n"))) 1)
                 (error e)))
@@ -211,31 +222,33 @@
     (set! %dn-quiet-s? (Opts on? o "-s"))
     (def ttl (let ((t (Opts value o "-t"))) (if (null? t) 120 (%dn-range t 1 4294967295))))
     (def port (let ((p (Opts value o "-p"))) (if (null? p) 53 (%dn-range p 1 65535))))
-    (when (Opts on? o "-d") (do (%hd-daemonize) (set! %dn-quiet? #t)))
+    (when (Opts on? o "-d") (do (hd-daemonize) (set! %dn-quiet? #t)))
     (def entries (%dn-conf (let ((c (Opts value o "-c"))) (if (null? c) "/etc/dnsd.conf" c))))
     (def addr (let ((i (Opts value o "-i"))) (if (null? i) "0.0.0.0" i)))
     (when (null? (%dn-dotted addr)) (%dn-die (string-concat (list "bad address '" addr "'"))))
     (def fd (%dn-bind addr port))
-    (%dn-say (string-concat (list "accepting UDP packets on " addr ":" (%cu-int->str port))))
+    (%dn-say (string-concat (list "accepting UDP packets on " addr ":" (cu-int->str port))))
     (%dn-serve fd entries ttl)))
 
 ; xdotted2sockaddr: a numeric address, four dotted parts, each 0..255
 (def %dn-dotted
   (fn (_ s)
     (let ((parts (Str8 split "." s)))
-      (if (if (= (length parts) 4) (List all? (fn (_ p) (let ((n (%wget-digits p))) (if (null? n) #f (<= n 255)))) parts) #f)
-        (map %wget-digits parts)
+      (if (if (= (length parts) 4) (List all? (fn (_ p) (let ((n (wget-digits p))) (if (null? n) #f (<= n 255)))) parts) #f)
+        (map wget-digits parts)
         ()))))
 
 (def %dn-serve
   (fn (self fd entries ttl)
-    (%cu-sweep-tick! %cu-sweep-lines)
+    (cu-sweep-tick! cu-sweep-lines)
     (let ((got (net-recv-from-run fd 513)))
       (let ((n (rest (first got))))
         (if (if (< n 12) #t (> n 512))
-          (%dn-say (string-concat (list "packet size " (%cu-int->str n) ", ignored")))
+          (%dn-say (string-concat (list "packet size " (cu-int->str n) ", ignored")))
           (do (when %dn-verbose? (%dn-say "got UDP packet"))
-              (let ((reply (%dn-process entries ttl (%cu-bytes (first (first got)) 0 n))))
+              (let ((reply (%dn-process entries ttl (cu-bytes (first (first got)) 0 n))))
                 (unless (null? reply)
                   (net-send-to-run fd (pair (bytes->str reply) (length reply)) (first (rest got)) (rest (rest got)))))))))
     (self fd entries ttl)))
+
+(provide cu/dnsd cu-dnsd)

@@ -14,6 +14,17 @@
 ; Both hand the kernel an arpreq through SIOCSARP and SIOCDARP.  -v is
 ; accepted and, as busybox builds it, says nothing more.
 
+(module cu/arp)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/inet inet-dotted inet-hex inet-ioctl inet-resolve inet-rresolve
+  inet-set! inet-sin! inet-socket inet-words inet-zeros)
+(import cu/inetd in-c in-call)
+(import cu/prims byte-at byte-len char->integer cu-err-label cu-int->ptr
+  cu-int->str cu-lines cu-ptr->str cu-ptr-call cu-ptr-ref cu-str->ptr
+  file-or-err file-read-unsized file-write filter length libc-strerror map
+  reverse set-first! string-append string-concat string=? substring)
+
 (def %ar-say (fn (_ msg) (file-write 2 (string-append "arp: " msg "\n"))))
 (def %ar-die (fn (_ msg) (do (%ar-say msg) (Err raise (lit arp) msg ()))))
 (def %ar-usage (fn (_) (Err raise (lit arp-usage) "usage" ())))
@@ -35,16 +46,16 @@
 ; herror's words for the lookup that just failed: the C library's
 (def %ar-herror
   (fn (_ name)
-    (let ((err (%cu-ptr-ref (%cu-int->ptr (%cu-ptr-call (%in-c "__h_errno_location"))) 0 4)))
-      (%ar-die (string-concat (list name ": " (%cu-ptr->str (%cu-int->ptr (%cu-ptr-call (%in-c "hstrerror") err)))))))))
+    (let ((err (cu-ptr-ref (cu-int->ptr (cu-ptr-call (in-c "__h_errno_location"))) 0 4)))
+      (%ar-die (string-concat (list name ": " (cu-ptr->str (cu-int->ptr (cu-ptr-call (in-c "hstrerror") err)))))))))
 
 ; INET_input: NAME's address, the run ended with herror's words where it has none
 (def %ar-input
-  (fn (_ name) (let ((r (%inet-resolve name))) (if (null? r) (%ar-herror name) (rest r)))))
+  (fn (_ name) (let ((r (inet-resolve name))) (if (null? r) (%ar-herror name) (rest r)))))
 
 ; in_ether: "XX[:]XX[:]...": six bytes, a byte of one digit where a colon
 ; follows; nil where it is not one
-(def %ar-ether
+(def ar-ether
   (fn (_ s)
     (def end (byte-len s))
     (def hex (fn (_ i) (if (< i end) (let ((c (| (char->integer (byte-at s i)) 0)))
@@ -84,13 +95,13 @@
 (def %ar-show
   (fn (_ o host hw device)
     (def text (let ((t (file-or-err (fn (_) (file-read-unsized "/proc/net/arp"))))) (if (Err err? t) "" t)))
-    (def rows (filter (fn (_ w) (>= (length w) 4)) (map %inet-words (rest (%cu-lines text)))))
+    (def rows (filter (fn (_ w) (>= (length w) 4)) (map inet-words (rest (cu-lines text)))))
     ; an entry of another hardware type, another host or another device is
     ; passed over
     (def wanted?
       (fn (_ w)
         (match
-          ((if (null? hw) #f (not (= (%inet-hex (substring (List ref 1 w) 2 (byte-len (List ref 1 w)))) (List ref 1 hw)))) #f)
+          ((if (null? hw) #f (not (= (inet-hex (substring (List ref 1 w) 2 (byte-len (List ref 1 w)))) (List ref 1 hw)))) #f)
           ((if (null? host) #f (not (string=? (first w) host))) #f)
           ((= (byte-len device) 0) #t)
           (#t (string=? (if (>= (length w) 6) (List ref 5 w) "-") device)))))
@@ -99,15 +110,15 @@
            (let ((ip (first w)))
              (file-write 1
                (%ar-line (if (Opts on? o "-n") "?"
-                           (let ((a (%inet-resolve ip)))
-                             (let ((name (if (null? a) ip (%inet-rresolve (rest a) 4294967040 #f "default" #f))))
+                           (let ((a (inet-resolve ip)))
+                             (let ((name (if (null? a) ip (inet-rresolve (rest a) 4294967040 #f "default" #f))))
                                (if (string=? name ip) "?" name))))
-                         ip (%inet-hex (substring (List ref 1 w) 2 (byte-len (List ref 1 w))))
-                         (%inet-hex (substring (List ref 2 w) 2 (byte-len (List ref 2 w))))
+                         ip (inet-hex (substring (List ref 1 w) 2 (byte-len (List ref 1 w))))
+                         (inet-hex (substring (List ref 2 w) 2 (byte-len (List ref 2 w))))
                          (List ref 3 w) (if (>= (length w) 5) (List ref 4 w) "-") (if (>= (length w) 6) (List ref 5 w) "-")))))
          shown)
     (when (if (null? shown) (if (null? hw) (if (null? host) (> (byte-len device) 0) #t) #t) #f)
-      (file-write 1 (string-concat (list "No match found in " (%cu-int->str (length rows)) " entries\n"))))
+      (file-write 1 (string-concat (list "No match found in " (cu-int->str (length rows)) " entries\n"))))
     0))
 
 ; --- setting and deleting ---------------------------------------------------------
@@ -115,9 +126,9 @@
 ; an arpreq for HOST's address, its device DEV
 (def %ar-req
   (fn (_ addr)
-    (let ((req (%inet-zeros 68))) (do (%inet-sin! req 0 addr) req))))
+    (let ((req (inet-zeros 68))) (do (inet-sin! req 0 addr) req))))
 
-(def %ar-dev! (fn (_ req dev) (map (fn (_ k) (%inet-set! req (+ 52 k) (char->integer (byte-at dev k)) 1))
+(def %ar-dev! (fn (_ req dev) (map (fn (_ k) (inet-set! req (+ 52 k) (char->integer (byte-at dev k)) 1))
                                     (List range 0 (if (> (byte-len dev) 15) 15 (byte-len dev))))))
 
 ; the modifiers after the host and address, as both -s and -d read them:
@@ -131,7 +142,7 @@
           ((string=? w "netmask")
             (if (null? (rest ws)) (%ar-usage)
               (do (unless (string=? (first (rest ws)) "255.255.255.255")
-                    (do (%inet-sin! req 36 (%ar-input (first (rest ws)))) (on "netmask")))
+                    (do (inet-sin! req 36 (%ar-input (first (rest ws)))) (on "netmask")))
                   (self (rest (rest ws)) req dev on))))
           ((string=? w "dontpub") (do (%ar-say "feature ATF_DONTPUB is not supported") (self (rest ws) req dev on)))
           ((string=? w "auto") (do (%ar-say "feature ATF_MAGIC is not supported") (self (rest ws) req dev on)))
@@ -145,10 +156,10 @@
     (def req (%ar-req (%ar-input (first args))))
     (when (null? (rest args)) (%ar-die "need hardware address"))
     (if (Opts on? o "-D") (%ar-devhw! req (first (rest args)) hw)
-      (let ((bytes (%ar-ether (first (rest args)))))
+      (let ((bytes (ar-ether (first (rest args)))))
         (do (when (null? bytes) (%ar-die "invalid hardware address"))
-            (%inet-set! req 16 1 2)
-            (let go ((k 0) (bs bytes)) (unless (null? bs) (do (%inet-set! req (+ 18 k) (first bs) 1) (go (+ k 1) (rest bs))))))))
+            (inet-set! req 16 1 2)
+            (let go ((k 0) (bs bytes)) (unless (null? bs) (do (inet-set! req (+ 18 k) (first bs) 1) (go (+ k 1) (rest bs))))))))
     (def flags (list (| %ar-perm %ar-com)))
     (def on (fn (_ what)
               (set-first! flags
@@ -156,22 +167,22 @@
                        ((string=? what "temp") (& (first flags) (^ %ar-perm -1))) ((string=? what "trail") (| (first flags) %ar-trail))
                        (#t (| (first flags) %ar-netmask))))))
     (def dev (%ar-modifiers (rest (rest args)) req device on))
-    (%inet-set! req 32 (first flags) 4)
+    (inet-set! req 32 (first flags) 4)
     (%ar-dev! req dev)
-    (%inet-ioctl (%inet-socket 2 %ar-die) 35157 req %ar-die)
+    (inet-ioctl (inet-socket 2 %ar-die) 35157 req %ar-die)
     0))
 
 ; arp_getdevhw: IFNAME's hardware address into the request
 (def %ar-devhw!
   (fn (_ req ifname hw)
-    (def ifr (%inet-zeros 40))
-    (map (fn (_ k) (%inet-set! ifr k (char->integer (byte-at ifname k)) 1)) (List range 0 (if (> (byte-len ifname) 15) 15 (byte-len ifname))))
-    (def fd (%inet-socket 2 %ar-die))
-    (def r (%in-call (%cu-ptr-call (%in-c "ioctl") fd 35111 (%cu-str->ptr ifr))))
-    (%cu-ptr-call (%in-c "close") fd)
+    (def ifr (inet-zeros 40))
+    (map (fn (_ k) (inet-set! ifr k (char->integer (byte-at ifname k)) 1)) (List range 0 (if (> (byte-len ifname) 15) 15 (byte-len ifname))))
+    (def fd (inet-socket 2 %ar-die))
+    (def r (in-call (cu-ptr-call (in-c "ioctl") fd 35111 (cu-str->ptr ifr))))
+    (cu-ptr-call (in-c "close") fd)
     (when (< r 0) (%ar-die (string-concat (list "can't get HW-Address for '" ifname "': " (libc-strerror (Err errno-of r))))))
-    (when (if (null? hw) #f (not (= (%cu-ptr-ref (%cu-str->ptr ifr) 16 2) (List ref 1 hw)))) (%ar-die "protocol type mismatch"))
-    (map (fn (_ k) (%inet-set! req (+ 16 k) (%cu-ptr-ref (%cu-str->ptr ifr) (+ 16 k) 1) 1)) (List range 0 16))))
+    (when (if (null? hw) #f (not (= (cu-ptr-ref (cu-str->ptr ifr) 16 2) (List ref 1 hw)))) (%ar-die "protocol type mismatch"))
+    (map (fn (_ k) (inet-set! req (+ 16 k) (cu-ptr-ref (cu-str->ptr ifr) (+ 16 k) 1) 1)) (List range 0 16))))
 
 ; arp_del: HOST's entry, the private one and then, where asked or that is
 ; not there, the published
@@ -179,7 +190,7 @@
   (fn (_ o args hw device)
     (def host (first args))
     (def req (%ar-req (%ar-input host)))
-    (unless (null? hw) (%inet-set! req 16 (& (List ref 1 hw) 65535) 2))
+    (unless (null? hw) (inet-set! req 16 (& (List ref 1 hw) 65535) 2))
     (def kind (list 0 %ar-perm))
     (def on (fn (_ what)
               (match ((string=? what "pub") (set-first! kind (| (first kind) 1)))
@@ -191,10 +202,10 @@
     (def which (if (= (first kind) 0) 3 (first kind)))
     (%ar-dev! req dev)
     (def try (fn (_ flags)
-               (do (%inet-set! req 32 flags 4)
-                   (let ((fd (%inet-socket 2 %ar-die)))
-                     (let ((r (%in-call (%cu-ptr-call (%in-c "ioctl") fd 35155 (%cu-str->ptr req)))))
-                       (do (%cu-ptr-call (%in-c "close") fd)
+               (do (inet-set! req 32 flags 4)
+                   (let ((fd (inet-socket 2 %ar-die)))
+                     (let ((r (in-call (cu-ptr-call (in-c "ioctl") fd 35155 (cu-str->ptr req)))))
+                       (do (cu-ptr-call (in-c "close") fd)
                            (if (< r 0) (Err errno-of r) 0)))))))
     (def none (fn (_) (do (file-write 1 (string-concat (list "No ARP entry for " host "\n"))) 255)))
     (def flags (first (rest kind)))
@@ -206,15 +217,15 @@
       (#t (let ((pub (try (| flags %ar-publ))))
             (match ((= pub 0) 0) ((= pub 6) (none)) (#t (%ar-die (string-append "SIOCDARP(pub): " (libc-strerror pub))))))))))
 
-(def %cu-arp
+(def cu-arp
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "arp" argv))
+    (def o (cu-opts "arp" argv))
     (def ops (Opts operands o))
     (def af (let ((a (Opts value o "-A"))) (if (null? a) (Opts value o "-p") a)))
     (def hwname (let ((h (Opts value o "-H"))) (if (null? h) (Opts value o "-t") h)))
     (def device (let ((i (Opts value o "-i"))) (if (null? i) "" i)))
-    (guard (e (match ((eq? (%cu-err-label e) (lit arp-usage)) (%cu-usage "arp"))
-                     ((eq? (%cu-err-label e) (lit arp)) 1)
+    (guard (e (match ((eq? (cu-err-label e) (lit arp-usage)) (cu-usage "arp"))
+                     ((eq? (cu-err-label e) (lit arp)) 1)
                      (#t (error e))))
       (do (unless (if (null? af) #t (List find (fn (_ a) (string=? a af)) (list "inet" "inet6" "unspec")))
             (%ar-die (string-append af ": unknown address family")))
@@ -225,4 +236,6 @@
             ((if (Opts on? o "-d") #t (Opts on? o "-s"))
               (if (null? ops) (%ar-die "need host name")
                 (if (Opts on? o "-s") (%ar-set o ops hw device) (%ar-del o ops hw device))))
-            (#t (%ar-show o (if (null? ops) () (%inet-dotted (%ar-input (first ops)))) hw device)))))))
+            (#t (%ar-show o (if (null? ops) () (inet-dotted (%ar-input (first ops)))) hw device)))))))
+
+(provide cu/arp ar-ether cu-arp)

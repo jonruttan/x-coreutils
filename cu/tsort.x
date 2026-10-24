@@ -16,7 +16,15 @@
 ; is 1.  An odd number of words is `odd input`, and nothing is put out.
 
 ; isspace's bytes: the space, and tab up to carriage return
-(def %ts-space?
+(module cu/tsort)
+
+(import cu/cli cu-usage)
+(import cu/prims byte-at byte-len cu-sweep-lines cu-sweep-tick! file-err-text
+  file-write length reverse string-append string-concat string=? substring
+  vec-build vec-make vec-ref vec-set!)
+(import cu/text cu-fold-pieces cu-msort cu-pieces cu-run-text cu-str<)
+
+(def ts-space?
   (fn (_ b) (if (= b #\space) #t (if (< b #\tab) #f (<= b #\return)))))
 
 ; The words of S onto WORDS, newest first.  CARRY is a word the last piece ended
@@ -30,15 +38,15 @@
         (match
           ((>= i end)
             (pair (if (< start 0) "" (string-append pre (substring s start end))) acc))
-          ((%ts-space? (byte-at s i))
+          ((ts-space? (byte-at s i))
             (if (< start 0) (self (+ i 1) -1 pre acc)
-              (do (%cu-sweep-tick! %cu-sweep-lines)
+              (do (cu-sweep-tick! cu-sweep-lines)
                   (self (+ i 1) -1 ""
                     (pair (string-append pre (substring s start i)) acc)))))
           (#t (self (+ i 1) (if (< start 0) i start) pre acc)))))
     (go 0 (if (= (byte-len carry) 0) -1 0) carry words)))
 
-; the index of WORD among NAMES, a vector sorted by %cu-str<
+; the index of WORD among NAMES, a vector sorted by cu-str<
 (def %ts-find
   (fn (_ names word)
     (def go
@@ -47,7 +55,7 @@
           (let ((n (vec-ref names m)))
             (match
               ((string=? word n) m)
-              ((%cu-str< word n) (self a m))
+              ((cu-str< word n) (self a m))
               (#t (self (+ m 1) b)))))))
     (go 0 (Vector length names))))
 
@@ -60,7 +68,7 @@
           ((null? ws) (reverse acc))
           ((if (pair? acc) (string=? (first ws) (first acc)) #f) (self (rest ws) acc))
           (#t (self (rest ws) (pair (first ws) acc))))))
-    (go (%cu-msort words %cu-str<) ())))
+    (go (cu-msort words cu-str<) ())))
 
 ; Kahn's algorithm, as busybox runs it, over NAMES with the edges OUT (each
 ; node's list of the nodes its edges go to) and IN (each node's count of edges
@@ -84,7 +92,7 @@
           (let ((f (free 0 len)))
             (let ((i (if (< f 0) 0 f)))
               (let ((node (vec-ref arr i)))
-                (do (%cu-sweep-tick! %cu-sweep-lines)
+                (do (cu-sweep-tick! cu-sweep-lines)
                     (if (< f 0)
                       (file-write 2
                         (string-concat (list "tsort: cycle at " (vec-ref names node) "\n")))
@@ -119,24 +127,26 @@
 
 ; tsort [FILE]: FILE, or `-` or no operand standard input.  A FILE that will
 ; not open ends it; one that opens and will not read, a directory, is empty.
-(def %cu-tsort
+(def cu-tsort
   (fn (_ argv stdin-thunk)
     (def ops argv)
     (def name (if (null? ops) "-" (first ops)))
     (def take
       (fn (_ p s)
-        (%ts-words (%cu-run-text p) (first s) (rest s))))
-    (if (if (pair? ops) (pair? (rest ops)) #f) (%cu-usage "tsort")
-      (let ((src (%cu-pieces name stdin-thunk)))
+        (%ts-words (cu-run-text p) (first s) (rest s))))
+    (if (if (pair? ops) (pair? (rest ops)) #f) (cu-usage "tsort")
+      (let ((src (cu-pieces name stdin-thunk)))
         (if (Err err? src)
           (do (file-write 2
                 (string-concat
                   (list "tsort: can't open '" name "': " (file-err-text src) "\n")))
               1)
-          (let ((s (first (%cu-fold-pieces src take (pair "" ())))))
+          (let ((s (first (cu-fold-pieces src take (pair "" ())))))
             (do (src (lit close))
                 (let ((words (reverse (if (= (byte-len (first s)) 0) (rest s)
                                         (pair (first s) (rest s))))))
                   (if (= (% (length words) 2) 1)
                     (do (file-write 2 "tsort: odd input\n") 1)
                     (%ts-sort words))))))))))
+
+(provide cu/tsort cu-tsort ts-space?)

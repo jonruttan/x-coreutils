@@ -21,12 +21,12 @@ cat -v, the host's name shown as HOST.
   (def sm-f (fn (_ n) (string-append "/tmp/x-cu-smtp/" n)))
   (def sm-lines (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def sm-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
   (def sm-prep (fn (_ args input port)
-    (sys-setenv "SM_ARGS" args) (sys-setenv "SM_IN" input) (sys-setenv "SM_PORT" (%cu-int->str port))
+    (sys-setenv "SM_ARGS" args) (sys-setenv "SM_IN" input) (sys-setenv "SM_PORT" (cu-int->str port))
     (sm-sh (string-concat (list
       "d=/tmp/x-cu-smtp; rm -f $d/out $d/err $d/got $d/argv; printf '%b' \"$SM_IN\" > $d/in; : > $d/got; "
       "eval \"set -- $(printf ' %s ' \"$SM_ARGS\" | sed -e \"s/ P / $SM_PORT /g\" -e \"s/:P /:$SM_PORT /g\" -e \"s/ P'/ $SM_PORT'/g\" -e \"s/ P 2>/ $SM_PORT 2>/g\")\"; "
@@ -57,7 +57,7 @@ cat -v, the host's name shown as HOST.
     (unless (null? c)
       (do (Socket send c (if (has?-flag flags "no220") "554 go away\r\n" "220 test ESMTP\r\n"))
           (let go ((buf "") (mode "cmd") (rcpt? #f))
-            (let ((nl (%wget-index buf #\newline 0)))
+            (let ((nl (wget-index buf #\newline 0)))
               (if (null? nl)
                 (let ((r (if (null? (sys-poll (list (pair c (list (lit in)))) 10000)) () (guard (_ ()) (Socket recv-run c 4096)))))
                   (unless (null? r) (go (string-append buf (substring (first r) 0 (rest r))) mode rcpt?)))
@@ -72,7 +72,7 @@ cat -v, the host's name shown as HOST.
           (Socket close c)))
     (file-close got)))
   (def sm (fn (_ flags args input)
-    (%cu-heap-collect)
+    (cu-heap-collect)
     (def none? (string=? flags "none"))
     (def l (if none? () (Socket tcp-listen-on "127.0.0.1" 0 5)))
     (def port (if none? (let ((q (Socket tcp-listen 0))) (let ((n (Socket local-port q))) (do (Socket close q) n)))
@@ -88,7 +88,7 @@ cat -v, the host's name shown as HOST.
     (unless none? (do (sm-serve l flags) (Socket close l)))
     (def st (sys-wait pid))
     (sm-sh (string-concat (list
-      "d=/tmp/x-cu-smtp; h=$(uname -n); { LC_ALL=C cat -v $d/out; echo \"[status " (%cu-int->str st) "]\"; "
+      "d=/tmp/x-cu-smtp; h=$(uname -n); { LC_ALL=C cat -v $d/out; echo \"[status " (cu-int->str st) "]\"; "
       "sed -e \"s/$h/HOST/g\" -e \"s/:$SM_PORT/:PORT/g\" $d/err; "
       (if none? "" "echo '--- server got'; LC_ALL=C cat -v $d/got | sed \"s/$h/HOST/g\"; ")
       "} > $d/report")))

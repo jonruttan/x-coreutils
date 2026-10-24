@@ -25,6 +25,15 @@
 
 ; ARG quoted for the shell: in single quotes, a quote as '\''; for tcsh a
 ; newline as \n and a ! or blank backslashed outside the quotes too
+(module cu/getopt)
+
+(import cu/cli cu-opts)
+(import cu/dump dp-find dp-in? dp-skip-in)
+(import cu/prims append byte-at byte-len cu-member-s? cu-nth file-write filter
+  map reverse string-append string-concat string=? substring sys-getenv
+  vec-build vec-ref)
+(import cu/tsort ts-space?)
+
 (def %go-quote
   (fn (_ arg tcsh)
     (def n (byte-len arg))
@@ -35,7 +44,7 @@
             (self (+ i 1)
               (pair (match
                       ((if tcsh (= c #\newline) #f) "\\n")
-                      ((if (= c #\') #t (if tcsh (if (= c #\!) #t (%ts-space? c)) #f))
+                      ((if (= c #\') #t (if tcsh (if (= c #\!) #t (ts-space? c)) #f))
                         (string-concat (list "'\\" (bytes->str (list c)) "'")))
                       (#t (bytes->str (list c))))
                     acc))))))
@@ -76,7 +85,7 @@
   (fn (_ g c)
     (def body (%go-body g))
     (def n (byte-len body))
-    (def at (%dp-find body 0 c))
+    (def at (dp-find body 0 c))
     (if (if (< at 0) #t (= c #\:)) ()
       (let ((takes (if (< (+ at 1) n) (= (byte-at body (+ at 1)) #\:) #f)))
         (pair takes (if takes (if (< (+ at 2) n) (= (byte-at body (+ at 2)) #\:) #f) #f))))))
@@ -146,7 +155,7 @@
         (if (= (- (rest m) dashes) 1) (not (null? (%go-short g (byte-at token 1)))) #f) #f))
     (match
       ((if one (not short-too) #f)
-        (let ((opt (%cu-nth (first m) (%go-longs g))) (at (rest m)))
+        (let ((opt (cu-nth (first m) (%go-longs g))) (at (rest m)))
           (let ((name (first opt)) (has (rest opt)) (eq (< at (byte-len token))))
             (match
               ((if eq (= has 0) #f)
@@ -191,10 +200,10 @@
                 (let ((r (if (if longs? (if (%go-alt g) #t (if (> (byte-len a) 2) (= (byte-at a 1) #\-) #f)) #f)
                            (%go-long g a (rest args)) ())))
                   (let ((r2 (if (null? r) (%go-cluster g a (rest args)) r)))
-                    (if (eq? (%cu-nth 2 r2) (lit stop))
+                    (if (eq? (cu-nth 2 r2) (lit stop))
                       (list (append (first r2) out) 1 ())
-                      (self (%cu-nth 2 r2) skipped (append (first r2) out)
-                        (if (= (%cu-nth 1 r2) 0) code 1)))))))))))
+                      (self (cu-nth 2 r2) skipped (append (first r2) out)
+                        (if (= (cu-nth 1 r2) 0) code 1)))))))))))
     (go params () () 0)))
 
 ; --- the applet -------------------------------------------------------------------
@@ -225,7 +234,7 @@
       (fn (self i start acc)
         (match
           ((>= i n) (reverse (pair (substring s start n) acc)))
-          ((%dp-in? (byte-at s i) seps) (self (+ i 1) (+ i 1) (pair (substring s start i) acc)))
+          ((dp-in? (byte-at s i) seps) (self (+ i 1) (+ i 1) (pair (substring s start i) acc)))
           (#t (self (+ i 1) start acc)))))
     (go 0 0 ())))
 
@@ -255,12 +264,12 @@
               (string-concat
                 (append (reverse (first r))
                   (pair " --"
-                    (append (map (fn (_ a) (string-append " " (%go-norm g a))) (%cu-nth 2 r))
+                    (append (map (fn (_ a) (string-append " " (%go-norm g a))) (cu-nth 2 r))
                             (list "\n")))))))
-          (%cu-nth 1 r)))))
+          (cu-nth 1 r)))))
 
 ; getopt [OPTIONS] [--] OPTSTRING PARAMS
-(def %cu-getopt
+(def cu-getopt
   (fn (_ argv stdin-thunk)
     (def compatible (not (null? (sys-getenv "GETOPT_COMPATIBLE"))))
     (match
@@ -271,18 +280,18 @@
       ((if compatible #t (not (if (> (byte-len (first argv)) 0) (= (byte-at (first argv) 0) #\-) #f)))
         (let ((s (first argv)))
           (%go-output
-            (%go-settings (substring s (%dp-skip-in s 0 "-+") (byte-len s)) () #f "getopt" #t (lit none))
+            (%go-settings (substring s (dp-skip-in s 0 "-+") (byte-len s)) () #f "getopt" #t (lit none))
             (rest argv) #f)))
       (#t (%go-main argv)))))
 
 (def %go-main
   (fn (_ argv)
-    (def o (%cu-opts "getopt" argv))
+    (def o (cu-opts "getopt" argv))
     (def on (fn (_ a b) (if (Opts on? o a) #t (Opts on? o b))))
     (def val (fn (_ a b) (let ((v (Opts value o a))) (if (null? v) (Opts value o b) v))))
     (def ops (Opts operands o))
     (def shell (val "-s" "--shell"))
-    (def tcsh (if (null? shell) #f (%cu-member-s? shell (list "tcsh" "csh"))))
+    (def tcsh (if (null? shell) #f (cu-member-s? shell (list "tcsh" "csh"))))
     (def longs
       (let ((go (fn (self ls acc)
                   (if (null? ls) acc
@@ -290,7 +299,7 @@
                       (if (null? r) (lit empty) (self (rest ls) r)))))))
         (go (append (Opts values o "-l") (Opts values o "--longoptions")) ())))
     (def optstr (val "-o" "--options"))
-    (do (if (if (null? shell) #f (not (%cu-member-s? shell (list "bash" "sh" "tcsh" "csh"))))
+    (do (if (if (null? shell) #f (not (cu-member-s? shell (list "bash" "sh" "tcsh" "csh"))))
           (file-write 2 (string-concat (list "getopt: unknown shell '" shell "', assuming bash\n")))
           ())
         (match
@@ -306,3 +315,5 @@
                 (match ((on "-u" "--unquoted") (lit none)) (tcsh (lit tcsh)) (#t (lit sh))))
               (if (null? optstr) (rest ops) ops)
               (on "-Q" "--quiet-output")))))))
+
+(provide cu/getopt cu-getopt)

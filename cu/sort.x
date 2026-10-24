@@ -20,6 +20,17 @@
 
 ; --- the orderings ------------------------------------------------------------
 
+(module cu/sort)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-at byte-len cu-b->s cu-int->str cu-lines cu-nth
+  cu-sweep-at cu-sweep-steps cu-sweep-tick! cu-words-line file-close
+  file-err-op file-err-text file-open-or-err file-open-write file-write length
+  reverse string-append string-concat string=? substring)
+(import cu/text cu-delim-fields-said cu-gather-said cu-join-with cu-msort
+  cu-num-prefix cu-print-fields-to cu-print-lines cu-print-lines-to
+  cu-split-byte cu-str<)
+
 (def %sort-blank? (fn (_ b) (if (= b 32) #t (= b 9))))
 
 (def %sort-trim-left
@@ -49,17 +60,17 @@
                   (if (>= i end) (string-concat (reverse acc))
                     (self (+ i 1)
                       (if (keep? (byte-at s i))
-                        (pair (%cu-b->s (byte-at s i)) acc) acc)))))
+                        (pair (cu-b->s (byte-at s i)) acc) acc)))))
         (go 0 ())))))
 
-(def %sort-fold
+(def sort-fold
   (fn (_ s)
     (def end (byte-len s))
     (def go (fn (self i acc)
               (if (>= i end) (string-concat (reverse acc))
                 (let ((b (byte-at s i)))
                   (self (+ i 1)
-                    (pair (%cu-b->s (if (if (>= b 97) (<= b 122) #f) (- b 32) b))
+                    (pair (cu-b->s (if (if (>= b 97) (<= b 122) #f) (- b 32) b))
                       acc))))))
     (go 0 ())))
 
@@ -99,7 +110,7 @@
 
 (def %sort-month
   (fn (_ s)
-    (def t (%sort-fold (%sort-trim-left s)))
+    (def t (sort-fold (%sort-trim-left s)))
     (if (< (byte-len t) 3) 0
       (let ((head (substring t 0 3)))
         (def go (fn (self ms n)
@@ -114,8 +125,8 @@
 
 (def %sort-fields
   (fn (_ line sep)
-    (if (null? sep) (%cu-words-line line)
-      (%cu-split-byte line (byte-at sep 0)))))
+    (if (null? sep) (cu-words-line line)
+      (cu-split-byte line (byte-at sep 0)))))
 
 ; join fields SF..EF, then take chars SC..EC of that
 (def %sort-key
@@ -123,8 +134,8 @@
     (if (null? spec) line
       (let ((fs (%sort-fields line sep)))
         (def n (length fs))
-        (def sf (%cu-nth 0 spec))
-        (def ef (let ((e (%cu-nth 2 spec))) (if (= e 0) n e)))
+        (def sf (cu-nth 0 spec))
+        (def ef (let ((e (cu-nth 2 spec))) (if (= e 0) n e)))
         (def picked
           (let ((go (fn (self xs i acc)
                       (if (null? xs) (reverse acc)
@@ -132,10 +143,10 @@
                           (if (if (>= i sf) (<= i ef) #f)
                             (pair (first xs) acc) acc))))))
             (go fs 1 ())))
-        (def joined (%cu-join-with picked (if (null? sep) " " sep)))
+        (def joined (cu-join-with picked (if (null? sep) " " sep)))
         (def end (byte-len joined))
-        (def from (let ((c (%cu-nth 1 spec))) (if (> c 0) (- c 1) 0)))
-        (def to (let ((c (%cu-nth 3 spec))) (if (= c 0) end (if (> c end) end c))))
+        (def from (let ((c (cu-nth 1 spec))) (if (> c 0) (- c 1) 0)))
+        (def to (let ((c (cu-nth 3 spec))) (if (= c 0) end (if (> c end) end c))))
         (if (>= from end) ""
           (substring joined from (if (< to from) from to)))))))
 
@@ -160,12 +171,12 @@
 (def %sort-spec
   (fn (_ keydef)
     (if (null? keydef) ()
-      (let ((halves (%cu-split-byte keydef 44)))            ; ,
+      (let ((halves (cu-split-byte keydef 44)))            ; ,
         (def a (%sort-part (first halves)))
         (def b (if (null? (rest halves)) (list 0 0 "")
                  (%sort-part (first (rest halves)))))
-        (list (%cu-nth 0 a) (%cu-nth 1 a) (%cu-nth 0 b) (%cu-nth 1 b)
-              (string-append (%cu-nth 2 a) (%cu-nth 2 b)))))))
+        (list (cu-nth 0 a) (cu-nth 1 a) (cu-nth 0 b) (cu-nth 1 b)
+              (string-append (cu-nth 2 a) (cu-nth 2 b)))))))
 
 ; --- the comparison -----------------------------------------------------------
 
@@ -173,7 +184,7 @@
   (fn (_ o spec letter)
     (if (Opts on? o letter) #t
       (if (null? spec) #f
-        (let ((opts (%cu-nth 4 spec)))
+        (let ((opts (cu-nth 4 spec)))
           (let ((go (fn (self i)
                       (if (>= i (byte-len opts)) #f
                         (if (= (byte-at opts i) (byte-at letter 1)) #t
@@ -204,7 +215,7 @@
       (fn (_ s)
         (def t (if b? (%sort-trim-left s) s))
         (def u (%sort-filter t d? i?))
-        (if f? (%sort-fold u) u)))
+        (if f? (sort-fold u) u)))
     ; -1, 0 or 1 for the key, so the fallback can see a tie
     (def cmp
       (fn (_ a b)
@@ -212,11 +223,11 @@
         (def kb (prepare (%sort-key b spec sep)))
         (def c
           (match
-            (n? (%cu-cmp-int (%cu-num-prefix ka) (%cu-num-prefix kb)))
+            (n? (%cu-cmp-int (cu-num-prefix ka) (cu-num-prefix kb)))
             (g? (%cu-cmp-int (%sort-general ka) (%sort-general kb)))
             (m? (%cu-cmp-int (%sort-month ka) (%sort-month kb)))
             ((string=? ka kb) 0)
-            ((%cu-str< ka kb) (- 0 1))
+            ((cu-str< ka kb) (- 0 1))
             (#t 1)))
         (if r? (- 0 c) c)))
     (fn (_ a b)
@@ -224,14 +235,14 @@
         (match
           ((not (= c 0)) (< c 0))
           (stable? #f)
-          (reverse? (%cu-str< b a))
-          (#t (%cu-str< a b)))))))
+          (reverse? (cu-str< b a))
+          (#t (cu-str< a b)))))))
 
 ; --- the applet ---------------------------------------------------------------
 
-(def %cu-sort
+(def cu-sort
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "sort" argv))
+    (def o (cu-opts "sort" argv))
     (def sep (Opts value o "-t"))
     (def spec (%sort-spec (Opts value o "-k")))
     (def out (Opts value o "-o"))
@@ -242,28 +253,28 @@
     ; sort reads nothing past a file it cannot read, prints nothing, and
     ; fails as sort fails
     (def g
-      (if z? (%cu-delim-fields-said ops stdin-thunk 0 %sort-cannot-read #t)
-        (%cu-gather-said ops stdin-thunk %sort-cannot-read #t)))
-    (def lines (if z? (first g) (%cu-lines (first g))))
+      (if z? (cu-delim-fields-said ops stdin-thunk 0 %sort-cannot-read #t)
+        (cu-gather-said ops stdin-thunk %sort-cannot-read #t)))
+    (def lines (if z? (first g) (cu-lines (first g))))
     (def less? (%sort-less o spec sep))
     (match
       ((> (rest g) 0) 2)
       ((Opts on? o "-c") (%sort-check lines less? ops))
       (#t
-        (let ((sorted (%cu-msort lines less?)))
+        (let ((sorted (cu-msort lines less?)))
           (def final
             (if (Opts on? o "-u") (%sort-dedup sorted less?) sorted))
           (if z?
             (let ((fd (if (null? out) 1 (file-open-or-err file-open-write out))))
               (if (Err err? fd) (%sort-open-failed out fd)
-                (do (%cu-print-fields-to fd final 0)
+                (do (cu-print-fields-to fd final 0)
                     (if (null? out) () (file-close fd))
                     0)))
             ; each line put out as it is walked, which sweeps as it goes
-            (if (null? out) (do (%cu-print-lines final) 0)
+            (if (null? out) (do (cu-print-lines final) 0)
               (let ((fd (file-open-or-err file-open-write out)))
                 (if (Err err? fd) (%sort-open-failed out fd)
-                  (do (%cu-print-lines-to fd final) (file-close fd) 0))))))))))
+                  (do (cu-print-lines-to fd final) (file-close fd) 0))))))))))
 
 ; a file sort cannot read, said as sort says it: "cannot read" for one that
 ; would not open, "read failed" for one that opened and would not read
@@ -292,7 +303,7 @@
     (def go
       (fn (self xs acc)
         (if (null? xs) (reverse acc)
-          (do (%cu-sweep-tick! %cu-sweep-steps)
+          (do (cu-sweep-tick! cu-sweep-steps)
             (self (rest xs)
               (if (if (pair? acc)
                     (if (less? (first acc) (first xs)) #f
@@ -311,11 +322,13 @@
         (match
           ((null? xs) 0)
           ((null? (rest xs)) 0)
-          ((do (%cu-sweep-at n %cu-sweep-steps) (less? (first (rest xs)) (first xs)))
+          ((do (cu-sweep-at n cu-sweep-steps) (less? (first (rest xs)) (first xs)))
             (do (file-write 2
                   (string-concat
-                    (list "sort: " name ":" (%cu-int->str (+ n 1))
+                    (list "sort: " name ":" (cu-int->str (+ n 1))
                           ": disorder: " (first (rest xs)) "\n")))
                 1))
           (#t (self (rest xs) (+ n 1))))))
     (go ls 1)))
+
+(provide cu/sort cu-sort sort-fold)

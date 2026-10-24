@@ -7,7 +7,7 @@ THE BODY IS ASSERTED THROUGH THE STRING DOOR, not through stdout: the
 normal format writes `> ` at the head of an added line, and the spec
 runner strips a literal `"> "` prompt from captured output, so a quoted
 body would be compared against text the runner has already edited.
-`%cu-diff-str` answers `(OUTPUT . STATUS)` without displaying, which is
+`cu-diff-str` answers `(OUTPUT . STATUS)` without displaying, which is
 what it exists for.  Where the observable is the status -- which is what
 `-i`, `-b`, `-w` and `-B` actually change -- the status is what these
 blocks assert.
@@ -37,7 +37,7 @@ blocks assert.
     ; "@@ -" begins each header
     (def %cu-diff-hunk-count
       (fn (_ ctx)
-        (def out (first (%cu-diff-str
+        (def out (first (cu-diff-str
                           (list "-U" ctx "/tmp/x-cu-df-g1" "/tmp/x-cu-df-g2") "")))
         (def end (byte-len out))
         (def go
@@ -46,7 +46,7 @@ blocks assert.
               (if (string=? (substring out i (+ i 4)) "@@ -")
                 (self (+ i 4) (+ k 1))
                 (self (+ i 1) k)))))
-        (%cu-int->str (go 0 0))))
+        (cu-int->str (go 0 0))))
     (display "made"))
 ```
 ---
@@ -58,7 +58,7 @@ blocks assert.
 
 ```cu
 (display (string=?
-  (first (%cu-diff-str (list "/tmp/x-cu-df-1" "/tmp/x-cu-df-2") ""))
+  (first (cu-diff-str (list "/tmp/x-cu-df-1" "/tmp/x-cu-df-2") ""))
   "1c1\n< alpha\n---\n> ALPHA\n"))
 ```
 ---
@@ -95,8 +95,8 @@ not.  Read through the string door, because the second of these prints
 a body and a body cannot be quoted here.
 
 ```cu
-(do (display (rest (%cu-diff-str (list "-b" "/tmp/x-cu-df-3" "/tmp/x-cu-df-4") "")))
-    (display (rest (%cu-diff-str (list "-b" "/tmp/x-cu-df-5" "/tmp/x-cu-df-6") ""))))
+(do (display (rest (cu-diff-str (list "-b" "/tmp/x-cu-df-3" "/tmp/x-cu-df-4") "")))
+    (display (rest (cu-diff-str (list "-b" "/tmp/x-cu-df-5" "/tmp/x-cu-df-6") ""))))
 ```
 ---
     01
@@ -129,8 +129,8 @@ line, while `"  a"` and `"a"` are not.
 (do (file-write-all "/tmp/x-cu-df-e1" "a  \n")
     (file-write-all "/tmp/x-cu-df-e2" "a\n")
     (file-write-all "/tmp/x-cu-df-e3" "  a\n")
-    (display (rest (%cu-diff-str (list "-b" "/tmp/x-cu-df-e1" "/tmp/x-cu-df-e2") "")))
-    (display (rest (%cu-diff-str (list "-b" "/tmp/x-cu-df-e3" "/tmp/x-cu-df-e2") ""))))
+    (display (rest (cu-diff-str (list "-b" "/tmp/x-cu-df-e1" "/tmp/x-cu-df-e2") "")))
+    (display (rest (cu-diff-str (list "-b" "/tmp/x-cu-df-e3" "/tmp/x-cu-df-e2") ""))))
 ```
 ---
     01
@@ -193,8 +193,8 @@ behaving exactly as before.
 
 ```cu
 (display (string=?
-  (first (%cu-diff-str (list "-a" "-d" "/tmp/x-cu-df-1" "/tmp/x-cu-df-2") ""))
-  (first (%cu-diff-str (list "/tmp/x-cu-df-1" "/tmp/x-cu-df-2") ""))))
+  (first (cu-diff-str (list "-a" "-d" "/tmp/x-cu-df-1" "/tmp/x-cu-df-2") ""))
+  (first (cu-diff-str (list "/tmp/x-cu-df-1" "/tmp/x-cu-df-2") ""))))
 ```
 ---
     #t
@@ -216,7 +216,7 @@ above: a `+` line is safe to quote but a context line is not, and the
 whole point is the format of the hunk.
 
 ```cu
-(display (first (%cu-diff-str
+(display (first (cu-diff-str
   (list "-U" "1" "/tmp/x-cu-df-u1" "/tmp/x-cu-df-u2") "")))
 ```
 ---
@@ -249,7 +249,7 @@ A hunk header counts a-lines and b-lines, so a pure insertion has a
 zero-length old side and names the line it follows.
 
 ```cu
-(display (first (%cu-diff-str
+(display (first (cu-diff-str
   (list "-U" "1" "/tmp/x-cu-df-i1" "/tmp/x-cu-df-i2") "")))
 ```
 ---
@@ -269,7 +269,7 @@ timestamp: GNU and busybox write the file's mtime, and this bundle has
 no clock a spec can pin.
 
 ```cu
-(display (first (%cu-diff-str
+(display (first (cu-diff-str
   (list "-U" "1" "-L" "old" "-L" "new"
     "/tmp/x-cu-df-u1" "/tmp/x-cu-df-u2") "")))
 ```
@@ -287,13 +287,13 @@ no clock a spec can pin.
 ### -t expands tabs, -T prefixes one so the marker does not shift the text
 
 ```cu
-(do (display (byte-len (first (%cu-diff-str
+(do (display (byte-len (first (cu-diff-str
        (list "-U" "1" "/tmp/x-cu-df-t1" "/tmp/x-cu-df-t2") ""))))
     (display " ")
-    (display (byte-len (first (%cu-diff-str
+    (display (byte-len (first (cu-diff-str
        (list "-U" "1" "-t" "/tmp/x-cu-df-t1" "/tmp/x-cu-df-t2") ""))))
     (display " ")
-    (display (byte-len (first (%cu-diff-str
+    (display (byte-len (first (cu-diff-str
        (list "-U" "1" "-T" "/tmp/x-cu-df-t1" "/tmp/x-cu-df-t2") "")))))
 ```
 ---
@@ -325,13 +325,13 @@ no clock a spec can pin.
     ; the walk's output as a string.  Asserted in x rather than quoted:
     ; a body carries "> " lines and the runner strips a literal "> "
     ; prompt from captured stdout.
-    (def %cu-dd
+    (def cu-dd
       (fn (_ flags start)
-        (first (%cu-diff-dir
-                 (%cu-opts "diff" (append flags
+        (first (cu-diff-dir
+                 (cu-opts "diff" (append flags
                                     (list "/tmp/x-cu-dd/A" "/tmp/x-cu-dd/B")))
                  flags "/tmp/x-cu-dd/A" "/tmp/x-cu-dd/B" start))))
-    (def %cu-dd-has?
+    (def cu-dd-has?
       (fn (_ hay needle)
         (def hn (byte-len hay))
         (def nn (byte-len needle))
@@ -349,9 +349,9 @@ no clock a spec can pin.
 ### a file only one side has is named, not compared
 
 ```cu
-(do (def out (%cu-dd () ()))
-    (display (%cu-dd-has? out "Only in /tmp/x-cu-dd/A: onlyA.txt\n"))
-    (display (%cu-dd-has? out "Only in /tmp/x-cu-dd/B: onlyB.txt\n")))
+(do (def out (cu-dd () ()))
+    (display (cu-dd-has? out "Only in /tmp/x-cu-dd/A: onlyA.txt\n"))
+    (display (cu-dd-has? out "Only in /tmp/x-cu-dd/B: onlyB.txt\n")))
 ```
 ---
     #t#t
@@ -359,9 +359,9 @@ no clock a spec can pin.
 ### a shared subdirectory is common, until -r
 
 ```cu
-(do (display (%cu-dd-has? (%cu-dd () ())
+(do (display (cu-dd-has? (cu-dd () ())
        "Common subdirectories: /tmp/x-cu-dd/A/sub and /tmp/x-cu-dd/B/sub\n"))
-    (display (%cu-dd-has? (%cu-dd (list "-r") ())
+    (display (cu-dd-has? (cu-dd (list "-r") ())
        "Common subdirectories")))
 ```
 ---
@@ -373,7 +373,7 @@ The header is the command that would show that one file, so it carries
 the flags as they were given.
 
 ```cu
-(display (%cu-dd-has? (%cu-dd (list "-r") ())
+(display (cu-dd-has? (cu-dd (list "-r") ())
   "diff -r /tmp/x-cu-dd/A/sub/deep.txt /tmp/x-cu-dd/B/sub/deep.txt\n"))
 ```
 ---
@@ -385,9 +385,9 @@ The name that was only on one side is no longer merely named: it is
 compared, against nothing.
 
 ```cu
-(do (def out (%cu-dd (list "-r" "-N") ()))
-    (display (%cu-dd-has? out "Only in"))
-    (display (%cu-dd-has? out
+(do (def out (cu-dd (list "-r" "-N") ()))
+    (display (cu-dd-has? out "Only in"))
+    (display (cu-dd-has? out
       "diff -r -N /tmp/x-cu-dd/A/onlyA.txt /tmp/x-cu-dd/B/onlyA.txt\n1d0\n")))
 ```
 ---
@@ -396,9 +396,9 @@ compared, against nothing.
 ### -S starts the walk at a name, in the ORDER the walk uses
 
 ```cu
-(do (def out (%cu-dd (list "-r" "-S" "same.txt") "same.txt"))
-    (display (%cu-dd-has? out "diff.txt"))
-    (display (%cu-dd-has? out "sub/deep.txt")))
+(do (def out (cu-dd (list "-r" "-S" "same.txt") "same.txt"))
+    (display (cu-dd-has? out "diff.txt"))
+    (display (cu-dd-has? out "sub/deep.txt")))
 ```
 ---
     #f#t
@@ -413,7 +413,7 @@ files in directories it was never pointed at is a surprise, not a
 feature.
 
 ```cu
-(display (%cu-dd-has? (%cu-dd (list "-r" "-S" "sub") "sub") "deep.txt"))
+(display (cu-dd-has? (cu-dd (list "-r" "-S" "sub") "sub") "deep.txt"))
 ```
 ---
     #t

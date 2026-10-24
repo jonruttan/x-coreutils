@@ -11,6 +11,13 @@
 ; size, use count and users, the last without its trailing comma.
 
 ; a line's first four words, split at spaces and tabs
+(module cu/lsmod)
+
+(import cu/prims byte-at byte-len char->integer cu-lines file-or-err
+  file-read-unsized file-write length map reverse string-append string-concat
+  substring)
+(import cu/text cu-pad-left cu-pad-right)
+
 (def %lm-words
   (fn (_ line)
     (def end (byte-len line))
@@ -39,20 +46,22 @@
         (go (+ i 1) (+ (* n 10) (- (char->integer (byte-at s i)) 48)))
         n))))
 
-(def %cu-lsmod
+(def cu-lsmod
   (fn (_ argv stdin-thunk)
     (let ((text (file-or-err (fn (_) (file-read-unsized "/proc/modules")))))
-      (do (file-write 1 (string-append (%cu-pad-right "Module" 24) "Size  Used by" (%lm-taint)))
+      (do (file-write 1 (string-append (cu-pad-right "Module" 24) "Size  Used by" (%lm-taint)))
           (unless (Err err? text)
             (map (fn (_ line)
                    (let ((w (%lm-words line)))
                      (when (= (length w) 4)
                        (let ((users (List ref 3 w)))
                          (file-write 1 (string-concat
-                                         (list (%cu-pad-right (first w) 19) " "
-                                               (%cu-pad-left (List ref 1 w) 8) " "
-                                               (%cu-pad-left (List ref 2 w) 2) " "
+                                         (list (cu-pad-right (first w) 19) " "
+                                               (cu-pad-left (List ref 1 w) 8) " "
+                                               (cu-pad-left (List ref 2 w) 2) " "
                                                (if (= (byte-len users) 0) users (substring users 0 (- (byte-len users) 1)))
                                                "\n")))))))
-                 (%cu-lines text)))
+                 (cu-lines text)))
           0))))
+
+(provide cu/lsmod cu-lsmod)
