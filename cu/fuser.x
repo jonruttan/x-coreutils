@@ -88,7 +88,7 @@
 
 (def cu-fuser
   (fn (_ argv stdin-thunk)
-    (def args (fu-args argv))
+    (def args (fu-args argv #t ()))
     (def signo (if (null? (first args)) cu-sigkill (first args)))
     (def o (cu-opts "fuser" argv))
     (def ops (Opts operands o))

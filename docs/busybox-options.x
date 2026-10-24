@@ -116,6 +116,8 @@
     (list "printenv" ())
     (list "pipe_progress" ())
     (list "pkill" (%letters "lxfsPvnoe"))
+    (list "ping" (%letters "qvAcstwWInpi46"))
+    (list "ping6" (%letters "qvAcstwWInpi46"))
     (list "pmap" (%letters "xq"))
     (list "kill" (%letters "ls"))
     (list "printf" ())

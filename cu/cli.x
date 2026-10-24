@@ -92,7 +92,11 @@
       ; the first -SIGNAL before a --, wherever it stands, and -4 and -6, as
       ; busybox's fuser reads them
       ((eq? label (lit signal-any))
-        (Opts parse flags values (first (rest (rest (fu-args argv))))))
+        (Opts parse flags values (List ref 2 (fu-args argv #t ()))))
+      ; -4 and -6 anywhere before a --, as getopt reads them, past the values
+      ; the declared letters take
+      ((eq? label (lit families))
+        (Opts parse flags values (List ref 2 (fu-args argv #f (cu-value-letters values)))))
       ; options up to the first word that is not a cluster of the flags; each
       ; letter reaches the parse as a word of its own, so the flags are listed
       ; in the order given (the parse reverses a cluster's), and the rest come
@@ -107,6 +111,18 @@
           (pair "--" (if (if (pair? argv) (string=? (first argv) "--") #f)
                        (rest argv) argv))))
       (#t (Opts parse flags values argv)))))
+
+; the letters of the -X spellings among VALUES, the options that take a value
+(def cu-value-letters
+  (fn (_ values)
+    (map (fn (_ v) (byte-at v 1))
+         (filter (fn (_ v) (if (= (byte-len v) 2) (= (byte-at v 0) #\-) #f)) values))))
+
+; the 4s and 6s APPLET's ARGV gives, as the families label parses them
+(def cu-families
+  (fn (_ applet argv)
+    (def spec (cu-spec-of applet))
+    (List ref 1 (fu-args argv #f (cu-value-letters (if (null? spec) () (first (rest spec))))))))
 
 ; The leading words of ARGV that are clusters of FLAGS, and the words from the
 ; first that is not one: (LETTERS . REST), each letter a flag word of its own,
@@ -338,7 +354,7 @@
           (sys-exit (cu-run argv ""))
           (sys-exit (cu-dispatch h (first argv) (rest argv) stdin-thunk)))))))
 
-(provide cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand
+(provide cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand cu-families
   cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand
   cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of
   cu-string-stdin cu-usage)
