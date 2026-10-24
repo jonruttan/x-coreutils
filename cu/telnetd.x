@@ -25,13 +25,14 @@
 
 (module cu/telnetd)
 
+(import x/sys/pty)
 (import cu/cli cu-opts cu-usage)
 (import cu/prims append byte-at byte-len cu-int->str cu-nth cu-ptr->str
   cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep-lines
   cu-sweep-tick! file-close file-err-sym file-exists? file-read-all
   file-read-run file-write filter length map net-aton net-peer net-send-run
   net-sockaddr net-stdin-socket reverse str-make-raw string-append
-  string-concat substring sys-close sys-dup2 sys-exit sys-fork sys-poll
+  string-concat substring sys-close sys-exit sys-fork sys-poll
   sys-signal sys-time-ms sys-uname vec-make vec-ref vec-set!)
 
 (def %td-login "/bin/login")
@@ -60,22 +61,16 @@
 (def %td-now-ms (fn (_) (sys-time-ms)))
 
 ; fcntl is a system call here: its third argument is variadic
-(def %td-fcntl (syscall-door (lit fcntl)))
-(def %td-nonblock! (fn (_ fd) (%td-fcntl fd 4 (| (in-call (%td-fcntl fd 3 0)) (if os-darwin? 4 2048)))))
-(def %td-cloexec! (fn (_ fd) (%td-fcntl fd 2 1)))
+(def %td-cloexec! (fn (_ fd) ((syscall-door (lit fcntl)) fd 2 1)))
 
 ; --- the terminal --------------------------------------------------------------
 
 ; xgetpty: the controlling side's descriptor and the terminal's path
 (def %td-getpty
   (fn (_)
-    (def m (in-call (cu-ptr-call (in-c "posix_openpt") (+ 2 (if os-darwin? 131072 256)))))
-    (when (< m 0) (%td-die "can't find free pty"))
-    (cu-ptr-call (in-c "grantpt") m)
-    (cu-ptr-call (in-c "unlockpt") m)
-    (def p (cu-ptr-call (in-c "ptsname") m))
-    (when (= (td-ptr->int p) 0) (%td-die "can't find free pty"))
-    (pair m (cu-ptr->str p))))
+    (def p (Pty open))
+    (when (null? p) (%td-die "can't find free pty"))
+    p))
 
 (def td-ptr->int (prim-ref (lit ptr) (lit ->int)))
 
@@ -109,13 +104,6 @@
                 (cu-ptr-set! (cu-str->ptr b) 1 eof 1)
                 (File write fd b 1)
                 (File write fd b 1))))))))
-
-(def %td-winsize!
-  (fn (_ fd cols rows)
-    (def ws (in-zeroed 8))
-    (cu-ptr-set! (cu-str->ptr ws) 0 rows 2)
-    (cu-ptr-set! (cu-str->ptr ws) 2 cols 2)
-    ((syscall-door (lit ioctl)) fd (if os-darwin? 2148037735 21524) ws)))
 
 ; --- the issue file ---------------------------------------------------------------
 
@@ -260,11 +248,11 @@
     (def mp (%td-getpty))
     (def m (first mp))
     (def tty (rest mp))
-    (%td-nonblock! m)
+    (Sys nonblock! m)
     (%td-cloexec! m)
     (%td-keepalive! rd)
-    (%td-nonblock! rd)
-    (unless (= rd wr) (%td-nonblock! wr))
+    (Sys nonblock! rd)
+    (unless (= rd wr) (Sys nonblock! wr))
     (File write wr %td-preamble 9)
     (def host (%td-peer-host rd))
     (def pid (sys-fork))
@@ -287,12 +275,10 @@
   (fn (_ m tty rd wr host others)
     (sys-signal %td-chld 0)
     (sys-signal 13 0)
-    (def pid (in-call (cu-ptr-call (in-c "setsid"))))
     (map (fn (_ fd) (when (>= fd 0) (sys-close fd))) (append (list m rd wr 3) others))
-    (sys-close 0)
-    (File open tty (list (lit rdwr)))
-    (sys-dup2 0 1)
-    (sys-dup2 0 2)
+    ; the window is the client's to give, by NAWS
+    (unless (Pty attach! tty 0 0) (sys-exit 1))
+    (def pid (Sys getpid))
     (cu-ptr-call (in-c "tcsetpgrp") 0 pid)
     (%td-utmp-login! pid tty host)
     (%td-cook-terminal!)
@@ -345,7 +331,7 @@
                         (let ((w (%td-naws l)))
                           (if (null? w) (flush l)
                             (do (when (if (> (first w) 0) (> (cu-nth 1 w) 0) #f)
-                                  (%td-winsize! pty (first w) (cu-nth 1 w)))
+                                  (Pty window! pty (first w) (cu-nth 1 w)))
                                 (when (> %td-verbose 0)
                                   (%td-say (string-concat (list "pfd:" (cu-int->str pty) " window size:"
                                                                 (cu-int->str (cu-nth 1 w)) "x" (cu-int->str (first w))))))
