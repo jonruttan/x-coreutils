@@ -17,6 +17,9 @@
 (module cu/arp)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/inet inet-dotted inet-hex inet-ioctl inet-resolve inet-rresolve
+  inet-set! inet-sin! inet-socket inet-words inet-zeros)
+(import cu/inetd in-c in-call)
 (import cu/prims byte-at byte-len char->integer cu-err-label cu-int->ptr
   cu-int->str cu-lines cu-ptr->str cu-ptr-call cu-ptr-ref cu-str->ptr
   file-or-err file-read-unsized file-write filter length libc-strerror map

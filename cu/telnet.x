@@ -25,10 +25,13 @@
 (module cu/telnet)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/inetd tn-port)
 (import cu/prims append byte-at byte-len cu-ptr-ref cu-ptr-set! cu-sig-ign
   cu-stdin-to-command! cu-str->ptr cu-sweep-lines cu-sweep-tick! file-read-run
-  file-write filter length net-connect net-resolve net-send-run reverse
-  str-make-raw string-concat sys-getenv sys-isatty sys-poll sys-signal)
+  file-write filter length net-connect net-die net-resolve net-send-run
+  reverse str-make-raw string-concat sys-getenv sys-isatty sys-kill sys-poll
+  sys-signal wget-err-text)
+(import cu/signal ts-signal-number)
 
 (def %tn-iac 255)
 (def %tn-dont 254)
@@ -319,15 +322,6 @@
                   (error e)))
         (%tn-main o (first ops) (if (null? (rest ops)) () (first (rest ops))))))))
 
-; bb_lookup_port: digits up to 65535, else /etc/services
-(def tn-port
-  (fn (_ s)
-    (if (null? s) 23
-      (let ((n (in-strtou s)))
-        (if (if (null? n) #f (<= n 65535)) n
-          (let ((p (in-servport s "tcp")))
-            (if (null? p) (net-die (string-concat (list "bad port '" s "'"))) p)))))))
-
 (def %tn-main
   (fn (_ o host port-arg)
     (set! %tn-ttype-name (sys-getenv "TERM"))
@@ -347,4 +341,4 @@
     (Sys catch-signal %tn-sigint)
     (%tn-loop #f)))
 
-(provide cu/telnet cu-telnet tn-port tn-run tn-str-bytes)
+(provide cu/telnet cu-telnet tn-run tn-str-bytes)

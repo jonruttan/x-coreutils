@@ -41,6 +41,7 @@ cat > "$OUT" <<EOF
 (def %install-root "$X_ROOT")
 (include "$X_BASE")
 (import-path! "$BUNDLE")
-(import cu/base)
-(set! %repl-print %cu-repl-print)
+(import cu/base cu-repl-print)
+(include "$BUNDLE/tests/root.x")
+(set! %repl-print cu-repl-print)
 EOF

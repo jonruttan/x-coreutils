@@ -24,7 +24,16 @@
 
 (module cu/iproute)
 
-(import cu/prims append byte-at byte-len cu-int->str cu-lines cu-nth
+(import cu/inet inet-hex inet-hex8 inet-int32 inet-set! inet-words)
+(import cu/inetd in-c in-call)
+(import cu/ip ip-align ip-attr ip-attrs ip-bytes ip-dev-index ip-die ip-dump
+  ip-dump-read ip-get ip-id ip-index-name ip-invarg ip-keyword ip-match?
+  ip-name ip-names ip-next ip-ntoa ip-num ip-off ip-open ip-pad16 ip-put
+  ip-run ip-say ip-scope-id ip-scope-name ip-scopes ip-sl ip-some)
+(import cu/ipset ip-address ip-attr! ip-buf ip-family! ip-flush-batches
+  ip-init-map ip-le ip-pfx-bytes ip-prefix-in ip-req ip-req-bytes ip-rta
+  ip-send-check ip-strtoul ip-talk ip-unsigned)
+(import cu/prims append byte-at byte-len cal/ cu-int->str cu-lines cu-nth
   cu-ptr-call cu-ptr-ref cu-str->ptr file-or-err file-read-unsized file-write
   filter length libc-strerror map reverse str-make-raw string-append
   string-concat string=?)

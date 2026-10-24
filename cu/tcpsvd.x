@@ -23,14 +23,18 @@
 (module cu/tcpsvd)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/httpd hd-ugid)
+(import cu/nc nc-count)
 (import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-int->ptr cu-int->str
   cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-sig-ign
   cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text file-read-run
   file-write filter length map net-accept net-close net-peer net-resolve
   net-sock-addr net-sockaddr net-sockaddr-read net-udp-open str-make-raw
   string-append string-concat string=? substring sys-close sys-dup2
-  sys-exec-or-err sys-exit sys-fork sys-getpid sys-pipe sys-poll sys-setenv
-  sys-signal sys-signals)
+  sys-exec-or-err sys-exit sys-fork sys-getpid sys-kill sys-pipe sys-poll
+  sys-setenv sys-signal wget-digits wget-div wget-err-text)
+(import cu/session ss-call)
+(import cu/signal ts-signal-number)
 
 (def %ts-app "tcpsvd")
 (def %ts-tcp #t)
@@ -132,10 +136,6 @@
     (fail? (cu-ptr-call (%ts-c "setuid") (first ug)) "setuid")))
 
 ; --- the children ---------------------------------------------------------------
-
-(def ts-signal-number
-  (fn (_ name)
-    (let ((e (List find (fn (_ e) (string=? (first e) name)) (sys-signals)))) (if (null? e) () (rest e)))))
 
 ; BB_FATAL_SIGS, by number, those this kernel has
 (def %ts-fatal
@@ -358,4 +358,4 @@
       (do (%ts-fcntl (first p) 2 1) (%ts-fcntl (rest p) 2 1) (set! %ts-idle (first p))))
     (%ts-loop lfd)))
 
-(provide cu/tcpsvd cu-tcpsvd cu-udpsvd ts-signal-number)
+(provide cu/tcpsvd cu-tcpsvd cu-udpsvd)

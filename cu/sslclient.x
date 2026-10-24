@@ -19,6 +19,8 @@
 (module cu/sslclient)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/inetd in-count in-errtext in-exec)
+(import cu/net cu-dial cu-dial-host)
 (import cu/prims append cu-sig-ign cu-stdin-to-command! cu-sweep-tick!
   file-read-run file-write string-concat sys-close sys-dup2 sys-exit sys-fork
   sys-pipe sys-poll sys-signal)

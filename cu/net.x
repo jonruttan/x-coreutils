@@ -25,64 +25,17 @@
 (module cu/net)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/inetd in-index-of)
-(import cu/prims append byte-at byte-len cu-int->str cu-sweep! file-close
-  file-err-op file-err-text file-exists? file-open-excl file-open-or-err
-  file-open-write file-open-wronly file-read-all file-seek file-stat
-  file-truncate file-write http-close http-head http-open http-read
-  http-status integer->char list->string map net-base64 net-close net-connect
+(import cu/inetd tn-port)
+(import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-sweep!
+  date-now-unix file-close file-err-op file-err-text file-exists?
+  file-open-excl file-open-or-err file-open-write file-open-wronly
+  file-read-all file-seek file-stat file-truncate file-write file-write-run
+  http-close http-head http-open http-read http-status in-index-of
+  integer->char list->string map net-base64 net-close net-connect net-die
   net-recv-run net-resolve net-send reverse string-append string-concat
-  string=? substring sys-getenv sys-isatty)
-(import cu/telnet tn-port)
-(import cu/text cu-member-s? cu-pad-left cu-pad-right cu-pad-zero)
-
-(def wget-index
-  (fn (self s c i)
-    (match
-      ((>= i (byte-len s)) ())
-      ((= (byte-at s i) c) i)
-      (#t (self s c (+ i 1))))))
-
-; the index of the last byte of S equal to C, or nil
-(def wget-last-index
-  (fn (_ s c)
-    (let go ((i (- (byte-len s) 1)))
-      (match
-        ((< i 0) ())
-        ((= (byte-at s i) c) i)
-        (#t (go (- i 1)))))))
-
-; the index where the text NEEDLE first starts in S, or nil
-(def wget-find
-  (fn (_ s needle)
-    (def n (byte-len needle))
-    (let go ((i 0))
-      (match
-        ((> (+ i n) (byte-len s)) ())
-        ((string=? (substring s i (+ i n)) needle) i)
-        (#t (go (+ i 1)))))))
-
-; S's value as a decimal count when it is all digits, else nil
-(def wget-digits
-  (fn (_ s)
-    (if (= (byte-len s) 0) ()
-      (let go ((i 0) (n 0))
-        (match
-          ((= i (byte-len s)) n)
-          ((if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f)
-            (go (+ i 1) (+ (* n 10) (- (byte-at s i) #\0))))
-          (#t ()))))))
-
-; floor division; the harness's / is exact
-(def wget-div (fn (_ a b) (/ (- a (% a b)) b)))
-
-; S lowercased, letters only
-(def wget-lower
-  (fn (_ s)
-    (list->string
-      (map (fn (_ c) (if (if (>= c #\A) (<= c #\Z) #f) (integer->char (+ c 32)) c))
-           (let go ((i (- (byte-len s) 1)) (acc ()))
-             (if (< i 0) acc (go (- i 1) (pair (byte-at s i) acc))))))))
+  string=? substring sys-getenv sys-isatty wget-digits wget-div wget-err-text
+  wget-find wget-index wget-last-index wget-lower wget-memv)
+(import cu/text cu-pad-left cu-pad-right cu-pad-zero)
 
 ; a head line as busybox prints and reads it: cut at the first control byte
 (def wget-sanitize
@@ -108,10 +61,6 @@
 (def wget-times
   (fn (_ k c)
     (bytes->str (let go ((k k) (acc ())) (if (<= k 0) acc (go (- k 1) (pair c acc)))))))
-
-; is X one of the numbers (or bytes) in L
-(def wget-memv
-  (fn (self x l) (if (null? l) #f (if (= (first l) x) #t (self x (rest l))))))
 
 ; is X one of the symbols in L
 (def %wget-memq
@@ -232,16 +181,7 @@
 (def wget-say
   (fn (_ s) (file-write %wget-msg-fd s)))
 
-; a fatal error: the message, and the run ends with status 1 -- each applet
-; catches the label net at its top and prints the message after its name
-(def net-die
-  (fn (_ msg) (Err raise (lit net) msg ())))
-
 (def wget-die net-die)
-
-; the message an io Err carries after its call's name: "Connection refused"
-(def wget-err-text
-  (fn (_ e) (if (Err err? e) (file-err-text e) "")))
 
 ; create_and_connect_stream_or_die on HOST[:PORT], PORT DEFAULT without one:
 ; the connected socket, or the run ended (label net) as busybox ends it
@@ -910,9 +850,152 @@
               (do (%whois-chase host port (first ns) (Opts on? o "-i"))
                   (each (rest ns))))))))))
 
-(provide cu/net cu-dial cu-dial-host cu-wget cu-whois net-die wget-beg
-  wget-die wget-digits wget-div wget-err-op wget-err-text wget-find wget-index
-  wget-last-index wget-last-part wget-lower wget-memv wget-name-port wget-on?
-  wget-open-failure wget-out! wget-out-fd! wget-path wget-pm-init!
-  wget-pm-update! wget-quiet? wget-restart-failed! wget-retrieve wget-sanitize
-  wget-say wget-show? wget-times wget-user whois-after whois-trim)
+(def %ftp-buf "")  ; what has arrived on it past the last line handed out
+
+(def ftp-code (fn (_ l) (wget-digits (substring l 0 3))))
+
+; a TCP connection to IP's PORT, or the run ends as busybox's
+; xconnect_stream ends it
+(def ftp-connect
+  (fn (_ ip port)
+    (guard (e (if (eq? (wget-err-op e) (lit connect))
+                (net-die (string-concat
+                  (list "can't connect to remote host (" ip "): " (wget-err-text e))))
+                (error e)))
+      (net-connect ip port))))
+
+; busybox's parse_pasv_epsv: the data port a 227 reply's last two numbers make,
+; or the one between an EPSV reply's last two |s; nil when there is none
+(def ftp-data-port
+  (fn (_ l)
+    (if (= (byte-at l 2) #\7)
+      (let ((close (wget-last-index l #\))))
+        (let ((s (if (null? close)
+                   (let ((cr (wget-last-index l #\return))) (if (null? cr) l (substring l 0 cr)))
+                   (substring l 0 close))))
+          (let ((c2 (wget-last-index s #\,)))
+            (if (null? c2) ()
+              (let ((c1 (wget-last-index (substring s 0 c2) #\,)))
+                (if (null? c1) ()
+                  (let ((hi (wget-digits (substring s (+ c1 1) c2)))
+                        (lo (wget-digits (substring s (+ c2 1) (byte-len s)))))
+                    (if (if (null? hi) #t (null? lo)) ()
+                      (if (if (> hi 255) #t (> lo 255)) () (+ (* hi 256) lo))))))))))
+      (let ((b2 (wget-last-index l #\|)))
+        (if (null? b2) ()
+          (let ((b1 (wget-last-index (substring l 0 b2) #\|)))
+            (if (null? b1) ()
+              (let ((p (wget-digits (substring l (+ b1 1) b2))))
+                (if (null? p) () (if (> p 65535) () p))))))))))
+
+(def ftp-fd -1)   ; the control connection
+
+; a reply's last line: three digits and a space
+(def ftp-final?
+  (fn (_ l)
+    (if (>= (byte-len l) 4)
+      (if (if (>= (byte-at l 0) #\0) (<= (byte-at l 0) #\9) #f) (= (byte-at l 3) #\space) #f)
+      #f)))
+
+; the next line from the server without its newline, or nil when the
+; connection ends with nothing more; a last line with no newline is a line
+(def ftp-line
+  (fn (self)
+    (def nl (wget-index %ftp-buf #\newline 0))
+    (if (null? nl)
+      (let ((r (net-recv-run ftp-fd 4096)))
+        (if (null? r)
+          (if (= (byte-len %ftp-buf) 0) ()
+            (let ((l %ftp-buf)) (do (set! %ftp-buf "") l)))
+          (do (set! %ftp-buf (string-append %ftp-buf (substring (first r) 0 (rest r))))
+              (self))))
+      (let ((l (substring %ftp-buf 0 nl)))
+        (do (set! %ftp-buf (substring %ftp-buf (+ nl 1) (byte-len %ftp-buf)))
+            l)))))
+
+(def ftp-open!
+  (fn (_ fd) (do (set! ftp-fd fd) (set! %ftp-buf "") (set! ftp-reply ""))))
+
+(def ftp-reply "") ; the last reply line, as read
+
+(def ftp-send
+  (fn (_ line) (net-send ftp-fd (string-append line "\r\n"))))
+
+; prepare_ftp_session: logged in, the size asked, the data connection open and
+; RETR asked.  Answers (DATA . CLEN), CLEN nil when SIZE is not answered 213
+(def %wget-ftp-session
+  (fn (_ t ip)
+    (def np (wget-name-port t))
+    (ftp-open! (ftp-connect ip (rest np)))
+    (unless (= (%wget-ftpcmd () ()) 220) (wget-die ftp-reply))
+    (def u (wget-user t))
+    (def colon (if (null? u) () (wget-index u #\: 0)))
+    (def user (match ((null? u) "anonymous") ((null? colon) u) (#t (substring u 0 colon))))
+    (def pass (match ((null? u) "busybox") ((null? colon) "") (#t (substring u (+ colon 1) (byte-len u)))))
+    (match
+      ((= (%wget-ftpcmd "USER " user) 230) ())
+      ((if (= (ftp-code ftp-reply) 331) (= (%wget-ftpcmd "PASS " pass) 230) #f) ())
+      (#t (wget-die (string-append "ftp login: " ftp-reply))))
+    (%wget-ftpcmd "TYPE I" ())
+    (def clen
+      (if (= (%wget-ftpcmd "SIZE " (wget-path t)) 213)
+        (let ((n (wget-digits (substring ftp-reply 4 (byte-len ftp-reply)))))
+          (if (null? n)
+            (wget-die (string-concat (list "bad SIZE value '" (substring ftp-reply 4 (byte-len ftp-reply)) "'")))
+            n))
+        ()))
+    (unless (= (%wget-ftpcmd "EPSV" ()) 229)
+      (unless (= (%wget-ftpcmd "PASV" ()) 227)
+        (wget-die (string-append "bad response to PASV: " ftp-reply))))
+    (def port (ftp-data-port ftp-reply))
+    (when (null? port) (wget-die (string-append "bad response to PASV: " ftp-reply)))
+    (def data (ftp-connect ip port))
+    (def len
+      (if (> (wget-beg) 0)
+        (if (= (%wget-ftpcmd (string-append "REST " (cu-int->str (wget-beg))) ()) 350)
+          (if (null? clen) () (- clen (wget-beg)))
+          (do (wget-restart-failed!) clen))
+        clen))
+    (when (> (%wget-ftpcmd "RETR " (wget-path t)) 150)
+      (wget-die (string-append "bad response to RETR: " ftp-reply)))
+    (pair data len)))
+
+; one exchange as wget.c's ftpcmd has it: S1 and S2 sent joined, shown with -S
+; as "--> S1S2" and a blank line; each line read shown with -S, cut at its first
+; control byte; the connection ending is "error getting response"
+(def %wget-ftpcmd
+  (fn (_ s1 s2)
+    (unless (null? s1)
+      (let ((line (string-append s1 (if (null? s2) "" s2))))
+        (do (ftp-send line)
+            (when (wget-show?) (wget-say (string-concat (list "--> " line "\n\n")))))))
+    (let go ()
+      (let ((l (ftp-line)))
+        (when (null? l) (wget-die "error getting response"))
+        (let ((s (wget-sanitize l)))
+          (do (set! ftp-reply s)
+              (when (wget-show?) (wget-say (string-append s "\n")))
+              (if (ftp-final? s) (ftp-code s) (go))))))))
+
+; one try at an ftp:// url: the session, the file (or --spider's answer), then
+; the server's 226.  Answers done, or the bytes a partial download got
+(def wget-ftp-hop
+  (fn (_ t ip fname)
+    (def dl (%wget-ftp-session t ip))
+    (def data (first dl))
+    (def outcome
+      (if (wget-on? "--spider" "--spider")
+        (do (unless (wget-quiet?) (wget-say "remote file exists\n"))
+            (lit done))
+        (do (if (string=? fname "-") (wget-out-fd! 1) (wget-out! fname))
+            (let ((r (wget-retrieve (fn (_ n) (net-recv-run data n)) fname (rest dl) #f)))
+              (if (rest r) (lit done) (first r))))))
+    (net-close data)
+    (unless (= (%wget-ftpcmd () ()) 226) (wget-die (string-append "ftp error: " ftp-reply)))
+    (net-close ftp-fd)
+    outcome))
+
+(provide cu/net cu-dial cu-dial-host cu-wget cu-whois ftp-code ftp-connect
+  ftp-data-port ftp-fd ftp-final? ftp-line ftp-open! ftp-reply ftp-send
+  wget-last-part wget-open-failure wget-pm-init! wget-pm-update! wget-times
+  whois-after whois-trim)

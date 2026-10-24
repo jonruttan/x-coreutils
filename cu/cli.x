@@ -14,14 +14,21 @@
 
 (module cu/cli)
 
-(import cu/prims append byte-at byte-len cu-nth cu-stdin! cu-stdin-chunk!
-  file-write filter length map net-stdin-socket reverse set-first!
-  string-append string-concat string=? substring sys-exit)
-(import cu/text cu-member-s?)
+(import cu/options cu-option-spec)
+(import cu/prims append byte-at byte-len cu-last cu-member-s? cu-nth cu-stdin!
+  cu-stdin-chunk! file-write filter length map net-stdin-socket reverse
+  set-first! string-append string-concat string=? substring sys-exit)
+(import cu/signal fu-args pg-signal-word)
 
-; the applet NAME names, a static of Applets, or nil
+; The applet class, which cu/applets.x hands cu-applets! as it loads: the
+; table names every applet's module, and an applet that runs another (ftpd
+; runs ls) reaches the table through here.
+(def %cu-applets (list ()))
+(def cu-applets! (fn (_ cls) (set-first! %cu-applets cls)))
+
+; the applet NAME names, a static of the applet class, or nil
 (def cu-find-applet
-  (fn (_ name) (class-static-ref Applets (Str8 ->sym name))))
+  (fn (_ name) (class-static-ref (first %cu-applets) (Str8 ->sym name))))
 
 ; An applet's row in cu/options.x: (DECLARATION) or (DECLARATION LABEL), or
 ; nil for an applet with no row.
@@ -284,7 +291,7 @@
         ((%cu-inetd-idle? applet) (cu-usage applet))
         (#t (let ((o (cu-opts applet args)))
               (if (null? (Opts unknown o))
-                (h Applets (if (%cu-flagless? applet) (Opts operands o) args) stdin-thunk)
+                (h (first %cu-applets) (if (%cu-flagless? applet) (Opts operands o) args) stdin-thunk)
                 (cu-refuse-option applet (Opts unknown o)))))))))
 
 ; An inetd service whose row says so (`inetd`) and whose stdin is not a socket:
@@ -331,7 +338,7 @@
           (sys-exit (cu-run argv ""))
           (sys-exit (cu-dispatch h (first argv) (rest argv) stdin-thunk)))))))
 
-(provide cu/cli cu-argv cu-dispatch cu-extra-operand cu-find-applet
-  cu-last-given cu-last-valued cu-main cu-missing-file-operand
+(provide cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand
+  cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand
   cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of
   cu-string-stdin cu-usage)

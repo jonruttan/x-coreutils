@@ -33,16 +33,23 @@
 (module cu/tar)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-err-label
-  cu-int->str cu-lines cu-mode-file-type cu-ptr-call cu-ptr-set! cu-str->ptr
-  cu-sweep-lines cu-sweep-tick! file-chmod file-chown file-close file-err-text
-  file-link file-list-dir file-lstat-file-type file-lstat-full file-open-err
-  file-readlink file-set-times file-stat-full file-symlink file-unlink
-  file-write filter length map reverse str-make-raw string-append
-  string-concat string=? substring sys-getcwd sys-group-id sys-group-name
-  sys-user-id sys-user-name vec-build vec-ref vec-set!)
-(import cu/text cu-member-s? cu-num-prefix cu-pad-left cu-pad-zero cu-pieces
-  cu-run-text)
+(import cu/dump dp-find dp-udigits)
+(import cu/find cu-glob-class cu-glob?)
+(import cu/fs2 cu-mkdir-p!)
+(import cu/fs3 cu-dev-major cu-dev-minor cu-perm-string)
+(import cu/gzip gz-ends? gz-sink gz-sink-close! gz-sink-write! gz-sniff
+  gz-tar-pieces)
+(import cu/prims append byte-at byte-len cal/ cu-dlopen cu-dlsym cu-err-label
+  cu-int->str cu-lines cu-member-s? cu-mode-file-type cu-ptr-call cu-ptr-set!
+  cu-stat-get cu-str->ptr cu-sweep-lines cu-sweep-tick! file-chmod file-chown
+  file-close file-err-text file-link file-list-dir file-lstat-file-type
+  file-lstat-full file-open-err file-readlink file-set-times file-stat-full
+  file-symlink file-unlink file-write file-write-run filter length map reverse
+  str-make-raw string-append string-concat string=? substring sys-getcwd
+  sys-group-id sys-group-name sys-user-id sys-user-name vec-build vec-ref
+  vec-set!)
+(import cu/strings cu-range-number)
+(import cu/text cu-num-prefix cu-pad-left cu-pad-zero cu-pieces cu-run-text)
 
 (def %tar-ptr->int (prim-ref (lit ptr) (lit ->int)))
 (def %tar-c-memcpy ())
@@ -988,8 +995,8 @@
       ((Opts on? o "-a") (gz-ends? file "gz"))
       (#t #f))))
 
-(provide cu/tar cu-tar cu-unsafe-prefix tar-all-pieces tar-mkdir tar-mknod
-  tar-copy-out! tar-field tar-fill! tar-find-str tar-last-slash tar-makedev
-  tar-member? tar-min tar-printable tar-reader tar-resolve! tar-skip!
+(provide cu/tar cu-tar cu-unsafe-prefix tar-all-pieces tar-copy-out! tar-field
+  tar-fill! tar-find-str tar-last-slash tar-makedev tar-member? tar-min
+  tar-mkdir tar-mknod tar-printable tar-reader tar-resolve! tar-skip!
   tar-str-bytes tar-verbose-line tar-why tc-block tc-sub-run tm-link tm-mode
   tm-name tm-size)

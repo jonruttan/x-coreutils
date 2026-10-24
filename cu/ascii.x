@@ -18,6 +18,7 @@
 (module cu/ascii)
 
 (import cu/cli cu-opts)
+(import cu/dump dp-udigits)
 (import cu/prims byte-at cu-int->str cu-nth cu-sweep! cu-sweep-steps
   file-err-text file-write map string-append string-concat vec-build vec-ref)
 (import cu/text cu-fold-pieces cu-pad-left cu-pad-zero cu-pieces)

@@ -17,10 +17,14 @@
 (module cu/netstat)
 
 (import cu/cli cu-opts)
+(import cu/dump dp-find)
+(import cu/inet inet-addr-host inet-addr-host6 inet-dotted inet-hex inet-left
+  inet-ntop6-bytes inet-service inet-set! inet-words)
 (import cu/prims append byte-at byte-len cu-int->str cu-lines file-list-dir
   file-or-err file-read-unsized file-readlink file-write filter length
   libc-strerror map reverse str-make-raw string-append string-concat string=?
   substring)
+(import cu/route rt-show4)
 (import cu/text cu-num-prefix cu-pad-left)
 
 (def %nst-say (fn (_ msg) (file-write 2 (string-append "netstat: " msg "\n"))))

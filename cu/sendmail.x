@@ -20,13 +20,16 @@
 (module cu/sendmail)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/inetd in-c in-call in-count in-errtext in-exec in-index-of)
+(import cu/inetd in-c in-call in-count in-errtext in-exec)
+(import cu/mime mm-b64 mm-ci= mm-gets mm-in mm-source!)
 (import cu/nc nc-count)
+(import cu/net cu-dial)
 (import cu/prims append byte-at byte-len cu-int->ptr cu-int->str cu-ptr->str
   cu-ptr-call cu-ptr-ref cu-ptr-word cu-sig-ign cu-str->ptr file-read-run
-  file-write map reverse set-first! str-make-raw string-append string-concat
-  substring sys-close sys-dup2 sys-exit sys-fork sys-getenv sys-getuid
-  sys-pipe sys-poll sys-signal sys-sleep sys-uname sys-user-name)
+  file-write in-index-of map reverse set-first! str-make-raw string-append
+  string-concat substring sys-close sys-dup2 sys-exit sys-fork sys-getenv
+  sys-getuid sys-pipe sys-poll sys-signal sys-sleep sys-uname sys-user-name
+  wget-div wget-index wget-memv)
 (import cu/telnet tn-str-bytes)
 (import cu/telnetd td-ptr->int)
 (import cu/who cu-uname-field)

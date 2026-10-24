@@ -21,8 +21,8 @@
 
 (import cu/cli cu-opts cu-refuse-option)
 (import cu/prims byte-at byte-len cu-int->str file-write filter host-counters
-  host-cpu map reverse string-append string-concat substring)
-(import cu/procps ps-div)
+  host-cpu host-memory host-wait map ps-div reverse string-append
+  string-concat substring vm-dash-number)
 (import cu/strings cu-range-number)
 (import cu/text cu-pad-left cu-pad-zero)
 
@@ -218,15 +218,6 @@
               (pair s (if (null? acc) acc (pair " " acc))))))))
     (go %vm-columns deltas 0 ())))
 
-; The first of OPS that is a dash and more, or nil: Opts reads -2 as a number,
-; where getopt, and so busybox, reads it as the option 2
-(def vm-dash-number
-  (fn (self ops)
-    (match
-      ((null? ops) ())
-      ((if (> (byte-len (first ops)) 1) (= (byte-at (first ops) 0) #\-) #f) (first ops))
-      (#t (self (rest ops))))))
-
 (def vm-zip
   (fn (self a b) (if (if (null? a) #t (null? b)) () (pair (pair (first a) (first b)) (self (rest a) (rest b))))))
 (def %vm-zip3
@@ -267,5 +258,5 @@
               (self data left (if (< more 0) -1 more))))))
     (go (%vm-sample) 0 (if (= count 0) -1 count))))
 
-(provide cu/vmstat cu-vmstat vm-dash-number vm-five vm-fixed vm-four vm-get
-  vm-rate vm-right vm-ticks vm-zip)
+(provide cu/vmstat cu-vmstat vm-five vm-fixed vm-four vm-get vm-rate vm-right
+  vm-ticks vm-zip)

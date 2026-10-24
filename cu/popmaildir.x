@@ -20,11 +20,18 @@
 (module cu/popmaildir)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/hash cu-md5)
+(import cu/inetd in-count in-errtext in-exec)
+(import cu/mime mm-getc mm-in mm-source!)
 (import cu/prims append byte-at byte-len cu-int->str cu-ptr-ref cu-str->ptr
   file-close file-read-run file-rename file-write map reverse set-first!
   string-append string-concat string=? substring sys-close sys-dup2 sys-exit
   sys-fork sys-getpid sys-isatty sys-pipe sys-poll sys-setenv sys-signal
-  sys-uname sys-wait)
+  sys-uname sys-wait wget-err-text wget-index wget-memv)
+(import cu/sendmail sm-atoi sm-helper-check sm-helper-pid! sm-space?)
+(import cu/sysinfo si-now)
+(import cu/tar tar-why)
+(import cu/who cu-uname-field)
 
 (def %pm-wr 1)                  ; the server, written
 (def %pm-rd 0)                  ; the server, polled for -t

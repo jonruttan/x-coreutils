@@ -17,10 +17,17 @@
 (module cu/route)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/dump dp-find)
+(import cu/inet inet-dec inet-dotted inet-hex inet-hex8 inet-int32 inet-ioctl
+  inet-left inet-ntop6 inet-pton6! inet-resolve inet-rresolve inet-set!
+  inet-sin! inet-socket inet-swap inet-words inet-zeros)
+(import cu/inetd in-c in-call)
 (import cu/prims byte-at byte-len char->integer cu-err-label cu-int->str
   cu-lines cu-ptr-call cu-ptr-ref cu-ptr-set! cu-str->ptr file-or-err
   file-read-unsized file-write length libc-strerror map string-append
   string-concat string=? substring)
+(import cu/strings cu-range-number)
+(import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-left)
 
 (def %rt-say (fn (_ msg) (file-write 2 (string-append "route: " msg "\n"))))

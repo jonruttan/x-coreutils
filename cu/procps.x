@@ -26,14 +26,14 @@
 (import cu/cli cu-opts cu-refuse-option cu-usage)
 (import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-heap-collect
   cu-int->str cu-ptr-call cu-sigterm cu-sweep-lines cu-sweep-tick!
-  file-err-text file-write filter host-args host-boot-time host-cwd host-exe
-  host-files host-load-centi host-process host-processes host-users length map
-  re-compile re-search reverse set-first! str-make-raw string-append
-  string-concat substring sys-getpid sys-group-name sys-isatty sys-signals
-  sys-user-name)
+  date-now-unix file-err-text file-write filter host-args host-boot-time
+  host-cwd host-exe host-files host-load-centi host-memory host-process
+  host-processes host-users length map ps-div re-compile re-search reverse
+  set-first! str-make-raw string-append string-concat substring sys-getpid
+  sys-group-name sys-isatty sys-kill sys-signals sys-user-name vm-dash-number)
+(import cu/signal pg-rt pg-signal-word pg-signum pg-strto)
+(import cu/strings cu-range-number)
 (import cu/text cu-join-with cu-pad-left cu-pad-right cu-pad-zero)
-
-(def ps-div (fn (_ a b) (/ (- a (% a b)) b)))
 
 ; --- uptime -----------------------------------------------------------------
 
@@ -489,90 +489,6 @@
 ; kernel's, from (Sys signals), and the real-time range is libc's, as busybox
 ; reads it with FEATURE_RTMINMAX_USE_LIBC_DEFINITIONS.
 
-(def %pg-alnum?
-  (fn (_ c)
-    (match
-      ((if (>= c #\0) (<= c #\9) #f) #t)
-      ((if (>= c #\A) (<= c #\Z) #f) #t)
-      (#t (if (>= c #\a) (<= c #\z) #f)))))
-
-; busybox's bb_strtou and bb_strtoi, base 10, from I of S (bb_strtonum.c):
-; (N . END), END where the digits stop.  N is nil where busybox answers
-; ERANGE: no digit to read (a - first only where LO is below 0), a digit or
-; letter straight after the digits, or outside LO..HI.  Digits that stop at
-; anything else are busybox's EINVAL, the value kept; the caller reads END.
-(def %pg-strto
-  (fn (_ s i lo hi)
-    (def len (byte-len s))
-    (def neg (if (< lo 0) (if (< i len) (= (byte-at s i) #\-) #f) #f))
-    (def j (if neg (+ i 1) i))
-    (def r (hx-strtoul s j 10 (if neg (- 0 lo) hi)))
-    (def k (rest r))
-    (match
-      ((= k j) (pair () k))
-      ((if (< k len) (%pg-alnum? (byte-at s k)) #f) (pair () k))
-      ((null? (first r)) (pair () k))
-      (#t (pair (if neg (- 0 (first r)) (first r)) k)))))
-
-; libc's real-time signals, (MIN . MAX), or nil where libc has none (Darwin).
-; glibc and musl both answer them by function, as SIGRTMIN and SIGRTMAX do.
-(def %pg-rt-cell (list ()))
-(def pg-rt
-  (fn (_)
-    (do (if (null? (first %pg-rt-cell))
-          (let ((lib (cu-dlopen () 1)))
-            (let ((lo (cu-dlsym lib "__libc_current_sigrtmin"))
-                  (hi (cu-dlsym lib "__libc_current_sigrtmax")))
-              (set-first! %pg-rt-cell
-                (list (if (if (null? lo) #t (null? hi)) ()
-                        (pair (Sys %sign-fold (cu-ptr-call lo))
-                              (Sys %sign-fold (cu-ptr-call hi))))))))
-          ())
-        (first (first %pg-rt-cell)))))
-
-; NSIG, one past the last signal: past RTMAX where there is one, else past
-; the kernel's named signals -- 65 on Linux, 32 on Darwin
-(def pg-nsig
-  (fn (_)
-    (let ((rt (pg-rt)))
-      (if (null? rt) (+ (length (sys-signals)) 1) (+ (rest rt) 1)))))
-
-; the number of the kernel's signal NAME, or nil
-(def %pg-named
-  (fn (_ name)
-    (let ((hit (List find (fn (_ e) (str=? (first e) name)) (sys-signals))))
-      (if (null? hit) () (rest hit)))))
-
-; busybox's get_signum: a number below NSIG, as bb_strtou reads it (digits a
-; blank or a comma ends are read); or a name in any case, with or without SIG
-; -- EXIT is 0, IO is POLL where the kernel calls it that (Linux), IOT is
-; ABRT; or RTMIN, RTMIN+N, RTMAX, RTMAX-N inside libc's range.  nil for none.
-(def pg-signum
-  (fn (_ s)
-    (def n (first (%pg-strto s 0 0 4294967295)))
-    (def up (Str8 upcase s))
-    (def bare (if (Str8 starts? "SIG" up) (substring up 3 (byte-len up)) up))
-    (def rt (pg-rt))
-    ; RTMIN+N and RTMAX-N: N no further from the end than the range is long
-    (def rt-off
-      (fn (_ sign)
-        (if (if (> (byte-len bare) 5) (= (byte-at bare 5) sign) #f)
-          (let ((i (first (%pg-strto bare 6 0 4294967295))))
-            (if (if (null? i) #f (<= i (- (rest rt) (first rt)))) i ()))
-          ())))
-    (match
-      ((if (null? n) #f (< n (pg-nsig))) n)
-      ((str=? bare "EXIT") 0)
-      ((not (null? (%pg-named bare))) (%pg-named bare))
-      ((str=? bare "IO") (%pg-named "POLL"))
-      ((str=? bare "IOT") (%pg-named "ABRT"))
-      ((null? rt) ())
-      ((str=? bare "RTMIN") (first rt))
-      ((str=? bare "RTMAX") (rest rt))
-      ((Str8 starts? "RTMIN" bare) (let ((i (rt-off #\+))) (if (null? i) () (+ (first rt) i))))
-      ((Str8 starts? "RTMAX" bare) (let ((i (rt-off #\-))) (if (null? i) () (- (rest rt) i))))
-      (#t ()))))
-
 ; busybox's get_signame: the kernel's name for N, EXIT for 0, else N itself
 (def %pg-signame
   (fn (_ n)
@@ -592,13 +508,6 @@
         0)))
 
 (def cu-pgrep (fn (_ argv stdin-thunk) (%pg-run "pgrep" argv)))
-
-; the signal ARGV's first word names as -SIGNAL, or nil; the parse (cu/cli.x)
-; sets that word aside for pkill
-(def pg-signal-word
-  (fn (_ argv)
-    (if (if (null? argv) #f (if (> (byte-len (first argv)) 1) (= (byte-at (first argv) 0) #\-) #f))
-      (pg-signum (substring (first argv) 1 (byte-len (first argv)))) ())))
 
 (def cu-pkill
   (fn (_ argv stdin-thunk)
@@ -644,7 +553,7 @@
     (if (null? words) 0
       (let ((w (first words)))
         (def digit (if (> (byte-len w) 0) (if (>= (byte-at w 0) #\0) (<= (byte-at w 0) #\9) #f) #f))
-        (def r (%pg-strto w 0 0 4294967295))
+        (def r (pg-strto w 0 0 4294967295))
         (def n (if digit (if (= (rest r) (byte-len w)) (first r) ()) (pg-signum w)))
         (if (null? n) (say (string-concat (list "unknown signal '" w "'")))
           (do (display (string-append (if digit (%pg-signame (& n 127)) (cu-int->str n)) "\n"))
@@ -662,7 +571,7 @@
   (fn (self w i signo)
     (def len (byte-len w))
     (def j (if (if (< i len) (= (byte-at w i) #\space) #f) (+ i 1) i))
-    (def r (%pg-strto w j -2147483648 2147483647))
+    (def r (pg-strto w j -2147483648 2147483647))
     (def pid (first r))
     (def end (rest r))
     (match
@@ -924,7 +833,6 @@
     (& (List fold (fn (_ acc name) (+ acc (one name))) 0 names) 255)))
 
 (provide cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
-  cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head pg-nsig pg-rt
-  pg-signal-word pg-signum ps-args ps-boot-line ps-div ps-four ps-free-text
-  ps-free-unit ps-parse-o ps-printable ps-resolve! ps-sorted ps-stat ps-table
-  ps-uptime-line)
+  cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head ps-args
+  ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o ps-printable
+  ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)

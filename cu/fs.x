@@ -25,15 +25,21 @@
 (module cu/fs)
 
 (import cu/cli cu-last-given cu-missing-file-operand cu-opts)
-(import cu/prims append bit-and byte-at byte-len cu-b->s cu-int->str cu-lines
-  cu-sweep! cu-sweep-bytes cu-sweep-lines cu-sweep-tick! file-chmod file-copy
-  file-dir? file-err-sym file-err-text file-exists? file-link
-  file-lstat-file-type file-lstat-full file-lstat-wide file-mkdir file-or-err
-  file-read-fd file-readlink file-rename file-rmdir file-stat-wide
-  file-symlink file-unlink file-utimes file-write length reverse set-first!
+(import cu/fs2 cu-mkdir-p!)
+(import cu/fs3 cu-path-join)
+(import cu/perm cu-basename-of cu-octal->int)
+(import cu/prims append bit-and byte-at byte-len cu-b->s cu-dirname-of
+  cu-int->str cu-last cu-lines cu-stat-get cu-sweep! cu-sweep-bytes
+  cu-sweep-lines cu-sweep-tick! cu-walk-worst file-chmod file-copy file-dir?
+  file-err-sym file-err-text file-exists? file-link file-lstat-file-type
+  file-lstat-full file-lstat-wide file-mkdir file-or-err file-read-fd
+  file-readlink file-rename file-rmdir file-stat-wide file-symlink file-unlink
+  file-utimes file-write file-write-run length reverse set-first!
   string-append string-concat string=? sys-isatty)
+(import cu/sys2 cu-drop-last)
 (import cu/text cu-fold-lines-said cu-fold-said cu-map-swept cu-pad-left
   cu-put-each cu-says)
+(import cu/walk cu-walk-names cu-walk-status)
 
 (def %fs-ask
   (fn (_ question)

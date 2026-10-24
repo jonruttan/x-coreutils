@@ -32,13 +32,12 @@
 (module cu/vi)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/fs3 cu-stat-get)
 (import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-err-label
-  cu-heap-collect cu-ptr-call cu-stdin-to-command! file-close file-err-sym
-  file-err-text file-exists? file-open-or-err file-open-read file-read-all
-  file-stat-full file-truncate file-unlink file-write filter length map
-  reverse set-first! str-make-raw string-append string-concat string=?
-  sys-getenv sys-getuid)
+  cu-heap-collect cu-ptr-call cu-stat-get cu-stdin-to-command! file-close
+  file-err-sym file-err-text file-exists? file-open-or-err file-open-read
+  file-read-all file-stat-full file-truncate file-unlink file-write filter
+  length map reverse set-first! str-make-raw string-append string-concat
+  string=? sys-getenv sys-getuid sys-kill)
 
 (import x/repl/term)
 

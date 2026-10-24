@@ -25,11 +25,17 @@
 (module cu/ip)
 
 (import cu/cli cu-usage)
+(import cu/dump dp-find)
+(import cu/ifconfig if-ref if-req)
+(import cu/inet inet-int32 inet-ntop6-bytes inet-pton6! inet-set! inet-words
+  inet-zeros)
+(import cu/inetd in-c in-call)
 (import cu/prims append byte-at byte-len char->integer cu-err-label
   cu-int->ptr cu-int->str cu-lines cu-nth cu-ptr-call cu-ptr-ref cu-str->ptr
   cu-string-type cvt file-or-err file-read-unsized file-write filter length
   libc-strerror map reverse str-make-raw string-append string-concat string=?
   substring)
+(import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-zero)
 
 (def ip-get (fn (_ f k) (rest (Assoc entry k f))))
@@ -39,7 +45,7 @@
 
 ; an error that ends the run, as bb_error_msg_and_die
 (def ip-die (fn (_ f msg) (do (ip-say f msg) (Err raise (lit ip) msg ()))))
-(def %ip-usage (fn (_) (Err raise (lit ip-usage) "usage" ())))
+(def ip-die-usage (fn (_) (Err raise (lit ip-usage) "usage" ())))
 
 (def ip-invarg
   (fn (_ f arg opt) (ip-die f (string-concat (list "invalid argument '" arg "' to '" opt "'")))))
@@ -638,7 +644,7 @@
                      (pair (lit ifindex) (if (null? dev) 0 (ip-dev-index f3 dev)))))))
 
 ; ipaddr_list_or_flush's listing: the links, each with its addresses
-(def %ip-list
+(def ip-list
   (fn (_ f0 ws)
     (def f (ip-filter f0 ws))
     (def family (ip-get f (lit family)))
@@ -653,44 +659,6 @@
 
 ; --- the commands -----------------------------------------------------------------
 
-; a verb this bundle does not carry yet
-(def %ip-later (fn (_ f w) (ip-die f (string-concat (list "'" w "' is not implemented yet")))))
-
-; do_ipaddr: add, change (chg), replace and delete hand the kernel an address,
-; flush deletes those the filter keeps, the rest list
-(def %ip-addr
-  (fn (_ f ws)
-    (def k (if (null? ws) 5 (ip-keyword (list "add" "change" "chg" "replace" "delete" "list" "show" "lst" "flush") (first ws))))
-    (match
-      ((< k 0) (ip-invarg f (first ws) (ip-get f (lit name))))
-      ((<= k 4) (ip-modify f (if (= k 4) 21 20) (cu-nth k (list 1536 256 256 1280 0)) (rest ws)))
-      ((= k 8) (ip-flush f (rest ws)))
-      (#t (%ip-list f (if (null? ws) () (rest ws)))))))
-
-; do_iplink: its errors end the run with 2, a link-layer address it cannot read with 1
-(def %ip-link
-  (fn (_ f ws)
-    (guard (e (match ((eq? (cu-err-label e) (lit ip)) 2)
-                     ((eq? (cu-err-label e) (lit ip-exit1)) 1)
-                     (#t (error e))))
-      (let ((k (if (null? ws) 3 (ip-keyword (list "add" "delete" "set" "show" "lst" "list") (first ws)))))
-        (match
-          ((< k 0) (ip-invarg f (first ws) (ip-get f (lit name))))
-          ((<= k 1) (ip-add-link f (rest ws) (if (= k 0) 16 17)))
-          ((= k 2) (ip-set f (rest ws)))
-          (#t (%ip-list (ip-put f (lit preferred) 17) (if (null? ws) () (rest ws)))))))))
-
-; ip_main's keywords
-(def %ip-main
-  (fn (_ f ws)
-    (def k (if (null? ws) -1 (ip-keyword (list "address" "route" "r" "link" "tunnel" "tunl" "rule" "neigh") (first ws))))
-    (match
-      ((< k 0) (%ip-usage))
-      ((= k 0) (%ip-addr f (rest ws)))
-      ((if (= k 1) #t (= k 2)) (ip-route f (rest ws)))
-      ((= k 3) (%ip-link f (rest ws)))
-      (#t (%ip-later f (first ws))))))
-
 ; ip_parse_common_args: the options before the words, onto F
 (def %ip-common
   (fn (_ f argv)
@@ -704,10 +672,10 @@
 (def %ip-common-opt
   (fn (_ f argv k)
     (match
-      ((< k 0) (%ip-usage))
+      ((< k 0) (ip-die-usage))
       ((= k 0) (%ip-common (ip-put f (lit oneline) #t) (rest argv)))
       ((= k 1)
-        (if (null? (rest argv)) (%ip-usage)
+        (if (null? (rest argv)) (ip-die-usage)
           (let ((fam (List find (fn (_ e) (string=? (first e) (first (rest argv)))) (list (pair "inet" 2) (pair "inet6" 10) (pair "link" 17)))))
             (if (null? fam) (ip-invarg f (first (rest argv)) "family")
               (%ip-common (ip-put f (lit preferred) (rest fam)) (rest (rest argv)))))))
@@ -721,13 +689,9 @@
       (let ((f (%ip-common (list (pair (lit name) name) (pair (lit oneline) #f) (pair (lit preferred) 0)) argv)))
         (go f (ip-get f (lit words)))))))
 
-(def cu-ip (fn (_ argv stdin-thunk) (ip-run "ip" argv %ip-main)))
-(def cu-ipaddr (fn (_ argv stdin-thunk) (ip-run "ipaddr" argv %ip-addr)))
-(def cu-iplink (fn (_ argv stdin-thunk) (ip-run "iplink" argv %ip-link)))
-
-(provide cu/ip cu-ip cu-ipaddr cu-iplink ip-addr-of ip-addr-shown? ip-addr1
-  ip-align ip-attr ip-attrs ip-bytes ip-dev-index ip-die ip-digit ip-dump
-  ip-dump-read ip-filter ip-get ip-id ip-index-name ip-indexed ip-invarg
-  ip-keyword ip-link-of ip-match? ip-name ip-names ip-next ip-ntoa ip-num
-  ip-off ip-open ip-pad16 ip-prefix ip-put ip-run ip-say ip-scope-id
-  ip-scope-name ip-scopes ip-sl ip-some)
+(provide cu/ip ip-addr-of ip-addr-shown? ip-addr1 ip-align ip-attr ip-attrs
+  ip-bytes ip-dev-index ip-die ip-die-usage ip-digit ip-dump ip-dump-read
+  ip-filter ip-get ip-id ip-index-name ip-indexed ip-invarg ip-keyword
+  ip-link-of ip-list ip-match? ip-name ip-names ip-next ip-ntoa ip-num ip-off
+  ip-open ip-pad16 ip-prefix ip-put ip-run ip-say ip-scope-id ip-scope-name
+  ip-scopes ip-sl ip-some)

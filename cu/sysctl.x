@@ -17,6 +17,7 @@
 (module cu/sysctl)
 
 (import cu/cli cu-opts)
+(import cu/dump dp-find)
 (import cu/prims byte-at byte-len cu-lines cu-sweep-lines cu-sweep-tick!
   file-close file-dir? file-err-sym file-err-text file-exists? file-list-dir
   file-open-err file-open-read file-open-write file-or-err file-read-all

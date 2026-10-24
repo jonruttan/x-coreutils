@@ -31,12 +31,14 @@
 (import cu/cli cu-opts cu-refuse-option)
 (import cu/prims append byte-at byte-len cu-heap-collect cu-int->str cu-nth
   cu-stdin-to-command! file-read-fd file-write filter host-args host-cpu
-  host-cpus host-load-fixed host-maps host-processes host-tasks host-threads
-  length map reverse string-append string-concat substring sys-poll
-  sys-user-name sys-usleep)
-(import cu/procps ps-args ps-div ps-four ps-sorted ps-stat)
+  host-cpus host-load-fixed host-maps host-memory host-processes host-tasks
+  host-threads length map ps-div reverse string-append string-concat substring
+  sys-poll sys-user-name sys-usleep)
+(import cu/procps ps-args ps-four ps-sorted ps-stat)
 (import cu/strings cu-range-number)
 (import cu/text cu-join-with cu-msort cu-pad-left cu-pad-right cu-pad-zero)
+(import cu/vi vi-key-down vi-key-end vi-key-home vi-key-page-down
+  vi-key-page-up vi-key-up vi-sequences)
 
 (def %top-tick 10000000)                ; nanoseconds in a USER_HZ tick
 (def %top-line-max 446)                 ; busybox's LINE_BUF_SIZE less 2

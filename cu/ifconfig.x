@@ -19,12 +19,20 @@
 
 (module cu/ifconfig)
 
+(import cu/arp ar-ether)
 (import cu/cli cu-usage)
-(import cu/prims append byte-at byte-len char->integer cu-err-label
+(import cu/dump dp-find)
+(import cu/inet inet-aton inet-dotted inet-hex inet-host-addr inet-left
+  inet-ntop6 inet-pton6! inet-set! inet-sin! inet-socket inet-words inet-zeros)
+(import cu/inetd in-c in-call)
+(import cu/prims append byte-at byte-len cal/ char->integer cu-err-label
   cu-int->ptr cu-int->str cu-lines cu-ptr->str cu-ptr-call cu-ptr-ref
   cu-ptr-set! cu-str->ptr cu-string-type cvt file-or-err file-read-unsized
   file-write filter length libc-strerror map reverse set-first! string-append
   string-concat string=? substring)
+(import cu/strings cu-range-number)
+(import cu/sysctl sy-trim)
+(import cu/telnetd td-ptr->int)
 (import cu/text cu-num-prefix cu-pad-zero)
 
 (def %if-say (fn (_ msg) (file-write 2 (string-append "ifconfig: " msg "\n"))))

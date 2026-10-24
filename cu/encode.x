@@ -18,12 +18,15 @@
 
 (import cu/cli cu-opts)
 (import cu/prims bit-and bit-shl bit-xor byte-at byte-len cu% cu& cu* cu+ cu-
-  cu-b->s cu-hexs cu-int->str cu-lines cu-nth cu-run-bytes cu-sweep-at
-  cu-sweep-lines cu-sweep-steps cu/ cu< cu<< cu>> file-close file-err-text
-  file-open-or-err file-open-write file-stat-full file-write filter length map
-  reverse set-first! string-append string-concat string=? substring sys-umask)
+  cu-b->s cu-hexs cu-int->str cu-last cu-lines cu-nth cu-run-bytes cu-stat-get
+  cu-sweep-at cu-sweep-lines cu-sweep-steps cu/ cu< cu<< cu>> file-close
+  file-err-text file-open-or-err file-open-write file-stat-full file-write
+  file-write-run filter length map reverse set-first! string-append
+  string-concat string=? substring sys-umask)
 (import cu/text cu-enough cu-fold-said cu-gather-said cu-join-with
   cu-num-prefix cu-pad-left cu-pad-zero cu-run-join cu-run-part cu-says)
+(import cu/text2 cu-oct->str)
+(import cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from)
 
 (def %cu-od-char
   (fn (_ b)

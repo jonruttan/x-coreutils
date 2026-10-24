@@ -25,8 +25,10 @@
 
 (module cu/test)
 
-(import cu/prims bit-and bit-shr byte-len file-exists? file-lstat-full
-  file-stat-full file-write string=? sys-geteuid sys-getgroups sys-isatty)
+(import cu/prims bit-and bit-shr byte-len cu-last cu-stat-get file-exists?
+  file-lstat-full file-stat-full file-write string=? sys-geteuid sys-getgroups
+  sys-isatty)
+(import cu/sys2 cu-drop-last)
 (import cu/text cu-num-prefix)
 
 (def %t-stat (fn (_ p) (file-stat-full p)))

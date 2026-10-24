@@ -23,10 +23,14 @@
 (module cu/iostat)
 
 (import cu/cli cu-last-given cu-opts cu-refuse-option)
-(import cu/prims append byte-at byte-len cu-int->str cu-nth file-write filter
-  host-cpu host-cpus host-disks length map reverse string-append string-concat
-  substring sys-uname)
-(import cu/text cu-member-s? cu-pad-right)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-nth
+  file-write filter host-cpu host-cpus host-disks host-now host-uptime
+  host-wait length map ps-div reverse string-append string-concat substring
+  sys-uname vm-dash-number)
+(import cu/strings cu-range-number)
+(import cu/text cu-pad-right)
+(import cu/vmstat vm-fixed vm-get vm-rate vm-right vm-ticks)
 
 (def %io-date (fn (_ secs) (cu-date-fmt "%m/%d/%y" (cu-date-split secs #f) secs)))
 (def io-time (fn (_ secs) (cu-date-fmt "%H:%M:%S" (cu-date-split secs #f) secs)))

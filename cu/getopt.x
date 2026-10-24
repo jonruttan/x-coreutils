@@ -28,9 +28,11 @@
 (module cu/getopt)
 
 (import cu/cli cu-opts)
-(import cu/prims append byte-at byte-len cu-nth file-write filter map reverse
-  string-append string-concat string=? substring sys-getenv vec-build vec-ref)
-(import cu/text cu-member-s?)
+(import cu/dump dp-find dp-in? dp-skip-in)
+(import cu/prims append byte-at byte-len cu-member-s? cu-nth file-write filter
+  map reverse string-append string-concat string=? substring sys-getenv
+  vec-build vec-ref)
+(import cu/tsort ts-space?)
 
 (def %go-quote
   (fn (_ arg tcsh)

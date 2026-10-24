@@ -32,6 +32,12 @@
 
 (import cu/prims append length map reverse substring)
 
+; -u, -b (UDP's broadcasts) and -s are not here: refused, rather than read as
+; TCP or as no address at all.  -e is split off before the parse.
+(def nc-flags (list "-n" "-v" "-l" "-k" "-z"))
+
+(def nc-values (list "-p" "-w" "-i" "-o" "-e"))
+
 (def %cu-test-operators
   (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
         "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
@@ -2486,4 +2492,4 @@
           (pair (lit help) #f))
         (lit none)))))
 
-(provide cu/options cu-option-spec)
+(provide cu/options cu-option-spec nc-flags nc-values)

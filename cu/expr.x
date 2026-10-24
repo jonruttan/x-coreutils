@@ -25,8 +25,9 @@
 ; mark the capture, eol anchors the end.
 (module cu/expr)
 
-(import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-nth
-  file-write length reverse string-append string-concat string=? substring)
+(import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-last
+  cu-nth file-write length reverse string-append string-concat string=?
+  substring)
 (import cu/text cu-num-prefix cu-str<)
 
 (def %cu-re-label (fn (_ a) (cu-nth 0 a)))

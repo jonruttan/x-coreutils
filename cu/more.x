@@ -28,10 +28,10 @@
 (module cu/more)
 
 (import cu/cli cu-opts cu-string-stdin)
-(import cu/prims byte-at byte-len cu-b->s cu-int->str cu-stdin-to-command!
-  cu-sweep! cu-sweep-bytes file-close file-open-or-err file-open-read
-  file-read-fd file-stat-full file-write reverse set-first! string-append
-  string-concat string=? sys-exec sys-isatty)
+(import cu/prims byte-at byte-len cu-b->s cu-int->str cu-stat-get
+  cu-stdin-to-command! cu-sweep! cu-sweep-bytes file-close file-open-or-err
+  file-open-read file-read-fd file-stat-full file-write file-write-run reverse
+  set-first! string-append string-concat string=? sys-exec sys-isatty)
 (import cu/text cu-enough cu-fold-one cu-fold-said cu-pad-left cu-say cu-says)
 
 (import x/repl/term)

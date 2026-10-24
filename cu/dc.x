@@ -24,10 +24,13 @@
 (module cu/dc)
 
 (import cu/cli cu-opts)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr-set!
-  cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text file-write filter
-  length map reverse str-make-raw string-append string-concat string=?
-  substring sys-getenv vec-build vec-make vec-ref vec-set!)
+(import cu/dump dp-find)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-nthrest
+  cu-ptr-set! cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text
+  file-write file-write-run filter length map reverse str-make-raw
+  string-append string-concat string=? substring sys-getenv vec-build vec-make
+  vec-ref vec-set!)
+(import cu/sysinfo si-digits?)
 (import cu/text cu-num-prefix cu-pad-zero cu-pieces cu-run-text)
 
 (def %dc-big+ (fn (_ a b) (Bigint + a b)))

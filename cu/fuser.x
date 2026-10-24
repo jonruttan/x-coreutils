@@ -24,31 +24,12 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/prims append byte-at byte-len cu-int->str cu-sigkill file-stat-full
   file-write filter host-files-of host-holders host-processes map reverse
-  set-first! string-append string-concat substring sys-getpid)
+  set-first! string-append string-concat substring sys-getpid sys-kill)
+(import cu/procps pg-head ps-sorted)
+(import cu/signal fu-args)
+(import cu/tar tar-why)
 (import cu/text cu-num-prefix)
-
-(def fu-args
-  (fn (_ argv)
-    (def digit? (fn (_ c) (if (= c #\4) #t (= c #\6))))
-    ; WORD's bytes past the dash when it is a cluster with a 4 or a 6 in it
-    (def cluster
-      (fn (_ w)
-        (def bs (if (> (byte-len w) 1) (if (= (byte-at w 0) #\-) (rest (gz-word-bytes w)) ()) ()))
-        (if (if (null? bs) #t (= (first bs) #\-)) () (if (List any? digit? bs) bs ()))))
-    (def go
-      (fn (self ws sig fams acc)
-        (if (null? ws) (list sig fams (reverse acc))
-          (let ((w (first ws)) (bs (cluster (first ws))))
-            (match
-              ((str=? w "--") (list sig fams (append (reverse acc) ws)))
-              ((not (null? bs))
-                (let ((left (filter (fn (_ c) (not (digit? c))) bs)))
-                  (self (rest ws) sig (append (filter digit? bs) fams)
-                        (if (null? left) acc (pair (bytes->str (pair #\- left)) acc)))))
-              ((if (null? sig) (not (null? (pg-signal-word ws))) #f)
-                (self (rest ws) (pg-signal-word ws) fams acc))
-              (#t (self (rest ws) sig fams (pair w acc))))))))
-    (go argv () () ())))
+(import cu/top top-sweep-if-due!)
 
 ; the protocols a PORT/PROTO may name, as busybox finds them under /proc/net,
 ; each as the files records' proto and family
@@ -165,4 +146,4 @@
       (#t (do (if (Opts on? o "-s") () (display "\n"))
               (if (first failed) 1 0))))))
 
-(provide cu/fuser cu-fuser fu-args)
+(provide cu/fuser cu-fuser)

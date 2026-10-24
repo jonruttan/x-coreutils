@@ -29,7 +29,8 @@
   cu-ptr-ref cu-sig-ign cu-str->ptr file-close file-err-text file-open-or-err
   file-open-read file-read-run file-write length map reverse set-first!
   string-append string-concat string=? substring sys-close sys-dup2 sys-exit
-  sys-fork sys-getpid sys-pipe sys-setenv sys-signal sys-time-ms sys-wait)
+  sys-fork sys-getpid sys-pipe sys-setenv sys-signal sys-time-ms sys-wait
+  wget-index)
 (import cu/telnet tn-run)
 
 (def %mm-charset "us-ascii")

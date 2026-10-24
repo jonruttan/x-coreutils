@@ -18,6 +18,7 @@ lines busybox draws within one.
 ### a server, a run, and its report
 
 ```cu
+(def stand-in! (fn (_ envs name v) (List map (fn (_ e) (eval (list (lit set!) name (list (lit lit) v)) e)) envs)))
 (do (import x/sys/socket) (sys-unsetenv "COLUMNS")
   (def tf "/tmp/x-cu-net.tf")
   (def tf-cat (fn (_ . ls) (let go ((l ls)) (if (null? l) () (append (first l) (go (rest l)))))))
@@ -101,10 +102,10 @@ lines busybox draws within one.
     (sys-dup2 oo 1) (sys-dup2 ee 2)
     (def tf-clock date-now-unix)
     (def tf-now (date-now-unix))
-    (set! date-now-unix (fn (_) tf-now))
+    (stand-in! (list (module cu/net)) (lit date-now-unix) (fn (_) tf-now))
     (def st (guard (e (do (file-write 2 (string-append "raised: " (if (Err err? e) (e msg) "?"))) -1))
               (cu-run (pair "tftp" (map (fn (_ a) (tf-arg port a)) args)) "")))
-    (set! date-now-unix tf-clock)
+    (stand-in! (list (module cu/net)) (lit date-now-unix) tf-clock)
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (sys-kill pid 9) (sys-wait pid)
     (display (string-concat (list (file-read-all (string-append tf "/out")) "stderr:\n"

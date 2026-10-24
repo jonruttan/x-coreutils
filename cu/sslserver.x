@@ -19,7 +19,8 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/prims cu-sig-ign cu-stdin-to-command! file-read-all file-write
-  string-concat sys-signal)
+  string-concat sys-signal wget-err-text)
+(import cu/sslclient sc-copy sc-run-prog)
 
 (import x/net/tls13)
 

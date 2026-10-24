@@ -13,7 +13,9 @@
 (module cu/sha3)
 
 (import cu/cli cu-opts)
-(import cu/prims cu-as-run cu-int->str file-write string-append substring)
+(import cu/prims cal/ cu-as-run cu-int->str file-write string-append substring)
+(import cu/sha256 cu-sum-applet)
+(import cu/strings cu-range-number)
 
 (import x/codec/sha3)
 

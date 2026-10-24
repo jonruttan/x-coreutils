@@ -23,8 +23,10 @@
   cu-sweep-lines cu-words-line file-close file-err-text file-open-or-err
   file-open-write file-write length reverse string-append string-concat
   string=? substring)
+(import cu/sort sort-fold)
 (import cu/text cu-first-unopened cu-fold-lines-said cu-join-with
   cu-num-prefix cu-pad-left cu-pad-zero cu-say cu-says cu-says-read)
+(import cu/text2 cu-pad)
 
 (def %uniq-key
   (fn (_ o)

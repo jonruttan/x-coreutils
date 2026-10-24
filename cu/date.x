@@ -29,9 +29,10 @@
 (module cu/date)
 
 (import cu/cli cu-operands cu-opts)
+(import cu/fmt-lex cu-fmt-conv cu-fmt-dir? cu-fmt-parse)
 (import cu/prims append byte-at byte-len cu-b->s cu-int->str cu-nth
-  file-stat-full file-write reverse string-append string-concat string=?
-  substring)
+  cu-stat-get date-now-unix file-stat-full file-write reverse string-append
+  string-concat string=? substring)
 (import cu/text cu-pad-left cu-pad-zero)
 
 (def %cu-date-wday-abbr

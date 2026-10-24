@@ -24,12 +24,16 @@
 (module cu/ls)
 
 (import cu/cli cu-opts)
-(import cu/prims append bit-and byte-at byte-len cu-int->str cu-nth
-  file-list-dir file-lstat-full file-readlink file-stat-full file-write filter
-  length map reverse set-first! string-append string-concat string=? substring
-  sys-getenv sys-group-name sys-isatty sys-user-name vec-make vec-ref vec-set!)
-(import cu/text cu-member-s? cu-msort cu-num-prefix cu-pad-left cu-pad-right
-  cu-pad-zero cu-str<)
+(import cu/fs3 cu-dev-major cu-dev-minor cu-du-blocks cu-path-join
+  cu-perm-string)
+(import cu/prims append bit-and byte-at byte-len cu-dot? cu-int->str
+  cu-member-s? cu-nth cu-stat-get date-now-unix file-list-dir file-lstat-full
+  file-readlink file-stat-full file-write filter length ls-human map reverse
+  set-first! string-append string-concat string=? substring sys-getenv
+  sys-group-name sys-isatty sys-user-name vec-make vec-ref vec-set!)
+(import cu/text cu-msort cu-num-prefix cu-pad-left cu-pad-right cu-pad-zero
+  cu-str<)
+(import cu/text3 cu-list->vec cu-spaces)
 
 (def %ls-flag? (fn (_ o f) (Opts on? o f)))
 
@@ -171,29 +175,6 @@
             (if recent?
               (string-append (%ls-two (f (lit hour))) (string-append ":" (%ls-two (f (lit minute)))))
               (string-append " " (cu-int->str (f (lit year)))))))))
-
-; -h: bytes with one decimal below ten of a unit, as ls -h prints
-; N bytes the way -h prints them, which is ls's and df's rule both: the
-; largest unit under which the value is below 1024, ROUNDED UP at the
-; precision shown -- one decimal below 10, whole above (1500 is 1.5K,
-; 5000 is 4.9K, 926.35G is 927G, 10239 is 10K).  Below 1024, the bytes.
-(def ls-human
-  (fn (_ n)
-    (def ceil/ (fn (_ a b) (let ((c (+ a (- b 1)))) (/ (- c (% c b)) b))))
-    (def go
-      (fn (self scale units)
-        (def tenths (ceil/ (* n 10) scale))
-        (def whole (ceil/ n scale))
-        (match
-          ((null? (rest units)) (string-append (cu-int->str whole) (first units)))
-          ((<= tenths 99)
-            (string-concat
-              (list (cu-int->str (/ (- tenths (% tenths 10)) 10)) "."
-                    (cu-int->str (% tenths 10)) (first units))))
-          ((< whole 1024) (string-append (cu-int->str whole) (first units)))
-          (#t (self (* scale 1024) (rest units))))))
-    (if (< n 1024) (cu-int->str n)
-      (go 1024 (list "K" "M" "G" "T")))))
 
 (def %ls-suffix
   (fn (_ e o)
@@ -486,4 +467,4 @@
         (go (%ls-order dirs o) #t))
       (if (null? missing) 0 1))))
 
-(provide cu/ls cu-ls ls-cell ls-human ls-user-cell)
+(provide cu/ls cu-ls ls-cell ls-user-cell)

@@ -20,7 +20,9 @@
 (module cu/sha512)
 
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor cu-as-run
-  cu-nth cu-run-list integer->char list->string map reverse string-concat)
+  cu-nth cu-nthrest cu-run-list cu-take integer->char list->string map reverse
+  string-concat)
+(import cu/sha256 cu-hex-digit cu-sum-applet)
 
 (def %cu-sha512-h
   (list
@@ -133,9 +135,6 @@
                 wrev))))))
     (extend 16 (reverse w16))))
 
-(def cu-nthrest
-  (fn (self n l) (if (= n 0) l (self (- n 1) (rest l)))))
-
 (def %cu-drop8 (fn (_ bs) (cu-nthrest 8 bs)))
 
 (def %cu-be64
@@ -221,4 +220,4 @@
   (fn (_ argv stdin-thunk)
     (cu-sum-applet "sha384sum" (fn (_ t) (cu-sha384 t)) argv stdin-thunk)))
 
-(provide cu/sha512 cu-nthrest cu-sha384sum cu-sha512sum)
+(provide cu/sha512 cu-sha384sum cu-sha512sum)

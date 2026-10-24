@@ -17,9 +17,10 @@
 (module cu/base32)
 
 (import cu/cli cu-opts)
-(import cu/prims byte-at byte-len cu-nth cu-sweep-lines cu-sweep-tick!
-  file-err-text file-write length map reverse string-append string-concat
-  substring vec-make vec-ref vec-set!)
+(import cu/prims byte-at byte-len cal/ cu-nth cu-sweep-lines cu-sweep-tick!
+  cu-take file-err-text file-write file-write-run length map reverse
+  string-append string-concat substring vec-make vec-ref vec-set!)
+(import cu/strings cu-range-number)
 (import cu/text cu-fold-one)
 
 (def %b32-alphabet "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")

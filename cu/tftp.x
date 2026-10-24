@@ -22,13 +22,17 @@
 (module cu/tftp)
 
 (import cu/cli cu-opts cu-refuse-option cu-usage)
+(import cu/net wget-pm-init! wget-pm-update!)
 (import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-nth
   cu-ptr-call cu-str->ptr cu-sweep! file-close file-err-text file-open-or-err
   file-open-read file-open-write file-read-run file-stat file-unlink
-  file-write length map net-close net-recv-from-run net-resolve net-send-run
-  net-send-to-run net-sock-addr net-sockaddr net-stdin-socket net-udp-bind
-  net-udp-open reverse string-append string-concat string=? substring
-  sys-chroot sys-close sys-poll sys-user-group sys-user-id)
+  file-write file-write-run length map net-close net-die net-recv-from-run
+  net-resolve net-send-run net-send-to-run net-sock-addr net-sockaddr
+  net-stdin-socket net-udp-bind net-udp-open reverse string-append
+  string-concat string=? substring sys-chroot sys-close sys-poll
+  sys-user-group sys-user-id wget-digits wget-div wget-find wget-index
+  wget-last-index wget-lower)
+(import cu/session ss-call)
 
 (def %tftp-name "tftp")
 (def %tftp-say (fn (_ msg) (file-write 2 (string-concat (list %tftp-name ": " msg "\n")))))

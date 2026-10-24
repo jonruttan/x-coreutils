@@ -11,13 +11,14 @@
 (module cu/sys2)
 
 (import cu/cli cu-missing-operand cu-opts)
-(import cu/prims append byte-at byte-len cu-lines cu-stdin-to-command!
-  cu-words-line file-err-sym file-err-text file-exists? file-write filter map
-  proc-run reverse string-append string-concat string=? substring sys-environ
-  sys-exec-or-err sys-exit sys-fork sys-getenv sys-setenv sys-sleep
-  sys-unsetenv sys-usleep sys-wait)
-(import cu/text cu-delim-fields-said cu-join-with cu-member-s? cu-num-prefix
-  cu-print-fields cu-print-lines cu-read-said cu-says cu-split-byte)
+(import cu/prims append byte-at byte-len cu-lines cu-member-s?
+  cu-stdin-to-command! cu-words-line file-err-sym file-err-text file-exists?
+  file-write filter map proc-run reverse string-append string-concat string=?
+  substring sys-environ sys-exec-or-err sys-exit sys-fork sys-getenv
+  sys-setenv sys-unsetenv sys-wait)
+(import cu/text cu-delim-fields-said cu-join-with cu-num-prefix
+  cu-print-fields cu-print-lines cu-read-said cu-says cu-sleep-for cu-sleep-us
+  cu-split-byte)
 
 (def cu-true (fn (_ argv stdin-thunk) 0))
 (def cu-false (fn (_ argv stdin-thunk) 1))
@@ -178,45 +179,6 @@
       ((not (null? b))
         (do (file-write 2 (string-concat (list "sleep: invalid number '" b "'\n"))) 1))
       (#t (do (cu-sleep-for (total us 0)) 0)))))
-
-; Interval A in microseconds, or nil where it is not one: digits, with a
-; point and digits of a fraction, either part empty but not both, then a
-; unit -- s seconds, the default, m minutes, h hours or d days.  A fraction
-; past the sixth digit is dropped.
-(def cu-sleep-us
-  (fn (_ a)
-    (def end (byte-len a))
-    (def last (if (> end 0) (byte-at a (- end 1)) 0))
-    (def unit
-      (match ((= last 115) 1) ((= last 109) 60) ((= last 104) 3600)
-             ((= last 100) 86400) (#t 0)))
-    (def parts
-      (cu-split-byte (substring a 0 (if (= unit 0) end (- end 1))) 46))
-    (def digits?
-      (fn (_ s)
-        (let ((go (fn (self i)
-                    (if (>= i (byte-len s)) #t
-                      (if (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f)
-                        (self (+ i 1)) #f)))))
-          (go 0))))
-    (def whole (first parts))
-    (def frac (if (null? (rest parts)) "" (first (rest parts))))
-    (match
-      ((if (null? (rest parts)) #f (pair? (rest (rest parts)))) ())
-      ((if (= (byte-len whole) 0) (= (byte-len frac) 0) #f) ())
-      ((not (if (digits? whole) (digits? frac) #f)) ())
-      (#t (* (if (= unit 0) 1 unit)
-             (+ (* (if (= (byte-len whole) 0) 0 (cu-num-prefix whole)) 1000000)
-                (cu-num-prefix
-                  (substring (string-append frac "000000") 0 6))))))))
-
-; US microseconds slept: the whole seconds through sleep, the rest through
-; usleep, which on Darwin takes less than a second
-(def cu-sleep-for
-  (fn (_ us)
-    (let ((secs (/ (- us (% us 1000000)) 1000000)))
-      (do (if (> secs 0) (sys-sleep secs) ())
-          (if (> (% us 1000000) 0) (sys-usleep (% us 1000000)) ())))))
 
 ; date: ISO-8601 UTC by default (a recorded divergence from the locale
 ; format), +%s for unix seconds
@@ -383,12 +345,10 @@
 
 ; test, [ and [[ moved to cu/test.x, which parses the whole grammar.
 
-(def cu-last
-  (fn (self l) (if (null? (rest l)) (first l) (self (rest l)))))
 (def cu-drop-last
   (fn (self l)
     (if (null? (rest l)) ()
       (pair (first l) (self (rest l))))))
 
-(provide cu/sys2 cu-drop-last cu-env cu-false cu-last cu-printenv cu-sleep
-  cu-sleep-for cu-sleep-us cu-true cu-which cu-xargs)
+(provide cu/sys2 cu-drop-last cu-env cu-false cu-printenv cu-sleep cu-true
+  cu-which cu-xargs)

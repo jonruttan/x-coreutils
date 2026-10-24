@@ -7,12 +7,105 @@
 ; @license MIT No Attribution (MIT-0)
 ;
 ; The applet a command line names is a static method of Applets, called as
-; (Applets NAME ARGV STDIN-THUNK), and cu/cli.x looks a name up with
-; class-static-ref.  Each method hands its arguments to the function that
-; does the applet's work, which its own file defines and which is found
-; when the method is called.
+; (Applets NAME ARGV STDIN-THUNK), and cu/cli.x, handed the class below, looks
+; a name up with class-static-ref.  Each method hands its arguments to the
+; function that does the applet's work, imported from its module.
 
 (module cu/applets)
+
+(import cu/arp cu-arp)
+(import cu/ascii cu-ascii cu-crc32 cu-uuidgen)
+(import cu/base32 cu-base32)
+(import cu/cal cu-cal)
+(import cu/cli cu-applets!)
+(import cu/cpio cu-cpio)
+(import cu/crypt cu-cryptpw cu-mkpasswd)
+(import cu/date cu-date)
+(import cu/dc cu-dc)
+(import cu/diff cu-diff)
+(import cu/dns cu-nslookup)
+(import cu/dnsd cu-dnsd)
+(import cu/dumpleases cu-dumpleases)
+(import cu/ed cu-ed)
+(import cu/encode cu-od cu-uudecode cu-uuencode)
+(import cu/expr cu-expr)
+(import cu/fakeidentd cu-fakeidentd)
+(import cu/find cu-find)
+(import cu/fs cu-cat cu-cp cu-ln cu-mkdir cu-mv cu-rm cu-rmdir)
+(import cu/fs2 cu-cmp cu-install cu-mktemp cu-pwd cu-touch)
+(import cu/fs3 cu-dd cu-du cu-nohup cu-shred cu-stat cu-timeout cu-truncate
+  cu-tty cu-unlink cu-usleep)
+(import cu/ftp cu-ftpget cu-ftpput)
+(import cu/ftpd cu-ftpd)
+(import cu/fuser cu-fuser)
+(import cu/getopt cu-getopt)
+(import cu/gzip cu-gunzip cu-gzip cu-zcat)
+(import cu/hash cu-cksum-applet cu-md5sum cu-sha1sum cu-sum)
+(import cu/hexdump cu-hd cu-hexdump cu-xxd)
+(import cu/httpd cu-httpd)
+(import cu/ifconfig cu-ifconfig)
+(import cu/inetd cu-inetd)
+(import cu/iostat cu-iostat)
+(import cu/ip-main cu-ip cu-ipaddr cu-iplink)
+(import cu/ipcalc cu-ipcalc)
+(import cu/iproute cu-iproute)
+(import cu/ls cu-ls)
+(import cu/lsmod cu-lsmod)
+(import cu/mime cu-makemime cu-reformime)
+(import cu/more cu-clear cu-more cu-reset)
+(import cu/mpstat cu-mpstat)
+(import cu/nc cu-nc cu-netcat)
+(import cu/net cu-wget cu-whois)
+(import cu/netstat cu-netstat)
+(import cu/nmeter cu-nmeter)
+(import cu/ntpd cu-ntpd)
+(import cu/patch cu-patch)
+(import cu/perm cu-chgrp cu-chmod cu-chown cu-df cu-link cu-mkfifo cu-readlink
+  cu-realpath cu-sync)
+(import cu/pmap cu-pmap)
+(import cu/popmaildir cu-popmaildir)
+(import cu/prims filter map)
+(import cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
+  cu-pkill cu-ps cu-pwdx cu-uptime)
+(import cu/route cu-route)
+(import cu/runparts cu-run-parts)
+(import cu/sendmail cu-sendmail)
+(import cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
+  cu-ttysize)
+(import cu/sha256 cu-sha256sum)
+(import cu/sha3 cu-sha3sum)
+(import cu/sha512 cu-sha384sum cu-sha512sum)
+(import cu/sort cu-sort)
+(import cu/sslclient cu-ssl-client)
+(import cu/sslserver cu-ssl-server)
+(import cu/strings cu-strings-applet)
+(import cu/sys2 cu-env cu-false cu-printenv cu-sleep cu-true cu-which cu-xargs)
+(import cu/sysctl cu-sysctl)
+(import cu/sysinfo cu-dnsdomainname cu-hostid cu-hostname cu-mesg cu-mknod
+  cu-mountpoint cu-renice cu-ts)
+(import cu/tar cu-tar)
+(import cu/tcpsvd cu-tcpsvd cu-udpsvd)
+(import cu/telnet cu-telnet)
+(import cu/telnetd cu-telnetd)
+(import cu/test cu-bracket cu-dbracket cu-test)
+(import cu/text cu-basename cu-comm cu-dirname cu-head cu-join cu-tail cu-wc)
+(import cu/text2 cu-echo cu-fold cu-paste cu-printf cu-rev-applet cu-seq
+  cu-tac cu-tee)
+(import cu/text3 cu-base64 cu-dos2unix cu-expand cu-factor cu-shuf cu-split
+  cu-unexpand cu-unix2dos cu-yes)
+(import cu/text4 cu-nl cu-uniq)
+(import cu/tftp cu-tftp cu-tftpd)
+(import cu/time cu-time)
+(import cu/top cu-top)
+(import cu/trcut cu-cut cu-tr)
+(import cu/tree cu-tree)
+(import cu/tsort cu-tsort)
+(import cu/unzip cu-unzip)
+(import cu/vi cu-vi)
+(import cu/vmstat cu-vmstat)
+(import cu/watch cu-watch)
+(import cu/who cu-arch cu-chroot cu-groups cu-id cu-logname cu-nice cu-nproc
+  cu-uname cu-users cu-w cu-who cu-whoami)
 
 (def-class Applets ()
   (static
@@ -217,5 +310,7 @@
 ; test's other names, [ and [[, are no symbol the reader takes
 (Applets def-static! (Str8 ->sym "[") (fn (_ cls argv stdin-thunk) (cu-bracket argv stdin-thunk)))
 (Applets def-static! (Str8 ->sym "[[") (fn (_ cls argv stdin-thunk) (cu-dbracket argv stdin-thunk)))
+
+(cu-applets! Applets)
 
 (provide cu/applets Applets)

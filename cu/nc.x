@@ -33,11 +33,14 @@
 (module cu/nc)
 
 (import cu/cli cu-refuse-option)
+(import cu/net wget-times)
+(import cu/options nc-flags nc-values)
 (import cu/prims append byte-at byte-len cu-int->str cu-sig-ign file-close
-  file-err-sym file-open-write file-read-run file-write filter integer->char
-  length list->string map net-accept net-close net-connect net-listen
-  net-resolve net-shutdown reverse string-concat string=? substring sys-dup2
-  sys-exec sys-exit sys-poll sys-signal sys-sleep)
+  file-err-sym file-open-write file-read-run file-write file-write-run filter
+  integer->char length list->string map net-accept net-close net-connect
+  net-die net-listen net-resolve net-shutdown reverse string-concat string=?
+  substring sys-dup2 sys-exec sys-exit sys-poll sys-signal sys-sleep
+  wget-digits wget-div wget-err-text wget-memv)
 
 (def %nc-split-exec
   (fn (_ argv)
@@ -61,11 +64,6 @@
           ((wget-memv (byte-at s i) (list #\n #\u #\v #\l #\k #\z)) (go (+ i 1)))
           (#t #f)))
       #f)))
-
-; -u, -b (UDP's broadcasts) and -s are not here: refused, rather than read as
-; TCP or as no address at all.  -e is split off before the parse.
-(def nc-flags (list "-n" "-v" "-l" "-k" "-z"))
-(def nc-values (list "-p" "-w" "-i" "-o" "-e"))
 
 ; how many times FLAG was given: -vv is two
 (def nc-count
@@ -286,4 +284,4 @@
                     (error e)))
           (%nc-run o ops (rest split)))))))
 
-(provide cu/nc cu-nc cu-netcat nc-count nc-flags nc-values)
+(provide cu/nc cu-nc cu-netcat nc-count)

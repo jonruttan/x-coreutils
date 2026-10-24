@@ -22,11 +22,12 @@
 
 (import cu/cli cu-operands cu-opts)
 (import cu/prims byte-at byte-len cu& cu+ cu- cu-b->s cu-int->str cu-lines
-  cu-nth cu-run-bytes cu-sweep! cu-sweep-at cu-sweep-bytes cu-sweep-lines
-  cu-sweep-steps cu-words-line cu< cu<< cu>> file-close file-err-op
-  file-err-text file-open-or-err file-open-write file-write integer->char
-  length list->string reverse rng-int rng-make set-first! string-append
-  string-concat substring vec-build vec-ref vec-set!)
+  cu-nth cu-nthrest cu-run-bytes cu-sweep! cu-sweep-at cu-sweep-bytes
+  cu-sweep-lines cu-sweep-steps cu-take cu-words-line cu< cu<< cu>>
+  date-now-unix file-close file-err-op file-err-text file-open-or-err
+  file-open-write file-write file-write-run integer->char length list->string
+  reverse rng-int rng-make set-first! string-append string-concat substring
+  vec-build vec-ref vec-set!)
 (import cu/text cu-delim-fields-said cu-enough cu-file-pieces
   cu-fold-lines-said cu-fold-pieces cu-fold-said cu-fold-stdin cu-gather-said
   cu-join-with cu-map-swept cu-newlines-from cu-num-prefix cu-print-fields
@@ -491,12 +492,6 @@
                   (self (- i 1))))))))
     (go (- n 1))))
 
-; the first K of L; none when K is 0 or less
-(def cu-take
-  (fn (self l k)
-    (if (if (<= k 0) #t (null? l)) ()
-      (pair (first l) (self (rest l) (- k 1))))))
-
 ; With -e the operands are what is shuffled, as many as are given; -i shuffles
 ; a range and takes none; otherwise there is one FILE at most.
 (def cu-shuf
@@ -839,4 +834,4 @@
 
 (provide cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from cu-base64
   cu-dos2unix cu-expand cu-factor cu-list->vec cu-shuf cu-shuf-range cu-spaces
-  cu-split cu-take cu-unexpand cu-unix2dos cu-vec->list cu-yes)
+  cu-split cu-unexpand cu-unix2dos cu-vec->list cu-yes)
