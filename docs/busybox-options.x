@@ -7,6 +7,8 @@
 ; Single-letter flags are spelled as one string per applet; test's
 ; operators and dd's KEY=VALUE operands are listed whole.
 
+(import cu/prims append byte-len reverse string-append substring)
+
 (def %letters
   (fn (_ s)
     (def end (byte-len s))
