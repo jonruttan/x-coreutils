@@ -606,12 +606,12 @@
       ((eq? k (lit eof)) (do (set! %top-eof #t) (lit scan)))
       ((= k 3) (lit exit))                ; ^C, VINTR
       ((= k 4) (lit exit))                ; ^D, VEOF
-      ((= k %vi-key-up) (scrolled (- %top-scroll 1)))
-      ((= k %vi-key-down) (scrolled (+ %top-scroll 1)))
-      ((= k %vi-key-home) (scrolled 0))
-      ((= k %vi-key-end) (scrolled (- (length %top-rows) page)))
-      ((= k %vi-key-page-up) (scrolled (- %top-scroll page)))
-      ((= k %vi-key-page-down) (scrolled (+ %top-scroll page)))
+      ((= k vi-key-up) (scrolled (- %top-scroll 1)))
+      ((= k vi-key-down) (scrolled (+ %top-scroll 1)))
+      ((= k vi-key-home) (scrolled 0))
+      ((= k vi-key-end) (scrolled (- (length %top-rows) page)))
+      ((= k vi-key-page-up) (scrolled (- %top-scroll page)))
+      ((= k vi-key-page-down) (scrolled (+ %top-scroll page)))
       ((< k 0) (self 0))
       (#t (%top-letter self k (| k 32))))))
 
@@ -655,11 +655,11 @@
 ; a lone Escape, or one no sequence starts with, is a key top ignores
 (def %top-escape
   (fn (self buf)
-    (def hit (filter (fn (_ e) (str=? (first e) buf)) %vi-sequences))
+    (def hit (filter (fn (_ e) (str=? (first e) buf)) vi-sequences))
     (def prefix? (fn (_ e) (if (> (byte-len (first e)) (byte-len buf)) (str=? (substring (first e) 0 (byte-len buf)) buf) #f)))
     (match
       ((not (null? hit)) (rest (first hit)))
-      ((null? (filter prefix? %vi-sequences)) -1)
+      ((null? (filter prefix? vi-sequences)) -1)
       ((null? (sys-poll (list (pair 0 (list (lit in)))) 50)) -1)
       (#t (let ((b (%top-byte))) (if (null? b) -1 (self (string-append buf (bytes->str (list b))))))))))
 

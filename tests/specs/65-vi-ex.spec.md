@@ -4,7 +4,7 @@ vi's searches and colon commands, as busybox's vi (editors/vi.c) makes
 them: / ? n N, addresses (. $ 'x /text/ ?text? % , ; + -), and :d :y :l
 :s :w :r :e :f :n :prev :rew :=.  A search is for text, not a regular
 expression, as busybox's is with its regex search off.  Each case types
-keys at the editor through `%vi-typed`, in bursts with a pause between two,
+keys at the editor through `vi-typed`, in bursts with a pause between two,
 into a window 10 rows by 40 columns unless it says otherwise, and shows the
 exit status, the file, the rows as drawn, the bottom line, the cursor and
 the bells.  A case that ends without :wq ends when its keys do, with status
@@ -22,6 +22,8 @@ same pauses, its output read by a model of the terminal.
 types the bursts, and shows what came of them.
 
 ```cu
+(def vi-state (fn (_ name) (eval name (module cu/vi))))
+(def vi-set! (fn (_ name v) (eval (list (lit set!) name (list (lit lit) v)) (module cu/vi))))
 (def vi-keys
   (list (pair (lit esc) (bytes->str (list 27))) (pair (lit cr) (bytes->str (list 13)))
         (pair (lit bs) (bytes->str (list 127))) (pair (lit ctrl-c) (bytes->str (list 3)))
@@ -37,7 +39,7 @@ types the bursts, and shows what came of them.
   (fn (_ b)
     (if (if (= b #\newline) #t (if (< b #\space) #f (< b #\delete)))
       (bytes->str (list b))
-      (bytes->str (list 92 (%vi+ 48 (%vi/ b 64)) (%vi+ 48 (%vi% (%vi/ b 8) 8)) (%vi+ 48 (%vi% b 8)))))))
+      (bytes->str (list 92 (vi+ 48 (vi/ b 64)) (vi+ 48 (vi% (vi/ b 8) 8)) (vi+ 48 (vi% b 8)))))))
 (def vi-shown
   (fn (_ s)
     (string-concat
@@ -61,7 +63,7 @@ types the bursts, and shows what came of them.
     (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vx && mkdir -p /tmp/x-cu-vx"))
     (if (null? text) () (file-write-all "/tmp/x-cu-vx/f" text))
     (if (null? mode) () (proc-run (list "/bin/chmod" (first mode) "/tmp/x-cu-vx/f")))
-    (def st (%vi-typed (list target) bursts rows cols))
+    (def st (vi-typed (list target) bursts rows cols))
     (def f (if (file-exists? "/tmp/x-cu-vx/f") (vi-shown (file-read-all "/tmp/x-cu-vx/f")) "no file\n"))
     (display
       (string-concat
@@ -69,10 +71,10 @@ types the bursts, and shows what came of them.
               (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) #\newline) #t) f
                 (string-append f " (no newline)\n"))
               "--\n"
-              (string-concat (List map (fn (_ r) (string-append "|" (vi-trim r) "\n")) %vi-screen))
-              "status " (vi-trim %vi-bottom) "\n"
-              "cursor " (cu-int->str %vi-crow) " " (cu-int->str %vi-ccol)
-              " bells " (cu-int->str (vi-bells %vi-drawn 0)) "\n")))))
+              (string-concat (List map (fn (_ r) (string-append "|" (vi-trim r) "\n")) (vi-state (lit %vi-screen))))
+              "status " (vi-trim (vi-state (lit %vi-bottom))) "\n"
+              "cursor " (cu-int->str (vi-state (lit %vi-crow))) " " (cu-int->str (vi-state (lit %vi-ccol)))
+              " bells " (cu-int->str (vi-bells (vi-state (lit %vi-drawn)) 0)) "\n")))))
 (display "made")
 ```
 ---

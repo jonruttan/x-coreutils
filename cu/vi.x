@@ -29,31 +29,42 @@
 ; the objects live have grown a set amount since the last sweep: a collect
 ; walks the whole heap, ~6 ms, whatever a key left (%vi-sweep-if-due!).
 
+(module cu/vi)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/fs3 cu-stat-get)
+(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-err-label
+  cu-heap-collect cu-ptr-call cu-stdin-to-command! file-close file-err-sym
+  file-err-text file-exists? file-open-or-err file-open-read file-read-all
+  file-stat-full file-truncate file-unlink file-write filter length map
+  reverse set-first! str-make-raw string-append string-concat string=?
+  sys-getenv sys-getuid)
+
 (import x/repl/term)
 
 ; --- doors ------------------------------------------------------------------
 
-(def %vi+ (prim-ref (lit int) (lit +)))
-(def %vi- (prim-ref (lit int) (lit -)))
+(def vi+ (prim-ref (lit int) (lit +)))
+(def vi- (prim-ref (lit int) (lit -)))
 (def %vi* (prim-ref (lit int) (lit *)))
-(def %vi/ (prim-ref (lit int) (lit /)))
-(def %vi% (prim-ref (lit int) (lit %)))
-(def %vi< (prim-ref (lit int) (lit <)))
-(def %vi& (prim-ref (lit int) (lit &)))
-(def %vi-bsub (prim-ref (lit str) (lit byte-sub)))
-(def %vi-str->ptr (prim-ref (lit str) (lit ->ptr)))
+(def vi/ (prim-ref (lit int) (lit /)))
+(def vi% (prim-ref (lit int) (lit %)))
+(def vi< (prim-ref (lit int) (lit <)))
+(def vi& (prim-ref (lit int) (lit &)))
+(def vi-bsub (prim-ref (lit str) (lit byte-sub)))
+(def vi-str->ptr (prim-ref (lit str) (lit ->ptr)))
 (def %vi-ptr->int (prim-ref (lit ptr) (lit ->int)))
-(def %vi-ptr-set! (prim-ref (lit ptr) (lit set!)))
+(def vi-ptr-set! (prim-ref (lit ptr) (lit set!)))
 
-(def %vi-min (fn (_ a b) (if (%vi< a b) a b)))
-(def %vi-max (fn (_ a b) (if (%vi< a b) b a)))
+(def vi-min (fn (_ a b) (if (vi< a b) a b)))
+(def vi-max (fn (_ a b) (if (vi< a b) b a)))
 
 ; a control key, from its letter: the letter's low five bits, so ^D is 4.
 ; Bytes compare with characters by value, #\/ as 47.
-(def %vi-ctrl (fn (_ c) (%vi& c 31)))
+(def %vi-ctrl (fn (_ c) (vi& c 31)))
 
 ; C from LO to HI, both in
-(def %vi-in? (fn (_ c lo hi) (if (%vi< c lo) #f (if (%vi< hi c) #f #t))))
+(def vi-in? (fn (_ c lo hi) (if (vi< c lo) #f (if (vi< hi c) #f #t))))
 
 ; libc's entry points, looked up at the start of each run: a handle is a fact
 ; of the process, and a state image is written by another one
@@ -153,20 +164,20 @@
     (def old %vi-text)
     (def old-room %vi-room)
     (def old-end %vi-end)
-    (set! %vi-text (str-make-raw (%vi+ room 1)))
-    (set! %vi-tptr (%vi-str->ptr %vi-text))
+    (set! %vi-text (str-make-raw (vi+ room 1)))
+    (set! %vi-tptr (vi-str->ptr %vi-text))
     (set! %vi-taddr (%vi-ptr->int %vi-tptr))
-    (cu-ptr-call %vi-c-memset %vi-taddr 0 (%vi+ room 1))
+    (cu-ptr-call %vi-c-memset %vi-taddr 0 (vi+ room 1))
     (set! %vi-room room)
-    (if (%vi< 0 old-end)
-      (cu-ptr-call %vi-c-memcpy %vi-taddr old (%vi-min old-room room))
+    (if (vi< 0 old-end)
+      (cu-ptr-call %vi-c-memcpy %vi-taddr old (vi-min old-room room))
       ())))
 
 (def %vi-text-init!
   (fn (_)
     (set! %vi-end 0)
     (%vi-text-room! 10240)
-    (%vi-ptr-set! %vi-tptr 0 0 1)
+    (vi-ptr-set! %vi-tptr 0 0 1)
     (set! %vi-dot 0)
     (set! %vi-screenbegin 0)
     (set! %vi-nl-total 0)
@@ -181,65 +192,65 @@
   (fn (_) (set! %vi-lc-pos 0) (set! %vi-lc-n 0)))
 (def %vi-touch!
   (fn (_ p)
-    (set! %vi-text-version (%vi+ %vi-text-version 1))
-    (if (%vi< p %vi-lc-pos) (%vi-lc-forget!) ())))
+    (set! %vi-text-version (vi+ %vi-text-version 1))
+    (if (vi< p %vi-lc-pos) (%vi-lc-forget!) ())))
 
 ; busybox's text_hole_make: SIZE bytes of spaces opened at P
 (def %vi-hole-make!
   (fn (_ p size)
-    (if (%vi< 0 size)
-      (%vi-hole-open! p size (%vi+ %vi-end size))
+    (if (vi< 0 size)
+      (%vi-hole-open! p size (vi+ %vi-end size))
       ())))
 
 (def %vi-hole-open!
   (fn (_ p size new-end)
-    (if (%vi< %vi-room new-end)
-      (%vi-text-room! (%vi+ new-end 10240))
+    (if (vi< %vi-room new-end)
+      (%vi-text-room! (vi+ new-end 10240))
       ())
     (%vi-touch! p)
-    (cu-ptr-call %vi-c-memmove (%vi+ %vi-taddr (%vi+ p size)) (%vi+ %vi-taddr p)
-      (%vi- %vi-end p))
+    (cu-ptr-call %vi-c-memmove (vi+ %vi-taddr (vi+ p size)) (vi+ %vi-taddr p)
+      (vi- %vi-end p))
     (set! %vi-end new-end)
-    (cu-ptr-call %vi-c-memset (%vi+ %vi-taddr p) 32 size)))
+    (cu-ptr-call %vi-c-memset (vi+ %vi-taddr p) 32 size)))
 
 ; one byte of the text replaced, the newline count kept
 (def %vi-byte-set!
   (fn (_ p b)
     (def was (byte-at %vi-text p))
-    (if (= was #\newline) (set! %vi-nl-total (%vi- %vi-nl-total 1)) ())
-    (if (= b #\newline) (set! %vi-nl-total (%vi+ %vi-nl-total 1)) ())
+    (if (= was #\newline) (set! %vi-nl-total (vi- %vi-nl-total 1)) ())
+    (if (= b #\newline) (set! %vi-nl-total (vi+ %vi-nl-total 1)) ())
     (%vi-touch! p)
-    (%vi-ptr-set! %vi-tptr p b 1)))
+    (vi-ptr-set! %vi-tptr p b 1)))
 
 ; busybox's text_hole_delete: P through Q, both kept, answering where the text
 ; after them now starts; UNDO says how it may be undone.  The count drops by
 ; one here and comes back when the bytes go, so only the record counts.
 (def %vi-hole-delete!
   (fn (_ p q undo)
-    (def src (if (%vi< q p) (%vi+ p 1) (%vi+ q 1)))
-    (def dest (if (%vi< q p) q p))
-    (%vi-undo-push-delete! p (%vi+ (%vi- q p) 1) undo)
-    (set! %vi-modified (%vi- %vi-modified 1))
+    (def src (if (vi< q p) (vi+ p 1) (vi+ q 1)))
+    (def dest (if (vi< q p) q p))
+    (%vi-undo-push-delete! p (vi+ (vi- q p) 1) undo)
+    (set! %vi-modified (vi- %vi-modified 1))
     (match
-      ((%vi< %vi-end src) dest)
-      ((%vi< dest 0) dest)
-      ((%vi< dest %vi-end) (%vi-hole-close! dest src))
+      ((vi< %vi-end src) dest)
+      ((vi< dest 0) dest)
+      ((vi< dest %vi-end) (%vi-hole-close! dest src))
       (#t dest))))
 
 (def %vi-hole-close!
   (fn (_ dest src)
-    (set! %vi-modified (%vi+ %vi-modified 1))
-    (set! %vi-nl-total (%vi- %vi-nl-total (%vi-newlines-in dest src)))
+    (set! %vi-modified (vi+ %vi-modified 1))
+    (set! %vi-nl-total (vi- %vi-nl-total (%vi-newlines-in dest src)))
     (%vi-touch! dest)
-    (if (%vi< src %vi-end)
-      (cu-ptr-call %vi-c-memmove (%vi+ %vi-taddr dest) (%vi+ %vi-taddr src)
-        (%vi- %vi-end src))
+    (if (vi< src %vi-end)
+      (cu-ptr-call %vi-c-memmove (vi+ %vi-taddr dest) (vi+ %vi-taddr src)
+        (vi- %vi-end src))
       ())
-    (set! %vi-end (%vi- %vi-end (%vi- src dest)))
+    (set! %vi-end (vi- %vi-end (vi- src dest)))
     (match
-      ((%vi< %vi-end 1) (do (set! %vi-end 0) 0))
-      ((%vi< dest %vi-end) dest)
-      (#t (%vi- %vi-end 1)))))
+      ((vi< %vi-end 1) (do (set! %vi-end 0) 0))
+      ((vi< dest %vi-end) dest)
+      (#t (vi- %vi-end 1)))))
 
 ; the byte C put in at P, as busybox's stupid_insert: its caller records it
 (def %vi-byte-insert!
@@ -252,10 +263,10 @@
 ; the first newline in [A, B), or -1
 (def %vi-find-nl
   (fn (_ a b)
-    (if (%vi< a b)
-      (%vi-nl-found (cu-ptr-call %vi-c-memchr (%vi+ %vi-taddr a) 10 (%vi- b a)))
+    (if (vi< a b)
+      (%vi-nl-found (cu-ptr-call %vi-c-memchr (vi+ %vi-taddr a) 10 (vi- b a)))
       -1)))
-(def %vi-nl-found (fn (_ r) (if (= r 0) -1 (%vi- r %vi-taddr))))
+(def %vi-nl-found (fn (_ r) (if (= r 0) -1 (vi- r %vi-taddr))))
 
 ; the newlines in [A, B)
 (def %vi-newlines-in
@@ -263,32 +274,32 @@
 (def %vi-newlines-from
   (fn (self a b n)
     (def at (%vi-find-nl a b))
-    (if (= at -1) n (self (%vi+ at 1) b (%vi+ n 1)))))
+    (if (= at -1) n (self (vi+ at 1) b (vi+ n 1)))))
 
 ; the last newline in [LO, HI), or FOUND
 (def %vi-last-nl-in
   (fn (self lo hi found)
     (def at (%vi-find-nl lo hi))
-    (if (= at -1) found (self (%vi+ at 1) hi at))))
+    (if (= at -1) found (self (vi+ at 1) hi at))))
 
 ; the last newline before P, or -1: libc has no backward memchr everywhere,
 ; so the text before P is searched forward, 128 bytes at a time from P back
 (def %vi-nl-before
   (fn (self p)
-    (def lo (if (%vi< p 128) 0 (%vi- p 128)))
+    (def lo (if (vi< p 128) 0 (vi- p 128)))
     (def at (%vi-last-nl-in lo p -1))
     (match
-      ((%vi< -1 at) at)
+      ((vi< -1 at) at)
       ((= lo 0) -1)
       (#t (self lo)))))
 
 (def %vi-begin-line
-  (fn (_ p) (if (%vi< 0 p) (%vi+ (%vi-nl-before p) 1) p)))
+  (fn (_ p) (if (vi< 0 p) (vi+ (%vi-nl-before p) 1) p)))
 
 (def %vi-end-line
   (fn (_ p)
-    (def last (%vi- %vi-end 1))
-    (if (%vi< p last)
+    (def last (vi- %vi-end 1))
+    (if (vi< p last)
       (%vi-end-line-at (%vi-find-nl p last) last)
       p)))
 (def %vi-end-line-at (fn (_ at last) (if (= at -1) last at)))
@@ -297,12 +308,12 @@
   (fn (_ p)
     (def b (%vi-begin-line p))
     (%vi-begin-line
-      (if (if (%vi< 0 b) (= (byte-at %vi-text (%vi- b 1)) #\newline) #f) (%vi- b 1) b))))
+      (if (if (vi< 0 b) (= (byte-at %vi-text (vi- b 1)) #\newline) #f) (vi- b 1) b))))
 
 (def %vi-next-line
   (fn (_ p)
     (def e (%vi-end-line p))
-    (if (if (%vi< e (%vi- %vi-end 1)) (= (byte-at %vi-text e) #\newline) #f) (%vi+ e 1) e)))
+    (if (if (vi< e (vi- %vi-end 1)) (= (byte-at %vi-text e) #\newline) #f) (vi+ e 1) e)))
 
 (def %vi-end-screen
   (fn (_)
@@ -310,7 +321,7 @@
           (if (= %vi-es-top %vi-screenbegin) (= %vi-es-rows %vi-rows) #f)
           #f)
       %vi-es-at
-      (do (set! %vi-es-at (%vi-end-line (%vi-next-lines %vi-screenbegin (%vi- %vi-rows 2))))
+      (do (set! %vi-es-at (%vi-end-line (%vi-next-lines %vi-screenbegin (vi- %vi-rows 2))))
           (set! %vi-es-version %vi-text-version)
           (set! %vi-es-top %vi-screenbegin)
           (set! %vi-es-rows %vi-rows)
@@ -323,59 +334,59 @@
 (def %vi-es-rows -1)
 
 (def %vi-next-lines
-  (fn (self p n) (if (%vi< 0 n) (self (%vi-next-line p) (%vi- n 1)) p)))
+  (fn (self p n) (if (vi< 0 n) (self (%vi-next-line p) (vi- n 1)) p)))
 
 ; busybox's count_lines: the newlines from START through the end of STOP's
 ; line, never past the text's last byte
 (def %vi-count-lines
   (fn (_ start stop)
-    (if (%vi< stop start)
+    (if (vi< stop start)
       (%vi-count-lines-from stop start)
       (%vi-count-lines-from start stop))))
 (def %vi-count-lines-from
-  (fn (_ a b) (%vi-newlines-in a (%vi-min (%vi+ (%vi-end-line b) 1) %vi-end))))
+  (fn (_ a b) (%vi-newlines-in a (vi-min (vi+ (%vi-end-line b) 1) %vi-end))))
 
 ; the newlines before P, counted from the cached place nearest it
 (def %vi-lines-before
   (fn (_ p)
     (def n
-      (if (%vi< p %vi-lc-pos)
-        (%vi- %vi-lc-n (%vi-newlines-in p %vi-lc-pos))
-        (%vi+ %vi-lc-n (%vi-newlines-in %vi-lc-pos p))))
+      (if (vi< p %vi-lc-pos)
+        (vi- %vi-lc-n (%vi-newlines-in p %vi-lc-pos))
+        (vi+ %vi-lc-n (%vi-newlines-in %vi-lc-pos p))))
     (set! %vi-lc-pos p)
     (set! %vi-lc-n n)
     n))
 
 ; busybox's find_line: where line LI starts, counting from 1
-(def %vi-find-line (fn (_ li) (%vi-next-lines 0 (%vi- li 1))))
+(def %vi-find-line (fn (_ li) (%vi-next-lines 0 (vi- li 1))))
 
 ; --- columns ----------------------------------------------------------------
 
 (def %vi-next-tabstop
-  (fn (_ col) (%vi+ col (%vi- (%vi- %vi-tabstop 1) (%vi% col %vi-tabstop)))))
+  (fn (_ col) (vi+ col (vi- (vi- %vi-tabstop 1) (vi% col %vi-tabstop)))))
 
 ; the column after the byte C shown at column CO
 (def %vi-next-column
   (fn (_ c co)
     (match
-      ((= c #\tab) (%vi+ (%vi-next-tabstop co) 1))
-      ((%vi< c #\space) (%vi+ co 2))
-      ((= c #\delete) (%vi+ co 2))
-      (#t (%vi+ co 1)))))
+      ((= c #\tab) (vi+ (%vi-next-tabstop co) 1))
+      ((vi< c #\space) (vi+ co 2))
+      ((= c #\delete) (vi+ co 2))
+      (#t (vi+ co 1)))))
 
 ; where the bytes shown as themselves end, from A on
 (def %vi-plain-end
   (fn (_ a)
-    (%vi+ a (cu-ptr-call %vi-c-strcspn (%vi+ %vi-taddr a) %vi-reject))))
+    (vi+ a (cu-ptr-call %vi-c-strcspn (vi+ %vi-taddr a) %vi-reject))))
 
 ; the column after the bytes [A, P), from column CO
 (def %vi-columns-over
   (fn (self a p co)
     (def q (%vi-plain-end a))
-    (if (%vi< q p)
-      (self (%vi+ q 1) p
-        (%vi-next-column (byte-at %vi-text q) (%vi+ co (%vi- q a))))
-      (%vi+ co (%vi- p a)))))
+    (if (vi< q p)
+      (self (vi+ q 1) p
+        (%vi-next-column (byte-at %vi-text q) (vi+ co (vi- q a))))
+      (vi+ co (vi- p a)))))
 
 (def %vi-get-column
   (fn (_ p) (%vi-columns-over (%vi-begin-line p) p 0)))
@@ -383,15 +394,15 @@
 ; busybox's move_to_col: the byte of P's line that covers column L, or the
 ; line's newline
 (def %vi-move-to-col
-  (fn (_ p l) (%vi-col-walk (%vi-begin-line p) 0 (%vi-max l 0))))
+  (fn (_ p l) (%vi-col-walk (%vi-begin-line p) 0 (vi-max l 0))))
 
 (def %vi-col-walk
   (fn (self a co l)
     (def q (%vi-plain-end a))
     (match
-      ((%vi< l (%vi+ co (%vi- q a))) (%vi+ a (%vi- l co)))
-      ((%vi< q %vi-end) (%vi-col-special self q (%vi+ co (%vi- q a)) l))
-      (#t (%vi- %vi-end 1)))))
+      ((vi< l (vi+ co (vi- q a))) (vi+ a (vi- l co)))
+      ((vi< q %vi-end) (%vi-col-special self q (vi+ co (vi- q a)) l))
+      (#t (vi- %vi-end 1)))))
 
 (def %vi-col-special
   (fn (_ walk q co l)
@@ -399,8 +410,8 @@
     (def next (%vi-next-column c co))
     (match
       ((= c #\newline) q)
-      ((%vi< l next) q)
-      (#t (walk (%vi+ q 1) next l)))))
+      ((vi< l next) q)
+      (#t (walk (vi+ q 1) next l)))))
 
 ; --- output -----------------------------------------------------------------
 
@@ -427,27 +438,27 @@
 
 (def %vi-place-cursor
   (fn (_ row col)
-    (def r (%vi-max 0 (%vi-min row (%vi- %vi-rows 1))))
-    (def c (%vi-max 0 (%vi-min col (%vi- %vi-columns 1))))
-    (%vi-put (string-append %vi-esc "[" (%vi-num->str (%vi+ r 1)) ";"
-                            (%vi-num->str (%vi+ c 1)) "H"))))
+    (def r (vi-max 0 (vi-min row (vi- %vi-rows 1))))
+    (def c (vi-max 0 (vi-min col (vi- %vi-columns 1))))
+    (%vi-put (string-append %vi-esc "[" (%vi-num->str (vi+ r 1)) ";"
+                            (%vi-num->str (vi+ c 1)) "H"))))
 
 ; N in decimal, by the integer doors: the general number's arithmetic
 ; allocates at every step, and this runs several times a key
 (def %vi-num->str
   (fn (_ n)
     (match
-      ((%vi< n 0) (bytes->str (pair 45 (%vi-digit-list (%vi- 0 n) ()))))
-      ((%vi< n 10) (bytes->str (list (%vi+ n 48))))
+      ((vi< n 0) (bytes->str (pair 45 (%vi-digit-list (vi- 0 n) ()))))
+      ((vi< n 10) (bytes->str (list (vi+ n 48))))
       (#t (bytes->str (%vi-digit-list n ()))))))
 (def %vi-digit-list
   (fn (self n acc)
     (if (= n 0) acc
-      (self (%vi/ n 10) (pair (%vi+ (%vi% n 10) 48) acc)))))
+      (self (vi/ n 10) (pair (vi+ (vi% n 10) 48) acc)))))
 
 (def %vi-bottom-clear
   (fn (_)
-    (%vi-place-cursor (%vi- %vi-rows 1) 0)
+    (%vi-place-cursor (vi- %vi-rows 1) 0)
     (%vi-put %vi-clear-eol)))
 
 (def %vi-indicate-error
@@ -456,7 +467,7 @@
     (if (%vi-opt? %vi-fl) (%vi-flash 10) (%vi-put %vi-bell))))
 
 (def %vi-spaces
-  (fn (_ n) (if (%vi< 0 n) (%vi-bsub %vi-blanks 0 n) "")))
+  (fn (_ n) (if (vi< 0 n) (vi-bsub %vi-blanks 0 n) "")))
 
 ; --- the screen -------------------------------------------------------------
 
@@ -464,34 +475,34 @@
 ; text, ROWS - 1 of them
 (def %vi-new-screen!
   (fn (_)
-    (set! %vi-blanks (str-make-raw (%vi+ %vi-columns 16)))
+    (set! %vi-blanks (str-make-raw (vi+ %vi-columns 16)))
     (def blank (%vi-spaces %vi-columns))
-    (def tilde (string-append "~" (%vi-spaces (%vi- %vi-columns 1))))
-    (set! %vi-screen (pair blank (%vi-rows-of tilde (%vi- %vi-rows 2) ())))))
+    (def tilde (string-append "~" (%vi-spaces (vi- %vi-columns 1))))
+    (set! %vi-screen (pair blank (%vi-rows-of tilde (vi- %vi-rows 2) ())))))
 
 (def %vi-rows-of
-  (fn (self s n acc) (if (%vi< 0 n) (self s (%vi- n 1) (pair s acc)) acc)))
+  (fn (self s n acc) (if (vi< 0 n) (self s (vi- n 1) (pair s acc)) acc)))
 
 (def %vi-screen-erase!
   (fn (_)
     (set! %vi-screen
-      (%vi-rows-of (%vi-spaces %vi-columns) (%vi- %vi-rows 1) ()))))
+      (%vi-rows-of (%vi-spaces %vi-columns) (vi- %vi-rows 1) ()))))
 
 ; busybox's format_line: the row the line at SRC shows, COLUMNS wide, from
 ; the column %vi-offset; a row past the text shows a ~
 (def %vi-format-line
   (fn (_ src)
     (def shown
-      (if (%vi< src %vi-end)
-        (%vi-shown src (%vi+ %vi-offset %vi-columns))
+      (if (vi< src %vi-end)
+        (%vi-shown src (vi+ %vi-offset %vi-columns))
         "~"))
     (def len (byte-len shown))
     (def row
-      (if (%vi< %vi-offset len)
-        (%vi-bsub shown %vi-offset (%vi-min %vi-columns (%vi- len %vi-offset)))
+      (if (vi< %vi-offset len)
+        (vi-bsub shown %vi-offset (vi-min %vi-columns (vi- len %vi-offset)))
         ""))
-    (def short (%vi- %vi-columns (byte-len row)))
-    (if (%vi< 0 short) (string-append row (%vi-spaces short)) row)))
+    (def short (vi- %vi-columns (byte-len row)))
+    (if (vi< 0 short) (string-append row (%vi-spaces short)) row)))
 
 ; the line at SRC as shown, until it reaches column LIM
 (def %vi-shown
@@ -501,12 +512,12 @@
 
 (def %vi-shown-from
   (fn (self a co lim acc)
-    (def q (%vi-min (%vi-plain-end a) %vi-end))
-    (def n (%vi-min (%vi- q a) (%vi- lim co)))
-    (def acc2 (if (%vi< 0 n) (pair (%vi-bsub %vi-text a n) acc) acc))
-    (def co2 (%vi+ co n))
+    (def q (vi-min (%vi-plain-end a) %vi-end))
+    (def n (vi-min (vi- q a) (vi- lim co)))
+    (def acc2 (if (vi< 0 n) (pair (vi-bsub %vi-text a n) acc) acc))
+    (def co2 (vi+ co n))
     (match
-      ((%vi< co2 lim) (%vi-shown-special self q co2 lim acc2))
+      ((vi< co2 lim) (%vi-shown-special self q co2 lim acc2))
       ((null? acc2) (list ""))
       (#t acc2))))
 
@@ -515,17 +526,17 @@
     (def c (byte-at %vi-text q))
     (match
       ((= c #\newline) (if (null? acc) (list "") acc))
-      ((if (%vi< q %vi-end) #f #t) (if (null? acc) (list "") acc))
-      (#t (walk (%vi+ q 1) (%vi-next-column c co) lim
+      ((if (vi< q %vi-end) #f #t) (if (null? acc) (list "") acc))
+      (#t (walk (vi+ q 1) (%vi-next-column c co) lim
             (pair (%vi-shown-byte c co) acc))))))
 
 ; how the byte C at column CO shows
 (def %vi-shown-byte
   (fn (_ c co)
     (match
-      ((= c #\tab) (%vi-spaces (%vi- (%vi-next-column c co) co)))
+      ((= c #\tab) (%vi-spaces (vi- (%vi-next-column c co) co)))
       ((= c #\delete) "^?")
-      ((%vi< c #\space) (string-append "^" (bytes->str (list (%vi+ c #\@)))))
+      ((vi< c #\space) (string-append "^" (bytes->str (list (vi+ c #\@)))))
       (#t "."))))
 
 ; busybox's sync_cursor: the top of the screen and the left offset moved so D
@@ -533,46 +544,46 @@
 (def %vi-sync-cursor!
   (fn (_ d)
     (def beg (%vi-begin-line d))
-    (if (%vi< beg %vi-screenbegin)
+    (if (vi< beg %vi-screenbegin)
       (%vi-scroll-up-to! beg (%vi-count-lines beg %vi-screenbegin))
       (%vi-scroll-down-to! beg (%vi-end-screen)))
     (set! %vi-crow (%vi-row-of beg %vi-screenbegin 0))
     (def co (%vi-cursor-column d beg))
-    (if (%vi< co %vi-offset) (set! %vi-offset co) ())
-    (if (%vi< co (%vi+ %vi-columns %vi-offset)) ()
-      (set! %vi-offset (%vi+ (%vi- co %vi-columns) 1)))
+    (if (vi< co %vi-offset) (set! %vi-offset co) ())
+    (if (vi< co (vi+ %vi-columns %vi-offset)) ()
+      (set! %vi-offset (vi+ (vi- co %vi-columns) 1)))
     (if (if (= d beg) (= (byte-at %vi-text d) #\tab) #f) (set! %vi-offset 0) ())
-    (set! %vi-ccol (%vi- co %vi-offset))))
+    (set! %vi-ccol (vi- co %vi-offset))))
 
 (def %vi-scroll-up-to!
   (fn (_ beg cnt)
     (set! %vi-screenbegin beg)
-    (def half (%vi/ (%vi- %vi-rows 1) 2))
-    (if (%vi< half cnt)
+    (def half (vi/ (vi- %vi-rows 1) 2))
+    (if (vi< half cnt)
       (set! %vi-screenbegin (%vi-prev-lines %vi-screenbegin half))
       ())))
 
 (def %vi-prev-lines
-  (fn (self p n) (if (%vi< 0 n) (self (%vi-prev-line p) (%vi- n 1)) p)))
+  (fn (self p n) (if (vi< 0 n) (self (%vi-prev-line p) (vi- n 1)) p)))
 
 (def %vi-scroll-down-to!
   (fn (_ beg end-scr)
-    (if (%vi< end-scr beg)
+    (if (vi< end-scr beg)
       (%vi-scroll-down-by! beg (%vi-count-lines end-scr beg))
       ())))
 
 (def %vi-scroll-down-by!
   (fn (_ beg cnt)
-    (if (%vi< (%vi/ (%vi- %vi-rows 1) 2) cnt)
+    (if (vi< (vi/ (vi- %vi-rows 1) 2) cnt)
       (%vi-scroll-up-to! beg cnt)
-      (set! %vi-screenbegin (%vi-next-lines %vi-screenbegin (%vi- cnt 1))))))
+      (set! %vi-screenbegin (%vi-next-lines %vi-screenbegin (vi- cnt 1))))))
 
 (def %vi-row-of
   (fn (self beg tp ro)
     (match
       ((= tp beg) ro)
-      ((%vi< ro (%vi- %vi-rows 2)) (self beg (%vi-next-line tp) (%vi+ ro 1)))
-      (#t (%vi+ ro 1)))))
+      ((vi< ro (vi- %vi-rows 2)) (self beg (%vi-next-line tp) (vi+ ro 1)))
+      (#t (vi+ ro 1)))))
 
 ; the column the cursor shows at on the byte D: a byte's last cell, where a
 ; newline shows none and an insert before a tab sits on its first
@@ -582,8 +593,8 @@
     (def start (%vi-columns-over beg d 0))
     (match
       ((= c #\newline) start)
-      ((if (= c #\tab) (if (= %vi-cmd-mode 0) #f (%vi< beg d)) #f) start)
-      (#t (%vi- (%vi-next-column c start) 1)))))
+      ((if (= c #\tab) (if (= %vi-cmd-mode 0) #f (vi< beg d)) #f) start)
+      (#t (vi- (%vi-next-column c start) 1)))))
 
 ; busybox's refresh: each row that differs from what the screen shows is
 ; written again, and the cursor put on the dot.  The rows are not formatted
@@ -608,7 +619,7 @@
           (set! %vi-drawn-top %vi-screenbegin)
           (set! %vi-drawn-tabstop %vi-tabstop)))
     (%vi-place-cursor %vi-crow %vi-ccol)
-    (if %vi-keep-index () (set! %vi-cindex (%vi+ %vi-ccol %vi-offset)))
+    (if %vi-keep-index () (set! %vi-cindex (vi+ %vi-ccol %vi-offset)))
     (set! %vi-old-offset %vi-offset)))
 
 (def %vi-rows-current?
@@ -622,15 +633,15 @@
 
 (def %vi-refresh-rows
   (fn (self tp li old force acc)
-    (if (%vi< li (%vi- %vi-rows 1))
-      (self (%vi-row-next tp) (%vi+ li 1) (if (null? old) () (rest old)) force
+    (if (vi< li (vi- %vi-rows 1))
+      (self (%vi-row-next tp) (vi+ li 1) (if (null? old) () (rest old)) force
         (pair (%vi-row-drawn li (%vi-format-line tp) old force) acc))
       (reverse acc))))
 
 (def %vi-row-next
   (fn (_ tp)
-    (if (%vi< tp %vi-end)
-      (%vi+ (%vi-end-line-at (%vi-find-nl tp %vi-end) (%vi- %vi-end 1)) 1)
+    (if (vi< tp %vi-end)
+      (vi+ (%vi-end-line-at (%vi-find-nl tp %vi-end) (vi- %vi-end 1)) 1)
       tp)))
 
 ; busybox's refresh, a row at a time: what differs from the row on the
@@ -646,16 +657,16 @@
 
 (def %vi-row-span
   (fn (_ li row old cs)
-    (def ce (%vi-last-diff row old (%vi- (byte-len row) 1)))
+    (def ce (%vi-last-diff row old (vi- (byte-len row) 1)))
     (%vi-place-cursor li cs)
-    (%vi-put (%vi-bsub row cs (%vi+ (%vi- ce cs) 1)))))
+    (%vi-put (vi-bsub row cs (vi+ (vi- ce cs) 1)))))
 
 (def %vi-first-diff
   (fn (self a b i)
-    (if (= (byte-at a i) (byte-at b i)) (self a b (%vi+ i 1)) i)))
+    (if (= (byte-at a i) (byte-at b i)) (self a b (vi+ i 1)) i)))
 (def %vi-last-diff
   (fn (self a b i)
-    (if (= (byte-at a i) (byte-at b i)) (self a b (%vi- i 1)) i)))
+    (if (= (byte-at a i) (byte-at b i)) (self a b (vi- i 1)) i)))
 
 ; the window as the terminal reports it, (columns . rows), or nil when it
 ; reports nothing
@@ -670,26 +681,26 @@
     (def m (%vi-measure))
     (def lines (%vi-getenv "LINES"))
     (def cols (%vi-getenv "COLUMNS"))
-    (set! %vi-rows (%vi-min (%vi-dim (if (null? m) 0 (rest m)) lines 24) 4096))
-    (set! %vi-columns (%vi-min (%vi-dim (if (null? m) 0 (first m)) cols 80) 4096))
+    (set! %vi-rows (vi-min (vi-dim (if (null? m) 0 (rest m)) lines 24) 4096))
+    (set! %vi-columns (vi-min (vi-dim (if (null? m) 0 (first m)) cols 80) 4096))
     (if (null? m) (if (null? lines) (null? cols) #f) #f)))
 
 ; busybox's wh_helper: the variable's number over the terminal's, the default
 ; for one under 2 or past 29999
-(def %vi-dim
+(def vi-dim
   (fn (_ measured var dflt)
     (def v (if (null? var) measured (%vi-atoi var)))
-    (if (if (%vi< 1 v) (%vi< v 30000) #f) v dflt)))
+    (if (if (vi< 1 v) (vi< v 30000) #f) v dflt)))
 
 ; atoi: blanks, a sign, then digits as far as they go
 (def %vi-atoi
   (fn (_ s)
     (def i (%vi-skip-blanks 0 s))
-    (def sign (if (%vi< i (byte-len s)) (byte-at s i) 0))
+    (def sign (if (vi< i (byte-len s)) (byte-at s i) 0))
     (def neg? (= sign #\-))
-    (def j (if (if neg? #t (= sign #\+)) (%vi+ i 1) i))
-    (def n (%vi-num-from s j (%vi-digits-end j s) 0))
-    (if neg? (%vi- 0 n) n)))
+    (def j (if (if neg? #t (= sign #\+)) (vi+ i 1) i))
+    (def n (vi-num-from s j (%vi-digits-end j s) 0))
+    (if neg? (vi- 0 n) n)))
 
 ; set when the size was asked of the terminal: busybox's refresh then
 ; measures no more, though SIGWINCH still does
@@ -713,8 +724,8 @@
     (%vi-flush!)
     (def k (if (%vi-src-ready? 100) (%vi-read-key) ()))
     (if (if (null? k) #f (= k %vi-key-cursor-pos))
-      (do (set! %vi-rows (%vi-min (first %vi-cursor-reply) 4096))
-          (set! %vi-columns (%vi-min (rest %vi-cursor-reply) 4096)))
+      (do (set! %vi-rows (vi-min (first %vi-cursor-reply) 4096))
+          (set! %vi-columns (vi-min (rest %vi-cursor-reply) 4096)))
       ())))
 
 (def %vi-redraw!
@@ -738,21 +749,21 @@
 (def %vi-edit-status
   (fn (_)
     (def eol (%vi-end-line %vi-dot))
-    (def cur (%vi-lines-before (%vi+ eol 1)))
-    (def before (if (= (byte-at %vi-text eol) #\newline) (%vi- cur 1) cur))
-    (def tot (%vi- (%vi+ cur (%vi- %vi-nl-total before)) 1))
+    (def cur (%vi-lines-before (vi+ eol 1)))
+    (def before (if (= (byte-at %vi-text eol) #\newline) (vi- cur 1) cur))
+    (def tot (vi- (vi+ cur (vi- %vi-nl-total before)) 1))
     (def s
       (string-append
-        (%vi-bsub "-IR-" (%vi% %vi-cmd-mode 4) 1) " "
+        (vi-bsub "-IR-" (vi% %vi-cmd-mode 4) 1) " "
         (if (null? %vi-filename) "No file" %vi-filename)
         (if (= %vi-readonly 0) "" " [Readonly]")
         (if (= %vi-modified 0) "" " [Modified]")
-        " " (%vi-num->str (if (%vi< 0 tot) cur 0))
-        "/" (%vi-num->str (if (%vi< 0 tot) tot 0))
-        " " (%vi-num->str (if (%vi< 0 tot) (%vi/ (%vi* 100 cur) tot) 100))
+        " " (%vi-num->str (if (vi< 0 tot) cur 0))
+        "/" (%vi-num->str (if (vi< 0 tot) tot 0))
+        " " (%vi-num->str (if (vi< 0 tot) (vi/ (%vi* 100 cur) tot) 100))
         "%"))
-    (def most (%vi-min %vi-columns 199))
-    (if (%vi< most (byte-len s)) (%vi-bsub s 0 most) s)))
+    (def most (vi-min %vi-columns 199))
+    (if (vi< most (byte-len s)) (vi-bsub s 0 most) s)))
 
 ; busybox's show_status_line: a waiting message, or the edit status when its
 ; checksum changed -- busybox's bufsum, the sum of its bytes, so two statuses
@@ -760,7 +771,7 @@
 ; message too wide for the line waits for a Return
 (def %vi-show-status-line!
   (fn (_)
-    (def msg? (%vi< 0 %vi-have-status))
+    (def msg? (vi< 0 %vi-have-status))
     (def s (if msg? %vi-status (%vi-edit-status)))
     (if (match (msg? #t) ((null? %vi-last-status) #t) (#t (if (= (%vi-bufsum s) %vi-last-status) #f #t)))
       (%vi-status-drawn! s msg?)
@@ -779,7 +790,7 @@
           %vi-sum-of-text))))
 (def %vi-sum-from
   (fn (self s i n)
-    (if (%vi< i (byte-len s)) (self s (%vi+ i 1) (%vi+ n (%vi& (byte-at s i) 255))) n)))
+    (if (vi< i (byte-len s)) (self s (vi+ i 1) (vi+ n (vi& (byte-at s i) 255))) n)))
 
 ; the bottom line's text as last drawn, without its video codes
 (def %vi-bottom "")
@@ -799,7 +810,7 @@
 (def %vi-status-shown!
   (fn (_ s)
     (set! %vi-have-status 0)
-    (if (%vi< (byte-len s) %vi-columns) () (%vi-hit-return s))))
+    (if (vi< (byte-len s) %vi-columns) () (%vi-hit-return s))))
 
 (def %vi-hit-return
   (fn (_ s)
@@ -821,16 +832,16 @@
 
 (def %vi-literal-from
   (fn (self s i acc)
-    (if (%vi< i (byte-len s))
-      (self s (%vi+ i 1) (pair (%vi-literal-byte (%vi& (byte-at s i) 255)) acc))
+    (if (vi< i (byte-len s))
+      (self s (vi+ i 1) (pair (%vi-literal-byte (vi& (byte-at s i) 255)) acc))
       acc)))
 
 (def %vi-literal-byte
   (fn (_ c)
     (match
       ((= c #\delete) "^?")
-      ((%vi< c #\space) (string-append "^" (bytes->str (list (%vi+ c #\@)))))
-      ((%vi< #\delete c) "?")
+      ((vi< c #\space) (string-append "^" (bytes->str (list (vi+ c #\@)))))
+      ((vi< #\delete c) "?")
       (#t (bytes->str (list c))))))
 
 (def %vi-not-implemented
@@ -852,16 +863,16 @@
 (def %vi-stop! ())
 
 ; busybox's escape sequences (libbb/read_key.c), each with its key code
-(def %vi-key-up -2)
-(def %vi-key-down -3)
+(def vi-key-up -2)
+(def vi-key-down -3)
 (def %vi-key-right -4)
 (def %vi-key-left -5)
-(def %vi-key-home -6)
-(def %vi-key-end -7)
+(def vi-key-home -6)
+(def vi-key-end -7)
 (def %vi-key-insert -8)
 (def %vi-key-delete -9)
-(def %vi-key-page-up -10)
-(def %vi-key-page-down -11)
+(def vi-key-page-up -10)
+(def vi-key-page-down -11)
 
 ; the terminal's answer to where its cursor is, ESC [ ROW ; COL R; the
 ; numbers in %vi-cursor-reply, (ROW . COL)
@@ -870,7 +881,7 @@
 
 ; each sequence as the bytes after the Escape, with its code; shortest first,
 ; as busybox orders them
-(def %vi-sequences
+(def vi-sequences
   (list (pair (bytes->str (list 127)) -44) (pair (bytes->str (list 8)) -44)
         (pair "d" -45) (pair "f" -36) (pair "b" -37)
         (pair "OA" -2) (pair "OB" -3) (pair "OC" -4) (pair "OD" -5)
@@ -908,7 +919,7 @@
 ; matching starts, in the order they came.
 (def %vi-escape
   (fn (_ again)
-    (def got (%vi-seq-match %vi-sequences (%vi-list->str %vi-kbuf)))
+    (def got (%vi-seq-match vi-sequences (%vi-list->str %vi-kbuf)))
     (set! %vi-kbuf ())
     (match
       ((null? got) ())
@@ -928,9 +939,9 @@
     (def want (first (first seqs)))
     (match
       ((= i (byte-len want)) (rest (first seqs)))
-      ((%vi< i (byte-len buf))
+      ((vi< i (byte-len buf))
         (if (= (byte-at buf i) (byte-at want i))
-          (%vi-seq-try walk seqs buf (%vi+ i 1))
+          (%vi-seq-try walk seqs buf (vi+ i 1))
           (walk (rest seqs) buf)))
       ((%vi-src-ready? 50) (%vi-seq-read walk seqs buf i))
       (#t (pair buf (lit stop))))))
@@ -945,7 +956,7 @@
 ; each one read making the run a cursor report if it now is one
 (def %vi-drain
   (fn (self buf)
-    (if (if (%vi< (byte-len buf) 15) (%vi-src-ready? 50) #f)
+    (if (if (vi< (byte-len buf) 15) (%vi-src-ready? 50) #f)
       (%vi-drained self buf (%vi-src-read))
       buf)))
 (def %vi-drained
@@ -964,30 +975,30 @@
   (fn (_ s)
     (def n (byte-len s))
     (match
-      ((%vi< n 5) ())
+      ((vi< n 5) ())
       ((not (= (byte-at s 0) #\[)) ())
-      ((not (= (byte-at s (%vi- n 1)) #\R)) ())
+      ((not (= (byte-at s (vi- n 1)) #\R)) ())
       ((not (%vi-digit? (byte-at s 1))) ())
       (#t (%vi-cursor-report-col s (%vi-number-at s 1))))))
 (def %vi-cursor-report-col
   (fn (_ s row)
     (def at (rest row))
-    (def ok? (if (%vi< (%vi+ at 1) (byte-len s))
-               (if (= (byte-at s at) #\;) (%vi-digit? (byte-at s (%vi+ at 1))) #f)
+    (def ok? (if (vi< (vi+ at 1) (byte-len s))
+               (if (= (byte-at s at) #\;) (%vi-digit? (byte-at s (vi+ at 1))) #f)
                #f))
-    (if ok? (%vi-cursor-report-end s (first row) (%vi-number-at s (%vi+ at 1))) ())))
+    (if ok? (%vi-cursor-report-end s (first row) (%vi-number-at s (vi+ at 1))) ())))
 ; the number in S's digits from I, and where they stop: (N . END)
 (def %vi-number-at
   (fn (_ s i)
     (def end (%vi-digits-end i s))
-    (pair (%vi-num-from s i end 0) end)))
+    (pair (vi-num-from s i end 0) end)))
 (def %vi-cursor-report-end
   (fn (_ s row col)
     (match
-      ((not (= (rest col) (%vi- (byte-len s) 1))) ())
-      ((%vi< row 1) ())
-      ((%vi< (first col) 1) ())
-      ((%vi< 32767 (%vi| row (first col))) ())
+      ((not (= (rest col) (vi- (byte-len s) 1))) ())
+      ((vi< row 1) ())
+      ((vi< (first col) 1) ())
+      ((vi< 32767 (%vi| row (first col))) ())
       (#t (pair row (first col))))))
 
 (def %vi-escape-rest
@@ -995,12 +1006,12 @@
     (match
       ((null? buf) ())
       ((number? buf) buf)
-      ((%vi< (byte-len buf) 2) (do (set! %vi-kbuf (%vi-str->list buf)) 27))
+      ((vi< (byte-len buf) 2) (do (set! %vi-kbuf (%vi-str->list buf)) 27))
       (#t (again)))))
 
 (def %vi-list->str (fn (_ l) (if (null? l) "" (bytes->str l))))
 (def %vi-str->list
-  (fn (_ s) (if (= (byte-len s) 0) () (list (%vi& (byte-at s 0) 255)))))
+  (fn (_ s) (if (= (byte-len s) 0) () (list (vi& (byte-at s 0) 255)))))
 
 ; busybox's readit: a key, or the editor ends when the input does.
 ; busybox's get_one_char: a key . replays first, as it was kept; else one
@@ -1065,8 +1076,8 @@
 
 (def %vi-bytes-of
   (fn (self s i)
-    (if (%vi< i (byte-len s))
-      (pair (%vi& (byte-at s i) 255) (self s (%vi+ i 1)))
+    (if (vi< i (byte-len s))
+      (pair (vi& (byte-at s i) 255) (self s (vi+ i 1)))
       ())))
 
 ; the line so far is ACC, its bytes last first
@@ -1076,7 +1087,7 @@
     (match
       ((if (= c #\newline) #t (if (= c #\return) #t (= c #\escape))) (%vi-list->str (reverse acc)))
       ((if (= c #\backspace) #t (= c #\delete)) (%vi-input-back self (rest acc)))
-      ((if (%vi< 0 c) (%vi< c 256) #f)
+      ((if (vi< 0 c) (vi< c 256) #f)
         (do (%vi-put (bytes->str (list c))) (self (pair c acc))))
       (#t (self acc)))))
 
@@ -1091,15 +1102,15 @@
 (def %vi-dot-left!
   (fn (_)
     (%vi-undo-queue-commit!)
-    (if (if (%vi< 0 %vi-dot) (if (= (byte-at %vi-text (%vi- %vi-dot 1)) #\newline) #f #t) #f)
-      (set! %vi-dot (%vi- %vi-dot 1))
+    (if (if (vi< 0 %vi-dot) (if (= (byte-at %vi-text (vi- %vi-dot 1)) #\newline) #f #t) #f)
+      (set! %vi-dot (vi- %vi-dot 1))
       ())))
 
 (def %vi-dot-right!
   (fn (_)
     (%vi-undo-queue-commit!)
-    (if (if (%vi< %vi-dot (%vi- %vi-end 1)) (if (= (byte-at %vi-text %vi-dot) #\newline) #f #t) #f)
-      (set! %vi-dot (%vi+ %vi-dot 1))
+    (if (if (vi< %vi-dot (vi- %vi-end 1)) (if (= (byte-at %vi-text %vi-dot) #\newline) #f #t) #f)
+      (set! %vi-dot (vi+ %vi-dot 1))
       ())))
 
 ; each move ends a run of typing, as busybox's dot_* commit the undo queue
@@ -1117,22 +1128,22 @@
   (fn (_ c)
     (match
       ((= c #\space) #t)
-      ((%vi< c #\tab) #f)
-      (#t (if (%vi< #\return c) #f #t)))))
+      ((vi< c #\tab) #f)
+      (#t (if (vi< #\return c) #f #t)))))
 
 (def %vi-dot-skip-over-ws!
   (fn (self)
     (def c (byte-at %vi-text %vi-dot))
-    (if (if (%vi-space? c) (if (= c #\newline) #f (%vi< %vi-dot (%vi- %vi-end 1))) #f)
-      (do (set! %vi-dot (%vi+ %vi-dot 1)) (self))
+    (if (if (%vi-space? c) (if (= c #\newline) #f (vi< %vi-dot (vi- %vi-end 1))) #f)
+      (do (set! %vi-dot (vi+ %vi-dot 1)) (self))
       ())))
 
 ; busybox's bound_dot: P kept inside the text
 (def %vi-bound-dot
   (fn (_ p)
     (match
-      ((if (%vi< p %vi-end) #f (%vi< 0 %vi-end)) (do (%vi-indicate-error) (%vi- %vi-end 1)))
-      ((%vi< p 0) (do (%vi-indicate-error) 0))
+      ((if (vi< p %vi-end) #f (vi< 0 %vi-end)) (do (%vi-indicate-error) (vi- %vi-end 1)))
+      ((vi< p 0) (do (%vi-indicate-error) 0))
       (#t p))))
 
 ; busybox's char_insert: C typed at P, answering where the cursor goes; UNDO
@@ -1157,15 +1168,15 @@
     (if (= c #\newline) (%vi-undo-queue-commit!) ())
     (%vi-undo-push-insert! p 1 undo)
     (%vi-byte-insert! p c)
-    (%vi-after-insert (%vi+ p 1) c undo)))
+    (%vi-after-insert (vi+ p 1) c undo)))
 
 (def %vi-insert-literal
   (fn (_ p undo)
     (%vi-byte-insert! p 94)
     (%vi-refresh! #f)
-    (%vi-byte-set! p (%vi& (%vi-get-one-char) 255))
+    (%vi-byte-set! p (vi& (%vi-get-one-char) 255))
     (%vi-undo-push-insert! p 1 undo)
-    (%vi+ p 1)))
+    (vi+ p 1)))
 
 (def %vi-insert-escape
   (fn (_ p)
@@ -1174,8 +1185,8 @@
     (set! %vi-cmdcnt 0)
     (%vi-end-cmd-q!)
     (set! %vi-last-status ())
-    (if (if (%vi< 0 %vi-dot) (if (= (byte-at %vi-text (%vi- p 1)) #\newline) #f #t) #f)
-      (%vi- p 1)
+    (if (if (vi< 0 %vi-dot) (if (= (byte-at %vi-text (vi- p 1)) #\newline) #f #t) #f)
+      (vi- p 1)
       p)))
 
 ; Backspace: in replace mode, back over what was replaced, undoing it; else
@@ -1183,8 +1194,8 @@
 (def %vi-insert-backspace
   (fn (_ p)
     (match
-      ((= %vi-cmd-mode 2) (if (%vi< %vi-rstart p) (do (%vi-undo-pop!) (%vi- p 1)) p))
-      ((%vi< 0 p) (%vi-hole-delete! (%vi- p 1) (%vi- p 1) %vi-allow-undo-queued))
+      ((= %vi-cmd-mode 2) (if (vi< %vi-rstart p) (do (%vi-undo-pop!) (vi- p 1)) p))
+      ((vi< 0 p) (%vi-hole-delete! (vi- p 1) (vi- p 1) %vi-allow-undo-queued))
       (#t p))))
 (def %vi-rstart 0)
 
@@ -1192,28 +1203,28 @@
 (def %vi-insert-dedent
   (fn (_ p)
     (def bol (%vi-begin-line p))
-    (def r (%vi+ bol (%vi-indent-len bol)))
+    (def r (vi+ bol (%vi-indent-len bol)))
     (%vi-dedent-to p bol r (%vi-prev-tabstop (%vi-get-column r)))))
 
 (def %vi-dedent-to
   (fn (self p bol r prev)
-    (if (if (%vi< bol r) (%vi< prev (%vi-get-column r)) #f)
-      (self (if (%vi< bol p) (%vi- p 1) p) bol
-        (%vi-hole-delete! (%vi- r 1) (%vi- r 1) %vi-allow-undo-queued) prev)
+    (if (if (vi< bol r) (vi< prev (%vi-get-column r)) #f)
+      (self (if (vi< bol p) (vi- p 1) p) bol
+        (%vi-hole-delete! (vi- r 1) (vi- r 1) %vi-allow-undo-queued) prev)
       p)))
 
 (def %vi-prev-tabstop
   (fn (_ col)
-    (def m (%vi% col %vi-tabstop))
-    (%vi- col (if (= m 0) %vi-tabstop m))))
+    (def m (vi% col %vi-tabstop))
+    (vi- col (if (= m 0) %vi-tabstop m))))
 
 (def %vi-indent-len
   (fn (_ p) (%vi-indent-end p p)))
 (def %vi-indent-end
   (fn (self from p)
-    (if (if (%vi< p (%vi- %vi-end 1)) (%vi-blank? (byte-at %vi-text p)) #f)
-      (self from (%vi+ p 1))
-      (%vi- p from))))
+    (if (if (vi< p (vi- %vi-end 1)) (%vi-blank? (byte-at %vi-text p)) #f)
+      (self from (vi+ p 1))
+      (vi- p from))))
 
 ; the registers: a to z, 26 the one d and y use when none is named, 27 the
 ; line U puts back; each the text it holds and its type, busybox's -- 0 part
@@ -1228,16 +1239,16 @@
 ; busybox's text_yank: P through Q copied into register DEST, as a C string
 (def %vi-text-yank!
   (fn (_ p q dest type)
-    (def a (%vi-min p q))
-    (Vector set! dest (pair (%vi-bsub %vi-text a (%vi+ (%vi- (%vi-max p q) a) 1)) type)
+    (def a (vi-min p q))
+    (Vector set! dest (pair (vi-bsub %vi-text a (vi+ (vi- (vi-max p q) a) 1)) type)
       %vi-regs)
-    (set! %vi-yank-count (%vi+ %vi-yank-count 1))
+    (set! %vi-yank-count (vi+ %vi-yank-count 1))
     a))
 
 (def %vi-what-reg
   (fn (_)
     (match
-      ((%vi< %vi-ydreg 26) (%vi+ #\a %vi-ydreg))
+      ((vi< %vi-ydreg 26) (vi+ #\a %vi-ydreg))
       ((= %vi-ydreg 27) 85)
       (#t 68))))
 
@@ -1255,16 +1266,16 @@
     (%vi-count-in s 0 0)))
 (def %vi-count-in
   (fn (self s i n)
-    (if (%vi< i (byte-len s))
-      (self s (%vi+ i 1) (if (= (byte-at s i) #\newline) (%vi+ n 1) n))
+    (if (vi< i (byte-len s))
+      (self s (vi+ i 1) (if (= (byte-at s i) #\newline) (vi+ n 1) n))
       n)))
 
 ; busybox's yank_delete: START through STOP into the register as TYPE, then
 ; out of the text when DEL?; a partial range never starts on a newline
 (def %vi-yank-delete
   (fn (_ start stop type del? undo)
-    (def a (%vi-min start stop))
-    (def b (%vi-max start stop))
+    (def a (vi-min start stop))
+    (def b (vi-max start stop))
     (if (if (= type 0) (= (byte-at %vi-text a) #\newline) #f) a
       (do (%vi-text-yank! a b %vi-ydreg type)
           (if del? (%vi-hole-delete! a b undo) a)))))
@@ -1295,13 +1306,13 @@
 ; the keys that move the cursor in every mode: the arrows, Home, End, the
 ; pages and Delete -- codes -2 to -11, less Insert's -8
 (def %vi-cursor-key?
-  (fn (_ c) (if (%vi< c -1) (if (%vi< -12 c) (if (= c -8) #f #t) #f) #f)))
+  (fn (_ c) (if (vi< c -1) (if (vi< -12 c) (if (= c -8) #f #t) #f) #f)))
 
 (def %vi-insert-key
   (fn (_ c)
     (match
       ((= c %vi-key-insert) (%vi-start-replace!))
-      ((%vi< 0 c) (set! %vi-dot (%vi-char-insert %vi-dot c %vi-allow-undo-queued)))
+      ((vi< 0 c) (set! %vi-dot (%vi-char-insert %vi-dot c %vi-allow-undo-queued)))
       (#t ()))))
 
 ; replace mode: past the end of the line it inserts; a byte replaced is taken
@@ -1312,7 +1323,7 @@
       ((= c %vi-key-insert) (%vi-start-insert!))
       ((= (byte-at %vi-text %vi-dot) #\newline)
         (do (set! %vi-cmd-mode 1) (%vi-undo-queue-commit!) (%vi-insert-key c)))
-      ((%vi< 0 c) (%vi-replace-char c))
+      ((vi< 0 c) (%vi-replace-char c))
       (#t ()))))
 
 (def %vi-replace-char
@@ -1333,12 +1344,12 @@
     (if (= %vi-dot %vi-orig-dot) () (%vi-check-context c))
     (if (%vi-digit? c) () (set! %vi-cmdcnt 0))
     (if (if (= (byte-at %vi-text %vi-dot) #\newline)
-          (if (%vi< 0 (%vi- %vi-dot (%vi-begin-line %vi-dot))) (= %vi-cmd-mode 0) #f)
+          (if (vi< 0 (vi- %vi-dot (%vi-begin-line %vi-dot))) (= %vi-cmd-mode 0) #f)
           #f)
-      (set! %vi-dot (%vi- %vi-dot 1))
+      (set! %vi-dot (vi- %vi-dot 1))
       ())))
 
-(def %vi-digit? (fn (_ c) (if (%vi< c #\0) #f (if (%vi< #\9 c) #f #t))))
+(def %vi-digit? (fn (_ c) (if (vi< c #\0) #f (if (vi< #\9 c) #f #t))))
 
 ; whether the key C is one of CS
 (def %vi-one-of?
@@ -1352,8 +1363,8 @@
 (def %vi-repeat
   (fn (self thunk)
     (thunk)
-    (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1))
-    (if (%vi< 0 %vi-cmdcnt) (self thunk) ())))
+    (set! %vi-cmdcnt (vi- %vi-cmdcnt 1))
+    (if (vi< 0 %vi-cmdcnt) (self thunk) ())))
 
 ; busybox's dc_i and dc5: a change of mode ends a run of typing
 (def %vi-start-insert!
@@ -1370,12 +1381,12 @@
         (%vi-repeat %vi-dot-left!))
       ((%vi-one-of? c (list #\l #\space %vi-key-right))
         (%vi-repeat %vi-dot-right!))
-      ((%vi-one-of? c (list #\j %vi-key-down #\newline #\return #\+))
+      ((%vi-one-of? c (list #\j vi-key-down #\newline #\return #\+))
         (%vi-cmd-down c))
-      ((%vi-one-of? c (list #\k %vi-key-up #\-)) (%vi-cmd-up c))
+      ((%vi-one-of? c (list #\k vi-key-up #\-)) (%vi-cmd-up c))
       ((%vi-digit? c) (%vi-cmd-digit c))
-      ((if (= c #\$) #t (= c %vi-key-end)) (%vi-cmd-dollar))
-      ((= c %vi-key-home) (%vi-dot-begin!))
+      ((if (= c #\$) #t (= c vi-key-end)) (%vi-cmd-dollar))
+      ((= c vi-key-home) (%vi-dot-begin!))
       ((if (= c #\i) #t (= c %vi-key-insert)) (%vi-start-insert!))
       ((= c #\a) (%vi-cmd-append))
       ((= c #\A) (do (%vi-dot-end!) (%vi-cmd-append)))
@@ -1415,7 +1426,7 @@
       ((= c #\%) (%vi-cmd-percent))
       ((%vi-one-of? c (list #\{ #\})) (%vi-cmd-paragraph c))
       ((%vi-one-of? c (list (%vi-ctrl #\B) (%vi-ctrl #\F) (%vi-ctrl #\U) (%vi-ctrl #\D)
-                            (%vi-ctrl #\Y) (%vi-ctrl #\E) %vi-key-page-up %vi-key-page-down))
+                            (%vi-ctrl #\Y) (%vi-ctrl #\E) vi-key-page-up vi-key-page-down))
         (%vi-cmd-scroll c))
       ((= c #\z) (%vi-cmd-z-scroll))
       ((%vi-one-of? c (list #\/ #\?)) (%vi-cmd-search c))
@@ -1423,7 +1434,7 @@
       ((= c #\N) (%vi-search-again -1))
       ((= c #\u) (%vi-undo-pop!))
       ((= c #\.) (%vi-cmd-dot))
-      (#t (do (%vi-not-implemented (bytes->str (list (%vi& c 255))))
+      (#t (do (%vi-not-implemented (bytes->str (list (vi& c 255))))
               (%vi-end-cmd-q!))))))
 
 ; j, Return, + and the arrow: down a line, to the column aimed at, or past
@@ -1442,7 +1453,7 @@
     (def p (%vi-next-line q))
     (match
       ((= p (%vi-end-line q)) ())
-      ((%vi< 1 %vi-cmdcnt) (do (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1)) (self p)))
+      ((vi< 1 %vi-cmdcnt) (do (set! %vi-cmdcnt (vi- %vi-cmdcnt 1)) (self p)))
       (#t p))))
 
 (def %vi-cmd-up
@@ -1457,7 +1468,7 @@
     (def p (%vi-prev-line q))
     (match
       ((= p (%vi-begin-line q)) ())
-      ((%vi< 1 %vi-cmdcnt) (do (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1)) (self p)))
+      ((vi< 1 %vi-cmdcnt) (do (set! %vi-cmdcnt (vi- %vi-cmdcnt 1)) (self p)))
       (#t p))))
 
 (def %vi-to-cindex!
@@ -1468,21 +1479,21 @@
 
 (def %vi-cmd-digit
   (fn (_ c)
-    (if (if (= c #\0) (%vi< %vi-cmdcnt 1) #f)
+    (if (if (= c #\0) (vi< %vi-cmdcnt 1) #f)
       (%vi-dot-begin!)
-      (set! %vi-cmdcnt (%vi+ (%vi* %vi-cmdcnt 10) (%vi- c #\0))))))
+      (set! %vi-cmdcnt (vi+ (%vi* %vi-cmdcnt 10) (vi- c #\0))))))
 
 (def %vi-cmd-dollar
   (fn (self)
     (%vi-dot-end!)
-    (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1))
-    (if (%vi< 0 %vi-cmdcnt) (do (%vi-dot-next!) (self)) ())
+    (set! %vi-cmdcnt (vi- %vi-cmdcnt 1))
+    (if (vi< 0 %vi-cmdcnt) (do (%vi-dot-next!) (self)) ())
     (set! %vi-cindex -1)
     (set! %vi-keep-index #t)))
 
 (def %vi-cmd-append
   (fn (_)
-    (if (= (byte-at %vi-text %vi-dot) #\newline) () (set! %vi-dot (%vi+ %vi-dot 1)))
+    (if (= (byte-at %vi-text %vi-dot) #\newline) () (set! %vi-dot (vi+ %vi-dot 1)))
     (%vi-start-insert!)))
 
 (def %vi-cmd-open-below
@@ -1496,7 +1507,7 @@
 (def %vi-cmd-open-above
   (fn (_)
     (%vi-dot-begin!)
-    (set! %vi-newindent (%vi-get-column (%vi+ %vi-dot (%vi-indent-len %vi-dot))))
+    (set! %vi-newindent (%vi-get-column (vi+ %vi-dot (%vi-indent-len %vi-dot))))
     (%vi-cmd-open)
     (if (%vi-opt? %vi-ai) () (%vi-dot-prev!))
     (%vi-start-insert!)))
@@ -1513,8 +1524,8 @@
     (def undo (list %vi-allow-undo))
     (%vi-repeat
       (fn (_)
-        (def at (if (= c #\X) (%vi- %vi-dot 1) %vi-dot))
-        (if (if (%vi< at 0) #t (= (byte-at %vi-text at) #\newline)) ()
+        (def at (if (= c #\X) (vi- %vi-dot 1) %vi-dot))
+        (if (if (vi< at 0) #t (= (byte-at %vi-text at) #\newline)) ()
           (do (set! %vi-dot at)
               (set! %vi-dot (%vi-yank-delete %vi-dot %vi-dot 0 #t (first undo)))
               (set-first! undo %vi-allow-undo-chain)))))
@@ -1523,7 +1534,7 @@
 
 (def %vi-cmd-delete-key
   (fn (_)
-    (if (%vi< %vi-dot (%vi- %vi-end 1))
+    (if (vi< %vi-dot (vi- %vi-end 1))
       (set! %vi-dot (%vi-yank-delete %vi-dot %vi-dot 0 #t %vi-allow-undo))
       ())))
 
@@ -1539,7 +1550,7 @@
 (def %vi-motion-count
   (fn (self c cnt)
     (if (%vi-digit? c)
-      (self (%vi-get-one-char) (%vi+ (%vi* cnt 10) (%vi- c #\0)))
+      (self (%vi-get-one-char) (vi+ (%vi* cnt 10) (vi- c #\0)))
       (do (set! %vi-cmdcnt (%vi* (if (= %vi-cmdcnt 0) 1 %vi-cmdcnt) cnt)) c))))
 
 (def %vi-cmd-escape
@@ -1571,8 +1582,8 @@
 
 (def %vi-zz-ends
   (fn (_)
-    (def more (%vi- (%vi- (length %vi-files) %vi-optind) 1))
-    (if (%vi< 0 more)
+    (def more (vi- (vi- (length %vi-files) %vi-optind) 1))
+    (if (vi< 0 more)
       (do (set! %vi-modified 0)
           (%vi-status-line-bold! (string-append (%vi-num->str more) " more file(s) to edit")))
       (set! %vi-editing 0))))
@@ -1591,7 +1602,7 @@
 (def %vi-write-fd
   (fn (_ fd from to)
     (if (Err err? fd) fd
-      (%vi-write-close fd (%vi-write-all fd from (%vi- to from) 0)))))
+      (%vi-write-close fd (%vi-write-all fd from (vi- to from) 0)))))
 
 (def %vi-write-close
   (fn (_ fd n)
@@ -1601,14 +1612,14 @@
 
 (def %vi-write-all
   (fn (self fd at left done)
-    (if (%vi< 0 left)
+    (if (vi< 0 left)
       (%vi-wrote self fd at left done
-        (cu-ptr-call %vi-c-write fd (%vi+ %vi-taddr at) left))
+        (cu-ptr-call %vi-c-write fd (vi+ %vi-taddr at) left))
       done)))
 (def %vi-wrote
   (fn (_ again fd at left done r)
-    (if (%vi< 0 r)
-      (again fd (%vi+ at r) (%vi- left r) (%vi+ done r))
+    (if (vi< 0 r)
+      (again fd (vi+ at r) (vi- left r) (vi+ done r))
       done)))
 
 ; busybox's file_insert: NAME's bytes put in at P; answers the count read, or
@@ -1635,37 +1646,37 @@
 
 (def %vi-unwritable?
   (fn (_ name st)
-    (if (%vi< (cu-ptr-call %vi-c-access name 2) 0) #t
-      (if (null? st) #f (= (%vi& (Assoc get (lit mode) st) 146) 0)))))
+    (if (vi< (cu-ptr-call %vi-c-access name 2) 0) #t
+      (if (null? st) #f (= (vi& (Assoc get (lit mode) st) 146) 0)))))
 
 (def %vi-read-in
   (fn (_ fd p size name)
     (%vi-hole-make! p size)
     (def cnt (%vi-read-all fd p size 0))
-    (if (%vi< cnt size)
-      (do (%vi-hole-delete! (%vi+ p cnt) (%vi- (%vi+ p size) 1) %vi-no-undo)
+    (if (vi< cnt size)
+      (do (%vi-hole-delete! (vi+ p cnt) (vi- (vi+ p size) 1) %vi-no-undo)
           (%vi-status-line-bold! (string-append "can't read '" name "'")))
       (%vi-undo-push-insert! p size %vi-allow-undo))
-    (set! %vi-nl-total (%vi+ %vi-nl-total (%vi-newlines-in p (%vi+ p cnt))))
+    (set! %vi-nl-total (vi+ %vi-nl-total (%vi-newlines-in p (vi+ p cnt))))
     cnt))
 
 (def %vi-read-all
   (fn (self fd at left done)
-    (if (%vi< 0 left)
+    (if (vi< 0 left)
       (%vi-read-got self fd at left done
-        (cu-ptr-call %vi-c-read fd (%vi+ %vi-taddr at) left))
+        (cu-ptr-call %vi-c-read fd (vi+ %vi-taddr at) left))
       done)))
 (def %vi-read-got
   (fn (_ again fd at left done r)
-    (if (%vi< 0 r) (again fd (%vi+ at r) (%vi- left r) (%vi+ done r)) done)))
+    (if (vi< 0 r) (again fd (vi+ at r) (vi- left r) (vi+ done r)) done)))
 
 ; busybox's init_text_buffer: the text is NAME's, or one empty line
-(def %vi-init-text-buffer!
+(def vi-init-text-buffer!
   (fn (_ name)
     (%vi-text-init!)
     (%vi-update-filename! name)
     (def rc (if (null? name) -1 (%vi-file-insert name 0 #t)))
-    (if (if (%vi< rc 1) #t (if (= (byte-at %vi-text (%vi- %vi-end 1)) #\newline) #f #t))
+    (if (if (vi< rc 1) #t (if (= (byte-at %vi-text (vi- %vi-end 1)) #\newline) #f #t))
       (%vi-char-insert %vi-end 10 %vi-no-undo)
       ())
     (%vi-undo-flush!)
@@ -1689,7 +1700,7 @@
     (set! %vi-rowcol-error (%vi-query-dims!))
     (if %vi-rowcol-error (%vi-ask-terminal!) ())
     (%vi-new-screen!)
-    (%vi-init-text-buffer! name)
+    (vi-init-text-buffer! name)
     (%vi-mark! 26 0)
     (%vi-mark! 27 0)
     (set! %vi-crow 0)
@@ -1715,7 +1726,7 @@
 ; ended the input
 (def %vi-keys
   (fn (self ended)
-    (if (if (%vi< 0 %vi-editing) (null? ended) #f)
+    (if (if (vi< 0 %vi-editing) (null? ended) #f)
       (self (%vi-one-key))
       ended)))
 
@@ -1747,7 +1758,7 @@
   (fn (_) (%cell-int (first (%reflect-base-cell (lit alloc-count))))))
 (def %vi-sweep-if-due!
   (fn (_)
-    (if (%vi< (%vi+ %vi-heap-floor %vi-heap-room) (%vi-live-objects))
+    (if (vi< (vi+ %vi-heap-floor %vi-heap-room) (%vi-live-objects))
       (do (cu-heap-collect) (set! %vi-heap-floor (%vi-live-objects)))
       ())))
 
@@ -1775,7 +1786,7 @@
 
 ; busybox's INIT_G: every run starts from the same state, whatever the run
 ; before it left -- the column j aims for, the registers, the left offset
-(def %vi-init-g!
+(def vi-init-g!
   (fn (_)
     (set! %vi-optind 0)
     (set! %vi-kbuf ())
@@ -1841,7 +1852,7 @@
 (def %vi-main
   (fn (_ files cmds ro?)
     (%vi-resolve!)
-    (%vi-init-g!)
+    (vi-init-g!)
     (if ro? (set! %vi-readonly (%vi| %vi-readonly 2)) ())
     (set! %vi-files files)
     (set! %vi-initial-cmds cmds)
@@ -1853,10 +1864,10 @@
 (def %vi-each-file
   (fn (self)
     (def ended (%vi-edit-file (if (null? %vi-files) () (List ref %vi-optind %vi-files))))
-    (set! %vi-optind (%vi+ %vi-optind 1))
+    (set! %vi-optind (vi+ %vi-optind 1))
     (match
       ((not (null? ended)) (%vi-input-ended))
-      ((%vi< %vi-optind (length %vi-files)) (self))
+      ((vi< %vi-optind (length %vi-files)) (self))
       (#t (do (%vi-put %vi-alt-off) (%vi-flush!) 0)))))
 
 (def %vi-input-ended
@@ -1865,7 +1876,7 @@
     1))
 
 ; the applet: keys from the terminal on stdin, the screen to stdout
-(def %cu-vi
+(def cu-vi
   (fn (_ argv . stdin)
     (cu-stdin-to-command!)
     (set! %vi-src-read %vi-tty-read)
@@ -1903,12 +1914,12 @@
   (fn (self)
     (%vi-signals!)
     (def p (%vi-poll 0 1 -1))
-    (if (if (%vi< p 0) (%vi-again? p) #f) (self) (%vi-tty-read-byte self))))
+    (if (if (vi< p 0) (%vi-again? p) #f) (self) (%vi-tty-read-byte self))))
 (def %vi-tty-read-byte
   (fn (_ again)
     (def r (File read 0 %vi-byte-buf 1))
     (match
-      ((%vi< 0 r) (%vi& (byte-at %vi-byte-buf 0) 255))
+      ((vi< 0 r) (vi& (byte-at %vi-byte-buf 0) 255))
       ((= r 0) ())
       ((%vi-again? r) (again))
       (#t ()))))
@@ -1921,17 +1932,17 @@
 (def %vi-tty-ready?
   (fn (_ ms)
     (%vi-flush!)
-    (%vi< 0 (%vi-poll 0 1 ms))))
+    (vi< 0 (%vi-poll 0 1 ms))))
 
 ; poll(2) on FD for EVENTS (1 in, 4 out), MS milliseconds, -1 for ever: struct
 ; pollfd is an int fd and two shorts, the events first
 (def %vi-pollfd (str-make-raw 8))
 (def %vi-poll
   (fn (_ fd events ms)
-    (def p (%vi-str->ptr %vi-pollfd))
-    (%vi-ptr-set! p 0 fd 4)
-    (%vi-ptr-set! p 4 events 2)
-    (%vi-ptr-set! p 6 0 2)
+    (def p (vi-str->ptr %vi-pollfd))
+    (vi-ptr-set! p 0 fd 4)
+    (vi-ptr-set! p 4 events 2)
+    (vi-ptr-set! p 6 0 2)
     (cu-ptr-call %vi-c-poll p 1 ms)))
 
 ; the screen's bytes all written to stdout, waiting while it is full
@@ -1941,7 +1952,7 @@
     (def r (File write 1 s n))
     (match
       ((= r n) ())
-      ((%vi< 0 r) (self (%vi-bsub s r (%vi- n r))))
+      ((vi< 0 r) (self (vi-bsub s r (vi- n r))))
       ((%vi-again? r) (do (%vi-poll 1 4 -1) (self s)))
       (#t ()))))
 
@@ -1963,7 +1974,7 @@
 (def %vi-typed-pending ())
 (def %vi-typed-stops 0)
 
-(def %vi-typed
+(def vi-typed
   (fn (_ argv bursts rows cols)
     (set! %vi-burst %vi-typed-waiting)
     (set! %vi-typed-waiting "")
@@ -1973,14 +1984,14 @@
     (set! %vi-typed-dims (if (= rows 0) () (pair cols rows)))
     (set! %vi-typed-pending ())
     (set! %vi-src-read %vi-typed-read)
-    (set! %vi-src-ready? (fn (_ . ms) (%vi< %vi-burst-i (byte-len %vi-burst))))
+    (set! %vi-src-ready? (fn (_ . ms) (vi< %vi-burst-i (byte-len %vi-burst))))
     (set! %vi-sink (fn (_ s) (set! %vi-drawn (pair s %vi-drawn))))
     (set! %vi-shell %vi-typed-shell)
     (set! %vi-getenv (fn (_ n) (%vi-env-ref n %vi-typed-env)))
     (set! %vi-measure (fn (_) %vi-typed-dims))
     (set! %vi-arrived? %vi-typed-arrived?)
     (set! %vi-typed-stops 0)
-    (set! %vi-stop! (fn (_) (set! %vi-typed-stops (%vi+ %vi-typed-stops 1))))
+    (set! %vi-stop! (fn (_) (set! %vi-typed-stops (vi+ %vi-typed-stops 1))))
     (set! %vi-raw! (fn (_) ()))
     (set! %vi-cooked! (fn (_) ()))
     (%vi-start argv)))
@@ -1988,9 +1999,9 @@
 (def %vi-typed-read
   (fn (self)
     (match
-      ((%vi< %vi-burst-i (byte-len %vi-burst))
-        (do (set! %vi-burst-i (%vi+ %vi-burst-i 1))
-            (%vi& (byte-at %vi-burst (%vi- %vi-burst-i 1)) 255)))
+      ((vi< %vi-burst-i (byte-len %vi-burst))
+        (do (set! %vi-burst-i (vi+ %vi-burst-i 1))
+            (vi& (byte-at %vi-burst (vi- %vi-burst-i 1)) 255)))
       ((null? %vi-bursts) ())
       (#t (do (%vi-typed-next! %vi-bursts) (self))))))
 
@@ -2015,3 +2026,15 @@
     (def there? (List any? (fn (_ s) (eq? s sig)) %vi-typed-pending))
     (if there? (set! %vi-typed-pending (List filter (fn (_ s) (not (eq? s sig))) %vi-typed-pending)) ())
     there?))
+
+; The module's other files, read into it here, in the order they load.
+(include-once "./vi-move.x")
+(include-once "./vi-edit.x")
+(include-once "./vi-ex.x")
+(include-once "./vi-set.x")
+(include-once "./vi-undo.x")
+
+(provide cu/vi cu-vi vi% vi& vi+ vi- vi-bsub vi-bundle-version vi-dim vi-in?
+  vi-init-g! vi-init-text-buffer! vi-key-down vi-key-end vi-key-home
+  vi-key-page-down vi-key-page-up vi-key-up vi-max vi-min vi-num-from
+  vi-ptr-set! vi-sequences vi-str->ptr vi-typed vi/ vi<)

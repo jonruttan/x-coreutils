@@ -109,12 +109,10 @@
 (import cu/diff-lex cu-dl-lines)
 (import cu/diff cu-diff cu-diff-dir cu-diff-str)
 (import cu/find cu-find cu-glob-class cu-glob?)
-(include-once "./vi.x")
-(include-once "./vi-move.x")
-(include-once "./vi-edit.x")
-(include-once "./vi-ex.x")
-(include-once "./vi-set.x")
-(include-once "./vi-undo.x")
+(import cu/vi cu-vi vi% vi& vi+ vi- vi-bsub vi-bundle-version vi-dim vi-in?
+  vi-init-g! vi-init-text-buffer! vi-key-down vi-key-end vi-key-home
+  vi-key-page-down vi-key-page-up vi-key-up vi-max vi-min vi-num-from
+  vi-ptr-set! vi-sequences vi-str->ptr vi-typed vi/ vi<)
 (import cu/more cu-clear cu-more cu-reset more-typed)
 (import cu/tsort cu-tsort ts-space?)
 (import cu/strings cu-range-number cu-strings-applet)

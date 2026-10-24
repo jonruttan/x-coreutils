@@ -140,7 +140,7 @@
     (method ftpd (self argv stdin-thunk) (cu-ftpd argv stdin-thunk))
     (method ipcalc (self argv stdin-thunk) (cu-ipcalc argv stdin-thunk))
     (method xargs (self argv stdin-thunk) (cu-xargs argv stdin-thunk))
-    (method vi (self argv stdin-thunk) (%cu-vi argv stdin-thunk))
+    (method vi (self argv stdin-thunk) (cu-vi argv stdin-thunk))
     (method more (self argv stdin-thunk) (cu-more argv stdin-thunk))
     (method clear (self argv stdin-thunk) (cu-clear argv stdin-thunk))
     (method reset (self argv stdin-thunk) (cu-reset argv stdin-thunk))

@@ -19,6 +19,8 @@
 ; --- the undo stack ---------------------------------------------------------
 
 ; how a change may be undone, as the callers say it
+(module cu/vi)
+
 (def %vi-no-undo 0)
 (def %vi-allow-undo 1)
 (def %vi-allow-undo-chain 2)
@@ -67,20 +69,20 @@
 
 ; a deletion of the whole text keeps one byte fewer: the newline an empty
 ; text gets back
-(def %vi-undo-del-len (fn (_ len) (if (= len %vi-end) (%vi- len 1) len)))
+(def %vi-undo-del-len (fn (_ len) (if (= len %vi-end) (vi- len 1) len)))
 
 ; LEN bytes of the text from P, NUL and all: (BUFFER . LENGTH)
 (def %vi-text-copy
   (fn (_ p len)
-    (def n (%vi-max 0 (%vi-min len (%vi- %vi-room p))))
-    (def s (str-make-raw (%vi+ n 1)))
-    (cu-ptr-call %vi-c-memcpy (%vi-str->ptr s) (%vi+ %vi-taddr p) n)
+    (def n (vi-max 0 (vi-min len (vi- %vi-room p))))
+    (def s (str-make-raw (vi+ n 1)))
+    (cu-ptr-call %vi-c-memcpy (vi-str->ptr s) (vi+ %vi-taddr p) n)
     (pair s n)))
 
 (def %vi-undo-record!
   (fn (_ start type text)
     (set! %vi-undo-stack (pair (list type start (rest text) (first text)) %vi-undo-stack))
-    (set! %vi-modified (%vi+ %vi-modified 1))))
+    (set! %vi-modified (vi+ %vi-modified 1))))
 
 ; one byte taken out, onto the queue of deletions; the queue of insertions,
 ; if that is what it holds, is committed first
@@ -92,8 +94,8 @@
         (do (%vi-undo-queue-commit!) (%vi-undo-queue-del! src len)))
       (#t (do (set! %vi-undo-state %vi-u-del)
               (set! %vi-undo-spos src)
-              (set! %vi-undo-q (%vi+ %vi-undo-q 1))
-              (set! %vi-undo-bytes (pair (%vi& (byte-at %vi-text src) 255) %vi-undo-bytes))
+              (set! %vi-undo-q (vi+ %vi-undo-q 1))
+              (set! %vi-undo-bytes (pair (vi& (byte-at %vi-text src) 255) %vi-undo-bytes))
               (if (= %vi-undo-q %vi-undo-queue-max) (%vi-undo-queue-commit!) ()))))))
 
 ; LEN bytes put in, onto the queue of insertions, committed each time it
@@ -101,7 +103,7 @@
 (def %vi-undo-queue-ins!
   (fn (_ src len)
     (match
-      ((%vi< len 1) ())
+      ((vi< len 1) ())
       ((= %vi-undo-state %vi-u-del)
         (do (%vi-undo-queue-commit!) (%vi-undo-queue-ins! src len)))
       (#t (do (if (= %vi-undo-state %vi-u-empty)
@@ -111,17 +113,17 @@
 
 (def %vi-undo-count-in!
   (fn (self len)
-    (if (%vi< 0 len)
-      (do (set! %vi-undo-q (%vi+ %vi-undo-q 1))
+    (if (vi< 0 len)
+      (do (set! %vi-undo-q (vi+ %vi-undo-q 1))
           (if (= %vi-undo-q %vi-undo-queue-max) (%vi-undo-queue-commit!) ())
-          (self (%vi- len 1)))
+          (self (vi- len 1)))
       ())))
 
 ; busybox's undo_queue_commit: what the queue holds, as one record starting
 ; where the queued change starts
 (def %vi-undo-queue-commit!
   (fn (_)
-    (if (%vi< 0 %vi-undo-q)
+    (if (vi< 0 %vi-undo-q)
       (do (%vi-undo-commit-as! %vi-undo-state)
           (set! %vi-undo-state %vi-u-empty)
           (set! %vi-undo-q 0)
@@ -141,13 +143,13 @@
 ; the first N of BYTES as (BUFFER . LENGTH)
 (def %vi-bytes-copy
   (fn (_ bytes n)
-    (def s (str-make-raw (%vi+ n 1)))
-    (%vi-bytes-fill (%vi-str->ptr s) 0 n bytes)
+    (def s (str-make-raw (vi+ n 1)))
+    (%vi-bytes-fill (vi-str->ptr s) 0 n bytes)
     (pair s n)))
 (def %vi-bytes-fill
   (fn (self ptr i n bytes)
-    (if (if (%vi< i n) (if (null? bytes) #f #t) #f)
-      (do (%vi-ptr-set! ptr i (first bytes) 1) (self ptr (%vi+ i 1) n (rest bytes)))
+    (if (if (vi< i n) (if (null? bytes) #f #t) #f)
+      (do (vi-ptr-set! ptr i (first bytes) 1) (self ptr (vi+ i 1) n (rest bytes)))
       ())))
 
 ; busybox's undo_push_insert: LEN bytes put in at P, recorded as UNDO says
@@ -184,7 +186,7 @@
     (def type (first rec))
     (%vi-undo-apply! rec)
     (set! %vi-undo-stack (rest %vi-undo-stack))
-    (set! %vi-modified (%vi- %vi-modified 1))
+    (set! %vi-modified (vi- %vi-modified 1))
     (if (if (= type %vi-u-del-chain) #t (= type %vi-u-ins-chain)) (again) ())))
 
 (def %vi-undo-apply!
@@ -195,11 +197,11 @@
     (match
       ((if (= type %vi-u-del) #t (= type %vi-u-del-chain))
         (do (%vi-hole-make! start len)
-            (cu-ptr-call %vi-c-memcpy (%vi+ %vi-taddr start) (first (rest (rest (rest rec)))) len)
-            (set! %vi-nl-total (%vi+ %vi-nl-total (%vi-newlines-in start (%vi+ start len))))
+            (cu-ptr-call %vi-c-memcpy (vi+ %vi-taddr start) (first (rest (rest (rest rec)))) len)
+            (set! %vi-nl-total (vi+ %vi-nl-total (%vi-newlines-in start (vi+ start len))))
             (%vi-undo-said "restored" len start)))
       ((if (= type %vi-u-ins) #t (= type %vi-u-ins-chain))
-        (do (%vi-hole-delete! start (%vi- (%vi+ start len) 1) %vi-no-undo)
+        (do (%vi-hole-delete! start (vi- (vi+ start len) 1) %vi-no-undo)
             (%vi-undo-said "deleted" len start)))
       (#t ()))
     (if (if (= type %vi-u-del) #t (= type %vi-u-ins))
@@ -243,7 +245,7 @@
           (%vi-adding2q #f)
           ((if (null? %vi-ioq) #f #t) #f)
           ((if (= %vi-cmd-mode 0) #f #t) #f)
-          ((if (%vi< 0 c) (%vi< c #\delete) #f) (%vi-one-of? c %vi-modifying-cmds))
+          ((if (vi< 0 c) (vi< c #\delete) #f) (%vi-one-of? c %vi-modifying-cmds))
           (#t #f))
       (%vi-start-new-cmd-q! c)
       ())))
@@ -260,8 +262,8 @@
 ; the command; busybox keeps each key as a byte
 (def %vi-lmc-keep!
   (fn (_ c)
-    (if (%vi< %vi-lmc-len (%vi- %vi-lmc-max 2))
-      (do (set! %vi-lmc (pair (%vi& c 255) %vi-lmc)) (set! %vi-lmc-len (%vi+ %vi-lmc-len 1)))
+    (if (vi< %vi-lmc-len (vi- %vi-lmc-max 2))
+      (do (set! %vi-lmc (pair (vi& c 255) %vi-lmc)) (set! %vi-lmc-len (vi+ %vi-lmc-len 1)))
       (do (set! %vi-adding2q #f) (set! %vi-lmc-len 0)))))
 
 ; the next key . replays, or nil when there is none.  The replay ends at a

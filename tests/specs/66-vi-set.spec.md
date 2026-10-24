@@ -3,7 +3,7 @@
 vi's options, as busybox's vi (editors/vi.c, with FEATURE_VI_SETOPTS)
 makes them: :set, and what autoindent, expandtab, flash, ignorecase,
 showmatch and tabstop do.  Each case types keys at the editor through
-`%vi-typed`, in bursts with a pause between two, into a window 10 rows by
+`vi-typed`, in bursts with a pause between two, into a window 10 rows by
 40 columns unless it says otherwise, and shows the exit status, the file,
 the rows as drawn, the bottom line, the cursor, the bells, and the flashes
 when there are some.  A case that ends without :wq ends when its keys do,
@@ -22,6 +22,8 @@ same pauses, its output read by a model of the terminal.
 types the bursts, and shows what came of them.
 
 ```cu
+(def vi-state (fn (_ name) (eval name (module cu/vi))))
+(def vi-set! (fn (_ name v) (eval (list (lit set!) name (list (lit lit) v)) (module cu/vi))))
 (def vi-keys
   (list (pair (lit esc) (bytes->str (list 27))) (pair (lit cr) (bytes->str (list 13)))
         (pair (lit bs) (bytes->str (list 127))) (pair (lit ctrl-c) (bytes->str (list 3)))
@@ -37,7 +39,7 @@ types the bursts, and shows what came of them.
   (fn (_ b)
     (if (if (= b #\newline) #t (if (< b #\space) #f (< b #\delete)))
       (bytes->str (list b))
-      (bytes->str (list 92 (%vi+ 48 (%vi/ b 64)) (%vi+ 48 (%vi% (%vi/ b 8) 8)) (%vi+ 48 (%vi% b 8)))))))
+      (bytes->str (list 92 (vi+ 48 (vi/ b 64)) (vi+ 48 (vi% (vi/ b 8) 8)) (vi+ 48 (vi% b 8)))))))
 (def vi-trim
   (fn (self s)
     (if (if (< 0 (byte-len s)) (= (byte-at s (- (byte-len s) 1)) #\space) #f)
@@ -71,7 +73,7 @@ types the bursts, and shows what came of them.
   (fn (_ . parts)
     (def n (vi-raw-len parts))
     (def s (str-make-raw n))
-    (vi-raw-fill (%vi-str->ptr s) 0 parts)
+    (vi-raw-fill (vi-str->ptr s) 0 parts)
     (pair s n)))
 (def vi-raw-len
   (fn (self ps)
@@ -82,11 +84,11 @@ types the bursts, and shows what came of them.
     (match
       ((null? ps) ())
       ((str? (first ps)) (self ptr (vi-raw-copy ptr i (first ps) 0) (rest ps)))
-      (#t (do (%vi-ptr-set! ptr i (first ps) 1) (self ptr (+ i 1) (rest ps)))))))
+      (#t (do (vi-ptr-set! ptr i (first ps) 1) (self ptr (+ i 1) (rest ps)))))))
 (def vi-raw-copy
   (fn (self ptr i s j)
     (if (< j (byte-len s))
-      (do (%vi-ptr-set! ptr i (byte-at s j) 1) (self ptr (+ i 1) s (+ j 1)))
+      (do (vi-ptr-set! ptr i (byte-at s j) 1) (self ptr (+ i 1) s (+ j 1)))
       i)))
 ; the file written and read back by count, so a NUL in it stays
 (def vi-write-file
@@ -106,7 +108,7 @@ types the bursts, and shows what came of them.
     (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vs && mkdir -p /tmp/x-cu-vs"))
     (if (null? text) () (vi-write-file "/tmp/x-cu-vs/f" text))
     (if (null? mode) () (proc-run (list "/bin/chmod" (first mode) "/tmp/x-cu-vs/f")))
-    (def st (%vi-typed (list target) bursts rows cols))
+    (def st (vi-typed (list target) bursts rows cols))
     (def f (if (file-exists? "/tmp/x-cu-vs/f") (vi-file-shown "/tmp/x-cu-vs/f") "no file\n"))
     (display
       (string-concat
@@ -114,11 +116,11 @@ types the bursts, and shows what came of them.
               (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) #\newline) #t) f
                 (string-append f " (no newline)\n"))
               "--\n"
-              (string-concat (List map (fn (_ r) (string-append "|" (vi-trim r) "\n")) %vi-screen))
-              "status " (vi-trim %vi-bottom) "\n"
-              "cursor " (cu-int->str %vi-crow) " " (cu-int->str %vi-ccol)
-              " bells " (cu-int->str (vi-bells %vi-drawn 0))
-              (vi-flashes-shown (vi-flashes %vi-drawn 0)) "\n")))))
+              (string-concat (List map (fn (_ r) (string-append "|" (vi-trim r) "\n")) (vi-state (lit %vi-screen))))
+              "status " (vi-trim (vi-state (lit %vi-bottom))) "\n"
+              "cursor " (cu-int->str (vi-state (lit %vi-crow))) " " (cu-int->str (vi-state (lit %vi-ccol)))
+              " bells " (cu-int->str (vi-bells (vi-state (lit %vi-drawn)) 0))
+              (vi-flashes-shown (vi-flashes (vi-state (lit %vi-drawn)) 0)) "\n")))))
 (display "made")
 ```
 ---

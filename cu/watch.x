@@ -147,7 +147,7 @@
 (def %watch-width
   (fn (_)
     (def m (Term measure 2))
-    (%vi-dim (if (pair? m) (first m) 0) (sys-getenv "COLUMNS") 80)))
+    (vi-dim (if (pair? m) (first m) 0) (sys-getenv "COLUMNS") 80)))
 
 ; busybox's spawn_and_wait: the words run, a child that cannot exec them
 ; ending 111 without a word
