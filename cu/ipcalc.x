@@ -18,7 +18,8 @@
 (import cu/prims bit-and bit-or bit-xor byte-at byte-len cu-dlopen cu-dlsym
   cu-int->ptr cu-int->str cu-nth cu-ptr->str cu-ptr-call cu-ptr-set!
   cu-ptr-word cu-str->ptr file-write length net-aton str-make-raw
-  string-append string-concat substring)
+  string-append string-concat substring wget-div wget-index wget-lower)
+(import cu/sha256 cu-m32)
 
 (def %ic-silent #f)
 

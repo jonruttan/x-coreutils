@@ -27,10 +27,13 @@
 
 (module cu/dump)
 
-(import cu/prims append byte-at byte-len cu-nth cu-sweep-tick! file-err-text
-  file-stat-full file-write map reverse string-append string-concat string=?
-  substring vec-build vec-ref vec-set!)
+(import cu/cal cal-sum)
+(import cu/prims append byte-at byte-len cal/ cu-nth cu-stat-get
+  cu-sweep-tick! file-err-text file-stat-full file-write file-write-run map
+  reverse string-append string-concat string=? substring vec-build vec-ref
+  vec-set!)
 (import cu/text cu-pad-left cu-pad-zero cu-pieces cu-pieces-past)
+(import cu/tsort ts-space?)
 
 (def %dp-applet "hexdump")
 (def %dp-fss ())            ; the format strings, each (FUS . BCNT) in a cell
@@ -904,5 +907,5 @@
 
 (provide cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
   cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
-  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-in? dp-skip-in dp-skip-ws
-  dp-udigits dp-zeros)
+  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-in? dp-skip-in
+  dp-skip-ws dp-udigits dp-zeros)

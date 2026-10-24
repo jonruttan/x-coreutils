@@ -22,10 +22,10 @@
 (module cu/time)
 
 (import cu/cli cu-opts)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-nth
-  cu-ptr-call cu-stdin-to-command! file-close file-err-text file-open-or-err
-  file-write reverse str-make-raw string-append string-concat string=?
-  sys-exec-or-err sys-exit sys-fork sys-getenv sys-signal)
+(import cu/prims append byte-at byte-len cal/ cu-dlopen cu-dlsym cu-int->str
+  cu-nth cu-ptr-call cu-stdin-to-command! file-close file-err-text
+  file-open-or-err file-write reverse str-make-raw string-append string-concat
+  string=? sys-exec-or-err sys-exit sys-fork sys-getenv sys-signal)
 (import cu/text cu-join-with cu-pad-zero)
 
 (def %tm-str->ptr (prim-ref (lit str) (lit ->ptr)))

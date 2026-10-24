@@ -18,24 +18,23 @@
 (module cu/fs3)
 
 (import cu/cli cu-extra-operand cu-last-given cu-opts cu-usage)
+(import cu/fmt-lex cu-fmt-conv cu-fmt-dir? cu-fmt-parse)
 (import cu/prims append bit-and bit-shr byte-at byte-len cu& cu+ cu- cu-b->s
   cu-hexs cu-int->str cu-nth cu-sig-ign cu-sighup cu-sigkill cu-sigterm
-  cu-stdin-to-command! cu-sweep! cu-sweep-bytes cu< file-chmod file-close
-  file-err-text file-exists? file-lstat-file-type file-lstat-full
+  cu-stat-get cu-stdin-to-command! cu-sweep! cu-sweep-bytes cu< file-chmod
+  file-close file-err-text file-exists? file-lstat-file-type file-lstat-full
   file-lstat-wide file-open-append file-open-or-err file-open-update
   file-open-wronly file-or-err file-seek file-stat-full file-stat-wide
   file-statfs-full file-truncate file-unlink file-write file-write-nuls
-  file-write-random length reverse set-first! string-append string-concat
-  string=? substring sys-exec sys-exit sys-fork sys-group-name sys-isatty
-  sys-signal sys-sleep sys-user-name sys-usleep sys-wait)
+  file-write-random file-write-run length ls-human reverse set-first!
+  string-append string-concat string=? substring sys-exec sys-exit sys-fork
+  sys-group-name sys-isatty sys-kill sys-signal sys-sleep sys-user-name
+  sys-usleep sys-wait)
 (import cu/text cu-enough cu-file-pieces cu-fold-pieces cu-num-prefix
   cu-pad-left cu-pad-right cu-pad-zero cu-run-join cu-run-part cu-run-slice
   cu-split-byte cu-stdin-pieces cu-unmarked)
-
-(def cu-stat-get
-  (fn (_ st key)
-    (let ((e (Assoc entry key st)))
-      (if (null? e) 0 (rest e)))))
+(import cu/text2 cu-oct->str)
+(import cu/walk cu-walk-names)
 
 ; --- the mode, spelled two ways -----------------------------------------------
 
@@ -314,9 +313,6 @@
   (fn (_ dir name)
     (if (string=? dir "/") (string-append "/" name)
       (string-append dir (string-append "/" name)))))
-
-(def cu-dot?
-  (fn (_ n) (if (string=? n ".") #t (string=? n ".."))))
 
 ; du: -a prints every file as well as each directory, -d N stops the printing
 ; below a depth and -s is -d 0, -c adds a grand total, and -h and -m choose the
@@ -973,7 +969,7 @@
           (sys-exec (first argv) (rest argv))
           127))))
 
-(provide cu/fs3 cu-dd cu-dd-has? cu-dd-records cu-dev-major cu-dev-minor
-  cu-dot? cu-du cu-du-blocks cu-mode-octal4 cu-nohup cu-path-join
-  cu-perm-places cu-perm-string cu-shred cu-stat cu-stat-get cu-stat-group
-  cu-stat-user cu-timeout cu-truncate cu-tty cu-unlink cu-usleep)
+(provide cu/fs3 cu-dd cu-dd-has? cu-dd-records cu-dev-major cu-dev-minor cu-du
+  cu-du-blocks cu-mode-octal4 cu-nohup cu-path-join cu-perm-places
+  cu-perm-string cu-shred cu-stat cu-stat-group cu-stat-user cu-timeout
+  cu-truncate cu-tty cu-unlink cu-usleep)

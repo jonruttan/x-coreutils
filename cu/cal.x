@@ -20,12 +20,13 @@
 (module cu/cal)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims append byte-at byte-len cu-int->str cu-nth file-write length
-  reverse string-append string-concat substring vec-build vec-make vec-ref
-  vec-set!)
+(import cu/date cu-date-today)
+(import cu/prims append byte-at byte-len cal/ cu-int->str cu-nth cu-nthrest
+  cu-take file-write length reverse string-append string-concat substring
+  vec-build vec-make vec-ref vec-set!)
+(import cu/strings cu-range-number)
 (import cu/text cu-pad-left cu-pad-right)
-
-(def cal/ (prim-ref (lit int) (lit /)))
+(import cu/tsort ts-space?)
 
 (def %cal-month-names
   (list "January" "February" "March" "April" "May" "June" "July" "August"
@@ -224,4 +225,4 @@
             (let ((year (cu-range-number "cal" (cu-nth (- n 1) ops) 1 9999)))
               (if (null? year) 1 (show month year)))))))))
 
-(provide cu/cal cal-sum cal/ cu-cal)
+(provide cu/cal cal-sum cu-cal)

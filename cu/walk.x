@@ -26,7 +26,7 @@
 ; The entries of DIR worth walking: no . or .., in sorted order.
 (module cu/walk)
 
-(import cu/prims file-list-dir filter string=?)
+(import cu/prims cu-dot? cu-walk-worst file-list-dir filter string=?)
 (import cu/text cu-msort cu-str<)
 
 (def cu-walk-names
@@ -41,14 +41,6 @@
 (def cu-walk-status
   (fn (_ dir visit)
     (cu-walk-worst (cu-walk-names dir) visit 0)))
-
-; Visit each of NS and answer the WORST status any visit gave, ST or worse: the
-; fold, for a caller that has the names already.
-(def cu-walk-worst
-  (fn (self ns visit st)
-    (if (null? ns) st
-      (let ((r (visit (first ns))))
-        (self (rest ns) visit (if (> r st) r st))))))
 
 ; Two trees in step: every name either side holds, once, in order, with which
 ; sides hold it. The visitor takes (NAME IN-A? IN-B?) and answers a status; the
@@ -81,4 +73,4 @@
                       (if (> r st) r st))))))))
     (go (from (cu-walk-names a)) (from (cu-walk-names b)) 0)))
 
-(provide cu/walk cu-walk-names cu-walk-pair cu-walk-status cu-walk-worst)
+(provide cu/walk cu-walk-names cu-walk-pair cu-walk-status)

@@ -21,6 +21,14 @@
 ; N as K little-endian bytes
 (module cu/ipset)
 
+(import cu/dump dp-find)
+(import cu/ifconfig if-ref if-req)
+(import cu/inet inet-int32 inet-set! inet-zeros)
+(import cu/inetd in-c in-call)
+(import cu/ip ip-addr-of ip-addr-shown? ip-addr1 ip-align ip-bytes
+  ip-dev-index ip-die ip-digit ip-dump ip-filter ip-get ip-indexed ip-invarg
+  ip-keyword ip-link-of ip-next ip-num ip-open ip-pad16 ip-prefix ip-put
+  ip-say ip-scope-id ip-scopes)
 (import cu/prims append byte-at byte-len char->integer cu-int->str cu-nth
   cu-ptr-call cu-ptr-ref cu-str->ptr cu-string-type cvt file-write filter
   length libc-strerror map reverse str-make-raw string-append string-concat

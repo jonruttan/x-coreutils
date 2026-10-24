@@ -16,12 +16,15 @@
 (module cu/who)
 
 (import cu/cli cu-operands cu-opts cu-usage)
-(import cu/prims append byte-at byte-len cu-int->str cu-nth
-  cu-stdin-to-command! file-stat-full file-write filter host-users host-utmp
-  length map reverse string-append string-concat string=? substring sys-chroot
-  sys-cpu-count sys-exec sys-getegid sys-getenv sys-geteuid sys-getgid
-  sys-getgroups sys-getuid sys-group-name sys-nice sys-uname sys-user-group
-  sys-user-groups sys-user-id sys-user-name)
+(import cu/date cu-date-mon-abbr)
+(import cu/perm cu-chown-number)
+(import cu/prims append byte-at byte-len cu-int->str cu-max-status cu-nth
+  cu-stat-get cu-stdin-to-command! date-now-unix file-stat-full file-write
+  filter host-users host-utmp length map ps-div reverse string-append
+  string-concat string=? substring sys-chroot sys-cpu-count sys-exec
+  sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getuid
+  sys-group-name sys-nice sys-uname sys-user-group sys-user-groups sys-user-id
+  sys-user-name)
 (import cu/text cu-join-with cu-num-prefix cu-pad-left cu-pad-right
   cu-pad-zero)
 

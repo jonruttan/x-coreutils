@@ -21,6 +21,8 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/prims byte-len cu-heap-collect cu-hexs cu-int->str host-args
   host-process host-regions reverse string-append string-concat substring)
+(import cu/procps ps-printable ps-resolve!)
+(import cu/strings cu-range-number)
 (import cu/text cu-join-with cu-pad-left cu-pad-zero)
 
 (def %pmap-cmdline

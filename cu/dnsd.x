@@ -21,11 +21,13 @@
 (module cu/dnsd)
 
 (import cu/cli cu-opts)
+(import cu/hash cu-bytes)
 (import cu/prims append bit-and bit-or byte-at byte-len cu-int->str cu-nth
-  cu-sweep-lines cu-sweep-tick! file-close file-err-text file-open-or-err
-  file-open-read file-read-all file-write length map net-aton
+  cu-nthrest cu-sweep-lines cu-sweep-tick! cu-take file-close file-err-text
+  file-open-or-err file-open-read file-read-all file-write length map net-aton
   net-recv-from-run net-send-to-run net-udp-open reverse string-append
-  string-concat substring)
+  string-concat substring wget-digits wget-div wget-index wget-memv)
+(import cu/session hd-daemonize)
 
 (def %dn-verbose? #f)
 (def %dn-quiet? #f)            ; -d: what busybox sends to syslog is not said

@@ -20,9 +20,13 @@
 (module cu/dumpleases)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/ntpd nt-imin)
 (import cu/prims cu-hexs cu-int->str cu-ptr-ref cu-str->ptr file-open-or-err
   file-open-read file-read-run file-write length map reverse string-append
-  string-concat string=?)
+  string-concat string=? wget-div wget-err-text)
+(import cu/sysinfo si-now)
+(import cu/tar tar-printable)
 (import cu/text cu-join-with cu-pad-right cu-pad-zero)
 
 (def %dl-file "/var/lib/misc/udhcpd.leases")

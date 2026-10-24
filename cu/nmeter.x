@@ -22,10 +22,14 @@
 (module cu/nmeter)
 
 (import cu/cli cu-opts cu-refuse-option cu-usage)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/iostat io-time)
 (import cu/prims byte-at byte-len cu-int->str cu-nth file-write filter
-  host-counters host-cpu host-disks host-interfaces host-interrupts host-tasks
-  map reverse string-append string-concat substring)
+  host-counters host-cpu host-disks host-interfaces host-interrupts
+  host-memory host-tasks host-wait map ps-div reverse string-append
+  string-concat substring)
 (import cu/text cu-pad-zero)
+(import cu/vmstat vm-four vm-get vm-ticks vm-zip)
 
 (def %nm-scale (fn (_ n) (vm-four n " kmgtpezy")))
 (def %nm-marks (fn (_ k) (%str-make-raw-of k #\?)))

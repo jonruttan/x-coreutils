@@ -23,11 +23,12 @@
 (module cu/runparts)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/dump dp-in?)
 (import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
-  cu-ptr-call cu-string-type cu-type-of file-err-text file-list-dir
-  file-read-fd file-stat-full file-write filter length map reverse
-  string-append string-concat sys-close sys-exec-or-err sys-exit sys-fork
-  sys-wait)
+  cu-ptr-call cu-stat-get cu-string-type cu-type-of file-err-text
+  file-list-dir file-read-fd file-stat-full file-write filter hx-strtoul
+  length map reverse string-append string-concat sys-close sys-exec-or-err
+  sys-exit sys-fork sys-wait)
 (import cu/text cu-msort cu-str<)
 
 (def %rp-c-access ())

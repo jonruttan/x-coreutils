@@ -27,6 +27,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 7,990, and 235 are 3,995.
 
 ```cu
+(def stand-in! (fn (_ envs name v) (List map (fn (_ e) (eval (list (lit set!) name (list (lit lit) v)) e)) envs)))
 (do (def limit! (prim-ref (lit alloc) (lit limit!))) (def mk (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair (cu-int->str (+ 100 (% (* n 7919) 900))) (pair " alpha beta\tx\n" acc)))))) (def in16k (mk 941 ())) (def in8k (mk 470 ())) (def in4k (mk 235 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display (list (byte-len in16k) (byte-len in8k) (byte-len in4k))))
 ```
 ---
@@ -53,7 +54,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 ### the writes tr makes of 7,990 bytes: a run of 4,096, and the rest
 
 ```cu
-(display (let ((pid (sys-fork))) (if (= pid 0) (let ((runs (list 0)) (put file-write-run)) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (set! file-write-run (fn (_ fd r) (do (set-first! runs (+ (first runs) 1)) (put fd r)))) (cu-run (list "tr" "a-z" "A-Z") in8k) (sys-exit (first runs)))) (sys-wait pid))))
+(display (let ((pid (sys-fork))) (if (= pid 0) (let ((runs (list 0)) (put file-write-run)) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (stand-in! (list (module cu/trcut)) (lit file-write-run) (fn (_ fd r) (do (set-first! runs (+ (first runs) 1)) (put fd r)))) (cu-run (list "tr" "a-z" "A-Z") in8k) (sys-exit (first runs)))) (sys-wait pid))))
 ```
 ---
     2

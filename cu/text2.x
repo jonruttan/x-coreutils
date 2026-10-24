@@ -11,16 +11,17 @@
 (module cu/text2)
 
 (import cu/cli cu-last-given cu-operands cu-opts)
-(import cu/prims byte-at byte-len cu-hexs cu-int->str cu-lines cu-nth
-  cu-run-of cu-sig-ign cu-sigint cu-sweep! cu-sweep-at cu-sweep-bytes
+(import cu/fmt-lex cu-esc-run cu-fmt-conv cu-fmt-dir? cu-fmt-left?
+  cu-fmt-parse cu-fmt-raw cu-fmt-width cu-runs-onto cu-write-runs)
+(import cu/prims byte-at byte-len cu-hexs cu-int->str cu-lines cu-member-s?
+  cu-nth cu-run-of cu-sig-ign cu-sigint cu-sweep! cu-sweep-at cu-sweep-bytes
   cu-sweep-lines cu-sweep-steps cu-sweep-tick! file-close file-err-op
   file-err-text file-open-append file-open-or-err file-open-write file-write
-  filter length map reverse string-append string-concat string=? substring
-  sys-signal)
+  file-write-run filter length map reverse string-append string-concat
+  string=? substring sys-signal)
 (import cu/text cu-each-said cu-first-unopened cu-fold-lines-said
-  cu-fold-stdin cu-join-with cu-map-swept cu-member-s? cu-num-prefix
-  cu-pad-left cu-pad-right cu-pad-zero cu-print-lines cu-put-each cu-read-said
-  cu-says)
+  cu-fold-stdin cu-join-with cu-map-swept cu-num-prefix cu-pad-left
+  cu-pad-right cu-pad-zero cu-print-lines cu-put-each cu-read-said cu-says)
 
 (def cu-echo
   (fn (_ argv stdin-thunk)

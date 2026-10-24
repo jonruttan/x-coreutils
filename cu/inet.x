@@ -17,6 +17,7 @@
 ; the value of the hex digits of S
 (module cu/inet)
 
+(import cu/inetd in-c in-call)
 (import cu/prims byte-at byte-len char->integer cu-int->ptr cu-int->str
   cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-str->ptr
   cu-string-type cvt filter libc-strerror map str-make-raw string-append

@@ -27,20 +27,25 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/date cu-date-fmt cu-date-split)
 (import cu/hash cu-hash-blocks cu-md5-bytes cu-sha1-block)
+(import cu/inetd in-c in-call in-dontwait in-errtext in-exec in-lines
+  in-reuse! in-sockaddr6 in-strtou in-tokens-max in-zeroed)
+(import cu/mime mm-ci=)
 (import cu/nc nc-count)
 (import cu/prims append byte-at byte-len cu-hexs cu-int->ptr cu-int->str
   cu-nth cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr
   cu-sweep-lines cu-sweep-tick! file-open-or-err file-open-read file-read-all
-  file-unlink file-write file-write-all filter length map net-resolve
-  net-sockaddr reverse str-make-raw string-append string-concat string=?
-  substring sys-close sys-dup2 sys-exit sys-fork sys-getpid sys-poll
-  sys-setenv sys-signal sys-usleep vec-build vec-ref vec-set!)
+  file-unlink file-write file-write-all filter in-index-of length map
+  net-resolve net-sockaddr reverse str-make-raw string-append string-concat
+  string=? substring sys-close sys-dup2 sys-exit sys-fork sys-getpid sys-kill
+  sys-poll sys-setenv sys-signal sys-usleep vec-build vec-ref vec-set!
+  wget-div wget-err-text wget-index wget-memv)
+(import cu/signal ts-signal-number)
 (import cu/sysinfo si-now)
 (import cu/tar tar-why)
-(import cu/tcpsvd ts-signal-number)
 (import cu/telnet tn-str-bytes)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-zero)
+(import cu/vmstat vm-fixed)
 
 (def %nt-server-port 123)
 (def %nt-conf-file "/etc/ntp.conf")

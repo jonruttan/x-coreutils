@@ -39,16 +39,25 @@
 (module cu/httpd)
 
 (import cu/cli cu-opts)
-(import cu/prims append bit-and byte-at byte-len cu-dlopen cu-dlsym
-  cu-int->str cu-lines cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
-  cu-sweep! file-close file-dir? file-err-text file-exists? file-open-read
-  file-read-all file-read-run file-seek file-stat file-write map net-accept
-  net-close net-connect net-listen net-listen-on net-peer net-resolve
-  net-shutdown net-stdin-socket reverse set-first! str-make-raw string-append
-  string-concat string=? substring sys-dup2 sys-exec-or-err sys-exit sys-fork
-  sys-getcwd sys-group-id sys-pipe sys-setenv sys-signal sys-user-group
-  sys-user-id sys-user-name sys-wait)
-(import cu/text cu-member-s?)
+(import cu/crypt cu-pw-encrypt hd-salt)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/nc nc-count)
+(import cu/net wget-last-part)
+(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
+  cu-lines cu-member-s? cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
+  cu-sweep! date-now-unix file-close file-dir? file-err-text file-exists?
+  file-open-read file-read-all file-read-run file-seek file-stat file-write
+  file-write-run map net-accept net-close net-connect net-listen net-listen-on
+  net-peer net-resolve net-shutdown net-stdin-socket reverse set-first!
+  str-make-raw string-append string-concat string=? substring sys-dup2
+  sys-exec-or-err sys-exit sys-fork sys-getcwd sys-group-id sys-kill sys-pipe
+  sys-setenv sys-signal sys-user-group sys-user-id sys-user-name sys-wait
+  wget-digits wget-div wget-err-text wget-find wget-index wget-last-index
+  wget-lower wget-memv)
+(import cu/session hd-daemonize ss-call)
+(import cu/test t-permitted?)
+(import cu/text3 cu-b64-decode-to)
+(import cu/tftp tftp-bytes)
 
 (def %hd-verbose 0)
 (def %hd-name "httpd")        ; the prefix of a message: the peer's IP:PORT with -v
@@ -1006,16 +1015,6 @@
 
 ; --- the listener ----------------------------------------------------------------------
 
-; bb_daemonize: the parent ends, the child leaves the terminal for /dev/null
-(def hd-daemonize
-  (fn (_)
-    (when (> (sys-fork) 0) (sys-exit 0))
-    (ss-resolve!)
-    (ss-setsid)
-    (let ((fd (File open "/dev/null" (lit rdwr))))
-      (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
-          (when (> fd 2) (file-close fd))))))
-
 ; mini_httpd: each connection answered in a grandchild, its socket stdin and
 ; stdout, its peer's IP:PORT the name its -v messages carry
 (def %hd-listen
@@ -1138,16 +1137,6 @@
   (fn (_ dir) (let ((r (guard (_ -1) (Sys chdir dir)))) (if (number? r) (>= r 0) #t))))
 
 
-; crypt_make_rand64encoded: N characters of crypt's base-64, from /dev/urandom
-(def hd-salt
-  (fn (_ n)
-    (let ((fd (file-open-read "/dev/urandom")))
-      (let ((r (file-read-run fd n)))
-        (do (file-close fd)
-            (string-concat
-              (map (fn (_ b) (let ((v (bit-and b 63))) (substring cu-crypt64 v (+ v 1))))
-                   (cu-bytes (first r) 0 (rest r)))))))))
-
 ; --- -u ---------------------------------------------------------------------------
 
 ; get_uidgid: USER[:GROUP] as (UID . GID) -- a number, or a name the system
@@ -1191,5 +1180,4 @@
     (fail? (cu-ptr-call (cu-dlsym lib "setgid") (rest ug)) "setgid")
     (fail? (cu-ptr-call (cu-dlsym lib "setuid") (first ug)) "setuid")))
 
-(provide cu/httpd cu-httpd hd-crypt-equal? hd-daemonize hd-salt
-  hd-system-password hd-ugid)
+(provide cu/httpd cu-httpd hd-crypt-equal? hd-system-password hd-ugid)

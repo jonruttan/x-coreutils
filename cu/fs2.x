@@ -25,14 +25,20 @@
 (module cu/fs2)
 
 (import cu/cli cu-missing-file-operand cu-opts)
-(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-sweep!
-  cu-sweep-bytes file-chmod file-chown file-close file-copy file-dir?
+(import cu/date cu-date-moment cu-date-of cu-date-today)
+(import cu/fs3 cu-path-join)
+(import cu/perm cu-basename-of cu-octal->int cu-realpath-of)
+(import cu/prims append byte-at byte-len cu-dirname-of cu-int->str cu-last
+  cu-max-status cu-member-s? cu-nth cu-stat-get cu-sweep! cu-sweep-bytes
+  date-now-unix file-chmod file-chown file-close file-copy file-dir?
   file-exists? file-mkdir file-open-excl file-set-times file-stat-full
   file-utimes file-write file-write-all filter integer->char length
   list->string map rng-int rng-make string-append string-concat string=?
   substring sys-getcwd sys-getenv)
-(import cu/text cu-first-unopened cu-member-s? cu-num-prefix cu-pad-left
-  cu-pieces-past cu-say cu-says cu-with-sources)
+(import cu/sys2 cu-drop-last)
+(import cu/text cu-first-unopened cu-num-prefix cu-pad-left cu-pieces-past
+  cu-say cu-says cu-with-sources)
+(import cu/text2 cu-oct->str)
 
 (def %cu-touch-stamp
   (fn (_ s)
@@ -124,8 +130,6 @@
       ((not (null? refused)) (do (file-write 2 refused) 1))
       ((null? ops) (do (file-write 2 "touch: missing operand\n") 1))
       (#t (go ops 0)))))
-
-(def cu-max-status (fn (_ a b) (if (> a b) a b)))
 
 ; ls lives in cu/ls.x: the busybox option set is a module's worth.
 
@@ -473,5 +477,5 @@
             (cu-pad-left (cu-oct->str x) 3) " "
             (cu-pad-left (cu-oct->str y) 3) "\n"))))
 
-(provide cu/fs2 cu-base-of cu-cmp cu-cmp-walk cu-install cu-max-status
-  cu-mkdir-p! cu-mktemp cu-pwd cu-touch)
+(provide cu/fs2 cu-base-of cu-cmp cu-cmp-walk cu-install cu-mkdir-p! cu-mktemp
+  cu-pwd cu-touch)

@@ -15,17 +15,20 @@
 (module cu/perm)
 
 (import cu/cli cu-last-given cu-missing-operand cu-opts)
+(import cu/fs3 cu-mode-octal4 cu-path-join cu-perm-places)
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
-  byte-len cu-int->str cu-nth file-chmod file-chown file-close file-dir?
+  byte-len cu-dirname-of cu-int->str cu-max-status cu-member-s? cu-nth
+  cu-stat-get cu-walk-worst file-chmod file-chown file-close file-dir?
   file-err-sym file-err-text file-exists? file-lchown file-link
   file-lstat-file-type file-lstat-wide file-mkfifo file-mounts file-open-err
   file-open-read file-open-wronly file-or-err file-readlink file-stat
-  file-stat-full file-stat-wide file-statfs-full file-write filter length map
-  reverse string-append string-concat string=? substring sys-fsync sys-getcwd
-  sys-group-id sys-group-name sys-sync sys-umask sys-user-group sys-user-id
-  sys-user-name)
-(import cu/text cu-byte-in? cu-join-with cu-member-s? cu-num-prefix
-  cu-pad-left cu-pad-right cu-print-lines-to cu-split-byte)
+  file-stat-full file-stat-wide file-statfs-full file-write filter length
+  ls-human map reverse string-append string-concat string=? substring
+  sys-fsync sys-getcwd sys-group-id sys-group-name sys-sync sys-umask
+  sys-user-group sys-user-id sys-user-name)
+(import cu/text cu-byte-in? cu-join-with cu-num-prefix cu-pad-left
+  cu-pad-right cu-print-lines-to cu-split-byte)
+(import cu/walk cu-walk-names)
 
 (def cu-octal->int
   (fn (_ s)
@@ -786,27 +789,6 @@
                           (first argv) "': " (file-err-text r) "\n")))
                 1)))))))
 
-; The directory part of path P, as dirname(1) finds it: the slashes at its end
-; are passed over, then its last name, then the slashes before that name.
-; What is left is the directory; nothing left is "/" where P began with a
-; slash, and "." where it held no slash but at its end, or was empty.
-(def cu-dirname-of
-  (fn (_ p)
-    (def end (byte-len p))
-    ; from I back, the index before the slashes, or the other bytes, there
-    (def slashes
-      (fn (self i) (if (if (>= i 0) (= (byte-at p i) 47) #f) (self (- i 1)) i)))
-    (def name
-      (fn (self i)
-        (if (if (>= i 0) (not (= (byte-at p i) 47)) #f) (self (- i 1)) i)))
-    (let ((a (slashes (- end 1))))
-      (match
-        ((< a 0) (if (> end 0) "/" "."))
-        (#t (let ((b (name a)))
-              (if (< b 0) "."
-                (let ((c (slashes b)))
-                  (if (< c 0) "/" (substring p 0 (+ c 1)))))))))))
-
 ; -n leaves the newline off; -v names what went wrong, where the plain
 ; form answers a non-link with a silent 1.
 (def cu-readlink
@@ -1204,5 +1186,5 @@
   (fn (_ fd) (do (sys-fsync fd) (file-close fd) 0)))
 
 (provide cu/perm cu-basename-of cu-chgrp cu-chmod cu-chown cu-chown-number
-  cu-df cu-dirname-of cu-link cu-mkfifo cu-mode-of cu-mode-valid?
-  cu-octal->int cu-readlink cu-realpath cu-realpath-of cu-sync)
+  cu-df cu-link cu-mkfifo cu-mode-of cu-mode-valid? cu-octal->int cu-readlink
+  cu-realpath cu-realpath-of cu-sync)

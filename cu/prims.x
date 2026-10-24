@@ -1233,42 +1233,239 @@
 
 ; date-now-unix, file-write-run, host-memory and sys-kill are seams: the files
 ; above reach them through the root, where a spec puts a stand-in with set!
+
+(def cu-member-s?
+  (fn (_ s l)
+    (def go
+      (fn (self es)
+        (if (null? es) #f
+          (if (string=? (first es) s) #t (self (rest es))))))
+    (go l)))
+
+(def cu-last
+  (fn (self l) (if (null? (rest l)) (first l) (self (rest l)))))
+
+(def cu-stat-get
+  (fn (_ st key)
+    (let ((e (Assoc entry key st)))
+      (if (null? e) 0 (rest e)))))
+
+(def ps-div (fn (_ a b) (/ (- a (% a b)) b)))
+
+; The first of OPS that is a dash and more, or nil: Opts reads -2 as a number,
+; where getopt, and so busybox, reads it as the option 2
+(def vm-dash-number
+  (fn (self ops)
+    (match
+      ((null? ops) ())
+      ((if (> (byte-len (first ops)) 1) (= (byte-at (first ops) 0) #\-) #f) (first ops))
+      (#t (self (rest ops))))))
+
+(def cu-max-status (fn (_ a b) (if (> a b) a b)))
+
+; -h: bytes with one decimal below ten of a unit, as ls -h prints
+; N bytes the way -h prints them, which is ls's and df's rule both: the
+; largest unit under which the value is below 1024, ROUNDED UP at the
+; precision shown -- one decimal below 10, whole above (1500 is 1.5K,
+; 5000 is 4.9K, 926.35G is 927G, 10239 is 10K).  Below 1024, the bytes.
+(def ls-human
+  (fn (_ n)
+    (def ceil/ (fn (_ a b) (let ((c (+ a (- b 1)))) (/ (- c (% c b)) b))))
+    (def go
+      (fn (self scale units)
+        (def tenths (ceil/ (* n 10) scale))
+        (def whole (ceil/ n scale))
+        (match
+          ((null? (rest units)) (string-append (cu-int->str whole) (first units)))
+          ((<= tenths 99)
+            (string-concat
+              (list (cu-int->str (/ (- tenths (% tenths 10)) 10)) "."
+                    (cu-int->str (% tenths 10)) (first units))))
+          ((< whole 1024) (string-append (cu-int->str whole) (first units)))
+          (#t (self (* scale 1024) (rest units))))))
+    (if (< n 1024) (cu-int->str n)
+      (go 1024 (list "K" "M" "G" "T")))))
+
+(def gz-word-bytes
+  (fn (_ w)
+    (def go (fn (self i acc) (if (< i 0) acc (self (- i 1) (pair (char->integer (byte-at w i)) acc)))))
+    (go (- (byte-len w) 1) ())))
+
+(def cal/ (prim-ref (lit int) (lit /)))
+
+(def hx-hex-digit
+  (fn (_ c)
+    (match
+      ((if (>= c #\0) (<= c #\9) #f) (- c #\0))
+      ((if (>= (| c 32) #\a) (<= (| c 32) #\f) #f) (+ (- (| c 32) #\a) 10))
+      (#t -1))))
+
+; S read by strtoul with base 0 from I: 0x hex, 0 octal, else decimal.
+; Answers (VALUE . END), VALUE nil past LIMIT, END where the digits stop.
+(def hx-strtoul
+  (fn (_ s i base limit)
+    (def n (byte-len s))
+    (def at (fn (_ k) (if (< k n) (byte-at s k) 0)))
+    (def hex-prefix
+      (if (if (= (at i) #\0) (= (| (at (+ i 1)) 32) #\x) #f)
+        (>= (hx-hex-digit (at (+ i 2))) 0) #f))
+    (def b (match ((> base 0) base) (hex-prefix 16) ((= (at i) #\0) 8) (#t 10)))
+    (def start (if (if hex-prefix (if (= base 0) #t (= base 16)) #f) (+ i 2) i))
+    (def go
+      (fn (self k acc)
+        (let ((d (hx-hex-digit (at k))))
+          (if (if (< d 0) #t (>= d b)) (pair acc k)
+            (if (if (null? acc) #t (> acc (cal/ (- limit d) b)))
+              (self (+ k 1) ())
+              (self (+ k 1) (+ (* acc b) d)))))))
+    (go start 0)))
+
+; The directory part of path P, as dirname(1) finds it: the slashes at its end
+; are passed over, then its last name, then the slashes before that name.
+; What is left is the directory; nothing left is "/" where P began with a
+; slash, and "." where it held no slash but at its end, or was empty.
+(def cu-dirname-of
+  (fn (_ p)
+    (def end (byte-len p))
+    ; from I back, the index before the slashes, or the other bytes, there
+    (def slashes
+      (fn (self i) (if (if (>= i 0) (= (byte-at p i) 47) #f) (self (- i 1)) i)))
+    (def name
+      (fn (self i)
+        (if (if (>= i 0) (not (= (byte-at p i) 47)) #f) (self (- i 1)) i)))
+    (let ((a (slashes (- end 1))))
+      (match
+        ((< a 0) (if (> end 0) "/" "."))
+        (#t (let ((b (name a)))
+              (if (< b 0) "."
+                (let ((c (slashes b)))
+                  (if (< c 0) "/" (substring p 0 (+ c 1)))))))))))
+
+; Visit each of NS and answer the WORST status any visit gave, ST or worse: the
+; fold, for a caller that has the names already.
+(def cu-walk-worst
+  (fn (self ns visit st)
+    (if (null? ns) st
+      (let ((r (visit (first ns))))
+        (self (rest ns) visit (if (> r st) r st))))))
+
+(def cu-dot?
+  (fn (_ n) (if (string=? n ".") #t (string=? n ".."))))
+
+; the first K of L; none when K is 0 or less
+(def cu-take
+  (fn (self l k)
+    (if (if (<= k 0) #t (null? l)) ()
+      (pair (first l) (self (rest l) (- k 1))))))
+
+(def cu-nthrest
+  (fn (self n l) (if (= n 0) l (self (- n 1) (rest l)))))
+
+; S's value as a decimal count when it is all digits, else nil
+(def wget-digits
+  (fn (_ s)
+    (if (= (byte-len s) 0) ()
+      (let go ((i 0) (n 0))
+        (match
+          ((= i (byte-len s)) n)
+          ((if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f)
+            (go (+ i 1) (+ (* n 10) (- (byte-at s i) #\0))))
+          (#t ()))))))
+
+; floor division; the harness's / is exact
+(def wget-div (fn (_ a b) (/ (- a (% a b)) b)))
+
+(def wget-index
+  (fn (self s c i)
+    (match
+      ((>= i (byte-len s)) ())
+      ((= (byte-at s i) c) i)
+      (#t (self s c (+ i 1))))))
+
+; is X one of the numbers (or bytes) in L
+(def wget-memv
+  (fn (self x l) (if (null? l) #f (if (= (first l) x) #t (self x (rest l))))))
+
+; the index where the text NEEDLE first starts in S, or nil
+(def wget-find
+  (fn (_ s needle)
+    (def n (byte-len needle))
+    (let go ((i 0))
+      (match
+        ((> (+ i n) (byte-len s)) ())
+        ((string=? (substring s i (+ i n)) needle) i)
+        (#t (go (+ i 1)))))))
+
+; the index of the last byte of S equal to C, or nil
+(def wget-last-index
+  (fn (_ s c)
+    (let go ((i (- (byte-len s) 1)))
+      (match
+        ((< i 0) ())
+        ((= (byte-at s i) c) i)
+        (#t (go (- i 1)))))))
+
+; S lowercased, letters only
+(def wget-lower
+  (fn (_ s)
+    (list->string
+      (map (fn (_ c) (if (if (>= c #\A) (<= c #\Z) #f) (integer->char (+ c 32)) c))
+           (let go ((i (- (byte-len s) 1)) (acc ()))
+             (if (< i 0) acc (go (- i 1) (pair (byte-at s i) acc))))))))
+
+; the message an io Err carries after its call's name: "Connection refused"
+(def wget-err-text
+  (fn (_ e) (if (Err err? e) (file-err-text e) "")))
+
+(def in-index-of
+  (fn (_ s c)
+    (let go ((i (- (byte-len s) 1))) (match ((< i 0) ()) ((= (byte-at s i) c) i) (#t (go (- i 1)))))))
+
+; a fatal error: the message, and the run ends with status 1 -- each applet
+; catches the label net at its top and prints the message after its name
+(def net-die
+  (fn (_ msg) (Err raise (lit net) msg ())))
+
 (provide cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
-  byte-len char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
-  cu-dlopen cu-dlsym cu-err-label cu-fd-fields cu-file-read cu-heap-collect
-  cu-hexs cu-int->ptr cu-int->str cu-lines cu-mode-file-type cu-nth
+  byte-len cal/ char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
+  cu-dirname-of cu-dlopen cu-dlsym cu-dot? cu-err-label cu-fd-fields
+  cu-file-read cu-heap-collect cu-hexs cu-int->ptr cu-int->str cu-last
+  cu-lines cu-max-status cu-member-s? cu-mode-file-type cu-nth cu-nthrest
   cu-piece-bytes cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word
   cu-rev cu-run-bytes cu-run-list cu-run-of cu-sig-ign cu-sighup cu-sigint
-  cu-sigkill cu-sigterm cu-stdin! cu-stdin-chunk! cu-stdin-fields!
+  cu-sigkill cu-sigterm cu-stat-get cu-stdin! cu-stdin-chunk! cu-stdin-fields!
   cu-stdin-moved cu-stdin-to-command! cu-str->ptr cu-string-type cu-sweep!
   cu-sweep-at cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick!
-  cu-sweeps-cell cu-type-of cu-words-line cu/ cu< cu<< cu>> cvt date-now-unix
-  file-chmod file-chown file-close file-copy file-dir? file-err-op
-  file-err-sym file-err-text file-exists? file-lchown file-link file-list-dir
-  file-lstat-file-type file-lstat-full file-lstat-wide file-mkdir file-mkfifo
-  file-mounts file-open-append file-open-err file-open-excl file-open-or-err
-  file-open-read file-open-update file-open-write file-open-wronly file-or-err
-  file-read-all file-read-fd file-read-run file-read-to-end file-read-unsized
-  file-readlink file-rename file-rmdir file-seek file-set-times file-stat
-  file-stat-full file-stat-wide file-statfs-full file-symlink file-truncate
-  file-unlink file-utimes file-write file-write-all file-write-field
-  file-write-nuls file-write-random file-write-run filter host-args
-  host-boot-time host-counters host-cpu host-cpus host-cwd host-disks host-exe
-  host-files host-files-of host-holders host-interfaces host-interrupts
-  host-load-centi host-load-fixed host-maps host-memory host-now host-process
-  host-processes host-regions host-tasks host-threads host-uptime host-users
-  host-utmp host-wait http-close http-head http-open http-read http-status
-  integer->char length libc-strerror list->string load-centi map net-accept
-  net-aton net-base64 net-close net-connect net-listen net-listen-on net-peer
-  net-recv-from-run net-recv-run net-resolve net-send net-send-run
-  net-send-to-run net-shutdown net-sock-addr net-sockaddr net-sockaddr-read
-  net-stdin-socket net-udp-bind net-udp-connect net-udp-open proc-run
-  re-compile re-search reverse rng-int rng-make set-first! str-make-raw
-  string-append string-concat string=? substring sys-chroot sys-close
-  sys-cpu-count sys-dup2 sys-environ sys-exec sys-exec-or-err sys-exit
-  sys-fork sys-fsync sys-getcwd sys-getegid sys-getenv sys-geteuid sys-getgid
-  sys-getgroups sys-getpid sys-getuid sys-group-id sys-group-name sys-isatty
-  sys-kill sys-nice sys-pipe sys-poll sys-setenv sys-signal sys-signals
-  sys-sleep sys-sync sys-time-ms sys-umask sys-uname sys-unsetenv
-  sys-user-group sys-user-groups sys-user-id sys-user-name sys-usleep sys-wait
-  vec-build vec-make vec-ref vec-set!)
+  cu-sweeps-cell cu-take cu-type-of cu-walk-worst cu-words-line cu/ cu< cu<<
+  cu>> cvt date-now-unix file-chmod file-chown file-close file-copy file-dir?
+  file-err-op file-err-sym file-err-text file-exists? file-lchown file-link
+  file-list-dir file-lstat-file-type file-lstat-full file-lstat-wide
+  file-mkdir file-mkfifo file-mounts file-open-append file-open-err
+  file-open-excl file-open-or-err file-open-read file-open-update
+  file-open-write file-open-wronly file-or-err file-read-all file-read-fd
+  file-read-run file-read-to-end file-read-unsized file-readlink file-rename
+  file-rmdir file-seek file-set-times file-stat file-stat-full file-stat-wide
+  file-statfs-full file-symlink file-truncate file-unlink file-utimes
+  file-write file-write-all file-write-field file-write-nuls file-write-random
+  file-write-run filter gz-word-bytes host-args host-boot-time host-counters
+  host-cpu host-cpus host-cwd host-disks host-exe host-files host-files-of
+  host-holders host-interfaces host-interrupts host-load-centi host-load-fixed
+  host-maps host-memory host-now host-process host-processes host-regions
+  host-tasks host-threads host-uptime host-users host-utmp host-wait
+  http-close http-head http-open http-read http-status hx-hex-digit hx-strtoul
+  in-index-of integer->char length libc-strerror list->string load-centi
+  ls-human map net-accept net-aton net-base64 net-close net-connect net-die
+  net-listen net-listen-on net-peer net-recv-from-run net-recv-run net-resolve
+  net-send net-send-run net-send-to-run net-shutdown net-sock-addr
+  net-sockaddr net-sockaddr-read net-stdin-socket net-udp-bind net-udp-connect
+  net-udp-open proc-run ps-div re-compile re-search reverse rng-int rng-make
+  set-first! str-make-raw string-append string-concat string=? substring
+  sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ sys-exec
+  sys-exec-or-err sys-exit sys-fork sys-fsync sys-getcwd sys-getegid
+  sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid sys-getuid
+  sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe sys-poll
+  sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms sys-umask
+  sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
+  sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!
+  vm-dash-number wget-digits wget-div wget-err-text wget-find wget-index
+  wget-last-index wget-lower wget-memv)

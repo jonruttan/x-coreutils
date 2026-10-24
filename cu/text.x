@@ -13,14 +13,17 @@
 
 (module cu/text)
 
-(import cu/prims append byte-at byte-len cu-fd-fields cu-file-read cu-int->str
-  cu-lines cu-nth cu-piece-bytes cu-rev cu-run-bytes cu-run-list cu-run-of
-  cu-stdin-fields! cu-sweep! cu-sweep-at cu-sweep-bytes cu-sweep-lines
-  cu-sweep-steps cu-sweep-tick! cu-words-line file-close file-dir? file-err-op
-  file-err-text file-open-or-err file-open-read file-or-err file-read-all
-  file-read-fd file-seek file-stat-full file-write file-write-field filter
+(import cu/cli cu-last-given cu-last-valued cu-missing-operand cu-operands
+  cu-opts)
+(import cu/prims append byte-at byte-len cu-dirname-of cu-fd-fields
+  cu-file-read cu-int->str cu-lines cu-nth cu-piece-bytes cu-rev cu-run-bytes
+  cu-run-list cu-run-of cu-stat-get cu-stdin-fields! cu-sweep! cu-sweep-at
+  cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick! cu-walk-worst
+  cu-words-line file-close file-dir? file-err-op file-err-text
+  file-open-or-err file-open-read file-or-err file-read-all file-read-fd
+  file-seek file-stat-full file-write file-write-field file-write-run filter
   length map reverse set-first! str-make-raw string-append string-concat
-  string=? substring)
+  string=? substring sys-sleep sys-usleep)
 
 ; cu-opts, cu-operands, cu-last-given, cu-last-valued and cu-missing-operand
 ; are cu/cli's, which loads after this file: they are reached through the root
@@ -1039,14 +1042,6 @@
               (#t (self (+ i 1) found))))))
     (go i 0)))
 
-(def cu-member-s?
-  (fn (_ s l)
-    (def go
-      (fn (self es)
-        (if (null? es) #f
-          (if (string=? (first es) s) #t (self (rest es))))))
-    (go l)))
-
 ; LINES to FD, one per line -- stderr's cu-print-lines
 (def cu-print-lines-to
   (fn (self fd ls)
@@ -1704,14 +1699,54 @@
                         (self (rest ps)))))))
         (go argv)))))
 
+; US microseconds slept: the whole seconds through sleep, the rest through
+; usleep, which on Darwin takes less than a second
+(def cu-sleep-for
+  (fn (_ us)
+    (let ((secs (/ (- us (% us 1000000)) 1000000)))
+      (do (if (> secs 0) (sys-sleep secs) ())
+          (if (> (% us 1000000) 0) (sys-usleep (% us 1000000)) ())))))
+
+; Interval A in microseconds, or nil where it is not one: digits, with a
+; point and digits of a fraction, either part empty but not both, then a
+; unit -- s seconds, the default, m minutes, h hours or d days.  A fraction
+; past the sixth digit is dropped.
+(def cu-sleep-us
+  (fn (_ a)
+    (def end (byte-len a))
+    (def last (if (> end 0) (byte-at a (- end 1)) 0))
+    (def unit
+      (match ((= last 115) 1) ((= last 109) 60) ((= last 104) 3600)
+             ((= last 100) 86400) (#t 0)))
+    (def parts
+      (cu-split-byte (substring a 0 (if (= unit 0) end (- end 1))) 46))
+    (def digits?
+      (fn (_ s)
+        (let ((go (fn (self i)
+                    (if (>= i (byte-len s)) #t
+                      (if (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f)
+                        (self (+ i 1)) #f)))))
+          (go 0))))
+    (def whole (first parts))
+    (def frac (if (null? (rest parts)) "" (first (rest parts))))
+    (match
+      ((if (null? (rest parts)) #f (pair? (rest (rest parts)))) ())
+      ((if (= (byte-len whole) 0) (= (byte-len frac) 0) #f) ())
+      ((not (if (digits? whole) (digits? frac) #f)) ())
+      (#t (* (if (= unit 0) 1 unit)
+             (+ (* (if (= (byte-len whole) 0) 0 (cu-num-prefix whole)) 1000000)
+                (cu-num-prefix
+                  (substring (string-append frac "000000") 0 6))))))))
+
 (provide cu/text cu-basename cu-byte-in? cu-comm cu-delim-fields
   cu-delim-fields-said cu-dirname cu-each-run-said cu-each-said cu-enough
   cu-fd-chunks cu-file-pieces cu-first-unopened cu-fold-lines-said cu-fold-one
   cu-fold-pieces cu-fold-said cu-fold-stdin cu-gather-said cu-head cu-join
-  cu-join-with cu-map-swept cu-member-s? cu-merge cu-msort cu-newlines-from
-  cu-num-prefix cu-pad-left cu-pad-right cu-pad-zero cu-pieces cu-pieces-past
+  cu-join-with cu-map-swept cu-merge cu-msort cu-newlines-from cu-num-prefix
+  cu-pad-left cu-pad-right cu-pad-zero cu-pieces cu-pieces-past
   cu-print-fields cu-print-fields-to cu-print-lines cu-print-lines-to
   cu-put-each cu-read-error cu-read-run-said cu-read-said cu-run-from
   cu-run-join cu-run-nul? cu-run-part cu-run-slice cu-run-text cu-say cu-says
-  cu-says-open cu-says-read cu-split-byte cu-stdin-pieces cu-str< cu-tail
-  cu-tail-follow cu-tail-round cu-text-from cu-unmarked cu-wc cu-with-sources)
+  cu-says-open cu-says-read cu-sleep-for cu-sleep-us cu-split-byte
+  cu-stdin-pieces cu-str< cu-tail cu-tail-follow cu-tail-round cu-text-from
+  cu-unmarked cu-wc cu-with-sources)

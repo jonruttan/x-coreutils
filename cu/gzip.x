@@ -26,10 +26,10 @@
 
 (import cu/cli cu-opts)
 (import cu/prims append byte-at byte-len char->integer cu-err-label
-  cu-int->ptr cu-ptr-set! cu-str->ptr cu-sweep-tick! file-close file-err-text
-  file-open-err file-open-wronly file-set-times file-stat-full file-unlink
-  file-write filter length reverse str-make-raw string-append string-concat
-  string=? substring vec-build vec-ref vec-set!)
+  cu-int->ptr cu-ptr-set! cu-stat-get cu-str->ptr cu-sweep-tick! file-close
+  file-err-text file-open-err file-open-wronly file-set-times file-stat-full
+  file-unlink file-write filter gz-word-bytes length reverse str-make-raw
+  string-append string-concat string=? substring vec-build vec-ref vec-set!)
 (import cu/text cu-pieces)
 
 (import x/codec/deflate)
@@ -489,11 +489,6 @@
       (if (= (char->integer (byte-at w 0)) 45) (%gz-digit? (char->integer (byte-at w 1))) #f)
       #f)))
 
-(def gz-word-bytes
-  (fn (_ w)
-    (def go (fn (self i acc) (if (< i 0) acc (self (- i 1) (pair (char->integer (byte-at w i)) acc)))))
-    (go (- (byte-len w) 1) ())))
-
 ; --- tar's z ------------------------------------------------------------------------
 
 ; SRC's pieces inflated for tar, as busybox's child gunzip hands them over: an
@@ -530,4 +525,4 @@
                     (if (first again) (do (%set-first! again #f) p) (src))))))))))
 
 (provide cu/gzip cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
-  gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces gz-word-bytes)
+  gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)

@@ -18,6 +18,7 @@ draws only the lines busybox draws within one.
 ### a server, a run, and its report
 
 ```cu
+(def stand-in! (fn (_ envs name v) (List map (fn (_ e) (eval (list (lit set!) name (list (lit lit) v)) e)) envs)))
 (do (import x/sys/socket) (sys-unsetenv "COLUMNS")
   (def fp "/tmp/x-cu-net.fp")
   (def fp-home (sys-getcwd))
@@ -139,14 +140,14 @@ draws only the lines busybox draws within one.
     (sys-dup2 oo 1) (sys-dup2 ee 2)
     (def fp-clock date-now-unix)
     (def fp-now (date-now-unix))
-    (set! date-now-unix (fn (_) fp-now))
+    (stand-in! (list (module cu/net)) (lit date-now-unix) (fn (_) fp-now))
     (def st (guard (e (do (file-write 2 (string-append "raised: " (if (Err err? e) (e msg) "?"))) -1))
               (cu-run (map (fn (_ a) (match ((string=? a "P") port) ((string=? a "R") rport)
                                             (#t (Str8 replace ":R/" (string-concat (list ":" rport "/"))
                                                   (Str8 replace ":P/" (string-concat (list ":" port "/")) a)))))
                            args)
                       input)))
-    (set! date-now-unix fp-clock)
+    (stand-in! (list (module cu/net)) (lit date-now-unix) fp-clock)
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (Sys chdir fp-home)
     (sys-kill pid 9) (sys-wait pid)

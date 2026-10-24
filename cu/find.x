@@ -40,10 +40,13 @@
 ; is what the shells settle on.
 (module cu/find)
 
-(import cu/prims byte-at byte-len cu-b->s file-lstat-full file-write
-  file-write-field map proc-run reverse string-append string-concat string=?
-  substring)
+(import cu/fs2 cu-base-of)
+(import cu/fs3 cu-path-join)
+(import cu/prims byte-at byte-len cu-b->s cu-stat-get file-lstat-full
+  file-write file-write-field map proc-run reverse string-append string-concat
+  string=? substring)
 (import cu/text cu-num-prefix)
+(import cu/walk cu-walk-names)
 
 (def cu-glob-class
   (fn (_ pat pi c)

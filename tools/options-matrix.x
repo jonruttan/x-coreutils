@@ -20,6 +20,11 @@
 ; lint-known: busybox-options
 (include-once "docs/busybox-options.x")
 
+(import cu/cli cu-spec-of)
+(import cu/prims append byte-at byte-len cu-int->str filter length
+  string-append string-concat string=? substring)
+(import cu/text cu-join-with cu-msort cu-str<)
+
 ; busybox spells a long option with its value shown, --ignore=N; the
 ; declaration and the guard know it as --ignore, a flag that takes one.
 ; The part before the = is what to look for.

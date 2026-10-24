@@ -23,10 +23,12 @@
 (module cu/ed)
 
 (import cu/cli cu-opts)
-(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-sweep-lines
-  cu-sweep-tick! file-close file-err-text file-open-err file-write filter
-  length map reverse string-append string-concat string=? substring vec-build
-  vec-make vec-ref vec-set!)
+(import cu/dump dp-find)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-nthrest
+  cu-sweep-lines cu-sweep-tick! cu-take file-close file-err-text file-open-err
+  file-write filter length map reverse string-append string-concat string=?
+  substring vec-build vec-make vec-ref vec-set!)
+(import cu/tar tar-all-pieces tar-str-bytes)
 (import cu/text cu-pieces cu-run-text)
 
 (def %ed ())

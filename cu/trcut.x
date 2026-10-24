@@ -17,11 +17,12 @@
 (module cu/trcut)
 
 (import cu/cli cu-extra-operand cu-missing-operand cu-opts)
-(import cu/prims append byte-at byte-len cu-b->s cu-lines cu-nth cu-run-bytes
-  cu-sweep! cu-sweep-steps file-write filter length map reverse string-concat
-  string=? substring)
+(import cu/fmt-lex cu-esc-at)
+(import cu/prims append byte-at byte-len cu-b->s cu-lines cu-member-s? cu-nth
+  cu-run-bytes cu-sweep! cu-sweep-steps file-write file-write-run filter
+  length map reverse string-concat string=? substring)
 (import cu/text cu-fold-lines-said cu-fold-stdin cu-join-with cu-map-swept
-  cu-member-s? cu-num-prefix cu-print-lines cu-says cu-split-byte)
+  cu-num-prefix cu-print-lines cu-says cu-split-byte)
 
 (def %cu-tr-set
   (fn (_ s) (%cu-tr-ranges (%cu-tr-items s 0 ()))))

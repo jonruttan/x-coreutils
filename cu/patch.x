@@ -18,12 +18,15 @@
 (module cu/patch)
 
 (import cu/cli cu-opts)
+(import cu/dump dp-find)
+(import cu/fs2 cu-mkdir-p!)
 (import cu/prims append bit-xor byte-at byte-len cu-dlopen cu-dlsym
-  cu-err-label cu-int->str cu-ptr->str cu-ptr-call cu-ptr-set! cu-str->ptr
-  cu-sweep-lines cu-sweep-tick! file-chmod file-close file-err-text
-  file-open-err file-rename file-stat-full file-unlink file-write length map
-  reverse str-make-raw string-append string-concat string=? substring
-  vec-build vec-make vec-ref vec-set!)
+  cu-err-label cu-int->str cu-ptr->str cu-ptr-call cu-ptr-set! cu-stat-get
+  cu-str->ptr cu-sweep-lines cu-sweep-tick! file-chmod file-close
+  file-err-text file-open-err file-rename file-stat-full file-unlink
+  file-write file-write-run length map reverse str-make-raw string-append
+  string-concat string=? substring vec-build vec-make vec-ref vec-set!)
+(import cu/tar tar-last-slash)
 (import cu/text cu-fd-chunks cu-num-prefix cu-pieces cu-run-from cu-run-text)
 
 (def %pt-die (fn (_ msg) (Err raise (lit patch) (string-append "patch: " msg) ())))

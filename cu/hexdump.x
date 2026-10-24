@@ -15,43 +15,22 @@
 (module cu/hexdump)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
+  cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
+  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-skip-ws dp-zeros)
 (import cu/prims byte-at byte-len cu-int->str cu-lines cu-nth file-err-text
-  file-exists? file-read-all file-write length map reverse string-append
-  string-concat string=? substring vec-build vec-ref vec-set!)
+  file-exists? file-read-all file-write file-write-run hx-hex-digit hx-strtoul
+  length map reverse string-append string-concat string=? substring vec-build
+  vec-ref vec-set!)
+(import cu/strings cu-range-number)
 (import cu/text cu-pieces cu-run-text)
+(import cu/tsort ts-space?)
 
 (def %hx-suffixes
   (list (pair "KiB" 1024) (pair "kiB" 1024) (pair "K" 1024) (pair "k" 1024)
         (pair "MiB" 1048576) (pair "miB" 1048576) (pair "M" 1048576) (pair "m" 1048576)
         (pair "GiB" 1073741824) (pair "giB" 1073741824) (pair "G" 1073741824)
         (pair "g" 1073741824) (pair "KB" 1000) (pair "MB" 1000000) (pair "GB" 1000000000)))
-
-(def %hx-hex-digit
-  (fn (_ c)
-    (match
-      ((if (>= c #\0) (<= c #\9) #f) (- c #\0))
-      ((if (>= (| c 32) #\a) (<= (| c 32) #\f) #f) (+ (- (| c 32) #\a) 10))
-      (#t -1))))
-
-; S read by strtoul with base 0 from I: 0x hex, 0 octal, else decimal.
-; Answers (VALUE . END), VALUE nil past LIMIT, END where the digits stop.
-(def hx-strtoul
-  (fn (_ s i base limit)
-    (def n (byte-len s))
-    (def at (fn (_ k) (if (< k n) (byte-at s k) 0)))
-    (def hex-prefix
-      (if (if (= (at i) #\0) (= (| (at (+ i 1)) 32) #\x) #f)
-        (>= (%hx-hex-digit (at (+ i 2))) 0) #f))
-    (def b (match ((> base 0) base) (hex-prefix 16) ((= (at i) #\0) 8) (#t 10)))
-    (def start (if (if hex-prefix (if (= base 0) #t (= base 16)) #f) (+ i 2) i))
-    (def go
-      (fn (self k acc)
-        (let ((d (%hx-hex-digit (at k))))
-          (if (if (< d 0) #t (>= d b)) (pair acc k)
-            (if (if (null? acc) #t (> acc (cal/ (- limit d) b)))
-              (self (+ k 1) ())
-              (self (+ k 1) (+ (* acc b) d)))))))
-    (go start 0)))
 
 ; S as busybox's xstrtou_range_sfx reads it for APPLET: no sign, no blank,
 ; base 0, then one of SUFFIXES or nothing; past LIMIT, what the type holds,
@@ -316,7 +295,7 @@
     (do (%xr-flush! rv) (file-write 2 (string-concat (list "xxd: " msg "\n"))) 1)))
 
 (def %hx-alnum?
-  (fn (_ c) (if (>= (%hx-hex-digit c) 0) #t (if (>= (| c 32) #\a) (<= (| c 32) #\z) #f))))
+  (fn (_ c) (if (>= (hx-hex-digit c) 0) #t (if (>= (| c 32) #\a) (<= (| c 32) #\z) #f))))
 
 ; standard output moved to OFS: sought, or where it will not seek, zeros
 ; written up to it; #f where it is behind and will not seek
@@ -353,7 +332,7 @@
     (def p? (%xr-p? rv))
     (def p1 (if (if p? (not (eq? step (lit line))) #f) (dp-skip-ws buf p) p))
     (def c (if (eq? step (lit line)) 0 (dp-at buf p1)))
-    (def d (%hx-hex-digit c))
+    (def d (hx-hex-digit c))
     (match
       ((eq? step (lit line))
         (match
@@ -405,6 +384,6 @@
 (def %hx-next-xdigit
   (fn (self s i)
     (if (>= i (byte-len s)) -1
-      (if (>= (%hx-hex-digit (byte-at s i)) 0) i (self s (+ i 1))))))
+      (if (>= (hx-hex-digit (byte-at s i)) 0) i (self s (+ i 1))))))
 
-(provide cu/hexdump cu-hd cu-hexdump cu-xxd hx-strtoul)
+(provide cu/hexdump cu-hd cu-hexdump cu-xxd)

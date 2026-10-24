@@ -24,15 +24,20 @@
 (module cu/ftpd)
 
 (import cu/cli cu-opts cu-run cu-usage)
+(import cu/hash cu-bytes)
+(import cu/httpd hd-crypt-equal? hd-system-password)
+(import cu/nc nc-count)
 (import cu/prims append bit-and byte-at byte-len cu-dlopen cu-dlsym
   cu-int->str cu-ptr->str cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
   cu-sweep-lines cu-sweep-tick! file-close file-err-text file-mkdir
   file-open-read file-open-wronly file-read-run file-rename file-rmdir
-  file-seek file-stat file-unlink file-write map net-accept net-close
-  net-connect net-peer net-sock-addr net-stdin-socket reverse str-make-raw
-  string-append string-concat string=? substring sys-chroot sys-close sys-dup2
-  sys-exit sys-fork sys-getcwd sys-getpid sys-pipe sys-poll sys-signal
-  sys-signals sys-user-group sys-user-id)
+  file-seek file-stat file-unlink file-write file-write-run map net-accept
+  net-close net-connect net-peer net-sock-addr net-stdin-socket reverse
+  str-make-raw string-append string-concat string=? substring sys-chroot
+  sys-close sys-dup2 sys-exit sys-fork sys-getcwd sys-getpid sys-pipe sys-poll
+  sys-signal sys-signals sys-user-group sys-user-id wget-digits wget-div
+  wget-err-text wget-find wget-index wget-last-index wget-memv)
+(import cu/session ss-call)
 (import cu/text cu-pad-zero)
 
 (def %fd-verbose 0)

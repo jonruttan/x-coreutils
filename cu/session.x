@@ -24,9 +24,10 @@
 (import cu/cli cu-opts)
 (import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
   cu-ptr-call cu-stdin-to-command! file-close file-err-text file-exists?
-  file-open-err file-read-all file-write length reverse string-append
-  string-concat string=? sys-exec-or-err sys-exit sys-fork sys-fsync
-  sys-getenv sys-usleep sys-wait)
+  file-open-err file-read-all file-write file-write-run length reverse
+  string-append string-concat string=? sys-dup2 sys-exec-or-err sys-exit
+  sys-fork sys-fsync sys-getenv sys-usleep sys-wait)
+(import cu/strings cu-range-number)
 (import cu/text cu-pieces)
 
 (import x/repl/term)
@@ -270,5 +271,15 @@
         (file-write 2 "\n")
         0)))
 
+; bb_daemonize: the parent ends, the child leaves the terminal for /dev/null
+(def hd-daemonize
+  (fn (_)
+    (when (> (sys-fork) 0) (sys-exit 0))
+    (ss-resolve!)
+    (ss-setsid)
+    (let ((fd (File open "/dev/null" (lit rdwr))))
+      (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
+          (when (> fd 2) (file-close fd))))))
+
 (provide cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
-  cu-ttysize ss-call ss-flock ss-resolve! ss-setsid)
+  cu-ttysize hd-daemonize ss-call ss-flock ss-resolve!)

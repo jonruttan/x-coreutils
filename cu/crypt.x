@@ -14,8 +14,12 @@
 (module cu/crypt)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims byte-at byte-len char->integer file-write length reverse
-  str-make-raw string-append string=? substring sys-dup2)
+(import cu/dump dp-find)
+(import cu/hash cu-bytes cu-crypt64)
+(import cu/prims bit-and byte-at byte-len char->integer file-close
+  file-open-read file-read-run file-write length map reverse str-make-raw
+  string-append string-concat string=? substring sys-dup2)
+(import cu/strings cu-range-number)
 (import cu/text cu-stdin-pieces)
 
 (import x/codec/crypt)
@@ -85,4 +89,14 @@
               ((= (char->integer (byte-at buf 0)) 10) (bytes->str (reverse acc)))
               (#t (go (pair (char->integer (byte-at buf 0)) acc))))))))))
 
-(provide cu/crypt cu-cryptpw cu-mkpasswd cu-pw-encrypt)
+; crypt_make_rand64encoded: N characters of crypt's base-64, from /dev/urandom
+(def hd-salt
+  (fn (_ n)
+    (let ((fd (file-open-read "/dev/urandom")))
+      (let ((r (file-read-run fd n)))
+        (do (file-close fd)
+            (string-concat
+              (map (fn (_ b) (let ((v (bit-and b 63))) (substring cu-crypt64 v (+ v 1))))
+                   (cu-bytes (first r) 0 (rest r)))))))))
+
+(provide cu/crypt cu-cryptpw cu-mkpasswd cu-pw-encrypt hd-salt)

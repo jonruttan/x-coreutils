@@ -22,12 +22,14 @@
 (module cu/dns)
 
 (import cu/cli cu-usage)
-(import cu/prims append byte-at byte-len cu-int->str cu-nth file-err-text
-  file-exists? file-open-err file-read-all file-read-run file-write filter
-  integer->char length list->string map net-close net-resolve net-udp-connect
-  reverse set-first! string-append string-concat string=? substring sys-poll
-  sys-time-ms sys-uname vec-build vec-ref)
-(import cu/text cu-member-s?)
+(import cu/net whois-trim)
+(import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-nth
+  file-err-text file-exists? file-open-err file-read-all file-read-run
+  file-write file-write-run filter integer->char length list->string map
+  net-close net-die net-resolve net-udp-connect reverse set-first!
+  string-append string-concat string=? substring sys-poll sys-time-ms
+  sys-uname vec-build vec-ref wget-digits wget-div wget-find wget-index
+  wget-last-index wget-memv)
 
 (def %ns-port 53)
 (def %ns-retry 2)

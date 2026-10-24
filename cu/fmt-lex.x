@@ -42,7 +42,7 @@
 (module cu/fmt-lex)
 
 (import cu/prims append bit-and byte-at byte-len cu-b->s cu-nth cu-run-of
-  reverse set-first! substring)
+  file-write-run reverse set-first! substring)
 
 (import x/reader/lexer)
 ; the module a first make imports, here so the state image carries it: read

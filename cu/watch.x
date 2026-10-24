@@ -19,11 +19,13 @@
 (module cu/watch)
 
 (import cu/cli cu-opts cu-refuse-option cu-usage)
-(import cu/prims byte-at byte-len cu-stdin-to-command! cu-sweep-at file-write
-  string-append string-concat substring sys-exec-or-err sys-exit sys-fork
-  sys-getenv sys-signal sys-usleep sys-wait)
+(import cu/prims byte-at byte-len cu-stdin-to-command! cu-sweep-at
+  date-now-unix file-write string-append string-concat substring
+  sys-exec-or-err sys-exit sys-fork sys-getenv sys-signal sys-usleep sys-wait)
 (import cu/procps ps-boot-line)
 (import cu/text cu-pad-right)
+(import cu/vi vi-dim)
+(import cu/vmstat vm-fixed)
 
 (def %watch-esc (bytes->str (list 27)))
 (def %watch-most 9007199254740992)      ; 2^53: the microseconds a period may be

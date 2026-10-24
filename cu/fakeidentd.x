@@ -18,10 +18,13 @@
 (module cu/fakeidentd)
 
 (import cu/cli cu-opts)
+(import cu/inetd in-af in-bind in-c in-call in-errtext in-now in-percent
+  in-reuse! in-sockaddr6)
 (import cu/prims append byte-at byte-len cu-nth cu-ptr-call cu-sig-ign
   cu-str->ptr cu-sweep-lines cu-sweep-tick! file-write filter map net-aton
   net-sockaddr net-stdin-socket str-make-raw string-append string-concat
   substring sys-close sys-poll sys-signal)
+(import cu/session hd-daemonize)
 
 (def %fi-limit 59)
 (def %fi-timeout 20)

@@ -28,14 +28,23 @@
 (module cu/cpio)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-nth
-  cu-ptr-call cu-sweep-lines cu-sweep-tick! file-chmod file-chown file-close
-  file-err-text file-link file-lstat-file-type file-lstat-full file-open-err
-  file-readlink file-set-times file-stat-full file-symlink file-unlink
-  file-write filter map reverse str-make-raw string-append string-concat
-  string=? substring sys-close sys-exit sys-fork sys-getcwd sys-group-id
-  sys-pipe sys-user-group sys-user-id sys-user-name sys-wait vec-build
-  vec-make vec-ref vec-set!)
+(import cu/dump dp-find dp-udigits)
+(import cu/find cu-glob?)
+(import cu/fs2 cu-mkdir-p!)
+(import cu/fs3 cu-dev-major cu-dev-minor)
+(import cu/prims append byte-at byte-len cal/ cu-err-label cu-int->str cu-nth
+  cu-nthrest cu-stat-get cu-sweep-lines cu-sweep-tick! cu-take file-chmod
+  file-chown file-close file-err-text file-link file-lstat-file-type
+  file-lstat-full file-open-err file-readlink file-set-times file-stat-full
+  file-symlink file-unlink file-write file-write-run filter map reverse
+  str-make-raw string-append string-concat string=? substring sys-close
+  sys-exit sys-fork sys-getcwd sys-group-id sys-pipe sys-user-group
+  sys-user-id sys-user-name sys-wait vec-build vec-make vec-ref vec-set!)
+(import cu/sysinfo si-digits?)
+(import cu/tar tar-copy-out! tar-field tar-fill! tar-find-str tar-last-slash
+  tar-makedev tar-member? tar-min tar-mkdir tar-mknod tar-printable tar-reader
+  tar-resolve! tar-skip! tar-verbose-line tar-why tc-block tc-sub-run tm-link
+  tm-mode tm-name tm-size)
 (import cu/text cu-fd-chunks cu-num-prefix cu-pad-zero cu-pieces)
 
 (def %cp-die (fn (_ msg) (Err raise (lit cpio) (string-append "cpio: " msg) ())))

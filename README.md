@@ -178,7 +178,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
 
     lang.xon          what this bundle IS (self-contained)
     run.x             the entry: operands mean "be the applet"
-    cu/base.x         the files below, assembled into the one bundle
+    cu/base.x         the cu/base module: loads every applet's module, and hands the entry its names
     cu/prims.x        the platform layer (byte doors, bitwise, File, the wide stat)
     cu/text.x         head tail wc comm join basename dirname
     cu/text2.x        echo printf seq rev tac fold paste tee
@@ -257,13 +257,15 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
     cu/procps.x       uptime, free, ps, pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
+    cu/signal.x       signal names and numbers, read as busybox's get_signum reads them
     cu/sysctl.x       sysctl: the kernel's parameters, read and written under /proc/sys
     cu/lsmod.x        lsmod: the kernel's loaded modules, from /proc/modules
     cu/route.x        route: the routing tables shown, and routes added and deleted through the kernel's ioctls
     cu/arp.x          arp: the ARP cache shown, and entries set and deleted through the kernel's ioctls
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls
-    cu/ip.x           ip, ipaddr and iplink: the links and their addresses shown, over a netlink socket
+    cu/ip.x           the links and their addresses shown, and the netlink calls the ip verbs share
+    cu/ip-main.x      ip, ipaddr and iplink: the common options, then the object word hands the rest to its verb
     cu/ipset.x        ip addr add, change, delete and flush, ip link set, add and delete, over netlink and the ioctls
     cu/iproute.x      ip route and iproute: the routes listed, flushed, changed and asked after, over netlink
     cu/inet.x         what the network tables share: addresses, names through the C library, the ioctls' buffers
@@ -276,8 +278,9 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
     cu/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
     cu/options.x      each applet's option declaration and help text
-    cu/applets.x      Applets, the class whose statics are the applets, filled in by the files that carry them
+    cu/applets.x      Applets, the class whose statics are the applets, each imported from its module
     cu/cli.x          the option parse, cu-run, cu-main
     tests/            markdown specs + the platform's runner, vendored nowhere
+    tests/root.x      every module's exports bound in the root, where the specs read them
 
 <p align="center"><img src="docs/bitwise-mark.svg" alt="Bitwise" width="96"></p>

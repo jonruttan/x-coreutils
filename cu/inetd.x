@@ -28,16 +28,17 @@
 
 (import cu/cli cu-opts)
 (import cu/date cu-date-fmt cu-date-split)
-(import cu/httpd hd-daemonize)
 (import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-err-label cu-int->str
   cu-nth cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr
   cu-sweep-lines cu-sweep-tick! file-close file-err-text file-read-all
-  file-unlink file-write filter length map net-aton net-resolve net-send-run
-  net-sockaddr reverse str-make-raw string-append string-concat string=?
-  substring sys-close sys-dup2 sys-exit sys-fork sys-getgid sys-getpid
-  sys-getuid sys-group-id sys-poll sys-signal sys-user-group sys-user-id
-  vec-make vec-ref vec-set!)
-(import cu/tcpsvd ts-signal-number)
+  file-unlink file-write filter in-index-of length map net-aton net-die
+  net-resolve net-send-run net-sockaddr reverse str-make-raw string-append
+  string-concat string=? substring sys-close sys-dup2 sys-exit sys-fork
+  sys-getgid sys-getpid sys-getuid sys-group-id sys-poll sys-signal
+  sys-user-group sys-user-id vec-make vec-ref vec-set! wget-digits wget-div
+  wget-index)
+(import cu/session hd-daemonize)
+(import cu/signal ts-signal-number)
 
 (def %in-services-file "/etc/services")
 (def %in-pidfile "/var/run/inetd.pid")
@@ -171,10 +172,6 @@
       (if (stop? i) (reverse acc)
         (let ((e (if (= t (- most 1)) (rest-end i) (word-end i))))
           (go (if (= t (- most 1)) n (skip e)) (+ t 1) (pair (substring line i e) acc)))))))
-
-(def in-index-of
-  (fn (_ s c)
-    (let go ((i (- (byte-len s) 1))) (match ((< i 0) ()) ((= (byte-at s i) c) i) (#t (go (- i 1)))))))
 
 (def %in-first-index (fn (_ s c) (wget-index s c 0)))
 
@@ -812,7 +809,15 @@
     (%in-reread!)
     (%in-loop)))
 
+; bb_lookup_port: digits up to 65535, else /etc/services
+(def tn-port
+  (fn (_ s)
+    (if (null? s) 23
+      (let ((n (in-strtou s)))
+        (if (if (null? n) #f (<= n 65535)) n
+          (let ((p (in-servport s "tcp")))
+            (if (null? p) (net-die (string-concat (list "bad port '" s "'"))) p)))))))
+
 (provide cu/inetd cu-inetd in-af in-bind in-c in-call in-count in-dontwait
-  in-errtext in-exec in-index-of in-lines in-now in-percent in-recvfrom
-  in-reuse! in-sendto in-servport in-sockaddr6 in-strtou in-tokens-max
-  in-zeroed)
+  in-errtext in-exec in-lines in-now in-percent in-recvfrom in-reuse!
+  in-sendto in-sockaddr6 in-strtou in-tokens-max in-zeroed tn-port)

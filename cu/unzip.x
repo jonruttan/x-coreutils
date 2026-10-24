@@ -28,11 +28,18 @@
 (module cu/unzip)
 
 (import cu/cli cu-usage)
-(import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-ptr-call
-  cu-str->ptr cu-sweep-tick! file-chmod file-close file-err-text
+(import cu/dump dp-find dp-udigits)
+(import cu/find cu-glob?)
+(import cu/fs2 cu-base-of)
+(import cu/gzip gz-at gz-copy)
+(import cu/prims append byte-at byte-len cal/ cu-err-label cu-int->str
+  cu-stat-get cu-str->ptr cu-sweep-tick! file-chmod file-close file-err-text
   file-lstat-full file-open-err file-open-read file-open-wronly file-stat-full
   file-symlink file-write filter length map reverse str-make-raw string-append
   string-concat string=? substring sys-getcwd vec-build vec-ref vec-set!)
+(import cu/tar cu-unsafe-prefix tar-copy-out! tar-field tar-fill! tar-find-str
+  tar-last-slash tar-min tar-mkdir tar-printable tar-reader tar-resolve!
+  tar-skip! tar-why)
 (import cu/text cu-fd-chunks cu-pad-left cu-pad-zero cu-run-text
   cu-stdin-pieces)
 

@@ -27,13 +27,22 @@
 
 (import x/sys/pty)
 (import cu/cli cu-opts cu-usage)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/inetd in-af in-bind in-c in-call in-count in-errtext in-exec
+  in-percent in-reuse! in-sockaddr6 in-strtou in-zeroed)
+(import cu/nc nc-count)
 (import cu/prims append byte-at byte-len cu-int->str cu-nth cu-ptr->str
   cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep-lines
-  cu-sweep-tick! file-close file-err-sym file-exists? file-read-all
-  file-read-run file-write filter length map net-aton net-peer net-send-run
-  net-sockaddr net-stdin-socket reverse str-make-raw string-append
-  string-concat substring sys-close sys-exit sys-fork sys-poll
-  sys-signal sys-time-ms sys-uname vec-make vec-ref vec-set!)
+  cu-sweep-tick! date-now-unix file-close file-err-sym file-exists?
+  file-read-all file-read-run file-write filter in-index-of length map
+  net-aton net-peer net-send-run net-sockaddr net-stdin-socket reverse
+  str-make-raw string-append string-concat substring sys-close
+  sys-exit sys-fork sys-poll sys-signal sys-time-ms sys-uname vec-make vec-ref
+  vec-set!)
+(import cu/session hd-daemonize)
+(import cu/signal ts-signal-number)
+(import cu/telnet tn-run)
+(import cu/who cu-uname-field)
 
 (def %td-login "/bin/login")
 (def %td-issue "/etc/issue.net")

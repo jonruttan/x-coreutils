@@ -23,10 +23,14 @@
 (module cu/mpstat)
 
 (import cu/cli cu-opts cu-refuse-option cu-usage)
-(import cu/prims append byte-at byte-len cu-int->str cu-nth file-write filter
-  host-counters host-cpu host-cpus host-interrupts length map reverse
-  string-append string-concat substring)
-(import cu/text cu-member-s? cu-pad-right)
+(import cu/iostat io-time io-uname-line)
+(import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-nth
+  file-write filter host-counters host-cpu host-cpus host-interrupts host-now
+  host-wait length map reverse string-append string-concat substring
+  vm-dash-number)
+(import cu/strings cu-range-number)
+(import cu/text cu-pad-right)
+(import cu/vmstat vm-fixed vm-get vm-rate vm-right vm-ticks)
 
 (def %mp-ticks
   (fn (_ r)

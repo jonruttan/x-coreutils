@@ -17,12 +17,19 @@
 (module cu/sysinfo)
 
 (import cu/cli cu-opts cu-usage)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/dump dp-find dp-udigits)
+(import cu/fs3 cu-dev-major cu-dev-minor)
+(import cu/gzip gz-ends?)
+(import cu/perm cu-mode-of cu-mode-valid?)
 (import cu/prims byte-at byte-len cu-cstr-at cu-dlopen cu-dlsym cu-int->ptr
   cu-int->str cu-lines cu-nth cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set!
-  cu-ptr-word cu-str->ptr cu-words-line file-close file-err-text
+  cu-ptr-word cu-stat-get cu-str->ptr cu-words-line file-close file-err-text
   file-lstat-full file-open-err file-open-read file-stat-full file-write
   filter length map reverse str-make-raw string-append string-concat string=?
   substring sys-isatty sys-user-id)
+(import cu/strings cu-range-number)
+(import cu/tar tar-makedev)
 (import cu/text cu-fold-lines-said cu-join-with cu-num-prefix cu-pad-zero
   cu-says)
 

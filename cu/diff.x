@@ -27,11 +27,14 @@
 (module cu/diff)
 
 (import cu/cli cu-opts)
-(import cu/prims byte-at byte-len cu-int->str cu-lines cu-nth file-dir?
-  file-read-all file-write length map reverse set-first! string-append
-  string-concat string=? substring vec-make vec-ref vec-set!)
+(import cu/diff-lex cu-dl-lines)
+(import cu/fs2 cu-cmp-walk)
+(import cu/prims byte-at byte-len cu-int->str cu-last cu-lines cu-nth
+  file-dir? file-read-all file-write length map reverse set-first!
+  string-append string-concat string=? substring vec-make vec-ref vec-set!)
 (import cu/text cu-file-pieces cu-first-unopened cu-join-with cu-num-prefix
   cu-run-nul? cu-say cu-says cu-text-from cu-with-sources)
+(import cu/walk cu-walk-pair)
 
 (def %cu-diff-lcs
   (fn (_ av bv n m)

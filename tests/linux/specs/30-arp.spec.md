@@ -3,7 +3,8 @@
 busybox's arp (networking/arp.c), run as root against the container's own
 ARP cache.  Each case runs the bundle's arp and busybox's on the same words,
 PRE through the shell before each, and compares what they write and their
-status, and where it says so what /proc/net/arp holds after.  The entries
+status, and where it says so what /proc/net/arp holds after, its lines for the
+entries alone (the container's gateway comes and goes there).  The entries
 are on 10.77.0.0/24, an address the setup puts on eth0, their names in
 /etc/hosts so a name is found without asking a server; each case takes
 away what it adds.
@@ -46,6 +47,7 @@ away what it adds.
 
 ```cu
 (do (lx-sh "ip addr add 10.77.0.1/24 dev eth0 2>/dev/null; ip neigh flush dev eth0 to 10.77.0.0/24 >/dev/null 2>&1; printf '10.77.0.5 lx-five\\n10.77.0.6 lx-six\\n' >> /etc/hosts; true")
+    (def lx-cache "grep -E '^(IP|10\\.77\\.)' /proc/net/arp")
     (def lx-clear "arp -d 10.77.0.5 >/dev/null 2>&1; arp -d 10.77.0.6 >/dev/null 2>&1; arp -d 10.77.0.7 >/dev/null 2>&1; ip neigh flush dev eth0 to 10.77.0.0/24 >/dev/null 2>&1; true")
     (display "set"))
 ```
@@ -84,12 +86,12 @@ same
 ### -s sets an entry, permanent unless temp, published with pub, with a netmask; the cache after says so
 
 ```cu
-(do (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "2:0:0:0:0:a" "temp") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-i" "eth0" "-s" "10.77.0.5" "02-00" "pub") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05" "netmask" "255.255.255.255" "pub" "dev" "eth0") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-Ds" "10.77.0.6" "eth0" "pub") "cat /proc/net/arp")
-    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05" "dontpub" "auto" "trail") "cat /proc/net/arp")
+(do (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05") lx-cache)
+    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "2:0:0:0:0:a" "temp") lx-cache)
+    (lx-case-after lx-clear (list "arp" "-i" "eth0" "-s" "10.77.0.5" "02-00" "pub") lx-cache)
+    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05" "netmask" "255.255.255.255" "pub" "dev" "eth0") lx-cache)
+    (lx-case-after lx-clear (list "arp" "-Ds" "10.77.0.6" "eth0" "pub") lx-cache)
+    (lx-case-after lx-clear (list "arp" "-s" "10.77.0.5" "02:00:00:00:00:05" "dontpub" "auto" "trail") lx-cache)
     (lx-sh lx-clear) (display ""))
 ```
 ---
@@ -105,8 +107,8 @@ same
 ### -d deletes it, the published one too; an entry not there is said, status 255
 
 ```cu
-(do (lx-case-after (string-append lx-clear "; arp -s 10.77.0.5 02:00:00:00:00:05") (list "arp" "-d" "10.77.0.5") "cat /proc/net/arp")
-    (lx-case-after (string-append lx-clear "; arp -s 10.77.0.6 02:00:00:00:00:06 pub") (list "arp" "-d" "10.77.0.6" "pub") "cat /proc/net/arp")
+(do (lx-case-after (string-append lx-clear "; arp -s 10.77.0.5 02:00:00:00:00:05") (list "arp" "-d" "10.77.0.5") lx-cache)
+    (lx-case-after (string-append lx-clear "; arp -s 10.77.0.6 02:00:00:00:00:06 pub") (list "arp" "-d" "10.77.0.6" "pub") lx-cache)
     (lx-case lx-clear (list "arp" "-d" "10.77.0.7"))
     (lx-case lx-clear (list "arp" "-d" "10.77.0.7" "priv"))
     (lx-sh lx-clear) (display ""))
