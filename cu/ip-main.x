@@ -11,14 +11,13 @@
 
 (module cu/ip-main)
 
-(import cu/ip ip-die ip-die-usage ip-get ip-invarg ip-keyword ip-list ip-put
-  ip-run)
+(import cu/ip ip-die-usage ip-get ip-invarg ip-keyword ip-list ip-put ip-run)
+(import cu/ipneigh ip-neigh)
 (import cu/iproute ip-route)
+(import cu/iprule ip-rule)
 (import cu/ipset ip-add-link ip-flush ip-modify ip-set)
-(import cu/prims cu-err-label cu-nth string-concat)
-
-; a verb this bundle does not carry yet
-(def %ip-later (fn (_ f w) (ip-die f (string-concat (list "'" w "' is not implemented yet")))))
+(import cu/iptunnel ip-tunnel)
+(import cu/prims cu-err-label cu-nth)
 
 ; do_ipaddr: add, change (chg), replace and delete hand the kernel an address,
 ; flush deletes those the filter keeps, the rest list
@@ -53,7 +52,9 @@
       ((= k 0) (%ip-addr f (rest ws)))
       ((if (= k 1) #t (= k 2)) (ip-route f (rest ws)))
       ((= k 3) (%ip-link f (rest ws)))
-      (#t (%ip-later f (first ws))))))
+      ((if (= k 4) #t (= k 5)) (ip-tunnel f (rest ws)))
+      ((= k 6) (ip-rule f (rest ws)))
+      (#t (ip-neigh f (rest ws))))))
 
 (def cu-ip (fn (_ argv stdin-thunk) (ip-run "ip" argv %ip-main)))
 

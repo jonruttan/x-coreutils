@@ -7,7 +7,7 @@ one bundle -- organized like busybox:
 
     x -l coreutils -- APPLET [args]...
 
-**A hundred and ninety-five applets: parity with busybox's `coreutils`
+**A hundred and ninety-eight applets: parity with busybox's `coreutils`
 set, plus `join`, `find`, busybox's editors, `vi` and `ed`, its pager and
 terminal tools, `more`, `clear` and `reset`, `strings`, `tsort`, `cal` and `dc`, its
 dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
@@ -22,26 +22,26 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
-`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip`, `ipaddr`, `iplink` and `iproute` (addresses, links and routes).**
+`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`.**
 
     arch arp ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
     dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand
     expr factor fakeidentd false find flock fold free fsync ftpd ftpget
     ftpput fuser getopt groups gunzip gzip hd head hexdump hostid hostname
-    httpd id ifconfig inetd install iostat ip ipaddr ipcalc iplink iproute
-    join kill killall link ln logname ls lsmod lsof makemime md5sum mesg
-    mkdir mkfifo mknod mkpasswd mktemp more mountpoint mpstat mv nc netcat
-    netstat nice nl nmeter nohup nologin nproc nslookup ntpd od paste
-    patch pgrep pidof pipe_progress pkill pmap popmaildir printenv printf
-    ps pwd readlink realpath reformime renice reset rev rm rmdir route
-    run-parts sendmail seq setsid sha1sum sha256sum sha384sum sha3sum
-    sha512sum shred shuf sleep sort split ssl_client ssl_server stat
-    strings sum sync sysctl tac tail tar tcpsvd tee telnet telnetd test
-    tftp tftpd time timeout top touch tr tree true truncate ts tsort tty
-    ttysize udpsvd unexpand uniq unix2dos unlink unzip uname uptime users
-    uudecode uuencode uuidgen usleep vi vmstat w watch wc wget which who
-    whois whoami xargs xxd yes zcat [ [[
+    httpd id ifconfig inetd install iostat ip ipaddr ipcalc iplink ipneigh
+    iproute iprule iptunnel join kill killall link ln logname ls lsmod
+    lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp more
+    mountpoint mpstat mv nc netcat netstat nice nl nmeter nohup nologin
+    nproc nslookup ntpd od paste patch pgrep pidof pipe_progress pkill
+    pmap popmaildir printenv printf ps pwd readlink realpath reformime
+    renice reset rev rm rmdir route run-parts sendmail seq setsid sha1sum
+    sha256sum sha384sum sha3sum sha512sum shred shuf sleep sort split
+    ssl_client ssl_server stat strings sum sync sysctl tac tail tar tcpsvd
+    tee telnet telnetd test tftp tftpd time timeout top touch tr tree true
+    truncate ts tsort tty ttysize udpsvd unexpand uniq unix2dos unlink
+    unzip uname uptime users uudecode uuencode uuidgen usleep vi vmstat w
+    watch wc wget which who whois whoami xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -268,6 +268,9 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/ip-main.x      ip, ipaddr and iplink: the common options, then the object word hands the rest to its verb
     cu/ipset.x        ip addr add, change, delete and flush, ip link set, add and delete, over netlink and the ioctls
     cu/iproute.x      ip route and iproute: the routes listed, flushed, changed and asked after, over netlink
+    cu/ipneigh.x      ip neigh and ipneigh: the neighbour tables shown and flushed, over netlink
+    cu/iprule.x       ip rule and iprule: the routing rules listed, added and deleted, over netlink
+    cu/iptunnel.x     ip tunnel and iptunnel: IPv4 tunnels added, changed, deleted and shown, through the tunnel ioctls
     cu/inet.x         what the network tables share: addresses, names through the C library, the ioctls' buffers
     cu/top.x          top: its screens, keys and memory view, over the Host
     cu/vmstat.x       vmstat, and the compact numbers and %.2f the counter applets share

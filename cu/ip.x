@@ -15,7 +15,8 @@
 ; length (SIOCGIFTXQLEN), then its link-layer line, then the addresses the
 ; filter keeps -- dev, up, scope, to PREFIX and label PATTERN (fnmatch).
 ; The verbs that change the kernel's state are in cu/ipset.x, ip route in
-; cu/iproute.x; ip neigh, rule and tunnel come later.
+; cu/iproute.x, ip neigh, rule and tunnel in cu/ipneigh.x, cu/iprule.x and
+; cu/iptunnel.x; ip_main in cu/ip-main.x.
 
 ; --- the run ----------------------------------------------------------------------
 
@@ -85,14 +86,16 @@
                   (#t 99)))
     (if (< v base) v -1)))
 
-; bb_strtou with base 0: (VALUE . CLEAN?), CLEAN? #f where a stray
-; character that is not a letter or digit ends it, or nil where it is no
-; number -- it starts with neither, a letter or digit ends it, or it passes 32 bits
+; bb_strtou with base 0, or the base given (16 for dsfield): (VALUE . CLEAN?),
+; CLEAN? #f where a stray character that is not a letter or digit ends it, or
+; nil where it is no number -- it starts with neither, a letter or digit ends
+; it, or it passes 32 bits
 (def %ip-strtou
-  (fn (_ s)
+  (fn (_ s . given)
     (def n (byte-len s))
-    (def hex? (if (> n 2) (if (= (byte-at s 0) #\0) (if (= (byte-at s 1) #\x) #t (= (byte-at s 1) #\X)) #f) #f))
-    (def base (match (hex? 16) ((if (> n 1) (= (byte-at s 0) #\0) #f) 8) (#t 10)))
+    (def b (if (null? given) 0 (first given)))
+    (def hex? (if (if (= b 0) #t (= b 16)) (if (> n 2) (if (= (byte-at s 0) #\0) (if (= (byte-at s 1) #\x) #t (= (byte-at s 1) #\X)) #f) #f) #f))
+    (def base (match ((not (= b 0)) b) (hex? 16) ((if (> n 1) (= (byte-at s 0) #\0) #f) 8) (#t 10)))
     (if (if (= n 0) #t (not (%ip-alnum? (byte-at s 0)))) ()
       (let go ((i (if hex? 2 0)) (v 0))
         (let ((d (if (< i n) (ip-digit (byte-at s i) base) -1)))
@@ -110,7 +113,7 @@
   (fn (_ bytes) (let go ((bs (reverse bytes)) (n 0)) (if (null? bs) n (go (rest bs) (+ (* n 256) (first bs)))))))
 
 ; the string BYTES hold, up to a NUL
-(def %ip-cstr
+(def ip-cstr
   (fn (_ bytes)
     (let go ((bs bytes) (acc ()))
       (if (if (null? bs) #t (= (first bs) 0)) (bytes->str (reverse acc)) (go (rest bs) (pair (first bs) acc))))))
@@ -135,7 +138,7 @@
       (if (null? e) (string-concat (list "[" (cu-int->str type) "]")) (rest e)))))
 
 ; ll_addr_n2a: a link-layer address, hex pairs, or dotted for a tunnel's four bytes
-(def %ip-ll-addr
+(def ip-ll-addr
   (fn (_ bytes type)
     (if (if (= (length bytes) 4) (if (= type 768) #t (if (= type 776) #t (= type 778))) #f)
       (Str8 join "." (map cu-int->str bytes))
@@ -177,12 +180,13 @@
     (let ((e (List find (fn (_ e) (= (first e) id)) tab)))
       (if (null? e) (cu-int->str id) (rest e)))))
 
-; rtnl_a2n: the lowest id TAB names NAME, else NAME's number up to 1023 (RT_TABLE_MAX), else nil
+; rtnl_a2n: the lowest id TAB names NAME, else NAME's number (in BASE where given)
+; up to 1023 (RT_TABLE_MAX), else nil
 (def ip-id
-  (fn (_ tab name)
+  (fn (_ tab name . base)
     (def named (filter (fn (_ e) (if (string=? (rest e) name) (eq? (List find (fn (_ x) (= (first x) (first e))) tab) e) #f)) tab))
     (if (null? named)
-      (let ((n (%ip-strtou name))) (if (if (null? n) #t (> (first n) 1023)) () (first n)))
+      (let ((n (if (null? base) (%ip-strtou name) (%ip-strtou name (first base))))) (if (if (null? n) #t (> (first n) 1023)) () (first n)))
       (List fold (fn (_ m e) (if (< (first e) m) (first e) m)) 1024 named))))
 
 (def ip-scopes
@@ -368,7 +372,7 @@
 (def %ip-l-index (fn (_ l) (cu-nth 1 l)))
 (def %ip-l-flags (fn (_ l) (cu-nth 3 l)))
 (def %ip-l-name
-  (fn (_ l) (let ((e (ip-attr (cu-nth 4 l) 3))) (if (null? e) () (%ip-cstr (rest e))))))
+  (fn (_ l) (let ((e (ip-attr (cu-nth 4 l) 3))) (if (null? e) () (ip-cstr (rest e))))))
 
 (def %ip-link-at (fn (_ f idx) (List find (fn (_ l) (= (%ip-l-index l) idx)) (ip-get f (lit links)))))
 
@@ -443,8 +447,8 @@
     (def type (cu-nth 2 l))
     (string-concat
       (list (ip-sl f) "    link/" (%ip-link-type type) " "
-            (ip-some attrs 1 (fn (_ b) (%ip-ll-addr b type)))
-            (ip-some attrs 2 (fn (_ b) (string-append (if (= (& (%ip-l-flags l) 16) 0) " brd " " peer ") (%ip-ll-addr b type))))))))
+            (ip-some attrs 1 (fn (_ b) (ip-ll-addr b type)))
+            (ip-some attrs 2 (fn (_ b) (string-append (if (= (& (%ip-l-flags l) 16) 0) " brd " " peer ") (ip-ll-addr b type))))))))
 
 ; print_linkinfo's line for L
 (def %ip-link-text
@@ -456,7 +460,7 @@
       (list (if (= (first l) 17) "Deleted " "") (cu-int->str (%ip-l-index l)) ": " (%ip-l-name l) (first at)
             (%ip-link-flags (%ip-l-flags l) (rest at))
             (ip-some attrs 4 (fn (_ b) (string-concat (list "mtu " (cu-int->str (ip-num b)) " "))))
-            (ip-some attrs 6 (fn (_ b) (string-concat (list "qdisc " (%ip-cstr b) " "))))
+            (ip-some attrs 6 (fn (_ b) (string-concat (list "qdisc " (ip-cstr b) " "))))
             (ip-some attrs 10 (fn (_ b) (string-concat (list "master " (ip-index-name f (inet-int32 (ip-num b))) " "))))
             (ip-some attrs 16 (fn (_ b) (string-concat (list "state " (if (< (first b) 7) (cu-nth (first b) %ip-operstates) "") " "))))
             (%ip-qlen f (%ip-l-name l))
@@ -494,7 +498,7 @@
 ; the label an address is matched by: its own, else its link's name
 (def %ip-a-label
   (fn (_ f a)
-    (let ((e (ip-attr (%ip-a-attrs a) 3))) (if (null? e) (ip-index-name f (%ip-a-index a)) (%ip-cstr (rest e))))))
+    (let ((e (ip-attr (%ip-a-attrs a) 3))) (if (null? e) (ip-index-name f (%ip-a-index a)) (ip-cstr (rest e))))))
 
 (def %ip-scope-ok?
   (fn (_ f a) (= (& (^ (ip-get f (lit scope)) (%ip-a-scope a)) (ip-get f (lit scopemask))) 0)))
@@ -565,7 +569,7 @@
             (ip-some attrs 5 (fn (_ b) (string-concat (list "any " (ip-ntoa family b) " "))))
             "scope " (ip-scope-name f (%ip-a-scope a)) " "
             (%ip-addr-flags (if (null? fl) (cu-nth 3 a) (ip-num (rest fl))))
-            (ip-some attrs 3 %ip-cstr)
+            (ip-some attrs 3 ip-cstr)
             (ip-some attrs 6 (fn (_ b) (string-concat (list (ip-sl f) "       " (%ip-lft "valid_lft" (ip-num (List take 4 (List drop 4 b))))
                                                             " " (%ip-lft "preferred_lft" (ip-num (List take 4 b)))))))
             "\n"))))
@@ -690,8 +694,8 @@
         (go f (ip-get f (lit words)))))))
 
 (provide cu/ip ip-addr-of ip-addr-shown? ip-addr1 ip-align ip-attr ip-attrs
-  ip-bytes ip-dev-index ip-die ip-die-usage ip-digit ip-dump ip-dump-read
-  ip-filter ip-get ip-id ip-index-name ip-indexed ip-invarg ip-keyword
-  ip-link-of ip-list ip-match? ip-name ip-names ip-next ip-ntoa ip-num ip-off
-  ip-open ip-pad16 ip-prefix ip-put ip-run ip-say ip-scope-id ip-scope-name
-  ip-scopes ip-sl ip-some)
+  ip-bytes ip-cstr ip-dev-index ip-die ip-die-usage ip-digit ip-dump
+  ip-dump-read ip-filter ip-get ip-id ip-index-name ip-indexed ip-invarg
+  ip-keyword ip-link-of ip-list ip-ll-addr ip-match? ip-name ip-names ip-next
+  ip-ntoa ip-num ip-off ip-open ip-pad16 ip-prefix ip-put ip-run ip-say
+  ip-scope-id ip-scope-name ip-scopes ip-sl ip-some)

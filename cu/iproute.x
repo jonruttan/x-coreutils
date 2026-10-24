@@ -43,7 +43,7 @@
     (ip-names f "protos" (list (pair 0 "none") (pair 1 "redirect") (pair 2 "kernel") (pair 3 "boot") (pair 4 "static")
                                 (pair 8 "gated") (pair 9 "ra") (pair 10 "mrt") (pair 11 "zebra") (pair 12 "bird")))))
 
-(def %ip-tables
+(def ip-tables
   (fn (_ f) (ip-names f "tables" (list (pair 0 "unspec") (pair 255 "local") (pair 254 "main") (pair 253 "default")))))
 
 ; the route types, by RTN number
@@ -51,19 +51,19 @@
   (list "none" "unicast" "local" "broadcast" "anycast" "multicast" "blackhole" "unreachable" "prohibit" "throw" "nat" "xresolve"))
 
 ; rtnl_rtntype_n2a
-(def %ip-rtn-name
+(def ip-rtn-name
   (fn (_ type) (if (< type 12) (cu-nth type %ip-rtn-names) (cu-int->str type))))
 
 ; rtnl_rtntype_a2n: the type a word names, by a unique prefix, else its
 ; number up to 255, else nil
-(def %ip-rtn-id
+(def ip-rtn-id
   (fn (_ arg)
     (def k (ip-keyword (list "local" "nat" "broadcast" "brd" "anycast" "multicast" "prohibit" "unreachable" "blackhole" "xresolve" "unicast" "throw") arg))
     (if (>= k 0) (cu-nth k (list 2 10 3 3 4 5 8 7 6 11 1 9))
       (let ((n (if (= (byte-len arg) 0) () (ip-strtoul arg 255)))) n))))
 
 ; get_hz: the clock /proc/net/psched gives, else the C library's ticks a second
-(def %ip-hz
+(def ip-hz
   (fn (_)
     (def text (file-or-err (fn (_) (file-read-unsized "/proc/net/psched"))))
     (def ws (if (Err err? text) () (inet-words (first (cu-lines text)))))
@@ -85,19 +85,19 @@
             (ip-attrs p 28 len %ip-route-want) (ip-bytes p 0 len))
       ())))
 
-(def %ip-r-family (fn (_ r) (cu-nth 1 r)))
-(def %ip-r-dst-len (fn (_ r) (cu-nth 2 r)))
-(def %ip-r-src-len (fn (_ r) (cu-nth 3 r)))
+(def ip-r-family (fn (_ r) (cu-nth 1 r)))
+(def ip-r-dst-len (fn (_ r) (cu-nth 2 r)))
+(def ip-r-src-len (fn (_ r) (cu-nth 3 r)))
 (def %ip-r-scope (fn (_ r) (cu-nth 7 r)))
-(def %ip-r-type (fn (_ r) (cu-nth 8 r)))
+(def ip-r-type (fn (_ r) (cu-nth 8 r)))
 (def %ip-r-flags (fn (_ r) (cu-nth 9 r)))
-(def %ip-r-attr (fn (_ r type) (ip-attr (cu-nth 10 r) type)))
+(def ip-r-attr (fn (_ r type) (ip-attr (cu-nth 10 r) type)))
 
 ; the route's table: RTA_TABLE's, else rtm_table
 (def %ip-r-table
-  (fn (_ r) (let ((e (%ip-r-attr r 15))) (if (null? e) (cu-nth 5 r) (ip-num (rest e))))))
+  (fn (_ r) (let ((e (ip-r-attr r 15))) (if (null? e) (cu-nth 5 r) (ip-num (rest e))))))
 
-(def %ip-host-len
+(def ip-host-len
   (fn (_ family) (match ((= family 10) 128) ((= family 2) 32) (#t -1))))
 
 (def %ip-cloned? (fn (_ r) (not (= (& (%ip-r-flags r) 512) 0))))
@@ -109,12 +109,12 @@
   (fn (_ f r)
     (def tb (ip-get f (lit tb)))
     (match
-      ((not (= (%ip-r-family r) 10)) (if (> tb 0) (= tb (%ip-r-table r)) #t))
+      ((not (= (ip-r-family r) 10)) (if (> tb 0) (= tb (%ip-r-table r)) #t))
       ((= tb 0) #t)
       ((< tb 0) (%ip-cloned? r))
       ((%ip-cloned? r) #f)
-      ((= tb 255) (= (%ip-r-type r) 2))
-      ((= tb 254) (not (= (%ip-r-type r) 2)))
+      ((= tb 255) (= (ip-r-type r) 2))
+      ((= tb 254) (not (= (ip-r-type r) 2)))
       (#t #f))))
 
 ; the root filter of one end: RT the prefix, LEN the route's length at that
@@ -123,7 +123,7 @@
   (fn (_ r rt len bytes)
     (match
       ((= (first rt) 0) #t)
-      ((not (= (%ip-r-family r) (first rt))) #f)
+      ((not (= (ip-r-family r) (first rt))) #f)
       ((> (List ref 2 rt) len) #f)
       (#t (ip-match? bytes (List ref 1 rt) (List ref 2 rt))))))
 
@@ -132,7 +132,7 @@
   (fn (_ r mt len bytes)
     (match
       ((= (first mt) 0) #t)
-      ((not (= (%ip-r-family r) (first mt))) #f)
+      ((not (= (ip-r-family r) (first mt))) #f)
       ((< (List ref 2 mt) 0) #t)
       ((< (List ref 2 mt) len) #f)
       (#t (ip-match? bytes (List ref 1 mt) len)))))
@@ -143,18 +143,18 @@
 
 ; an end's address as print_route copies it: its bytes, else zeros
 (def %ip-end-bytes
-  (fn (_ r type) (let ((e (%ip-r-attr r type))) (ip-pad16 (if (null? e) () (rest e))))))
+  (fn (_ r type) (let ((e (ip-r-attr r type))) (ip-pad16 (if (null? e) () (rest e))))))
 
 ; print_route's filter
 (def %ip-route-kept?
   (fn (_ f r)
     (def oif (ip-get f (lit oif)))
-    (def o (%ip-r-attr r 4))
+    (def o (ip-r-attr r 4))
     (match
       ((not (%ip-table-ok? f r)) #f)
       ((not (= (& (^ (ip-get f (lit scope)) (%ip-r-scope r)) (ip-get f (lit scopemask))) 0)) #f)
-      ((not (%ip-ends-ok? r (ip-get f (lit rdst)) (ip-get f (lit mdst)) (%ip-r-dst-len r) (%ip-end-bytes r 1))) #f)
-      ((not (%ip-ends-ok? r (ip-get f (lit rsrc)) (ip-get f (lit msrc)) (%ip-r-src-len r) (%ip-end-bytes r 2))) #f)
+      ((not (%ip-ends-ok? r (ip-get f (lit rdst)) (ip-get f (lit mdst)) (ip-r-dst-len r) (%ip-end-bytes r 1))) #f)
+      ((not (%ip-ends-ok? r (ip-get f (lit rsrc)) (ip-get f (lit msrc)) (ip-r-src-len r) (%ip-end-bytes r 2))) #f)
       ((= oif 0) #t)
       ((null? o) #f)
       (#t (= oif (inet-int32 (ip-num (rest o))))))))
@@ -162,11 +162,11 @@
 ; an end of the route: "ADDR/LEN ", "ADDR " at the host length, or NONE where it has no address
 (def %ip-route-end
   (fn (_ r type len none)
-    (def e (%ip-r-attr r type))
-    (def family (%ip-r-family r))
+    (def e (ip-r-attr r type))
+    (def family (ip-r-family r))
     (match
       ((null? e) none)
-      ((= len (%ip-host-len family)) (string-append (ip-ntoa family (rest e)) " "))
+      ((= len (ip-host-len family)) (string-append (ip-ntoa family (rest e)) " "))
       (#t (string-concat (list (ip-ntoa family (rest e)) "/" (cu-int->str len) " "))))))
 
 (def %ip-route-flag-words
@@ -178,36 +178,36 @@
 ; for a cloned route, its expiry, and its error
 (def %ip-route-cache
   (fn (_ f r)
-    (def ci (%ip-r-attr r 12))
+    (def ci (ip-r-attr r 12))
     (def field (fn (_ at) (if (null? ci) 0 (ip-num (List take 4 (List drop at (rest ci)))))))
     (def expires (field 8))
     (def err (if (= (field 12) 0) "" (string-append " error " (cu-int->str (inet-int32 (field 12))))))
     (match
-      ((not (= (%ip-r-family r) 10)) "")
+      ((not (= (ip-r-family r) 10)) "")
       ((if (%ip-cloned? r) #t (not (= expires 0)))
         (string-concat (list (if (%ip-cloned? r) (string-append (ip-sl f) "    cache ") "")
-                             (if (= expires 0) "" (string-concat (list " expires " (cu-int->str (inet-int32 (cal/ expires (%ip-hz)))) "sec")))
+                             (if (= expires 0) "" (string-concat (list " expires " (cu-int->str (inet-int32 (cal/ expires (ip-hz)))) "sec")))
                              err)))
       (#t err))))
 
 ; print_route's line for R
 (def %ip-route-text
   (fn (_ f r)
-    (def family (%ip-r-family r))
-    (def host (%ip-host-len family))
+    (def family (ip-r-family r))
+    (def host (ip-host-len family))
     (def tid (%ip-r-table r))
-    (def dst-len (%ip-r-dst-len r))
-    (def src-len (%ip-r-src-len r))
+    (def dst-len (ip-r-dst-len r))
+    (def src-len (ip-r-src-len r))
     (string-concat
       (list (if (= (first r) 25) "Deleted " "")
-            (if (= (%ip-r-type r) 1) "" (string-append (%ip-rtn-name (%ip-r-type r)) " "))
+            (if (= (ip-r-type r) 1) "" (string-append (ip-rtn-name (ip-r-type r)) " "))
             (%ip-route-end r 1 dst-len (if (= dst-len 0) "default " (string-concat (list "0/" (cu-int->str dst-len) " "))))
             (%ip-route-end-from r src-len)
-            (if (if (null? (%ip-r-attr r 5)) #f (not (= (List ref 2 (ip-get f (lit rvia))) host)))
-              (string-concat (list "via " (ip-ntoa family (rest (%ip-r-attr r 5))) " ")) "")
+            (if (if (null? (ip-r-attr r 5)) #f (not (= (List ref 2 (ip-get f (lit rvia))) host)))
+              (string-concat (list "via " (ip-ntoa family (rest (ip-r-attr r 5))) " ")) "")
             (ip-some (cu-nth 10 r) 4 (fn (_ b) (string-concat (list "dev " (ip-index-name f (inet-int32 (ip-num b))) " "))))
             (if (if (= tid 0) #f (if (= tid 254) #f (= (ip-get f (lit tb)) 0)))
-              (string-concat (list "table " (ip-name (%ip-tables f) tid) " ")) "")
+              (string-concat (list "table " (ip-name (ip-tables f) tid) " ")) "")
             (if (if (%ip-cloned? r) #f (if (= (%ip-r-scope r) 0) #f (not (= (ip-get f (lit scopemask)) 4294967295))))
               (string-concat (list "scope " (ip-scope-name f (%ip-r-scope r)) " ")) "")
             (ip-some (cu-nth 10 r) 7 (fn (_ b) (string-concat (list " src " (ip-ntoa family b) " "))))
@@ -270,7 +270,7 @@
       ((= k 6) (pair (ip-put s (lit tb) -1) (rest a)))
       ((= k 10) (pair (ip-put s (lit tb) 0) (rest a)))
       ((= k 14) (pair s (rest a)))
-      (#t (let ((id (ip-id (%ip-tables f) (first a))))
+      (#t (let ((id (ip-id (ip-tables f) (first a))))
             (if (null? id) (ip-invarg f (first a) "table") (pair (ip-put s (lit tb) id) (rest a))))))))
 
 (def %ip-route-scope-word
@@ -334,9 +334,9 @@
   (fn (_ f r)
     (if (= (first r) 24)
       (if (%ip-route-kept? f r)
-        (not (if (= (%ip-r-family r) 10)
-               (if (= (%ip-r-dst-len r) 0)
-                 (if (= (%ip-r-type r) 7) (let ((p (%ip-r-attr r 6))) (if (null? p) #f (= (ip-num (rest p)) 4294967295))) #f) #f) #f))
+        (not (if (= (ip-r-family r) 10)
+               (if (= (ip-r-dst-len r) 0)
+                 (if (= (ip-r-type r) 7) (let ((p (ip-r-attr r 6))) (if (null? p) #f (= (ip-num (rest p)) 4294967295))) #f) #f) #f))
         #f)
       #f)))
 
@@ -377,7 +377,7 @@
 (def %ip-route-dst
   (fn (_ f s a)
     (def digit? (if (> (byte-len (first a)) 0) (if (>= (byte-at (first a) 0) #\0) (<= (byte-at (first a) 0) #\9) #f) #f))
-    (def type (if digit? () (%ip-rtn-id (first a))))
+    (def type (if digit? () (ip-rtn-id (first a))))
     (def b (if (null? type) a (ip-next f a)))
     (def s1 (if (null? type) s (ip-put s (lit type) type)))
     (when (ip-get s1 (lit dst-ok))
@@ -411,7 +411,7 @@
       ((= k 3) (%ip-route-metric f s (ip-next f ws) "advmss" 8))
       ((= k 4) (%ip-route-named f (ip-put s (lit scope-ok) #t) (ip-next f ws) (ip-get f (lit scopes)) "scope" (lit scope)))
       ((= k 5) (%ip-route-named f s (ip-next f ws) (%ip-protos f) "protocol" (lit protocol)))
-      ((= k 6) (%ip-route-named f s (ip-next f ws) (%ip-tables f) "table" (lit table)))
+      ((= k 6) (%ip-route-named f s (ip-next f ws) (ip-tables f) "table" (lit table)))
       ((if (= k 7) #t (= k 8)) (let ((a (ip-next f ws))) (pair (ip-put s (lit dev) (first a)) (rest a))))
       ((= k 10) (let ((a (ip-next f ws)))
                   (pair (ip-attr! s 6 (ip-le (ip-unsigned f (first a) "metric" 4294967295) 4)) (rest a))))
@@ -601,4 +601,5 @@
 
 (def cu-iproute (fn (_ argv stdin-thunk) (ip-run "iproute" argv ip-route)))
 
-(provide cu/iproute cu-iproute ip-route)
+(provide cu/iproute cu-iproute ip-host-len ip-hz ip-r-attr ip-r-dst-len
+  ip-r-family ip-r-src-len ip-r-type ip-route ip-rtn-id ip-rtn-name ip-tables)

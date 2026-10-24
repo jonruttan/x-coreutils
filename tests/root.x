@@ -66,18 +66,22 @@
   in-sendto in-sockaddr6 in-strtou in-tokens-max in-zeroed tn-port)
 (import cu/iostat cu-iostat io-time io-uname-line)
 (import cu/ip ip-addr-of ip-addr-shown? ip-addr1 ip-align ip-attr ip-attrs
-  ip-bytes ip-dev-index ip-die ip-die-usage ip-digit ip-dump ip-dump-read
-  ip-filter ip-get ip-id ip-index-name ip-indexed ip-invarg ip-keyword
-  ip-link-of ip-list ip-match? ip-name ip-names ip-next ip-ntoa ip-num ip-off
-  ip-open ip-pad16 ip-prefix ip-put ip-run ip-say ip-scope-id ip-scope-name
-  ip-scopes ip-sl ip-some)
+  ip-bytes ip-cstr ip-dev-index ip-die ip-die-usage ip-digit ip-dump
+  ip-dump-read ip-filter ip-get ip-id ip-index-name ip-indexed ip-invarg
+  ip-keyword ip-link-of ip-list ip-ll-addr ip-match? ip-name ip-names ip-next
+  ip-ntoa ip-num ip-off ip-open ip-pad16 ip-prefix ip-put ip-run ip-say
+  ip-scope-id ip-scope-name ip-scopes ip-sl ip-some)
 (import cu/ip-main cu-ip cu-ipaddr cu-iplink)
 (import cu/ipcalc cu-ipcalc)
-(import cu/iproute cu-iproute ip-route)
+(import cu/ipneigh cu-ipneigh ip-neigh)
+(import cu/iproute cu-iproute ip-host-len ip-hz ip-r-attr ip-r-dst-len
+  ip-r-family ip-r-src-len ip-r-type ip-route ip-rtn-id ip-rtn-name ip-tables)
+(import cu/iprule cu-iprule ip-addr32 ip-dsfields ip-rule)
 (import cu/ipset ip-add-link ip-address ip-attr! ip-buf ip-family! ip-flush
   ip-flush-batches ip-init-map ip-le ip-modify ip-pfx-bytes ip-prefix-in
-  ip-req ip-req-bytes ip-rta ip-send-check ip-set ip-strtoul ip-talk
-  ip-unsigned)
+  ip-req ip-req-bytes ip-rta ip-send-check ip-set ip-str-bytes ip-strtoul
+  ip-talk ip-unsigned)
+(import cu/iptunnel cu-iptunnel ip-tunnel)
 (import cu/ls cu-ls ls-cell ls-user-cell)
 (import cu/lsmod cu-lsmod)
 (import cu/mime cu-makemime cu-reformime mm-b64 mm-ci= mm-getc mm-gets mm-in

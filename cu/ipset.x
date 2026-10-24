@@ -37,7 +37,7 @@
 (def ip-le
   (fn (_ n k) (map (fn (_ i) (& (>> n (* 8 i)) 255)) (List range 0 k))))
 
-(def %ip-str-bytes
+(def ip-str-bytes
   (fn (_ s) (map (fn (_ i) (char->integer (byte-at s i))) (List range 0 (byte-len s)))))
 
 ; an rtattr: its length and type, BYTES, and the padding to four
@@ -223,7 +223,7 @@
                     (if (null? id) (ip-invarg f (first a) "scope") (pair (ip-put s (lit scope) id) (rest a))))))
       ((= k1 8) (let ((a (ip-next f ws))) (pair (ip-put s (lit dev) (first a)) (rest a))))
       ((= k1 9) (let ((a (ip-next f ws)))
-                  (pair (ip-attr! (ip-put s (lit label) (first a)) 3 (append (%ip-str-bytes (first a)) (list 0))) (rest a))))
+                  (pair (ip-attr! (ip-put s (lit label) (first a)) 3 (append (ip-str-bytes (first a)) (list 0))) (rest a))))
       ((= k1 10) (pair (ip-put s (lit flags) (| (ip-get s (lit flags)) 512)) (rest ws)))
       (#t (%ip-local f s (if (= k1 11) (ip-next f ws) ws))))))
 
@@ -591,7 +591,7 @@
                      ((string=? type "vlan") (%ip-vlan-attrs f ws))
                      ((string=? type "vrf") (%ip-vrf-attrs f ws))
                      (#t ())))
-    (append (ip-rta 1 (%ip-str-bytes type))
+    (append (ip-rta 1 (ip-str-bytes type))
             (if (null? ws) () (ip-rta 2 (List flatten (map (fn (_ e) (ip-rta (first e) (rest e))) data)))))))
 
 (def %ip-add-words (list "link" "name" "type" "dev" "address"))
@@ -635,11 +635,11 @@
     (if (if (null? addr) #f (not (pair? addr))) 255
       (let ((req3 (if (null? addr) req2 (%ip-add req2 1 (List take (first addr) (append (rest addr) (map (fn (_ k) 0) (List range 0 33))))))))
         (unless (if (null? name) #t (if (>= (byte-len name) 1) (<= (byte-len name) 15) #f)) (ip-invarg f name "name"))
-        (let ((req (if (null? name) req3 (%ip-add req3 3 (append (%ip-str-bytes name) (list 0)))))
+        (let ((req (if (null? name) req3 (%ip-add req3 3 (append (ip-str-bytes name) (list 0)))))
               (body (append (list (ip-get f (lit preferred)) 0) (ip-le 0 2) (ip-le index 4) (ip-le 0 8))))
           (if (< (ip-talk f fd (ip-req-bytes req body 2) 2) 0) 2 0))))))
 
 (provide cu/ipset ip-add-link ip-address ip-attr! ip-buf ip-family! ip-flush
   ip-flush-batches ip-init-map ip-le ip-modify ip-pfx-bytes ip-prefix-in
-  ip-req ip-req-bytes ip-rta ip-send-check ip-set ip-strtoul ip-talk
-  ip-unsigned)
+  ip-req ip-req-bytes ip-rta ip-send-check ip-set ip-str-bytes ip-strtoul
+  ip-talk ip-unsigned)

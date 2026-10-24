@@ -3683,6 +3683,55 @@ stderr:
 status 0
 ```
 
+### ipneigh
+
+```cu
+(run (list "ipneigh" "--help") "")
+```
+---
+```output
+Usage: ipneigh show|flush [to PREFIX] [dev DEV] [nud STATE]|
+stderr:
+status 0
+```
+
+### iprule
+
+```cu
+(run (list "iprule" "--help") "")
+```
+---
+```output
+Usage: iprule [list] | add|del SELECTOR ACTION|
+|
+	SELECTOR := [from PREFIX] [to PREFIX] [tos TOS] [fwmark FWMARK[/MASK]]|
+			[dev IFACE] [pref NUMBER]|
+	ACTION := [table TABLE_ID] [nat ADDR]|
+			[prohibit|reject|unreachable]|
+			[realms [SRCREALM/]DSTREALM]|
+	TABLE_ID := [local|main|default|NUMBER]|
+stderr:
+status 0
+```
+
+### iptunnel
+
+```cu
+(run (list "iptunnel" "--help") "")
+```
+---
+```output
+Usage: iptunnel add|change|del|show [NAME]|
+	[mode ipip|gre|sit] [remote ADDR] [local ADDR] [ttl TTL]|
+|
+iptunnel add|change|del|show [NAME]|
+	[mode ipip|gre|sit] [remote ADDR] [local ADDR]|
+	[[i|o]seq] [[i|o]key KEY] [[i|o]csum]|
+	[ttl TTL] [tos TOS] [[no]pmtudisc] [dev PHYS_DEV]|
+stderr:
+status 0
+```
+
 ### top
 
 ```cu
