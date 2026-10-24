@@ -11,7 +11,7 @@
 
 (module cu/signal)
 
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-ptr-call filter
+(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-ptr-call
   gz-word-bytes hx-strtoul length reverse set-first! string=? substring
   sys-signals)
 
@@ -73,7 +73,7 @@
 ; the signal ARGV's first word names as -SIGNAL, or nil; the parse (cu/cli.x)
 ; sets that word aside for pkill
 (def pg-signal-word
-  (fn (_ argv)
+  (fn (_ argv signal?)
     (if (if (null? argv) #f (if (> (byte-len (first argv)) 1) (= (byte-at (first argv) 0) #\-) #f))
       (pg-signum (substring (first argv) 1 (byte-len (first argv)))) ())))
 
@@ -107,25 +107,41 @@
       ((Str8 starts? "RTMAX" bare) (let ((i (rt-off #\-))) (if (null? i) () (- (rest rt) i))))
       (#t ()))))
 
+; ARGV as (SIGNAL FAMILIES REST): the 4s and 6s of every cluster before a --
+; taken out, in order, as getopt would read -4 and -6 anywhere, and where
+; SIGNAL? says so the first -SIGNAL word, as fuser reads it.  VALUED are the
+; letters that take a value: the rest of a cluster after one is its value,
+; and the word after one that ends a cluster.
 (def fu-args
-  (fn (_ argv)
+  (fn (_ argv signal? valued)
     (def digit? (fn (_ c) (if (= c #\4) #t (= c #\6))))
-    ; WORD's bytes past the dash when it is a cluster with a 4 or a 6 in it
+    (def valued? (fn (_ c) (List any? (fn (_ v) (= v c)) valued)))
+    ; WORD's bytes past the dash as (KEPT DIGITS NEXT?) when it is a cluster:
+    ; the bytes it keeps, its 4s and 6s before any valued letter, and whether
+    ; the word after it is a value; nil when it is no cluster
     (def cluster
       (fn (_ w)
         (def bs (if (> (byte-len w) 1) (if (= (byte-at w 0) #\-) (rest (gz-word-bytes w)) ()) ()))
-        (if (if (null? bs) #t (= (first bs) #\-)) () (if (List any? digit? bs) bs ()))))
+        (if (if (null? bs) #t (= (first bs) #\-)) ()
+          (let go ((cs bs) (kept ()) (digs ()))
+            (match ((null? cs) (list (reverse kept) (reverse digs) #f))
+                   ((valued? (first cs)) (list (append (reverse kept) cs) (reverse digs) (null? (rest cs))))
+                   ((digit? (first cs)) (go (rest cs) kept (pair (first cs) digs)))
+                   (#t (go (rest cs) (pair (first cs) kept) digs)))))))
     (def go
       (fn (self ws sig fams acc)
         (if (null? ws) (list sig fams (reverse acc))
-          (let ((w (first ws)) (bs (cluster (first ws))))
+          (let ((w (first ws)) (c (cluster (first ws))))
             (match
               ((str=? w "--") (list sig fams (append (reverse acc) ws)))
-              ((not (null? bs))
-                (let ((left (filter (fn (_ c) (not (digit? c))) bs)))
-                  (self (rest ws) sig (append (filter digit? bs) fams)
-                        (if (null? left) acc (pair (bytes->str (pair #\- left)) acc)))))
-              ((if (null? sig) (not (null? (pg-signal-word ws))) #f)
+              ((if (null? c) #f (not (null? (List ref 1 c))))
+                (let ((acc (if (null? (first c)) acc (pair (bytes->str (pair #\- (first c))) acc))))
+                  (if (if (List ref 2 c) (pair? (rest ws)) #f)
+                    (self (rest (rest ws)) sig (append fams (List ref 1 c)) (pair (first (rest ws)) acc))
+                    (self (rest ws) sig (append fams (List ref 1 c)) acc))))
+              ((if (null? c) #f (if (List ref 2 c) (pair? (rest ws)) #f))
+                (self (rest (rest ws)) sig fams (pair (first (rest ws)) (pair w acc))))
+              ((if signal? (if (null? sig) (not (null? (pg-signal-word ws))) #f) #f)
                 (self (rest ws) (pg-signal-word ws) fams acc))
               (#t (self (rest ws) sig fams (pair w acc))))))))
     (go argv () () ())))

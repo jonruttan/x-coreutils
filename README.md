@@ -22,7 +22,7 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
-`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`.**
+`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping` and `ping6`.**
 
     arch arp ascii base32 base64 basename cal cat chgrp chmod chown chroot
     cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
@@ -33,8 +33,8 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     iproute iprule iptunnel join kill killall link ln logname ls lsmod
     lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp more
     mountpoint mpstat mv nc netcat netstat nice nl nmeter nohup nologin
-    nproc nslookup ntpd od paste patch pgrep pidof pipe_progress pkill
-    pmap popmaildir printenv printf ps pwd readlink realpath reformime
+    nproc nslookup ntpd od paste patch pgrep pidof ping ping6
+    pipe_progress pkill pmap popmaildir printenv printf ps pwd readlink
     renice reset rev rm rmdir route run-parts sendmail seq setsid sha1sum
     sha256sum sha384sum sha3sum sha512sum shred shuf sleep sort split
     ssl_client ssl_server stat strings sum sync sysctl tac tail tar tcpsvd
@@ -166,7 +166,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig` and `ip` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip` and `ping` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -271,6 +271,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/ipneigh.x      ip neigh and ipneigh: the neighbour tables shown and flushed, over netlink
     cu/iprule.x       ip rule and iprule: the routing rules listed, added and deleted, over netlink
     cu/iptunnel.x     ip tunnel and iptunnel: IPv4 tunnels added, changed, deleted and shown, through the tunnel ioctls
+    cu/ping.x         ping and ping6: echo requests over a raw socket, the replies timed
     cu/inet.x         what the network tables share: addresses, names through the C library, the ioctls' buffers
     cu/top.x          top: its screens, keys and memory view, over the Host
     cu/vmstat.x       vmstat, and the compact numbers and %.2f the counter applets share

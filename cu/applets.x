@@ -65,6 +65,7 @@
 (import cu/patch cu-patch)
 (import cu/perm cu-chgrp cu-chmod cu-chown cu-df cu-link cu-mkfifo cu-readlink
   cu-realpath cu-sync)
+(import cu/ping cu-ping cu-ping6)
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
 (import cu/prims filter map)
@@ -305,6 +306,8 @@
     (method iostat (self argv stdin-thunk) (cu-iostat argv stdin-thunk))
     (method mpstat (self argv stdin-thunk) (cu-mpstat argv stdin-thunk))
     (method nmeter (self argv stdin-thunk) (cu-nmeter argv stdin-thunk))
+    (method ping (self argv stdin-thunk) (cu-ping argv stdin-thunk))
+    (method ping6 (self argv stdin-thunk) (cu-ping6 argv stdin-thunk))
     (method pmap (self argv stdin-thunk) (cu-pmap argv stdin-thunk))
     (method watch (self argv stdin-thunk) (cu-watch argv stdin-thunk))
     (method fuser (self argv stdin-thunk) (cu-fuser argv stdin-thunk))

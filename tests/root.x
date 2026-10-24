@@ -14,8 +14,8 @@
 (import cu/ascii cu-ascii cu-crc32 cu-uuidgen)
 (import cu/base32 cu-base32)
 (import cu/cal cal-sum cu-cal)
-(import cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand cu-find-applet
-  cu-last-given cu-last-valued cu-main cu-missing-file-operand
+(import cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand cu-families
+  cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand
   cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of
   cu-string-stdin cu-usage)
 (import cu/cpio cu-cpio)
@@ -102,6 +102,7 @@
 (import cu/perm cu-basename-of cu-chgrp cu-chmod cu-chown cu-chown-number
   cu-df cu-link cu-mkfifo cu-mode-of cu-mode-valid? cu-octal->int cu-readlink
   cu-realpath cu-realpath-of cu-sync)
+(import cu/ping cu-ping cu-ping6)
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at

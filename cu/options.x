@@ -30,7 +30,7 @@
 ; them spellable.
 (module cu/options)
 
-(import cu/prims append length map reverse substring)
+(import cu/prims append length map reverse string=? substring)
 
 ; -u, -b (UDP's broadcasts) and -s are not here: refused, rather than read as
 ; TCP or as no address at all.  -e is split off before the parse.
@@ -55,6 +55,33 @@
 
 (def %cu-hidden-args
   (fn (_ opts) (map (fn (_ o) (Opts hidden (Opts arg o "" ""))) opts)))
+
+; ping's row, under NAME: ping6's help is ping's without -4,-6 and -t
+(def %cu-ping-row
+  (fn (_ name)
+    (def six? (string=? name "ping6"))
+    (list
+      (Opts declare name "[OPTIONS] HOST"
+        "Send ICMP ECHO_REQUESTs to HOST"
+        (append
+          (if six? () (list (Opts text "\t-4,-6\t\tForce IP or IPv6 name resolution")))
+          (list
+            (Opts text "\t-c CNT\t\tSend only CNT pings")
+            (Opts text "\t-s SIZE\t\tSend SIZE data bytes in packets (default 56)")
+            (Opts text "\t-i SECS\t\tInterval")
+            (Opts text "\t-A\t\tPing as soon as reply is received"))
+          (if six? () (list (Opts text "\t-t TTL\t\tSet TTL")))
+          (list
+            (Opts text "\t-I IFACE/IP\tSource interface or IP address")
+            (Opts text "\t-W SEC\t\tSeconds to wait for the first response (default 10)")
+            (Opts text "\t\t\t(after all -c CNT packets are sent)")
+            (Opts text "\t-w SEC\t\tSeconds until ping exits (default:infinite)")
+            (Opts text "\t\t\t(can exit earlier with -c CNT)")
+            (Opts text "\t-q\t\tQuiet, only display output at start/finish")
+            (Opts text "\t-p HEXBYTE\tPayload pattern"))
+          (%cu-hidden-flags (list "-4" "-6" "-A" "-q" "-v" "-n"))
+          (%cu-hidden-args (list "-c" "-s" "-i" "-t" "-I" "-W" "-w" "-p"))))
+      (lit families))))
 
 ; nc's row, under NAME: netcat is the same applet, its usage text nc's
 (def %cu-nc-row
@@ -2487,6 +2514,9 @@
             (Opts flag "-x" "exec(PROG,ARGS) instead of sh -c 'PROG ARGS'")
             (Opts hidden (Opts flag "-d" ""))))
         (lit leading)))
+    ; ping6 is ping -6: its help leaves out -4,-6 and -t, its parse takes them
+    (pair "ping" (%cu-ping-row "ping"))
+    (pair "ping6" (%cu-ping-row "ping6"))
     (pair "pmap"
       (list
         (Opts declare "pmap" "[-xq] PID..."
