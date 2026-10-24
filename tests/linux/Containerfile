@@ -8,6 +8,9 @@ FROM alpine:3.20
 RUN apk add --no-cache build-base git curl
 # socat holds a listening unix socket for netstat's cases, which busybox's nc cannot
 RUN apk add --no-cache socat
+# iproute2, as ip2, builds the namespaces and veth pairs traceroute's hops run
+# over; /sbin/ip stays busybox's, the oracle the ip specs compare against
+RUN apk add --no-cache iproute2 && mv /sbin/ip /usr/sbin/ip2 && ln -sf /bin/busybox /sbin/ip
 # The platform's tools call `shasum`; Alpine has the digests under their own
 # names.
 COPY shasum /usr/local/bin/shasum

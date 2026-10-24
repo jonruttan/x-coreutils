@@ -102,7 +102,9 @@
 (import cu/perm cu-basename-of cu-chgrp cu-chmod cu-chown cu-chown-number
   cu-df cu-link cu-mkfifo cu-mode-of cu-mode-valid? cu-octal->int cu-readlink
   cu-realpath cu-realpath-of cu-sync)
-(import cu/ping cu-ping cu-ping6)
+(import cu/ping cu-ping cu-ping6 pn-af6 pn-be16 pn-be16! pn-bind-device
+  pn-byte pn-cmsg pn-div pn-dotted pn-family pn-fold pn-ms pn-now pn-number
+  pn-resolve pn-setopt pn-sol-socket pn-sum)
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
@@ -205,6 +207,7 @@
 (import cu/top cu-top top-drop top-duration-ms top-five top-load-line
   top-percent top-ppu top-scales-of top-shares top-stats! top-sweep-if-due!
   top-take)
+(import cu/traceroute cu-traceroute cu-traceroute6)
 (import cu/trcut cu-cut cu-tr)
 (import cu/tree cu-tree)
 (import cu/tsort cu-tsort ts-space?)
