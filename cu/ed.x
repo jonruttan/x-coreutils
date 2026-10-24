@@ -20,6 +20,17 @@
 ; last line read without one), how many, the current line, changed?, the
 ; marks, the file's name, the string last searched for, the prompt, -s, the
 ; command lines' reader.
+(module cu/ed)
+
+(import cu/cli cu-opts)
+(import cu/dump dp-find)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-nthrest
+  cu-sweep-lines cu-sweep-tick! cu-take file-close file-err-text file-open-err
+  file-write filter length map reverse string-append string-concat string=?
+  substring vec-build vec-make vec-ref vec-set!)
+(import cu/tar tar-all-pieces tar-str-bytes)
+(import cu/text cu-pieces cu-run-text)
+
 (def %ed ())
 (def %eg (fn (_ i) (vec-ref %ed i)))
 (def %eg! (fn (_ i v) (vec-set! %ed i v)))
@@ -45,8 +56,8 @@
             (let ((p ((vec-ref rd 0))))
               (if (if (Err err? p) #t (= (rest p) 0))
                 (do (vec-set! rd 1 ()) (if (null? acc) () (string-concat (reverse acc))))
-                (do (vec-set! rd 1 (%cu-run-text p)) (vec-set! rd 2 0) (self acc n))))
-            (let ((nl (%dp-find text pos #\newline)))
+                (do (vec-set! rd 1 (cu-run-text p)) (vec-set! rd 2 0) (self acc n))))
+            (let ((nl (dp-find text pos #\newline)))
               (let ((end (%ed-min (if (< nl 0) (byte-len text) (+ nl 1)) (+ pos (- (- max 1) n)))))
                 (do (vec-set! rd 2 end)
                     (let ((acc2 (pair (substring text pos end) acc)) (n2 (+ n (- end pos))))
@@ -77,7 +88,7 @@
 (def %ed-line
   (fn (_ num)
     (if (if (< num 1) #t (> num (%ed-last)))
-      (%ed-err (string-concat (list "line number " (%cu-int->str num) " does not exist")))
+      (%ed-err (string-concat (list "line number " (cu-int->str num) " does not exist")))
       (List ref (- num 1) (%eg 0)))))
 
 (def %ed-set-cur!
@@ -87,7 +98,7 @@
 (def %ed-insert!
   (fn (_ num lines)
     (if (null? lines) #t
-      (do (%eg! 0 (append (%cu-take (%eg 0) (- num 1)) lines (%cu-nthrest (- num 1) (%eg 0))))
+      (do (%eg! 0 (append (cu-take (%eg 0) (- num 1)) lines (cu-nthrest (- num 1) (%eg 0))))
           (%eg! 1 (+ (%eg 1) (length lines)))
           (%eg! 3 #t)
           (%ed-set-cur! (+ num (- (length lines) 1)))))))
@@ -102,7 +113,7 @@
                      (#t (%eg! 2 0)))
               ())
             (if (> (%ed-cur) n2) (%eg! 2 (- (%ed-cur) count)) ())
-            (%eg! 0 (append (%cu-take (%eg 0) (- n1 1)) (%cu-nthrest n2 (%eg 0))))
+            (%eg! 0 (append (cu-take (%eg 0) (- n1 1)) (cu-nthrest n2 (%eg 0))))
             (%eg! 1 (- (%eg 1) count))
             (%eg! 3 #t))))))
 
@@ -129,7 +140,7 @@
                             (match ((> n n2) (do (%ed-err (string-concat (list "can't find string \"" s "\""))) 0))
                                    ((>= (%ed-find (first ls) s 0) 0) n)
                                    (#t (self (+ n 1) (rest ls)))))))
-                  (go n1 (%cu-nthrest (- n1 1) (%eg 0))))))))))
+                  (go n1 (cu-nthrest (- n1 1) (%eg 0))))))))))
 
 ; LINE as l shows it: control bytes as ^X, high ones as M-, then $
 (def %ed-shown
@@ -159,12 +170,12 @@
 (def %ed-read-file
   (fn (_ file num)
     (if (if (< num 1) #t (> num (+ (%ed-last) 1))) (%ed-err "bad line for read")
-      (let ((src (%cu-pieces file ())))
+      (let ((src (cu-pieces file ())))
         (if (Err err? src) (%ed-err (string-concat (list file ": " (file-err-text src))))
-          (let ((text (string-concat (map %cu-run-text (%tar-all-pieces src)))))
+          (let ((text (string-concat (map cu-run-text (tar-all-pieces src)))))
             (let ((lines (%ed-split text)))
               (do (%ed-insert! num lines)
-                  (if (%eg 8) () (file-write 1 (string-append (%cu-int->str (byte-len text)) "\n")))
+                  (if (%eg 8) () (file-write 1 (string-append (cu-int->str (byte-len text)) "\n")))
                   #t))))))))
 
 ; TEXT's lines, each with its newline, the last without where it has none
@@ -173,7 +184,7 @@
     (def go
       (fn (self i acc)
         (if (>= i (byte-len text)) (reverse acc)
-          (let ((nl (%dp-find text i #\newline)))
+          (let ((nl (dp-find text i #\newline)))
             (if (< nl 0) (reverse (pair (substring text i (byte-len text)) acc))
               (self (+ nl 1) (pair (substring text i (+ nl 1)) acc)))))))
     (go 0 ())))
@@ -183,11 +194,11 @@
     (if (%ed-bad-nums? n1 n2 "write") #f
       (let ((fd (File open file (list (lit wronly) (lit creat) (lit trunc)) 438)))
         (if (< fd 0) (%ed-err (string-concat (list file ": " (file-err-text (file-open-err fd file)))))
-          (let ((ls (%cu-take (%cu-nthrest (- n1 1) (%eg 0)) (+ (- n2 n1) 1))))
+          (let ((ls (cu-take (cu-nthrest (- n1 1) (%eg 0)) (+ (- n2 n1) 1))))
             (do (map (fn (_ l) (file-write fd l)) ls)
                 (file-close fd)
                 (if (%eg 8) ()
-                  (file-write 1 (string-append (%cu-int->str (List fold (fn (_ a l) (+ a (byte-len l))) 0 ls)) "\n")))
+                  (file-write 1 (string-append (cu-int->str (List fold (fn (_ a l) (+ a (byte-len l))) 0 ls)) "\n")))
                 #t)))))))
 
 ; --- s ---------------------------------------------------------------------------
@@ -196,18 +207,18 @@
 (def %ed-sub-parts
   (fn (_ cmd)
     (def d (%ed-at cmd 0))
-    (def mid (if (= d 0) -1 (%dp-find cmd 1 d)))
-    (def end (if (< mid 0) -1 (%dp-find cmd (+ mid 1) d)))
+    (def mid (if (= d 0) -1 (dp-find cmd 1 d)))
+    (def end (if (< mid 0) -1 (dp-find cmd (+ mid 1) d)))
     (def flags (if (< end 0) "" (substring cmd (+ end 1) (byte-len cmd))))
-    (def bad (filter (fn (_ c) (not (if (= c #\g) #t (= c #\p)))) (%tar-str-bytes flags)))
+    (def bad (filter (fn (_ c) (not (if (= c #\g) #t (= c #\p)))) (tar-str-bytes flags)))
     (match
       ((if (= d 0) #t (if (= d #\space) #t (= d #\tab))) (%ed-err "bad delimiter for substitute"))
       ((< mid 0) (%ed-err "missing 2nd delimiter for substitute"))
       ((pair? bad) (%ed-err "unknown option for substitute"))
       (#t (list (substring cmd 1 mid)
                 (substring cmd (+ mid 1) (if (< end 0) (byte-len cmd) end))
-                (pair? (filter (fn (_ c) (= c #\g)) (%tar-str-bytes flags)))
-                (pair? (filter (fn (_ c) (= c #\p)) (%tar-str-bytes flags))))))))
+                (pair? (filter (fn (_ c) (= c #\g)) (tar-str-bytes flags)))
+                (pair? (filter (fn (_ c) (= c #\p)) (tar-str-bytes flags))))))))
 
 ; LINE with OLD at OFF replaced by NEW
 (def %ed-splice
@@ -223,7 +234,7 @@
       ((eq? (%ed-line n1) #f) ())
       (#t (let ((old (if (= (byte-len (first parts)) 0) (%eg 6) (first parts))))
             (do (%eg! 6 old)
-                (if (%ed-sub-lines old (%cu-nth 1 parts) (%cu-nth 2 parts) (%cu-nth 3 parts) n1 n2 0) ()
+                (if (%ed-sub-lines old (cu-nth 1 parts) (cu-nth 2 parts) (cu-nth 3 parts) n1 n2 0) ()
                   (%ed-err (string-concat (list "no substitutions found for \"" old "\""))))))))))
 
 ; each line from N to N2 with OLD replaced, the first from OFF or, under G,
@@ -235,7 +246,7 @@
     (if (> n n2) #f
       (let ((r (%ed-sub-line (%ed-line n) old new g off ())))
         (do (if (null? (rest r)) ()
-              (do (%eg! 0 (append (%cu-take (%eg 0) (- n 1)) (list (first r)) (%cu-nthrest n (%eg 0))))
+              (do (%eg! 0 (append (cu-take (%eg 0) (- n 1)) (list (first r)) (cu-nthrest n (%eg 0))))
                   (%eg! 3 #t)
                   (if p (%ed-print n n #f) ())))
             (let ((next (if (if g #t (null? (rest r))) 0 (rest r))))
@@ -282,7 +293,7 @@
           (if (if (< m 0) #t (>= m 26)) (%ed-err "bad mark name")
             (list (+ j 2) (vec-ref (%eg 4) m)))))
       ((= c #\/)
-        (let ((end (%dp-find s (+ j 1) #\/)))
+        (let ((end (dp-find s (+ j 1) #\/)))
           (let ((n (%ed-search (substring s (+ j 1) (if (< end 0) (byte-len s) end)) (%ed-cur) (%ed-last))))
             (if (= n 0) #f (list (if (< end 0) (byte-len s) (+ end 1)) n)))))
       ((if (>= c #\0) (<= c #\9) #f)
@@ -352,7 +363,7 @@
       ((= c #\z) (do (%ed-z (%ed-at line i)) #t))
       ((= c #\.) (do (if have1 (%ed-err "no arguments allowed") (%ed-print (%ed-cur) (%ed-cur) #f)) #t))
       ((= c #\-) (do (if (%ed-set-cur! (- (%ed-cur) 1)) (%ed-print (%ed-cur) (%ed-cur) #f) ()) #t))
-      ((= c #\=) (do (file-write 1 (string-append (%cu-int->str n1) "\n")) #t))
+      ((= c #\=) (do (file-write 1 (string-append (cu-int->str n1) "\n")) #t))
       ((= c 0) (do (if have1 (%ed-print n2 n2 #f)
                      (if (%ed-set-cur! (+ (%ed-cur) 1)) (%ed-print (%ed-cur) (%ed-cur) #f) ())) #t))
       (#t (do (%ed-err "unimplemented command") #t)))))
@@ -414,15 +425,15 @@
 ; --- the applet ------------------------------------------------------------------
 
 ; ed [-p PROMPT] [-s] [FILE]
-(def %cu-ed
+(def cu-ed
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ed" argv))
+    (def o (cu-opts "ed" argv))
     (def p (Opts value o "-p"))
     (def file (let ((ops (Opts operands o))) (if (null? ops) () (first ops))))
     (do (set! %ed (vec-build 10 (fn (_ i) (match ((= i 0) ()) ((= i 1) 0) ((= i 2) 0) ((= i 3) #f)
                                                  ((= i 4) (vec-make 26 0)) ((= i 6) "") ((= i 7) (if (null? p) "" p))
                                                  ((= i 8) (Opts on? o "-s"))
-                                                 ((= i 9) (vec-build 3 (fn (_ k) (match ((= k 0) (%cu-pieces "-" stdin-thunk)) ((= k 2) 0) (#t ())))))
+                                                 ((= i 9) (vec-build 3 (fn (_ k) (match ((= k 0) (cu-pieces "-" stdin-thunk)) ((= k 2) 0) (#t ())))))
                                                  (#t ())))))
         (if (null? file) (%ed-loop)
           (do (%eg! 5 file)
@@ -434,4 +445,6 @@
     (do (if (= (byte-len (%eg 7)) 0) () (file-write 2 (%eg 7)))
         (let ((l (%ed-gets 1024)))
           (if (null? l) ()
-            (if (%ed-command (%ed-trim l)) (do (%cu-sweep-tick! %cu-sweep-lines) (self)) ()))))))
+            (if (%ed-command (%ed-trim l)) (do (cu-sweep-tick! cu-sweep-lines) (self)) ()))))))
+
+(provide cu/ed cu-ed)

@@ -20,14 +20,24 @@
 ; take.  A listed row declares the option it describes; a hidden row declares
 ; one busybox does not list; a text row is a line laid out by hand, or a
 ; spelling (a cluster, an attached value) of options declared elsewhere.  The
-; guard, the applet and --help all read the same row (through %cu-opts and
-; %cu-usage), so an option cannot be accepted and undocumented, nor documented
+; guard, the applet and --help all read the same row (through cu-opts and
+; cu-usage), so an option cannot be accepted and undocumented, nor documented
 ; and refused.
 ;
 ; test's whole vocabulary is declared because the guard must know every
 ; dash-word the grammar accepts; find's for the same reason, or a valid
 ; expression reads as a bad flag.  cu/find.x parses them; this list only makes
 ; them spellable.
+(module cu/options)
+
+(import cu/prims append length map reverse substring)
+
+; -u, -b (UDP's broadcasts) and -s are not here: refused, rather than read as
+; TCP or as no address at all.  -e is split off before the parse.
+(def nc-flags (list "-n" "-v" "-l" "-k" "-z"))
+
+(def nc-values (list "-p" "-w" "-i" "-o" "-e"))
+
 (def %cu-test-operators
   (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
         "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
@@ -53,11 +63,11 @@
       (Opts declare name "[OPTIONS] HOST PORT  - connect\nnc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen"
         "\t-e PROG\tRun PROG after connect (must be last)\n\t-l\tListen mode, for inbound connects\n\t-lk\tWith -e, provides persistent server\n\t-p PORT\tLocal port\n\t-s ADDR\tLocal address\n\t-w SEC\tTimeout for connects and final net reads\n\t-i SEC\tDelay interval for lines sent\n\t-n\tDon't do DNS resolution\n\t-u\tUDP mode\n\t-b\tAllow broadcasts\n\t-v\tVerbose\n\t-o FILE\tHex dump traffic\n\t-z\tZero-I/O mode (scanning)"
         (append (list)
-          (%cu-hidden-flags %nc-flags)
-          (%cu-hidden-args %nc-values)))
+          (%cu-hidden-flags nc-flags)
+          (%cu-hidden-args nc-values)))
       (lit none))))
 
-(def %cu-option-spec
+(def cu-option-spec
   (list
     (pair "cat"
       (list
@@ -2481,3 +2491,5 @@
             (%cu-hidden-flags %cu-test-operators))
           (pair (lit help) #f))
         (lit none)))))
+
+(provide cu/options cu-option-spec nc-flags nc-values)

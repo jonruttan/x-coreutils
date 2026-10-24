@@ -40,6 +40,11 @@
 ; and folds each word under -i.  So one lexer serves every combination, and no
 ; x code runs inside the tokenizer base.
 
+(module cu/diff-lex)
+
+(import cu/prims byte-at byte-len reverse set-first! string-append
+  string-concat string=?)
+
 (import x/reader/lexer)
 ; the module a first make imports, here so the state image carries it: read
 ; from source at the make it costs ~0.9 s
@@ -88,7 +93,7 @@
 ; lines; and Str8 downcase is a class call that allocates by the thousand,
 ; so once a file beats once a word -- 256 lines of six words folded a word
 ; at a time cost 3 s and ran a 32-line file's worth of heap into the guard.
-(def %cu-dl-lines
+(def cu-dl-lines
   (fn (_ text fold? squeeze? strip?)
     (let ((end (byte-len text)))
       (let ((src ((fn (_ s) (if fold? (Str8 downcase s) s))
@@ -108,3 +113,5 @@
                                 (self (rest l) (pair (if squeeze? " " tx) cur) acc))
                               (self (rest l) (pair tx cur) acc))))))))
             (go ((%cu-dl-lexer) read-str src) () ())))))))
+
+(provide cu/diff-lex cu-dl-lines)

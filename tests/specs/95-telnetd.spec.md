@@ -23,7 +23,7 @@ stderr.  The terminal's name is shown as PTS.
   (def td-f (fn (_ n) (string-append "/tmp/x-cu-telnetd/" n)))
   (def td-lines (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def td-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
@@ -34,7 +34,7 @@ stderr.  The terminal's name is shown as PTS.
           (if (= (rest r) 0) (do (file-close fd) (reverse acc)) (go (pair r acc))))))))
   (def td-prep (fn (_ args issue script input port)
     (sys-setenv "TD_ARGS" args) (sys-setenv "TD_ISSUE" issue) (sys-setenv "TD_S" script)
-    (sys-setenv "TD_IN" input) (sys-setenv "TD_PORT" (%cu-int->str port))
+    (sys-setenv "TD_IN" input) (sys-setenv "TD_PORT" (cu-int->str port))
     (td-sh (string-concat (list
       "d=/tmp/x-cu-telnetd; rm -f $d/p* $d/got $d/out $d/err $d/argv; "
       "printf '%b' \"$TD_ISSUE\" > $d/issue; printf '%b' \"$TD_S\" > $d/s; "
@@ -46,7 +46,7 @@ stderr.  The terminal's name is shown as PTS.
     (td-lines (file-read-all (td-f "argv")))))
   (def td-pieces (fn (_)
     (let go ((n 1) (acc ()))
-      (let ((f (td-f (string-append "p" (%cu-int->str n)))))
+      (let ((f (td-f (string-append "p" (cu-int->str n)))))
         (if (file-exists? f) (go (+ n 1) (pair (td-runs f) acc)) (reverse acc))))))
   ; telnetd in a child; MODE plain, nowait (an accepted connection on 0 and
   ; 1) or wait (the listener on 0)
@@ -78,7 +78,7 @@ stderr.  The terminal's name is shown as PTS.
           (Socket close c)))
     (file-close got)))
   (def td (fn (_ args issue script input)
-    (%cu-heap-collect)
+    (cu-heap-collect)
     (def bang? (Str8 starts? "!" args))
     (def mode (match ((Str8 starts? "inetd:nowait:" args) "nowait") ((Str8 starts? "inetd:wait:" args) "wait") (#t "plain")))
     (def l (if (if bang? #f (not (string=? mode "plain"))) (Socket tcp-listen-on "127.0.0.1" 0 5) ()))
@@ -93,7 +93,7 @@ stderr.  The terminal's name is shown as PTS.
                   (sys-dup2 (file-open-write (td-f "out")) 1) (sys-dup2 (file-open-write (td-f "err")) 2)
                   (sys-exit (cu-run (pair "telnetd" argv) ""))))
             (def st (sys-wait pid))
-            (td-sh (string-concat (list "d=/tmp/x-cu-telnetd; { echo \"[status " (%cu-int->str st) "]\"; cat $d/out; cat $d/err; } > $d/report")))))
+            (td-sh (string-concat (list "d=/tmp/x-cu-telnetd; { echo \"[status " (cu-int->str st) "]\"; cat $d/out; cat $d/err; } > $d/report")))))
       (let ((pid (td-start mode argv l)))
         (do (unless (null? l) (Socket close l))
             (td-client port)

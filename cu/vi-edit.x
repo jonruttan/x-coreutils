@@ -16,10 +16,12 @@
 ; --- ranges -----------------------------------------------------------------
 
 ; busybox's at_eof: S at the last byte, or the one before a final newline
+(module cu/vi)
+
 (def %vi-at-eof?
   (fn (_ s)
-    (if (= s (%vi- %vi-end 1)) #t
-      (if (= s (%vi- %vi-end 2)) (= (%vi-byte (%vi+ s 1)) #\newline) #f))))
+    (if (= s (vi- %vi-end 1)) #t
+      (if (= s (vi- %vi-end 2)) (= (%vi-byte (vi+ s 1)) #\newline) #f))))
 
 ; busybox's find_range: the motion typed after the operator CMD run from the
 ; cursor, answering (TYPE P . Q) -- the range P through Q and its register
@@ -31,7 +33,7 @@
     (def type (%vi-range-motion cmd c p))
     (if (= type -1)
       (do (if (= c #\escape) () (%vi-indicate-error)) ())
-      (%vi-range-ends type c (%vi-min p %vi-dot) (%vi-max p %vi-dot)))))
+      (%vi-range-ends type c (vi-min p %vi-dot) (vi-max p %vi-dot)))))
 
 ; the motion C run for the operator CMD from P, answering the range's type,
 ; -1 for none; the cursor is left at the range's other end
@@ -53,8 +55,8 @@
 ; dd cc yy << >>: whole lines, COUNT of them
 (def %vi-range-lines
   (fn (_)
-    (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1))
-    (if (%vi< 0 %vi-cmdcnt)
+    (set! %vi-cmdcnt (vi- %vi-cmdcnt 1))
+    (if (vi< 0 %vi-cmdcnt)
       (do (%vi-do-cmd 106) (if %vi-cmd-error -1 1))
       1)))
 
@@ -63,10 +65,10 @@
 (def %vi-range-words
   (fn (_ cmd c p)
     (%vi-do-cmd c)
-    (if (if (%vi< p %vi-dot)
+    (if (if (vi< p %vi-dot)
           (if (%vi-at-eof? %vi-dot) (if (= c #\w) (%vi-punct? (%vi-byte %vi-dot)) #f) #t)
           #f)
-      (set! %vi-dot (%vi- %vi-dot 1))
+      (set! %vi-dot (vi- %vi-dot 1))
       ())
     (def t (%vi-words-back p %vi-dot))
     (if (match ((= cmd #\c) #f) ((= %vi-dot t) #f) (#t (if (= (%vi-byte %vi-dot) #\newline) #f #t)))
@@ -79,8 +81,8 @@
 (def %vi-words-back
   (fn (self p t)
     (def c (%vi-byte %vi-dot))
-    (if (if (%vi< p %vi-dot) (%vi-space? c) #f)
-      (do (set! %vi-dot (%vi- %vi-dot 1))
+    (if (if (vi< p %vi-dot) (%vi-space? c) #f)
+      (do (set! %vi-dot (vi- %vi-dot 1))
           (self p (if (= c #\newline) %vi-dot t)))
       t)))
 
@@ -90,7 +92,7 @@
   (fn (_ c p)
     (def n (if (= %vi-cmdcnt 0) 1 %vi-cmdcnt))
     (%vi-do-cmd c)
-    (if (= n (%vi- %vi-dot p)) (set! %vi-dot (%vi- %vi-dot 1)) ())
+    (if (= n (vi- %vi-dot p)) (set! %vi-dot (vi- %vi-dot 1)) ())
     0))
 
 ; the ends of a range from P to Q: a motion that stops short of its target
@@ -99,21 +101,21 @@
 (def %vi-range-ends
   (fn (_ type c p q)
     (match
-      ((if (%vi< p q)
+      ((if (vi< p q)
          (%vi-one-of? c (list #\^ #\0 #\b #\B #\F #\T #\h #\n #\N #\/ #\? #\| #\backspace #\delete))
          #f)
-        (pair type (pair p (%vi- q 1))))
-      ((if (%vi< p q) (%vi-one-of? c (list #\{ #\})) #f) (%vi-range-braces p q))
+        (pair type (pair p (vi- q 1))))
+      ((if (vi< p q) (%vi-one-of? c (list #\{ #\})) #f) (%vi-range-braces p q))
       (#t (pair type (pair p q))))))
 
 (def %vi-range-braces
   (fn (_ p q)
     (def type
       (if (if (= p (%vi-begin-line p)) (if (= (%vi-byte q) #\newline) #t (%vi-at-eof? q)) #f) 1 2))
-    (def q1 (if (%vi-at-eof? q) q (%vi- q 1)))
+    (def q1 (if (%vi-at-eof? q) q (vi- q 1)))
     (pair type
-      (pair p (if (if (%vi-at-eof? q) #f (if (%vi< p q1) (if (= p (%vi-begin-line p)) #f #t) #f))
-                (%vi- q1 1)
+      (pair p (if (if (%vi-at-eof? q) #f (if (vi< p q1) (if (= p (%vi-begin-line p)) #f #t) #f))
+                (vi- q1 1)
                 q1)))))
 
 ; --- c d y ------------------------------------------------------------------
@@ -135,7 +137,7 @@
     (def from (if whole? (%vi-begin-line p) p))
     (def to (if whole? (%vi-end-line q) q))
     (if (if whole? (= c #\c) #f)
-      (set! %vi-newindent (%vi-get-column (%vi+ from (%vi-indent-len from))))
+      (set! %vi-newindent (%vi-get-column (vi+ from (%vi-indent-len from))))
       ())
     (set! %vi-dot
       (%vi-yank-delete from to type (if (%vi-one-of? c (list #\y #\Y)) #f #t) %vi-allow-undo))
@@ -153,7 +155,7 @@
       ((= c #\c)
         (do (set! %vi-cmd-mode 1)
             (set! %vi-dot (%vi-char-insert %vi-dot 10 %vi-allow-undo-chain))
-            (if (if (= %vi-dot (%vi- %vi-end 1)) #t (%vi-opt? %vi-ai)) () (%vi-dot-prev!))))
+            (if (if (= %vi-dot (vi- %vi-end 1)) #t (%vi-opt? %vi-ai)) () (%vi-dot-prev!))))
       ((= c #\d) (do (%vi-dot-begin!) (%vi-dot-skip-over-ws!)))
       (#t (set! %vi-dot save)))))
 
@@ -163,7 +165,7 @@
 ; that has text, or a tab or up to a tab stop of spaces taken from the front
 (def %vi-cmd-shift
   (fn (_ c)
-    (def line (%vi-lines-before (%vi+ (%vi-end-line %vi-dot) 1)))
+    (def line (%vi-lines-before (vi+ (%vi-end-line %vi-dot) 1)))
     (def range (%vi-find-range c))
     (if (null? range) ()
       (%vi-shift-lines c (%vi-begin-line (first (rest range)))
@@ -176,10 +178,10 @@
 ; allow_undo is one variable for the whole command
 (def %vi-shift-lines
   (fn (self c p n undo)
-    (if (%vi< 0 n)
+    (if (vi< 0 n)
       (do (if (= c #\<) (%vi-shift-left p undo) (%vi-shift-right p undo))
           (set-first! undo %vi-allow-undo-chain)
-          (self c (%vi-next-line p) (%vi- n 1) undo))
+          (self c (%vi-next-line p) (vi- n 1) undo))
       ())))
 
 (def %vi-shift-left
@@ -191,10 +193,10 @@
 
 (def %vi-unindent
   (fn (self p j undo)
-    (if (if (= (%vi-byte p) #\space) (%vi< j %vi-tabstop) #f)
+    (if (if (= (%vi-byte p) #\space) (vi< j %vi-tabstop) #f)
       (do (%vi-hole-delete! p p (first undo))
           (set-first! undo %vi-allow-undo-chain)
-          (self p (%vi+ j 1) undo))
+          (self p (vi+ j 1) undo))
       ())))
 
 (def %vi-shift-right
@@ -218,13 +220,13 @@
     (def times (if (= %vi-cmdcnt 0) 1 %vi-cmdcnt))
     (if (= type 1) (%vi-put-whole-at c) (if (= c #\p) (%vi-dot-right!) ()))
     (def cnt
-      (if (if (= type 1) #t (%vi-has-newline? s)) 0 (%vi- (%vi* times (byte-len s)) 1)))
+      (if (if (= type 1) #t (%vi-has-newline? s)) 0 (vi- (%vi* times (byte-len s)) 1)))
     (def undo (list %vi-allow-undo))
     (%vi-repeat
       (fn (_)
         (%vi-string-insert! %vi-dot s (first undo))
         (set-first! undo %vi-allow-undo-chain)))
-    (set! %vi-dot (%vi+ %vi-dot cnt))
+    (set! %vi-dot (vi+ %vi-dot cnt))
     (%vi-dot-skip-over-ws!)
     (%vi-yank-status! "Put" s times)
     (%vi-end-cmd-q!)))
@@ -233,11 +235,11 @@
   (fn (_ c)
     (match
       ((= c #\P) (%vi-dot-begin!))
-      ((= (%vi-end-line %vi-dot) (%vi- %vi-end 1)) (set! %vi-dot %vi-end))
+      ((= (%vi-end-line %vi-dot) (vi- %vi-end 1)) (set! %vi-dot %vi-end))
       (#t (%vi-dot-next!)))))
 
 (def %vi-has-newline?
-  (fn (_ s) (%vi< 0 (%vi-newlines-of s))))
+  (fn (_ s) (vi< 0 (%vi-newlines-of s))))
 
 ; busybox's string_insert: S put in at P, recorded as UNDO says
 (def %vi-string-insert!
@@ -245,14 +247,14 @@
     (def n (byte-len s))
     (%vi-undo-push-insert! p n undo)
     (%vi-hole-make! p n)
-    (%cu-ptr-call %vi-c-memcpy (%vi+ %vi-taddr p) s n)
-    (set! %vi-nl-total (%vi+ %vi-nl-total (%vi-newlines-of s)))))
+    (cu-ptr-call %vi-c-memcpy (vi+ %vi-taddr p) s n)
+    (set! %vi-nl-total (vi+ %vi-nl-total (%vi-newlines-of s)))))
 
 ; "x: the register the next command yanks into or puts from
 (def %vi-cmd-name-reg
   (fn (_)
-    (def c (%vi- (%vi| (%vi-get-one-char) 32) #\a))
-    (if (if (%vi< c 0) #f (%vi< c 26)) (set! %vi-ydreg c) (%vi-indicate-error))))
+    (def c (vi- (%vi| (%vi-get-one-char) 32) #\a))
+    (if (if (vi< c 0) #f (vi< c 26)) (set! %vi-ydreg c) (%vi-indicate-error))))
 (def %vi| (prim-ref (lit int) (lit |)))
 
 ; --- marks ------------------------------------------------------------------
@@ -266,15 +268,15 @@
 ; m: the cursor's place kept under a letter
 (def %vi-cmd-mark
   (fn (_)
-    (def c (%vi- (%vi| (%vi-get-one-char) 32) #\a))
-    (if (if (%vi< c 0) #f (%vi< c 26)) (%vi-mark! c %vi-dot) (%vi-indicate-error))))
+    (def c (vi- (%vi| (%vi-get-one-char) 32) #\a))
+    (if (if (vi< c 0) #f (vi< c 26)) (%vi-mark! c %vi-dot) (%vi-indicate-error))))
 
 ; ': to the line of a mark, or with '' back to where the last jump began
 (def %vi-cmd-goto-mark
   (fn (_)
     (def c (%vi| (%vi-get-one-char) 32))
     (match
-      ((%vi-in? c #\a #\z) (%vi-goto-mark (%vi-mark (%vi- c #\a))))
+      ((vi-in? c #\a #\z) (%vi-goto-mark (%vi-mark (vi- c #\a))))
       ((= c #\')
         (do (set! %vi-dot (%vi-swap-context %vi-dot))
             (%vi-dot-begin!)
@@ -284,7 +286,7 @@
 
 (def %vi-goto-mark
   (fn (_ q)
-    (if (if (%vi< q 0) #f (%vi< q %vi-end))
+    (if (if (vi< q 0) #f (vi< q %vi-end))
       (do (set! %vi-dot q) (%vi-dot-begin!) (%vi-dot-skip-over-ws!))
       (%vi-indicate-error))))
 
@@ -299,7 +301,7 @@
 (def %vi-swap-context
   (fn (_ p)
     (def m (%vi-mark 27))
-    (if (if (%vi< m 0) #f (%vi< m %vi-end))
+    (if (if (vi< m 0) #f (vi< m %vi-end))
       (do (%vi-mark! 27 p) (%vi-mark! 26 m) m)
       p)))
 
@@ -310,7 +312,7 @@
   (fn (_)
     (def c (%vi-get-one-char))
     (if (= c #\escape) ()
-      (if (%vi< (%vi- (%vi-end-line %vi-dot) %vi-dot) (if (= %vi-cmdcnt 0) 1 %vi-cmdcnt))
+      (if (vi< (vi- (%vi-end-line %vi-dot) %vi-dot) (if (= %vi-cmdcnt 0) 1 %vi-cmdcnt))
         (%vi-indicate-error)
         (%vi-r-replace c)))
     (%vi-end-cmd-q!)))
@@ -333,11 +335,11 @@
     (%vi-repeat
       (fn (_)
         (%vi-dot-end!)
-        (if (%vi< %vi-dot (%vi- %vi-end 1))
+        (if (vi< %vi-dot (vi- %vi-end 1))
           (do (%vi-undo-push! %vi-dot 1 %vi-u-del)
               (%vi-byte-set! %vi-dot 32)
-              (set! %vi-dot (%vi+ %vi-dot 1))
-              (%vi-undo-push! (%vi- %vi-dot 1) 1 %vi-u-ins-chain)
+              (set! %vi-dot (vi+ %vi-dot 1))
+              (%vi-undo-push! (vi- %vi-dot 1) 1 %vi-u-ins-chain)
               (%vi-drop-blanks))
           ())))
     (%vi-end-cmd-q!)))
@@ -357,8 +359,8 @@
       (fn (_)
         (def c (%vi-byte %vi-dot))
         (match
-          ((%vi-in? c #\a #\z) (%vi-flip-case (%vi- c 32) del))
-          ((%vi-in? c #\A #\Z) (%vi-flip-case (%vi+ c 32) del))
+          ((vi-in? c #\a #\z) (%vi-flip-case (vi- c 32) del))
+          ((vi-in? c #\A #\Z) (%vi-flip-case (vi+ c 32) del))
           (#t ()))
         (%vi-dot-right!)))
     (%vi-end-cmd-q!)))
@@ -381,8 +383,8 @@
 (def %vi-dollar-line
   (fn (_ p)
     (def e (%vi-end-line p))
-    (if (if (= (%vi-byte e) #\newline) (%vi< 0 (%vi- e (%vi-begin-line e))) #f)
-      (%vi- e 1)
+    (if (if (= (%vi-byte e) #\newline) (vi< 0 (vi- e (%vi-begin-line e))) #f)
+      (vi- e 1)
       e)))
 
 ; U: the line as it was when the cursor came to it

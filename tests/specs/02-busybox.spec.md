@@ -206,7 +206,7 @@ real output (which has `> ` add-lines) is asserted through the quoted
 string builder instead -- `write` shows the exact bytes.
 
 ```cu
-(do (def r (%cu-diff-str (list "/tmp/x-cu-bb/d1" "/tmp/x-cu-bb/d2") (fn (_) ""))) (write (first r)) (newline) (display (rest r)))
+(do (def r (cu-diff-str (list "/tmp/x-cu-bb/d1" "/tmp/x-cu-bb/d2") (fn (_) ""))) (write (first r)) (newline) (display (rest r)))
 ```
 ---
 ```output

@@ -21,6 +21,20 @@
 ; ls reads its options off the record cu/cli.x's declaration produced;
 ; the listing walk carries that record, not o, so a -R descent
 ; never re-derives what the flags were.
+(module cu/ls)
+
+(import cu/cli cu-opts)
+(import cu/fs3 cu-dev-major cu-dev-minor cu-du-blocks cu-path-join
+  cu-perm-string)
+(import cu/prims append bit-and byte-at byte-len cu-dot? cu-int->str
+  cu-member-s? cu-nth cu-stat-get date-now-unix file-list-dir file-lstat-full
+  file-readlink file-stat-full file-write filter length ls-human map reverse
+  set-first! string-append string-concat string=? substring sys-getenv
+  sys-group-name sys-isatty sys-user-name vec-make vec-ref vec-set!)
+(import cu/text cu-msort cu-num-prefix cu-pad-left cu-pad-right cu-pad-zero
+  cu-str<)
+(import cu/text3 cu-list->vec cu-spaces)
+
 (def %ls-flag? (fn (_ o f) (Opts on? o f)))
 
 ; --- entries ------------------------------------------------------------------
@@ -37,7 +51,7 @@
 (def %ls-name (fn (_ e) (first e)))
 (def %ls-path (fn (_ e) (first (rest e))))
 (def %ls-st (fn (_ e) (first (rest (rest e)))))
-(def %ls-get (fn (_ e key) (%cu-stat-get (%ls-st e) key)))
+(def %ls-get (fn (_ e key) (cu-stat-get (%ls-st e) key)))
 (def %ls-dir? (fn (_ e) (eq? (%ls-get e (lit file-type)) (lit dir))))
 
 (def %ls-listed?
@@ -60,10 +74,10 @@
       (append
         (if a? (filter (fn (_ d) (not (%ls-listed? d listed))) (list "." "..")) ())
         (filter (fn (_ n)
-                  (if (%cu-dot? n) a?
+                  (if (cu-dot? n) a?
                     (if (%ls-hidden? n) (if a? #t A?) #t)))
           listed)))
-    (map (fn (_ n) (%ls-entry n (%cu-path-join dir n) follow?)) names)))
+    (map (fn (_ n) (%ls-entry n (cu-path-join dir n) follow?)) names)))
 
 ; --- order --------------------------------------------------------------------
 
@@ -115,7 +129,7 @@
 (def %ls-desc-then-name
   (fn (_ kx ky x y)
     (if (> kx ky) #t
-      (if (< kx ky) #f (%cu-str< (%ls-name x) (%ls-name y))))))
+      (if (< kx ky) #f (cu-str< (%ls-name x) (%ls-name y))))))
 
 (def %ls-less
   (fn (_ o)
@@ -130,15 +144,15 @@
       ((%ls-flag? o "-X")
         (fn (_ x y)
           (let ((ex (%ls-ext (%ls-name x))) (ey (%ls-ext (%ls-name y))))
-            (if (string=? ex ey) (%cu-str< (%ls-name x) (%ls-name y))
-              (%cu-str< ex ey)))))
+            (if (string=? ex ey) (cu-str< (%ls-name x) (%ls-name y))
+              (cu-str< ex ey)))))
       ((%ls-flag? o "-v")
         (fn (_ x y) (%ls-natural< (%ls-name x) (%ls-name y))))
-      (#t (fn (_ x y) (%cu-str< (%ls-name x) (%ls-name y)))))))
+      (#t (fn (_ x y) (cu-str< (%ls-name x) (%ls-name y)))))))
 
 (def %ls-order
   (fn (_ es o)
-    (let ((sorted (%cu-msort es (%ls-less o))))
+    (let ((sorted (cu-msort es (%ls-less o))))
       (if (%ls-flag? o "-r") (reverse sorted) sorted))))
 
 ; --- one line -----------------------------------------------------------------
@@ -147,7 +161,7 @@
   (list "Jan" "Feb" "Mar" "Apr" "May" "Jun"
         "Jul" "Aug" "Sep" "Oct" "Nov" "Dec"))
 
-(def %ls-two (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
+(def %ls-two (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
 
 ; Mon DD HH:MM within six months either way, Mon DD  YYYY otherwise
 (def %ls-date
@@ -156,34 +170,11 @@
     (def f (fn (_ k) (rest (Assoc entry k d))))
     (def recent? (< (if (> now t) (- now t) (- t now)) 15768000))
     (string-concat
-      (list (%cu-nth (- (f (lit month)) 1) %ls-months) " "
-            (%cu-pad-left (%cu-int->str (f (lit day))) 2) " "
+      (list (cu-nth (- (f (lit month)) 1) %ls-months) " "
+            (cu-pad-left (cu-int->str (f (lit day))) 2) " "
             (if recent?
               (string-append (%ls-two (f (lit hour))) (string-append ":" (%ls-two (f (lit minute)))))
-              (string-append " " (%cu-int->str (f (lit year)))))))))
-
-; -h: bytes with one decimal below ten of a unit, as ls -h prints
-; N bytes the way -h prints them, which is ls's and df's rule both: the
-; largest unit under which the value is below 1024, ROUNDED UP at the
-; precision shown -- one decimal below 10, whole above (1500 is 1.5K,
-; 5000 is 4.9K, 926.35G is 927G, 10239 is 10K).  Below 1024, the bytes.
-(def %ls-human
-  (fn (_ n)
-    (def ceil/ (fn (_ a b) (let ((c (+ a (- b 1)))) (/ (- c (% c b)) b))))
-    (def go
-      (fn (self scale units)
-        (def tenths (ceil/ (* n 10) scale))
-        (def whole (ceil/ n scale))
-        (match
-          ((null? (rest units)) (string-append (%cu-int->str whole) (first units)))
-          ((<= tenths 99)
-            (string-concat
-              (list (%cu-int->str (/ (- tenths (% tenths 10)) 10)) "."
-                    (%cu-int->str (% tenths 10)) (first units))))
-          ((< whole 1024) (string-append (%cu-int->str whole) (first units)))
-          (#t (self (* scale 1024) (rest units))))))
-    (if (< n 1024) (%cu-int->str n)
-      (go 1024 (list "K" "M" "G" "T")))))
+              (string-append " " (cu-int->str (f (lit year)))))))))
 
 (def %ls-suffix
   (fn (_ e o)
@@ -200,19 +191,19 @@
 
 (def %ls-size-str
   (fn (_ e o)
-    (if (%ls-flag? o "-h") (%ls-human (%ls-get e (lit size)))
-      (%cu-int->str (%ls-get e (lit size))))))
+    (if (%ls-flag? o "-h") (ls-human (%ls-get e (lit size)))
+      (cu-int->str (%ls-get e (lit size))))))
 
 ; An owner or group as a long line shows it: under -l the system's name, or
 ; the id where the system has none; under -n the id.  Each id is looked up
 ; once in a run -- a listing's entries share few.
-(def %ls-user-cell (list ()))
+(def ls-user-cell (list ()))
 (def %ls-group-cell (list ()))
 
 (def %ls-id-text
   (fn (_ id numeric? cell look)
     (let ((n (if numeric? () (%ls-memo-name cell id look))))
-      (if (null? n) (%cu-int->str id) n))))
+      (if (null? n) (cu-int->str id) n))))
 
 (def %ls-memo-name
   (fn (_ cell id look)
@@ -230,7 +221,7 @@
 
 (def %ls-owner
   (fn (_ e numeric?)
-    (%ls-id-text (%ls-get e (lit uid)) numeric? %ls-user-cell sys-user-name)))
+    (%ls-id-text (%ls-get e (lit uid)) numeric? ls-user-cell sys-user-name)))
 
 (def %ls-group
   (fn (_ e numeric?)
@@ -243,15 +234,15 @@
     (if (if (eq? k (lit char)) #t (eq? k (lit block)))
       (let ((dev (%ls-get e (lit rdev))))
         (string-concat
-          (list (%cu-pad-left (%cu-int->str (%cu-dev-major dev)) 4) ", "
-                (%cu-pad-left (%cu-int->str (%cu-dev-minor dev)) 3))))
-      (%cu-pad-left (%ls-size-str e o) (if (%ls-flag? o "-h") 7 9)))))
+          (list (cu-pad-left (cu-int->str (cu-dev-major dev)) 4) ", "
+                (cu-pad-left (cu-int->str (cu-dev-minor dev)) 3))))
+      (cu-pad-left (%ls-size-str e o) (if (%ls-flag? o "-h") 7 9)))))
 
 ; one entry as it is listed, without its newline: the cell a column layout
 ; arranges, or the line the plain listing prints.  The columns are busybox's
 ; fixed widths -- inode 7, blocks 6, links 4, owner and group 8 left-aligned,
 ; size 9 (7 under -h) -- and a wider value pushes the rest of its line over.
-(def %ls-cell
+(def ls-cell
   (fn (_ e o now)
     (def numeric? (%ls-flag? o "-n"))
     (def long? (if numeric? #t (%ls-flag? o "-l")))
@@ -260,15 +251,15 @@
     (string-concat
       (list
         (if (%ls-flag? o "-i")
-          (string-append (%cu-pad-left (%cu-int->str (%ls-get e (lit ino))) 7) " ") "")
+          (string-append (cu-pad-left (cu-int->str (%ls-get e (lit ino))) 7) " ") "")
         (if (%ls-flag? o "-s")
-          (string-append (%cu-pad-left (%cu-int->str (%cu-du-blocks st)) 6) " ") "")
+          (string-append (cu-pad-left (cu-int->str (cu-du-blocks st)) 6) " ") "")
         (if (not long?) name
           (string-concat
-            (list (%cu-perm-string (%ls-get e (lit file-type)) (%ls-get e (lit mode))) " "
-                  (%cu-pad-left (%cu-int->str (%ls-get e (lit nlink))) 4) " "
-                  (%cu-pad-right (%ls-owner e numeric?) 8) " "
-                  (%cu-pad-right (%ls-group e numeric?) 8) " "
+            (list (cu-perm-string (%ls-get e (lit file-type)) (%ls-get e (lit mode))) " "
+                  (cu-pad-left (cu-int->str (%ls-get e (lit nlink))) 4) " "
+                  (cu-pad-right (%ls-owner e numeric?) 8) " "
+                  (cu-pad-right (%ls-group e numeric?) 8) " "
                   (%ls-size-cell e o) " "
                   (%ls-date (%ls-get e (%ls-time-key o)) now) " "
                   name
@@ -277,7 +268,7 @@
                     ""))))))))
 
 (def %ls-line
-  (fn (_ e o now) (string-append (%ls-cell e o now) "\n")))
+  (fn (_ e o now) (string-append (ls-cell e o now) "\n")))
 
 ; --- columns: -C down, -x across, -w the width --------------------------------
 ;
@@ -295,14 +286,14 @@
     (def env (sys-getenv "COLUMNS"))
     (def n
       (match
-        ((not (null? w)) (%cu-num-prefix w))
-        ((if (null? env) #f (> (%cu-num-prefix env) 0)) (%cu-num-prefix env))
+        ((not (null? w)) (cu-num-prefix w))
+        ((if (null? env) #f (> (cu-num-prefix env) 0)) (cu-num-prefix env))
         (#t 80)))
     (if (<= n 0) 1000000 n)))
 
 ; -1 on its own reads as a negative NUMBER to Opts before the declaration
 ; is consulted (x-lang#650, the digit-flag read comm also works around),
-; so %cu-ls looks for the token itself and leaves the answer here.
+; so cu-ls looks for the token itself and leaves the answer here.
 (def %ls-one-cell (list #f))
 
 (def %ls-columns?
@@ -376,7 +367,7 @@
             (self (rest cells) (+ c 1)
               (pair (if (null? (rest cells)) cell
                       (string-append cell
-                        (%cu-spaces (- (+ (vec-ref w c) 2) (byte-len cell)))))
+                        (cu-spaces (- (+ (vec-ref w c) 2) (byte-len cell)))))
                     acc))))))
     (string-concat (map (fn (_ r) (string-append (line r 0 ()) "\n")) rows))))
 
@@ -385,7 +376,7 @@
 (def %ls-layout
   (fn (_ cells width across?)
     (def n (length cells))
-    (def v (%cu-list->vec cells n))
+    (def v (cu-list->vec cells n))
     (def most (let ((m (/ (- width (% width 3)) 3))) (if (< m 1) 1 m)))
     (def pick
       (fn (self cols)
@@ -405,15 +396,15 @@
     (def blocks
       (let ((go (fn (self xs acc)
                   (if (null? xs) acc
-                    (self (rest xs) (+ acc (%cu-du-blocks (%ls-st (first xs)))))))))
+                    (self (rest xs) (+ acc (cu-du-blocks (%ls-st (first xs)))))))))
         (go ordered 0)))
     ; `total` heads a DIRECTORY listing only, as ls prints it
     (do (if (if dir? (if long? #t (%ls-flag? o "-s")) #f)
-          (display (string-append "total " (string-append (%cu-int->str blocks) "\n")))
+          (display (string-append "total " (string-append (cu-int->str blocks) "\n")))
           ())
         (if (if (%ls-columns? o) (not long?) #f)
           (display
-            (%ls-layout (map (fn (_ e) (%ls-cell e o now)) ordered)
+            (%ls-layout (map (fn (_ e) (ls-cell e o now)) ordered)
               (%ls-width o) (%ls-flag? o "-x")))
           (let ((go (fn (self xs)
                       (if (null? xs) ()
@@ -433,7 +424,7 @@
             (let ((go (fn (self2 xs)
                         (if (null? xs) ()
                           (do (if (if (%ls-dir? (first xs))
-                                    (not (%cu-dot? (%ls-name (first xs)))) #f)
+                                    (not (cu-dot? (%ls-name (first xs)))) #f)
                                 (do (display "\n")
                                     (self (%ls-path (first xs)) o now #t))
                                 ())
@@ -441,11 +432,11 @@
               (go ordered))
             ())))))
 
-(def %cu-ls
+(def cu-ls
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "ls" argv))
+    (def o (cu-opts "ls" argv))
     (%set-first! %ls-one-cell
-      (if (%ls-flag? o "-1") #t (%cu-member-s? "-1" argv)))
+      (if (%ls-flag? o "-1") #t (cu-member-s? "-1" argv)))
     ; a standalone -1 comes back as an operand (x-lang#650): not a file
     (def ops0 (filter (fn (_ p) (not (string=? p "-1"))) (Opts operands o)))
     (def ops (if (null? ops0) (list ".") ops0))
@@ -475,3 +466,5 @@
                         (self (rest ds) #f))))))
         (go (%ls-order dirs o) #t))
       (if (null? missing) 0 1))))
+
+(provide cu/ls cu-ls ls-cell ls-user-cell)

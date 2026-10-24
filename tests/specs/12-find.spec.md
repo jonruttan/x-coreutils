@@ -14,7 +14,7 @@ only the order is settled here and arbitrary there.
 ### fixtures
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-fd && mkdir -p /tmp/x-cu-fd/sub/deep /tmp/x-cu-fd/empty")) (file-write-all "/tmp/x-cu-fd/a.x" "aaa") (file-write-all "/tmp/x-cu-fd/b.txt" "bb") (file-write-all "/tmp/x-cu-fd/sub/c.x" "c") (file-write-all "/tmp/x-cu-fd/sub/d.md" "") (file-write-all "/tmp/x-cu-fd/sub/deep/e.x" "eeeee") (def cu-cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-fd/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-fd/.cap")))))) (def fields (fn (_ p) (%cu-delim-fields (list p) (fn (_) "") 0))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-fd && mkdir -p /tmp/x-cu-fd/sub/deep /tmp/x-cu-fd/empty")) (file-write-all "/tmp/x-cu-fd/a.x" "aaa") (file-write-all "/tmp/x-cu-fd/b.txt" "bb") (file-write-all "/tmp/x-cu-fd/sub/c.x" "c") (file-write-all "/tmp/x-cu-fd/sub/d.md" "") (file-write-all "/tmp/x-cu-fd/sub/deep/e.x" "eeeee") (def cu-cap (fn (_ argv) (do (sys-dup2 1 9) (let ((fd (file-open-write "/tmp/x-cu-fd/.cap"))) (do (sys-dup2 fd 1) (cu-run argv "") (sys-dup2 9 1) (file-close fd) (file-read-all "/tmp/x-cu-fd/.cap")))))) (def fields (fn (_ p) (cu-delim-fields (list p) (fn (_) "") 0))) (display "made"))
 ```
 ---
     made

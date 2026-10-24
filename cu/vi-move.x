@@ -16,35 +16,37 @@
 ; --- classes of a byte ------------------------------------------------------
 
 ; the byte at P, or 0 outside the text
+(module cu/vi)
+
 (def %vi-byte
   (fn (_ p)
-    (if (%vi< p 0) 0
-      (if (%vi< p %vi-end) (%vi& (byte-at %vi-text p) 255) 0))))
+    (if (vi< p 0) 0
+      (if (vi< p %vi-end) (vi& (byte-at %vi-text p) 255) 0))))
 
 ; isalnum or `_`: a byte of a word
 (def %vi-word?
   (fn (_ c)
     (match
       ((= c #\_) #t)
-      ((%vi< c #\0) #f)
-      ((if (%vi< #\9 c) #f #t) #t)
-      ((%vi< c #\A) #f)
-      ((if (%vi< #\Z c) #f #t) #t)
-      ((%vi< c #\a) #f)
-      (#t (if (%vi< #\z c) #f #t)))))
+      ((vi< c #\0) #f)
+      ((if (vi< #\9 c) #f #t) #t)
+      ((vi< c #\A) #f)
+      ((if (vi< #\Z c) #f #t) #t)
+      ((vi< c #\a) #f)
+      (#t (if (vi< #\z c) #f #t)))))
 
 ; ispunct: printable, and neither a space nor a letter or digit
 (def %vi-punct?
   (fn (_ c)
     (match
-      ((%vi< c #\!) #f)
-      ((%vi< c #\0) #t)
-      ((if (%vi< #\9 c) #f #t) #f)
-      ((%vi< c #\A) #t)
-      ((if (%vi< #\Z c) #f #t) #f)
-      ((%vi< c #\a) #t)
-      ((if (%vi< #\z c) #f #t) #f)
-      (#t (if (%vi< #\~ c) #f #t)))))
+      ((vi< c #\!) #f)
+      ((vi< c #\0) #t)
+      ((if (vi< #\9 c) #f #t) #f)
+      ((vi< c #\A) #t)
+      ((if (vi< #\Z c) #f #t) #f)
+      ((vi< c #\a) #t)
+      ((if (vi< #\z c) #f #t) #f)
+      (#t (if (vi< #\~ c) #f #t)))))
 
 ; --- skip_thing -------------------------------------------------------------
 
@@ -55,7 +57,7 @@
 (def %vi-st-test
   (fn (_ p type dir)
     (def c0 (%vi-byte p))
-    (def ci (%vi-byte (%vi+ p dir)))
+    (def ci (%vi-byte (vi+ p dir)))
     (match
       ((= type 1) (pair (if (%vi-space? ci) (= ci #\newline) #t) ci))
       ((= type 2) (pair (if (%vi-space? c0) (= c0 #\newline) #t) c0))
@@ -70,10 +72,10 @@
     (def t (%vi-st-test p type dir))
     (match
       ((if (first t) #f #t) p)
-      ((if (= (rest t) #\newline) (%vi< (%vi- linecnt 1) 1) #f) p)
-      ((if (%vi< dir 0) #f (%vi< (%vi- %vi-end 2) p)) p)
-      ((if (%vi< dir 0) (%vi< p 1) #f) p)
-      (#t (self (%vi+ p dir) (if (= (rest t) #\newline) (%vi- linecnt 1) linecnt) dir type)))))
+      ((if (= (rest t) #\newline) (vi< (vi- linecnt 1) 1) #f) p)
+      ((if (vi< dir 0) #f (vi< (vi- %vi-end 2) p)) p)
+      ((if (vi< dir 0) (vi< p 1) #f) p)
+      (#t (self (vi+ p dir) (if (= (rest t) #\newline) (vi- linecnt 1) linecnt) dir type)))))
 
 ; --- words ------------------------------------------------------------------
 
@@ -87,7 +89,7 @@
           ((%vi-word? c) (set! %vi-dot (%vi-skip-thing %vi-dot 1 1 5)))
           ((%vi-punct? c) (set! %vi-dot (%vi-skip-thing %vi-dot 1 1 4)))
           (#t ()))
-        (if (%vi< %vi-dot (%vi- %vi-end 1)) (set! %vi-dot (%vi+ %vi-dot 1)) ())
+        (if (vi< %vi-dot (vi- %vi-end 1)) (set! %vi-dot (vi+ %vi-dot 1)) ())
         (if (%vi-space? (%vi-byte %vi-dot))
           (set! %vi-dot (%vi-skip-thing %vi-dot 2 1 3))
           ())))))
@@ -99,8 +101,8 @@
     (def dir (if (= c #\b) -1 1))
     (%vi-repeat
       (fn (_)
-        (def to (%vi+ %vi-dot dir))
-        (if (if (%vi< to 0) #t (%vi< (%vi- %vi-end 1) to)) (set! %vi-cmdcnt 0)
+        (def to (vi+ %vi-dot dir))
+        (if (if (vi< to 0) #t (vi< (vi- %vi-end 1) to)) (set! %vi-cmdcnt 0)
           (%vi-be-step to dir (if (= c #\e) 2 1)))))))
 
 (def %vi-be-step
@@ -121,7 +123,7 @@
     (def dir (if (= c #\B) -1 1))
     (%vi-repeat
       (fn (_)
-        (if (if (= c #\W) #t (%vi-space? (%vi-byte (%vi+ %vi-dot dir))))
+        (if (if (= c #\W) #t (%vi-space? (%vi-byte (vi+ %vi-dot dir))))
           (do (set! %vi-dot (%vi-skip-thing %vi-dot 1 dir 2))
               (set! %vi-dot (%vi-skip-thing %vi-dot 2 dir 3)))
           ())
@@ -151,15 +153,15 @@
 (def %vi-dot-to-char
   (fn (_ cmd)
     (if (= %vi-last-search-char 0) ()
-      (%vi-to-char-from %vi-dot (if (%vi< cmd #\a) -1 1) cmd))))
+      (%vi-to-char-from %vi-dot (if (vi< cmd #\a) -1 1) cmd))))
 
 (def %vi-to-char-from
   (fn (_ q dir cmd)
-    (def found (%vi-char-scan (%vi+ q dir) dir))
+    (def found (%vi-char-scan (vi+ q dir) dir))
     (match
       ((null? found) (do (set! %vi-cmdcnt 0) (%vi-indicate-error)))
-      ((%vi< 1 %vi-cmdcnt)
-        (do (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1)) (%vi-to-char-from found dir cmd)))
+      ((vi< 1 %vi-cmdcnt)
+        (do (set! %vi-cmdcnt (vi- %vi-cmdcnt 1)) (%vi-to-char-from found dir cmd)))
       (#t (do (set! %vi-cmdcnt 0) (set! %vi-dot found) (%vi-to-char-land cmd))))))
 
 (def %vi-to-char-land
@@ -174,17 +176,17 @@
 (def %vi-char-scan
   (fn (self q dir)
     (match
-      ((if (%vi< dir 0) (%vi< q 0) (%vi< (%vi- %vi-end 1) q)) ())
+      ((if (vi< dir 0) (vi< q 0) (vi< (vi- %vi-end 1) q)) ())
       ((= (%vi-byte q) #\newline) ())
-      ((= (%vi-byte q) (%vi& %vi-last-search-char 255)) q)
-      (#t (self (%vi+ q dir) dir)))))
+      ((= (%vi-byte q) (vi& %vi-last-search-char 255)) q)
+      (#t (self (vi+ q dir) dir)))))
 
 ; --- lines ------------------------------------------------------------------
 
 ; G: line COUNT, or the last; gg: line COUNT, or the first
 (def %vi-cmd-G
   (fn (_)
-    (set! %vi-dot (if (%vi< 0 %vi-cmdcnt) (%vi-find-line %vi-cmdcnt) (%vi- %vi-end 1)))
+    (set! %vi-dot (if (vi< 0 %vi-cmdcnt) (%vi-find-line %vi-cmdcnt) (vi- %vi-end 1)))
     (%vi-dot-begin!)
     (%vi-dot-skip-over-ws!)))
 
@@ -193,27 +195,27 @@
     (def c (%vi-get-one-char))
     (if (= c #\g)
       (do (if (= %vi-cmdcnt 0) (set! %vi-cmdcnt 1) ()) (%vi-cmd-G))
-      (do (%vi-not-implemented (bytes->str (list 103 (if (%vi< c 0) 42 (%vi& c 255)))))
+      (do (%vi-not-implemented (bytes->str (list 103 (if (vi< c 0) 42 (vi& c 255)))))
           (set! %vi-cmd-error #t)))))
 
 ; H and L: COUNT lines from the top or the bottom of the screen
 (def %vi-cmd-HL
   (fn (_ c)
     (set! %vi-dot (if (= c #\H) %vi-screenbegin (%vi-end-screen)))
-    (if (%vi< (%vi- %vi-rows 1) %vi-cmdcnt) (set! %vi-cmdcnt (%vi- %vi-rows 1)) ())
+    (if (vi< (vi- %vi-rows 1) %vi-cmdcnt) (set! %vi-cmdcnt (vi- %vi-rows 1)) ())
     (%vi-HL-steps (if (= c #\H) %vi-dot-next! %vi-dot-prev!))
     (%vi-dot-begin!)
     (%vi-dot-skip-over-ws!)))
 
 (def %vi-HL-steps
   (fn (self step)
-    (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1))
-    (if (%vi< 0 %vi-cmdcnt) (do (step) (self step)) ())))
+    (set! %vi-cmdcnt (vi- %vi-cmdcnt 1))
+    (if (vi< 0 %vi-cmdcnt) (do (step) (self step)) ())))
 
 ; M: the middle line of the screen
 (def %vi-cmd-M
   (fn (_)
-    (set! %vi-dot (%vi-next-lines %vi-screenbegin (%vi/ (%vi- %vi-rows 1) 2)))
+    (set! %vi-dot (%vi-next-lines %vi-screenbegin (vi/ (vi- %vi-rows 1) 2)))
     (%vi-dot-skip-over-ws!)))
 
 (def %vi-cmd-caret
@@ -221,7 +223,7 @@
 
 ; |: column COUNT
 (def %vi-cmd-bar
-  (fn (_) (set! %vi-dot (%vi-move-to-col %vi-dot (%vi- %vi-cmdcnt 1)))))
+  (fn (_) (set! %vi-dot (%vi-move-to-col %vi-dot (vi- %vi-cmdcnt 1)))))
 
 ; --- the matching bracket ---------------------------------------------------
 
@@ -234,9 +236,9 @@
   (fn (self q)
     (def c (%vi-byte q))
     (match
-      ((if (%vi< q %vi-end) (= c #\newline) #t) (%vi-indicate-error))
+      ((if (vi< q %vi-end) (= c #\newline) #t) (%vi-indicate-error))
       ((%vi-bracket? c) (%vi-percent-at q c))
-      (#t (self (%vi+ q 1))))))
+      (#t (self (vi+ q 1))))))
 
 (def %vi-percent-at
   (fn (_ q c)
@@ -250,7 +252,7 @@
 (def %vi-find-pair
   (fn (_ p c)
     (def open? (%vi-one-of? c (list #\( #\[ #\{)))
-    (%vi-pair-walk (%vi+ p (if open? 1 -1)) (if open? 1 -1) c (%vi-mate c) 1)))
+    (%vi-pair-walk (vi+ p (if open? 1 -1)) (if open? 1 -1) c (%vi-mate c) 1)))
 
 (def %vi-mate
   (fn (_ c)
@@ -264,10 +266,10 @@
   (fn (self p dir c mate level)
     (def b (%vi-byte p))
     (match
-      ((if (%vi< p 0) #t (%vi< (%vi- %vi-end 1) p)) ())
-      ((= b c) (self (%vi+ p dir) dir c mate (%vi+ level 1)))
-      ((= b mate) (if (= level 1) p (self (%vi+ p dir) dir c mate (%vi- level 1))))
-      (#t (self (%vi+ p dir) dir c mate level)))))
+      ((if (vi< p 0) #t (vi< (vi- %vi-end 1) p)) ())
+      ((= b c) (self (vi+ p dir) dir c mate (vi+ level 1)))
+      ((= b mate) (if (= level 1) p (self (vi+ p dir) dir c mate (vi- level 1))))
+      (#t (self (vi+ p dir) dir c mate level)))))
 
 ; --- paragraphs -------------------------------------------------------------
 
@@ -281,24 +283,24 @@
 (def %vi-paragraph-count
   (fn (self dir)
     (if (%vi-paragraph-step dir #t)
-      (do (set! %vi-cmdcnt (%vi- %vi-cmdcnt 1))
-          (if (%vi< 0 %vi-cmdcnt) (self dir) ()))
+      (do (set! %vi-cmdcnt (vi- %vi-cmdcnt 1))
+          (if (vi< 0 %vi-cmdcnt) (self dir) ()))
       (set! %vi-cmdcnt 0))))
 
 ; one paragraph: answers whether one was found
 (def %vi-paragraph-step
   (fn (self dir skip)
     (match
-      ((if (%vi< 0 dir) (%vi< %vi-dot (%vi- %vi-end 1)) (%vi< 0 %vi-dot)) (%vi-paragraph-at self dir skip))
+      ((if (vi< 0 dir) (vi< %vi-dot (vi- %vi-end 1)) (vi< 0 %vi-dot)) (%vi-paragraph-at self dir skip))
       (#t #f))))
 
 (def %vi-paragraph-at
   (fn (_ step dir skip)
-    (def blank? (if (= (%vi-byte %vi-dot) #\newline) (= (%vi-byte (%vi+ %vi-dot dir)) #\newline) #f))
+    (def blank? (if (= (%vi-byte %vi-dot) #\newline) (= (%vi-byte (vi+ %vi-dot dir)) #\newline) #f))
     (match
       ((if blank? (if skip #f #t) #f)
-        (do (if (%vi< 0 dir) (set! %vi-dot (%vi+ %vi-dot 1)) ()) #t))
-      (#t (do (set! %vi-dot (%vi+ %vi-dot dir)) (step dir (if blank? skip #f)))))))
+        (do (if (vi< 0 dir) (set! %vi-dot (vi+ %vi-dot 1)) ()) #t))
+      (#t (do (set! %vi-dot (vi+ %vi-dot dir)) (step dir (if blank? skip #f)))))))
 
 ; --- scrolling --------------------------------------------------------------
 
@@ -307,21 +309,21 @@
   (fn (_ cnt dir)
     (%vi-undo-queue-commit!)
     (set! %vi-screenbegin
-      (if (%vi< dir 0) (%vi-prev-lines %vi-screenbegin cnt) (%vi-next-lines %vi-screenbegin cnt)))
-    (if (%vi< %vi-dot %vi-screenbegin) (set! %vi-dot %vi-screenbegin) ())
+      (if (vi< dir 0) (%vi-prev-lines %vi-screenbegin cnt) (%vi-next-lines %vi-screenbegin cnt)))
+    (if (vi< %vi-dot %vi-screenbegin) (set! %vi-dot %vi-screenbegin) ())
     (def q (%vi-end-screen))
-    (if (%vi< q %vi-dot) (set! %vi-dot (%vi-begin-line q)) ())
+    (if (vi< q %vi-dot) (set! %vi-dot (%vi-begin-line q)) ())
     (%vi-dot-skip-over-ws!)))
 
 ; ^B ^F and the page keys by a screen, ^U ^D by half, ^Y ^E by a line
 (def %vi-cmd-scroll
   (fn (_ c)
-    (def page (%vi- %vi-rows 2))
+    (def page (vi- %vi-rows 2))
     (match
-      ((%vi-one-of? c (list (%vi-ctrl #\B) %vi-key-page-up)) (%vi-dot-scroll page -1))
-      ((%vi-one-of? c (list (%vi-ctrl #\F) %vi-key-page-down)) (%vi-dot-scroll page 1))
-      ((= c (%vi-ctrl #\U)) (%vi-dot-scroll (%vi/ page 2) -1))
-      ((= c (%vi-ctrl #\D)) (%vi-dot-scroll (%vi/ page 2) 1))
+      ((%vi-one-of? c (list (%vi-ctrl #\B) vi-key-page-up)) (%vi-dot-scroll page -1))
+      ((%vi-one-of? c (list (%vi-ctrl #\F) vi-key-page-down)) (%vi-dot-scroll page 1))
+      ((= c (%vi-ctrl #\U)) (%vi-dot-scroll (vi/ page 2) -1))
+      ((= c (%vi-ctrl #\D)) (%vi-dot-scroll (vi/ page 2) 1))
       ((= c (%vi-ctrl #\Y)) (%vi-dot-scroll 1 -1))
       (#t (%vi-dot-scroll 1 1)))))
 
@@ -331,5 +333,5 @@
     (def c (%vi-get-one-char))
     (set! %vi-screenbegin (%vi-begin-line %vi-dot))
     (%vi-dot-scroll
-      (match ((= c #\.) (%vi/ (%vi- %vi-rows 2) 2)) ((= c #\-) (%vi- %vi-rows 2)) (#t 0))
+      (match ((= c #\.) (vi/ (vi- %vi-rows 2) 2)) ((= c #\-) (vi- %vi-rows 2)) (#t 0))
       -1)))

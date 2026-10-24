@@ -24,6 +24,18 @@
 ; one space, -i folds a word as it is read. -t and -T are not lexical and stay
 ; below: they shape a line on the way out, and a reader base reads.
 
+(module cu/diff)
+
+(import cu/cli cu-opts)
+(import cu/diff-lex cu-dl-lines)
+(import cu/fs2 cu-cmp-walk)
+(import cu/prims byte-at byte-len cu-int->str cu-last cu-lines cu-nth
+  file-dir? file-read-all file-write length map reverse set-first!
+  string-append string-concat string=? substring vec-make vec-ref vec-set!)
+(import cu/text cu-file-pieces cu-first-unopened cu-join-with cu-num-prefix
+  cu-run-nul? cu-say cu-says cu-text-from cu-with-sources)
+(import cu/walk cu-walk-pair)
+
 (def %cu-diff-lcs
   (fn (_ av bv n m)
     ; lcs[i][j] = LCS of a[i..], b[j..]; filled bottom-up
@@ -48,9 +60,9 @@
 
 (def %cu-range
   (fn (_ lo hi)
-    (if (= lo hi) (%cu-int->str lo)
-      (string-append (%cu-int->str lo)
-        (string-append "," (%cu-int->str hi))))))
+    (if (= lo hi) (cu-int->str lo)
+      (string-append (cu-int->str lo)
+        (string-append "," (cu-int->str hi))))))
 
 ; a hunk to its NORMAL-format text; building a string (not displaying)
 ; keeps it spec-able -- the runner strips a literal "> " prompt from
@@ -72,12 +84,12 @@
           (show dels "< "
             (list (string-append (%cu-range i (+ i (- nd 1)))
                     (string-append "d"
-                      (string-append (%cu-int->str (- j 1)) "\n")))))))
+                      (string-append (cu-int->str (- j 1)) "\n")))))))
       (if (= nd 0)
         (string-concat
           (reverse
             (show adds "> "
-              (list (string-append (%cu-int->str (- i 1))
+              (list (string-append (cu-int->str (- i 1))
                       (string-append "a"
                         (string-append (%cu-range j (+ j (- na 1)))
                           "\n")))))))
@@ -160,9 +172,9 @@
 (def %cu-diff-at-range
   (fn (_ start count)
     (if (= count 1)
-      (%cu-int->str start)
-      (string-append (%cu-int->str (if (= count 0) (- start 1) start))
-        (string-append "," (%cu-int->str count))))))
+      (cu-int->str start)
+      (string-append (cu-int->str (if (= count 0) (- start 1) start))
+        (string-append "," (cu-int->str count))))))
 
 (def %cu-diff-uni-hunk
   (fn (_ av bv hunk untab? tab?)
@@ -244,7 +256,7 @@
     (map
       (fn (_ g)
         (let ((lo (let ((s (- (first g) ctx))) (if (< s 0) 0 s)))
-              (hi (let ((e (+ (%cu-last g) ctx))) (if (>= e n) (- n 1) e))))
+              (hi (let ((e (+ (cu-last g) ctx))) (if (>= e n) (- n 1) e))))
           (slice lo hi)))
       groups)))
 
@@ -260,11 +272,11 @@
     (def untab? (Opts on? o "-t"))
     (def tab? (Opts on? o "-T"))
     (def uni (Opts value o "-U"))
-    (def a (%cu-lines atext))
-    (def b (%cu-lines btext))
+    (def a (cu-lines atext))
+    (def b (cu-lines btext))
     ; the SAME text read twice: once as it is, once as diff compares it
-    (def an (%cu-dl-lines atext fold? squeeze? strip?))
-    (def bn (%cu-dl-lines btext fold? squeeze? strip?))
+    (def an (cu-dl-lines atext fold? squeeze? strip?))
+    (def bn (cu-dl-lines btext fold? squeeze? strip?))
     (def n (length a))
     (def m (length b))
     (def av (vec-make (+ n 1) ""))
@@ -308,7 +320,7 @@
     (def status (if (any-change? ops) 1 0))
     (if (null? uni)
       (pair (%cu-diff-normal av bv ops change?) status)
-      (let ((ctx (%cu-num-prefix uni)))
+      (let ((ctx (cu-num-prefix uni)))
         (let ((hs (%cu-diff-hunks ops ctx change?)))
           (pair
             (if (= status 0) ""
@@ -319,9 +331,9 @@
                     hs))))
             status))))))
 
-(def %cu-diff-str
+(def cu-diff-str
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "diff" argv))
+    (def o (cu-opts "diff" argv))
     (def paths (Opts operands o))
     (def read-op
       (fn (_ op) (if (string=? op "-") (stdin-thunk)
@@ -370,11 +382,11 @@
   (fn (_ paths o)
     (def labels (Opts values o "-L"))
     ; The length is checked first because (first ()) crashes this engine, so
-    ; %cu-nth past the end would take the process down rather than answer nil.
+    ; cu-nth past the end would take the process down rather than answer nil.
     ; Filed as x-lang#688.
     (def pick
       (fn (_ k dflt)
-        (if (> (length labels) k) (%cu-nth k labels) dflt)))
+        (if (> (length labels) k) (cu-nth k labels) dflt)))
     (string-append "--- "
       (string-append (pick 0 (first paths))
         (string-append "\n+++ "
@@ -404,7 +416,7 @@
 (def %cu-diff-header
   (fn (_ flags pa pb)
     (string-append "diff"
-      (string-append (if (null? flags) "" (string-append " " (%cu-join-with flags " ")))
+      (string-append (if (null? flags) "" (string-append " " (cu-join-with flags " ")))
         (string-append " "
           (string-append pa (string-append " " (string-append pb "\n"))))))))
 
@@ -416,7 +428,7 @@
   (fn (_ o flags pa pb sa sb)
     (def r
       (if (if (null? sa) #t (null? sb)) (pair "" 2)
-        (%cu-diff-sources o (list pa pb) sa sb (%cu-says "diff")
+        (%cu-diff-sources o (list pa pb) sa sb (cu-says "diff")
           (%cu-diff-header flags pa pb))))
     (do (if (null? sa) () (sa (lit close)))
         (if (null? sb) () (sb (lit close)))
@@ -425,8 +437,8 @@
 ; a file's piece source, or nil once diff has said why it would not open
 (def %cu-diff-source
   (fn (_ path)
-    (let ((s (%cu-file-pieces path)))
-      (if (Err err? s) (do (%cu-say (%cu-says "diff") path s) ()) s))))
+    (let ((s (cu-file-pieces path)))
+      (if (Err err? s) (do (cu-say (cu-says "diff") path s) ()) s))))
 
 ; the source of a file -N reads as absent: no pieces at all
 (def %cu-diff-none (fn (_ . how) (if (null? how) (pair "" 0) ())))
@@ -442,20 +454,20 @@
     (def ra (a))
     (def rb (b))
     (match
-      ((Err err? ra) (do (%cu-say says (first ops) ra) (pair "" 2)))
-      ((Err err? rb) (do (%cu-say says (first (rest ops)) rb) (pair "" 2)))
-      ((if (Opts on? o "-a") #f (if (%cu-run-nul? ra) #t (%cu-run-nul? rb)))
-        (let ((st (%cu-cmp-walk a b ops ra rb (- 0 1) #f #t says)))
+      ((Err err? ra) (do (cu-say says (first ops) ra) (pair "" 2)))
+      ((Err err? rb) (do (cu-say says (first (rest ops)) rb) (pair "" 2)))
+      ((if (Opts on? o "-a") #f (if (cu-run-nul? ra) #t (cu-run-nul? rb)))
+        (let ((st (cu-cmp-walk a b ops ra rb (- 0 1) #f #t says)))
           (if (= st 1) (pair (%cu-diff-binary-text ops) 1) (pair "" st))))
       (#t (%cu-diff-text-sources o ops a b ra rb says head)))))
 
 (def %cu-diff-text-sources
   (fn (_ o ops a b ra rb says head)
-    (def ta (%cu-text-from a ra))
-    (def tb (%cu-text-from b rb))
+    (def ta (cu-text-from a ra))
+    (def tb (cu-text-from b rb))
     (match
-      ((Err err? ta) (do (%cu-say says (first ops) ta) (pair "" 2)))
-      ((Err err? tb) (do (%cu-say says (first (rest ops)) tb) (pair "" 2)))
+      ((Err err? ta) (do (cu-say says (first ops) ta) (pair "" 2)))
+      ((Err err? tb) (do (cu-say says (first (rest ops)) tb) (pair "" 2)))
       (#t (let ((r (%cu-diff-texts o ops ta tb)))
             (if (= (byte-len (first r)) 0) (pair "" (rest r))
               (pair (string-append head (first r)) (rest r))))))))
@@ -466,7 +478,7 @@
       (list "Binary files " (first ops) " and " (first (rest ops))
             " differ\n"))))
 
-(def %cu-diff-dir
+(def cu-diff-dir
   (fn (self o flags a b start)
     (def recurse? (Opts on? o "-r"))
     (def absent? (Opts on? o "-N"))
@@ -511,7 +523,7 @@
                              " is not a directory\n")) 1)))
           (#t (emit! (%cu-diff-one-file o flags pa pb
                        (%cu-diff-source pa) (%cu-diff-source pb)))))))
-    (let ((st (%cu-walk-pair a b start one)))
+    (let ((st (cu-walk-pair a b start one)))
       (pair (string-concat (reverse (first out))) st))))
 
 ; The two names a report names.  "-" is stdin, and diff calls it that.
@@ -550,9 +562,9 @@
 ; Two paths, no fewer and no more.  There is no GNU build here to measure;
 ; BSD's refuses a wrong count with a usage line and 2, diff's trouble, and so
 ; does this one, naming its own options.
-(def %cu-diff
+(def cu-diff
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "diff" argv))
+    (def o (cu-opts "diff" argv))
     (if (= (length (Opts operands o)) 2)
       (%cu-diff-run o argv stdin-thunk)
       (do (file-write 2
@@ -570,7 +582,7 @@
     ; a walk; one of them names the entry inside it that matches the other's
     ; name.
     (if (if (file-dir? pa) (file-dir? pb) #f)
-      (let ((d (%cu-diff-dir o (%cu-diff-flags argv) pa pb (Opts value o "-S"))))
+      (let ((d (cu-diff-dir o (%cu-diff-flags argv) pa pb (Opts value o "-S"))))
         (do (display (first d)) (rest d)))
       (%cu-diff-files o argv stdin-thunk
         (if (file-dir? pa) (%cu-diff-path pa (%cu-diff-tail pb)) pa)
@@ -579,12 +591,12 @@
 (def %cu-diff-files
   (fn (_ o argv stdin-thunk pa pb)
     (def ops (list pa pb))
-    (def says (%cu-says "diff"))
+    (def says (cu-says "diff"))
     ; both files are opened before either is read, and the first that fails
     ; is said and is diff's trouble, status 2, as a read that fails is
     (def r
-      (if (Err err? (%cu-first-unopened ops says)) (pair "" 2)
-        (%cu-with-sources ops stdin-thunk says (pair "" 2)
+      (if (Err err? (cu-first-unopened ops says)) (pair "" 2)
+        (cu-with-sources ops stdin-thunk says (pair "" 2)
           (fn (_ a b) (%cu-diff-sources o ops a b says "")))))
     (def differ? (> (rest r) 0))
     ; -q and -s replace the body with one line about it; -q says nothing when
@@ -597,3 +609,5 @@
       ((if (Opts on? o "-s") (not differ?) #f)
         (do (display (%cu-diff-pair-text ops "are identical")) 0))
       (#t (do (display (first r)) (rest r))))))
+
+(provide cu/diff cu-diff cu-diff-dir cu-diff-str)

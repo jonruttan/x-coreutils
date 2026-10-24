@@ -27,7 +27,7 @@ the release lang.xon declares.
 ### a piece that is not a string
 
 ```cu
-(display (guard (e (list (%cu-err-label e) (e msg))) (string-concat (list "a" 5 "b"))))
+(display (guard (e (list (cu-err-label e) (e msg))) (string-concat (list "a" 5 "b"))))
 ```
 ---
     (type string-concat: not a string)
@@ -37,7 +37,7 @@ the release lang.xon declares.
 ### the text, and a run with its output kept
 
 ```cu
-(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def line (bytes->str (append (let ((go (fn (self b acc) (if (= b 0) acc (self (- b 1) (if (= b 10) acc (pair b acc))))))) (go 255 ())) (list 10)))) (def all80 (string-concat (let ((go (fn (self k acc) (if (= k 0) acc (self (- k 1) (pair line acc)))))) (go 80 ())))) (def out-of (fn (_ argv) (do (let ((pid (sys-fork))) (if (= pid 0) (do (let ((fd (file-open-write "/tmp/x-cu-lj-out"))) (do (sys-dup2 fd 1) (%cu-heap-collect) (limit! (+ (Heap count) 60000000)) (cu-run argv all80))) (sys-exit 0)) (sys-wait pid))) (file-read-all "/tmp/x-cu-lj-out")))) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (%cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display (byte-len all80)))
+(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def line (bytes->str (append (let ((go (fn (self b acc) (if (= b 0) acc (self (- b 1) (if (= b 10) acc (pair b acc))))))) (go 255 ())) (list 10)))) (def all80 (string-concat (let ((go (fn (self k acc) (if (= k 0) acc (self (- k 1) (pair line acc)))))) (go 80 ())))) (def out-of (fn (_ argv) (do (let ((pid (sys-fork))) (if (= pid 0) (do (let ((fd (file-open-write "/tmp/x-cu-lj-out"))) (do (sys-dup2 fd 1) (cu-heap-collect) (limit! (+ (Heap count) 60000000)) (cu-run argv all80))) (sys-exit 0)) (sys-wait pid))) (file-read-all "/tmp/x-cu-lj-out")))) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display (byte-len all80)))
 ```
 ---
     20400
@@ -64,7 +64,7 @@ the release lang.xon declares.
 ### the pieces the text is rendered in
 
 ```cu
-(display (map (fn (_ c) (- (rest c) (first c))) (%cat-ranges (byte-len all80) 0 ())))
+(display (map (fn (_ c) (- (rest c) (first c))) (cat-ranges (byte-len all80) 0 ())))
 ```
 ---
     (4096 4096 4096 4096 4016)

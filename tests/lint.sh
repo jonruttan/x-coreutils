@@ -31,17 +31,10 @@ KIT="${X_LANG_KIT:-$("$X" --share-dir)/tools/lang-kit}"
 	exit 0
 }
 
-# THE FRAGMENTS, not the assembled unit.  cu/base.x is nothing but
-# include-once lines, and the linter reads its target as data -- it does
-# not expand an include -- so linting base.x examines no definition at
-# all and reports a clean bill for a bundle full of ladders.  The
-# definitions are in the fragments, so the fragments are what gets
-# linted.  What the fragments lack is each other's names: only base.x
-# and prims.x carry a (provide ...), and the %cu-* names are shared
-# across the whole rather than exported.  The kit's preload closes that
-# by including the ASSEMBLER whole -- base.x, which pulls its fragments
-# in the order the bundle really loads -- so a fragment is linted with
-# the whole in scope, base.x's own un-exported top level included.
+# Every file, not the entry alone: the linter reads its targets as data
+# and follows no import, so linting run.x would examine none of the
+# modules.  Each cu/ file is a scoped module, or a file of one its own
+# file includes, and the kit resolves a module's names in the module.
 if [ $# -gt 0 ]; then
 	BUNDLE="$BUNDLE" X="$X" sh "$KIT/lint.sh" --strict "$@"
 else

@@ -28,7 +28,7 @@ then stderr, a CR shown as ^M.
       (do (sys-dup2 oo 1) (sys-dup2 ee 2)
           (def st (cu-run (pair "fakeidentd" argv) in))
           (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
-          (string-concat (list (fi-cr (file-read-all (fi-f "out"))) "[status " (%cu-int->str st) "]\n"
+          (string-concat (list (fi-cr (file-read-all (fi-f "out"))) "[status " (cu-int->str st) "]\n"
                                (fi-cr (file-read-all (fi-f "err")))))))))
   (def fi-ask (fn (_ port req)
     (let ((c (Socket tcp-connect "127.0.0.1" port)))

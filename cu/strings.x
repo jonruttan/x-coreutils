@@ -18,6 +18,14 @@
 ; a NUL, so a NUL is passed over in x; and both read on past the bytes a read
 ; filled, so each answer is cut at the piece's count.
 
+(module cu/strings)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-ptr-call
+  cu-sweep-lines cu-sweep-tick! file-err-op file-err-text file-write reverse
+  string-append string-concat string=?)
+(import cu/text cu-fold-one cu-num-prefix cu-pad-left)
+
 (def %sg+ (prim-ref (lit int) (lit +)))
 (def %sg-str->ptr (prim-ref (lit str) (lit ->ptr)))
 (def %sg-ptr->int (prim-ref (lit ptr) (lit ->int)))
@@ -31,9 +39,9 @@
 
 (def %sg-resolve!
   (fn (_)
-    (def lib (%cu-dlopen () 1))
-    (set! %sg-c-strspn (%cu-dlsym lib "strspn"))
-    (set! %sg-c-strcspn (%cu-dlsym lib "strcspn"))))
+    (def lib (cu-dlopen () 1))
+    (set! %sg-c-strspn (cu-dlsym lib "strspn"))
+    (set! %sg-c-strcspn (cu-dlsym lib "strcspn"))))
 
 ; --- busybox's numbers ----------------------------------------------------------
 
@@ -41,7 +49,7 @@
 ; else, from LO to HI.  Answers the number, or nil once the trouble is said --
 ; `invalid number 'S'`, which a number past an unsigned int is too, or `number
 ; S is not in LO..HI range`.
-(def %cu-range-number
+(def cu-range-number
   (fn (_ applet s lo hi)
     (def end (byte-len s))
     (def digits?
@@ -49,7 +57,7 @@
         (if (>= i end) #t
           (if (if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f)
             (self (+ i 1)) #f))))
-    (def n (if (if (> end 0) (digits? 0) #f) (%cu-num-prefix s) ()))
+    (def n (if (if (> end 0) (digits? 0) #f) (cu-num-prefix s) ()))
     (match
       ((if (null? n) #t (> n 4294967295))
         (do (file-write 2 (string-concat (list applet ": invalid number '" s "'\n")))
@@ -57,8 +65,8 @@
       ((if (< n lo) #t (> n hi))
         (do (file-write 2
               (string-concat
-                (list applet ": number " s " is not in " (%cu-int->str lo) ".."
-                      (%cu-int->str hi) " range\n")))
+                (list applet ": number " s " is not in " (cu-int->str lo) ".."
+                      (cu-int->str hi) " range\n")))
             ()))
       (#t n))))
 
@@ -114,7 +122,7 @@
                     (if (null? %sg-radix-of) ()
                       (%sg-put
                         (string-append
-                          (%cu-pad-left (%sg-radix %sg-start %sg-radix-of) 7) " ")))
+                          (cu-pad-left (%sg-radix %sg-start %sg-radix-of) 7) " ")))
                     (%sg-put (string-concat (reverse %sg-held)))
                     (set! %sg-held ())
                     (set! %sg-on #t))
@@ -133,17 +141,17 @@
     (def go
       (fn (self i)
         (if (>= i n) ()
-          (let ((k (%sg-min (%cu-ptr-call %sg-c-strspn (%sg+ addr i) %sg-printable)
+          (let ((k (%sg-min (cu-ptr-call %sg-c-strspn (%sg+ addr i) %sg-printable)
                              (- n i))))
             (do (if (> k 0) (%sg-run! text i k) ())
                 (let ((j (+ i k)))
                   (if (>= j n) ()
-                    (let ((m (%sg-min (%cu-ptr-call %sg-c-strcspn (%sg+ addr j) %sg-printable)
+                    (let ((m (%sg-min (cu-ptr-call %sg-c-strcspn (%sg+ addr j) %sg-printable)
                                        (- n j))))
                       (let ((e (nuls (+ j m))))
                         (do (%sg-end-run!)
                             (set! %sg-offset (+ %sg-offset (- e j)))
-                            (%cu-sweep-tick! %cu-sweep-lines)
+                            (cu-sweep-tick! cu-sweep-lines)
                             (self e)))))))))))
     (do (go 0)
         (file-write 1 (string-concat (reverse %sg-out)))
@@ -158,20 +166,20 @@
         (set! %sg-count 0)
         (set! %sg-on #f)
         (set! %sg-out ())
-        (let ((r (%cu-fold-one name stdin-thunk %sg-take ())))
+        (let ((r (cu-fold-one name stdin-thunk %sg-take ())))
           (do (%sg-end-run!)
               (file-write 1 (string-concat (reverse %sg-out)))
               (set! %sg-out ())
               (rest r))))))
 
 ; strings [-fo] [-t o|d|x] [-n LEN] [FILE]...
-(def %cu-strings-applet
+(def cu-strings-applet
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "strings" argv))
+    (def o (cu-opts "strings" argv))
     (def ops (Opts operands o))
     (def n-arg (let ((v (Opts value o "-n"))) (if (null? v) "4" v)))
     (def t-arg (let ((v (Opts value o "-t"))) (if (null? v) "o" v)))
-    (def len (%cu-range-number "strings" n-arg 1 2147483647))
+    (def len (cu-range-number "strings" n-arg 1 2147483647))
     (def radix
       (match
         ((string=? t-arg "o") 8)
@@ -197,8 +205,10 @@
                         (self (rest names) 1)))))))))
     (match
       ((null? len) 1)
-      ((null? radix) (%cu-usage "strings"))
+      ((null? radix) (cu-usage "strings"))
       (#t (do (%sg-resolve!)
               (set! %sg-least len)
               (set! %sg-radix-of (if offsets? radix ()))
               (each (if (null? ops) (list "-") ops) 0))))))
+
+(provide cu/strings cu-range-number cu-strings-applet)

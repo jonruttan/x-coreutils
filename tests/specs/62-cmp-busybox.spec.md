@@ -16,7 +16,7 @@ and the file `input` holds `foo`.
 ### the file, and a run of an applet with its standard input, stdout, stderr and status
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-cmpbb && mkdir -p /tmp/x-cu-cmpbb && printf foo > /tmp/x-cu-cmpbb/input")) (def nf (fn (_ n) (string-append "/tmp/x-cu-cmpbb/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (Str8 replace "/tmp/x-cu-cmpbb/" "" (string-concat (list (file-read-all (nf ".out")) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n"))))))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-cmpbb && mkdir -p /tmp/x-cu-cmpbb && printf foo > /tmp/x-cu-cmpbb/input")) (def nf (fn (_ n) (string-append "/tmp/x-cu-cmpbb/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (Str8 replace "/tmp/x-cu-cmpbb/" "" (string-concat (list (file-read-all (nf ".out")) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n"))))))))) (display "made"))
 ```
 ---
     made

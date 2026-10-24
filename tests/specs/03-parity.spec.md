@@ -326,9 +326,9 @@ counts themselves go to stderr, so what is asserted here is the blocking
 that produces them.
 
 ```cu
-(do (display (%cu-dd-records 6 2)) (display "|")
-    (display (%cu-dd-records 6 3)) (display "|")
-    (display (%cu-dd-records 7 3)))
+(do (display (cu-dd-records 6 2)) (display "|")
+    (display (cu-dd-records 6 3)) (display "|")
+    (display (cu-dd-records 7 3)))
 ```
 ---
     3+0|2+0|2+1
@@ -447,7 +447,7 @@ larger than the buffer the passes are drawn into is covered too -- one of 8K
 was a crash before, not a shredded file.
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "cd /tmp/x-cu-par && : > empty && printf '%05000d' 0 > mid && printf '%08192d' 0 > big")) (def sized (fn (_ n) (do (display (cu-run (list "shred" "-n" "1" (string-append "/tmp/x-cu-par/" n)) "")) (display " ") (display (%cu-stat-get (file-stat-full (string-append "/tmp/x-cu-par/" n)) (lit size))) (newline)))) (sized "empty") (sized "mid") (sized "big"))
+(do (proc-run (list "/bin/sh" "-c" "cd /tmp/x-cu-par && : > empty && printf '%05000d' 0 > mid && printf '%08192d' 0 > big")) (def sized (fn (_ n) (do (display (cu-run (list "shred" "-n" "1" (string-append "/tmp/x-cu-par/" n)) "")) (display " ") (display (cu-stat-get (file-stat-full (string-append "/tmp/x-cu-par/" n)) (lit size))) (newline)))) (sized "empty") (sized "mid") (sized "big"))
 ```
 ---
 ```output

@@ -16,7 +16,8 @@ then checked for its shape, since what it shows changes from run to run.  A
 ### a run of an applet, with its stdout, stderr and status; the fixture's two samples
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-counters && mkdir -p /tmp/x-cu-counters")) (def nf (fn (_ n) (string-append "/tmp/x-cu-counters/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def lines (fn (_ s) (filter (fn (_ l) (> (byte-len l) 0)) (%cu-lines s)))) (def real-memory host-memory) (def real-wait %vm-wait) (def real-uptime %vm-uptime) (def real-now %vm-now) (def mem (fn (_ free dirty) (map (fn (_ p) (pair (first p) (* 1024 (rest p)))) (list (pair 'total 16384000) (pair 'free free) (pair 'shared 0) (pair 'buffers 234567) (pair 'cached 3456789) (pair 'reclaimable 123456) (pair 'available 13000000) (pair 'swap-total 2097152) (pair 'swap-free 1048576) (pair 'anon 0) (pair 'mapped 0) (pair 'slab 345678) (pair 'dirty dirty) (pair 'writeback 56))))) (def sample (fn (_ s) (do (Host source 'linux) (Host proc-root (string-append "tests/fixtures/procstat/" s)) (set! host-memory (fn (_) (if (str=? s "a") (mem 12345678 1234) (mem 12000000 4321)))) (set! %vm-uptime (fn (_) (if (str=? s "a") 1234567 1234667))) (set! %vm-now (fn (_) (if (str=? s "a") 0 1))) (set! %vm-wait (fn (_ us) (sample "b")))))) (def back (fn (_) (do (Host source (if os-darwin? 'darwin 'linux)) (Host proc-root "/proc") (set! host-memory real-memory) (set! %vm-wait real-wait) (set! %vm-uptime real-uptime) (set! %vm-now real-now)))) (def fixture (fn (_ argv) (do (sample "a") (def r (run argv)) (back) r))) (def mark (fn (_ s) (bytes->str ((fn (self i acc) (if (< i 0) acc (self (- i 1) (if (= (byte-at s i) 10) (pair 124 (pair 10 acc)) (pair (byte-at s i) acc))))) (- (byte-len s) 1) ())))) (def after-first (fn (_ s) ((fn (self i) (if (>= i (byte-len s)) "" (if (= (byte-at s i) 10) (substring s (+ i 1) (byte-len s)) (self (+ i 1))))) 0))) (def body (fn (_ r) (do (display (mark (after-first (first r)))) (list (first (rest r)) (first (rest (rest r))))))) (display "made"))
+(def stand-in! (fn (_ envs name v) (List map (fn (_ e) (eval (list (lit set!) name (list (lit lit) v)) e)) envs)))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-counters && mkdir -p /tmp/x-cu-counters")) (def nf (fn (_ n) (string-append "/tmp/x-cu-counters/" n))) (def run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def lines (fn (_ s) (filter (fn (_ l) (> (byte-len l) 0)) (cu-lines s)))) (def real-memory host-memory) (def real-wait host-wait) (def real-uptime host-uptime) (def real-now host-now) (def mem (fn (_ free dirty) (map (fn (_ p) (pair (first p) (* 1024 (rest p)))) (list (pair 'total 16384000) (pair 'free free) (pair 'shared 0) (pair 'buffers 234567) (pair 'cached 3456789) (pair 'reclaimable 123456) (pair 'available 13000000) (pair 'swap-total 2097152) (pair 'swap-free 1048576) (pair 'anon 0) (pair 'mapped 0) (pair 'slab 345678) (pair 'dirty dirty) (pair 'writeback 56))))) (def sample (fn (_ s) (do (Host source 'linux) (Host proc-root (string-append "tests/fixtures/procstat/" s)) (stand-in! (list (module cu/nmeter) (module cu/procps) (module cu/top) (module cu/vmstat)) (lit host-memory) (fn (_) (if (str=? s "a") (mem 12345678 1234) (mem 12000000 4321)))) (stand-in! (list (module cu/iostat)) (lit host-uptime) (fn (_) (if (str=? s "a") 1234567 1234667))) (stand-in! (list (module cu/iostat) (module cu/mpstat)) (lit host-now) (fn (_) (if (str=? s "a") 0 1))) (stand-in! (list (module cu/iostat) (module cu/mpstat) (module cu/nmeter) (module cu/vmstat)) (lit host-wait) (fn (_ us) (sample "b")))))) (def back (fn (_) (do (Host source (if os-darwin? 'darwin 'linux)) (Host proc-root "/proc") (stand-in! (list (module cu/nmeter) (module cu/procps) (module cu/top) (module cu/vmstat)) (lit host-memory) real-memory) (stand-in! (list (module cu/iostat) (module cu/mpstat) (module cu/nmeter) (module cu/vmstat)) (lit host-wait) real-wait) (stand-in! (list (module cu/iostat)) (lit host-uptime) real-uptime) (stand-in! (list (module cu/iostat) (module cu/mpstat)) (lit host-now) real-now)))) (def fixture (fn (_ argv) (do (sample "a") (def r (run argv)) (back) r))) (def mark (fn (_ s) (bytes->str ((fn (self i acc) (if (< i 0) acc (self (- i 1) (if (= (byte-at s i) 10) (pair 124 (pair 10 acc)) (pair (byte-at s i) acc))))) (- (byte-len s) 1) ())))) (def after-first (fn (_ s) ((fn (self i) (if (>= i (byte-len s)) "" (if (= (byte-at s i) 10) (substring s (+ i 1) (byte-len s)) (self (+ i 1))))) 0))) (def body (fn (_ r) (do (display (mark (after-first (first r)))) (list (first (rest r)) (first (rest (rest r))))))) (display "made"))
 ```
 ---
     made
@@ -26,7 +27,7 @@ then checked for its shape, since what it shows changes from run to run.  A
 ### smart_ulltoa5: five characters, scaled by 1024 past 99999
 
 ```cu
-(map (fn (_ n) (%vm-five n " kmgtpezy")) (list 0 7 9999 10000 10239 10240 99999 100000 102400 1023999 1048576 9437184 123456789 104857600 1073741824 1099511627776))
+(map (fn (_ n) (vm-five n " kmgtpezy")) (list 0 7 9999 10000 10239 10240 99999 100000 102400 1023999 1048576 9437184 123456789 104857600 1073741824 1099511627776))
 ```
 ---
     ("    0" "    7" " 9999" "10000" "10239" "10240" "99999" "97.6k" " 100k" " 999k" "1024k" "9216k" " 117m" " 100m" "1024m" "1024g")
@@ -34,7 +35,7 @@ then checked for its shape, since what it shows changes from run to run.  A
 ### smart_ulltoa4: four characters, scaled by 1024 past 9999
 
 ```cu
-(map (fn (_ n) (%vm-four n " kmgtpezy")) (list 0 7 9999 10000 10239 10240 99999 100000 102400 1023999 1048576 9437184 123456789 104857600 1073741824 1099511627776))
+(map (fn (_ n) (vm-four n " kmgtpezy")) (list 0 7 9999 10000 10239 10240 99999 100000 102400 1023999 1048576 9437184 123456789 104857600 1073741824 1099511627776))
 ```
 ---
     ("   0" "   7" "9999" "9.7k" "9.9k" " 10k" " 97k" " 97k" "100k" "999k" "1.0m" "9.0m" "117m" "100m" "1.0g" "1.0t")
@@ -42,7 +43,7 @@ then checked for its shape, since what it shows changes from run to run.  A
 ### a rate as printf's %.2f writes (double)A / B * 100: the double's own value, a tie to even
 
 ```cu
-(map (fn (_ r) (%vm-fixed (%vm-rate (first r) (first (rest r)) 100) 2)) (list (list 0 1) (list 1 800) (list 1 3) (list 2 3) (list 123 1000) (list 5 8) (list 1 8000) (list 7 40000) (list 1234567 1000) (list 200 1) (list 3 1600) (list 1 6) (list 99999 100000)))
+(map (fn (_ r) (vm-fixed (vm-rate (first r) (first (rest r)) 100) 2)) (list (list 0 1) (list 1 800) (list 1 3) (list 2 3) (list 123 1000) (list 5 8) (list 1 8000) (list 7 40000) (list 1234567 1000) (list 200 1) (list 3 1600) (list 1 6) (list 99999 100000)))
 ```
 ---
     ("0.00" "0.12" "33.33" "66.67" "12.30" "62.50" "0.01" "0.02" "123456.70" "20000.00" "0.19" "16.67" "100.00")
@@ -74,7 +75,7 @@ procs -----------memory---------- ---swap-- -----io---- -system-- -------cpu----
 ### on this machine: two header lines, then a row of eighteen numbers
 
 ```cu
-(let ((r (run (list "vmstat")))) (def ls (lines (first r))) (list (first (rest (rest r))) (first (rest r)) (length ls) (first ls) (not (null? (re-search (re-compile "^ *[0-9]+( +[0-9]+[kmgt]?){17}$") (%cu-nth 2 ls))))))
+(let ((r (run (list "vmstat")))) (def ls (lines (first r))) (list (first (rest (rest r))) (first (rest r)) (length ls) (first ls) (not (null? (re-search (re-compile "^ *[0-9]+( +[0-9]+[kmgt]?){17}$") (cu-nth 2 ls))))))
 ```
 ---
     (0 "" 3 "procs -----------memory---------- ---swap-- -----io---- -system-- -------cpu-------" #t)
@@ -143,7 +144,7 @@ sda             168.00      2283.50       512.00       2283        512|
 ### on this machine: the system line, the CPU's shares, and a line a disk
 
 ```cu
-(let ((r (run (list "iostat")))) (def ls (lines (first r))) (list (first (rest (rest r))) (first (rest r)) (not (null? (re-search (re-compile "^[A-Za-z]+ [^ ]+ \\([^)]*\\) \t[0-9][0-9]/[0-9][0-9]/[0-9][0-9] \t_[^_]+_\t\\([0-9]+ CPU\\)$") (first ls)))) (%cu-nth 1 ls) (not (null? (re-search (re-compile "^ {8}( +[0-9]+\\.[0-9][0-9]){6}$") (%cu-nth 2 ls)))) (%cu-nth 3 ls)))
+(let ((r (run (list "iostat")))) (def ls (lines (first r))) (list (first (rest (rest r))) (first (rest r)) (not (null? (re-search (re-compile "^[A-Za-z]+ [^ ]+ \\([^)]*\\) \t[0-9][0-9]/[0-9][0-9]/[0-9][0-9] \t_[^_]+_\t\\([0-9]+ CPU\\)$") (first ls)))) (cu-nth 1 ls) (not (null? (re-search (re-compile "^ {8}( +[0-9]+\\.[0-9][0-9]){6}$") (cu-nth 2 ls)))) (cu-nth 3 ls)))
 ```
 ---
     (0 "" #t "avg-cpu:  %user   %nice %system %iowait  %steal   %idle" #t "Device:            tps   Blk_read/s   Blk_wrtn/s   Blk_read   Blk_wrtn")
@@ -220,7 +221,7 @@ Average:       1      0.00    241.94     80.65      0.00|
 ### on this machine: the system line and the shares of all
 
 ```cu
-(let ((r (run (list "mpstat")))) (def ls (lines (first r))) (list (first (rest (rest r))) (first (rest r)) (not (null? (re-search (re-compile "^[A-Za-z]+ [^ ]+ \\([^)]*\\)\t[0-9][0-9]/[0-9][0-9]/[0-9][0-9]\t_[^_]+_\t\\([0-9]+ CPU\\)$") (first ls)))) (not (null? (re-search (re-compile "^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]     all( +[0-9]+\\.[0-9][0-9]){9}$") (%cu-nth 2 ls))))))
+(let ((r (run (list "mpstat")))) (def ls (lines (first r))) (list (first (rest (rest r))) (first (rest r)) (not (null? (re-search (re-compile "^[A-Za-z]+ [^ ]+ \\([^)]*\\)\t[0-9][0-9]/[0-9][0-9]/[0-9][0-9]\t_[^_]+_\t\\([0-9]+ CPU\\)$") (first ls)))) (not (null? (re-search (re-compile "^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]     all( +[0-9]+\\.[0-9][0-9]){9}$") (cu-nth 2 ls))))))
 ```
 ---
     (0 "" #t #t)
@@ -230,7 +231,7 @@ Average:       1      0.00    241.94     80.65      0.00|
 ### a line over the fixture's second sample: each reading as busybox shows it
 
 ```cu
-(do (sample "a") (def p (%nm-parse "c[%c] C[%[c20]] n[%[neth0]] lo[%[nlo]] x[%[nnope]] m[%m] md[%[md]] mw[%[mw]] mf[%[mf]] mt[%[mt]] s[%s] f[%f] i[%i] i16[%16i] i9[%9i] x[%x] p[%p] pn[%[pn]] b[%b] 100%%")) (def primed (rest (%nm-line (first p) (%nm-sample)))) (sample "b") (def r (first (%nm-line primed (%nm-sample)))) (back) (list r (rest p)))
+(do (sample "a") (def p (nm-parse "c[%c] C[%[c20]] n[%[neth0]] lo[%[nlo]] x[%[nnope]] m[%m] md[%[md]] mw[%[mw]] mf[%[mf]] mt[%[mt]] s[%s] f[%f] i[%i] i16[%16i] i9[%9i] x[%x] p[%p] pn[%[pn]] b[%b] 100%%")) (def primed (rest (nm-line (first p) (nm-sample)))) (sample "b") (def r (first (nm-line primed (nm-sample)))) (back) (list r (rest p)))
 ```
 ---
     ("c[SSUUUUU...] C[SSSUUUUUUUUUUDI.....] n[*976k  97k] lo[  100  100] x[??????????] m[338m] md[4.2m] mw[ 56k] mf[ 15g] mt[ 15g] s[1.0g] f[4096] i[120k] i16[ 750] i9[   0] x[ 44k] p[   7] pn[ 460] b[2.2m 512k] 100%" #f)
@@ -238,7 +239,7 @@ Average:       1      0.00    241.94     80.65      0.00|
 ### on this machine: a line over two samples, a tenth of a second apart
 
 ```cu
-(do (def p (%nm-parse "%c|%m|%s|%f|%x|%[pn]|%b|%t")) (def primed (rest (%nm-line (first p) (%nm-sample)))) (sys-usleep 100000) (def l (first (%nm-line primed (%nm-sample)))) (list (byte-len l) (not (null? (re-search (re-compile "^[SUNDIi.?]{10}\\|[ 0-9.][0-9.kmgt ]{3}\\|[ 0-9.][0-9.kmgt ]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|.... ....\\|[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$") l)))))
+(do (def p (nm-parse "%c|%m|%s|%f|%x|%[pn]|%b|%t")) (def primed (rest (nm-line (first p) (nm-sample)))) (sys-usleep 100000) (def l (first (nm-line primed (nm-sample)))) (list (byte-len l) (not (null? (re-search (re-compile "^[SUNDIi.?]{10}\\|[ 0-9.][0-9.kmgt ]{3}\\|[ 0-9.][0-9.kmgt ]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|[ 0-9.?][0-9.kmgt?]{3}\\|.... ....\\|[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$") l)))))
 ```
 ---
     (54 #t)
@@ -246,7 +247,7 @@ Average:       1      0.00    241.94     80.65      0.00|
 ### %r ends the line in a carriage return; %t and %T are clocks to PREC places
 
 ```cu
-(do (def p (%nm-parse "a%rb %3t %T")) (list (length (first p)) (rest p) (first (first (first p))) (first (first (rest (first p))))))
+(do (def p (nm-parse "a%rb %3t %T")) (list (length (first p)) (rest p) (first (first (first p))) (first (first (rest (first p))))))
 ```
 ---
     (2 #t "ab " " ")

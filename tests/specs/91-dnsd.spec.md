@@ -24,7 +24,7 @@ from busybox in Podman.
     (let go ((i (- (rest run) 1)) (acc ()))
       (if (< i 0) (string-concat acc)
         (let ((b (& (byte-at (first run) i) 255)))
-          (go (- i 1) (pair (string-concat (list (substring h (%wget-div b 16) (+ (%wget-div b 16) 1))
+          (go (- i 1) (pair (string-concat (list (substring h (wget-div b 16) (+ (wget-div b 16) 1))
                                                  (substring h (% b 16) (+ (% b 16) 1))
                                                  (if (null? acc) "" " ")))
                             acc)))))))
@@ -44,7 +44,7 @@ from busybox in Podman.
       (do (sys-dup2 (file-open-write (dn-f "out")) 1)
           (sys-dup2 (file-open-write (dn-f "err")) 2)
           (sys-exit (guard (e (do (file-write 2 (string-append "raised: " (if (Err err? e) (e msg) "?") "\n")) 99))
-                      (cu-run (append (list "dnsd" "-c" (dn-f "conf") "-i" "127.0.0.1" "-p" (%cu-int->str port))
+                      (cu-run (append (list "dnsd" "-c" (dn-f "conf") "-i" "127.0.0.1" "-p" (cu-int->str port))
                                       (filter (fn (_ w) (> (byte-len w) 0)) (Str8 split " " args)))
                               "")))))
     (sys-usleep 400000)
@@ -54,7 +54,7 @@ from busybox in Podman.
     (sys-usleep 200000)
     (sys-kill pid 15)
     (sys-wait pid)
-    (display (Str8 replace (string-append ":" (%cu-int->str port)) ":5353"
+    (display (Str8 replace (string-append ":" (cu-int->str port)) ":5353"
                (string-concat (list (string-concat answers) "stdout:\n" (file-read-all (dn-f "out"))
                                     "stderr:\n" (file-read-all (dn-f "err"))))))))
   (display "made"))
@@ -315,7 +315,7 @@ line, then stderr, then the status.
 ### the fixture: a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (def nf (fn (_ n) (string-append "/tmp/x-cu-dn/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n")))))))) (display "made"))
+(do (def nf (fn (_ n) (string-append "/tmp/x-cu-dn/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
 ```
 ---
     made

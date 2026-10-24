@@ -14,7 +14,7 @@
 ;
 ; The calendar is x/sys/date.x's: it splits unix seconds into year, month, day,
 ; hour, minute, second and weekday by Hinnant's days/civil algorithms, and puts
-; them back. Nothing here does calendar arithmetic -- %cu-date-fmt formats that
+; them back. Nothing here does calendar arithmetic -- cu-date-fmt formats that
 ; alist, and the only sums it owns are a day-of-year, a twelve-hour clock and the
 ; length of a month.
 ;
@@ -26,12 +26,21 @@
 ; -s is not declared: setting the clock needs a syscall exposed on no arch this
 ; runs on here, and root besides.
 
+(module cu/date)
+
+(import cu/cli cu-operands cu-opts)
+(import cu/fmt-lex cu-fmt-conv cu-fmt-dir? cu-fmt-parse)
+(import cu/prims append byte-at byte-len cu-b->s cu-int->str cu-nth
+  cu-stat-get date-now-unix file-stat-full file-write reverse string-append
+  string-concat string=? substring)
+(import cu/text cu-pad-left cu-pad-zero)
+
 (def %cu-date-wday-abbr
   (list "Sun" "Mon" "Tue" "Wed" "Thu" "Fri" "Sat"))
 (def %cu-date-wday-full
   (list "Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday"
         "Saturday"))
-(def %cu-date-mon-abbr
+(def cu-date-mon-abbr
   (list "Jan" "Feb" "Mar" "Apr" "May" "Jun" "Jul" "Aug" "Sep" "Oct"
         "Nov" "Dec"))
 (def %cu-date-mon-full
@@ -45,7 +54,7 @@
 ; Unix seconds as a date alist in the zone, with its offset and name: UTC's
 ; when UTC is asked for, as busybox's -u sets TZ=UTC0, the local zone's
 ; otherwise
-(def %cu-date-split
+(def cu-date-split
   (fn (_ secs utc)
     (if utc
       (append (Date from-unix secs) (list (pair (lit offset) 0) (pair (lit zone) "UTC")))
@@ -55,7 +64,7 @@
 (def %cu-date-join (fn (_ d utc) (if utc (Date to-unix d) (Date local->unix d))))
 
 ; Now, as a date alist in the zone
-(def %cu-date-today (fn (_ utc) (%cu-date-split (date-now-unix) utc)))
+(def cu-date-today (fn (_ utc) (cu-date-split (date-now-unix) utc)))
 
 ; The zone's offset as %z writes it, +hhmm, or with COLON? +hh:mm, as -I does
 (def %cu-date-zone
@@ -71,8 +80,8 @@
 ; N in WIDTH columns, filled before it with FILLER: "0", or " "
 (def %cu-date-pad
   (fn (_ n width filler)
-    (if (string=? filler "0") (%cu-pad-zero (%cu-int->str n) width)
-      (%cu-pad-left (%cu-int->str n) width))))
+    (if (string=? filler "0") (cu-pad-zero (cu-int->str n) width)
+      (cu-pad-left (cu-int->str n) width))))
 
 (def %cu-date-pad2 (fn (_ n) (%cu-date-pad n 2 "0")))
 
@@ -84,7 +93,7 @@
     (def go
       (fn (self k acc)
         (if (>= k m) acc
-          (self (+ k 1) (+ acc (%cu-nth (- k 1) %cu-date-mon-days))))))
+          (self (+ k 1) (+ acc (cu-nth (- k 1) %cu-date-mon-days))))))
     (+ (go 1 0)
        (+ (%cu-date-get d (lit day))
           (if (if (> m 2) (Date leap-year? y) #f) 1 0)))))
@@ -98,7 +107,7 @@
 (def %cu-date-one
   (fn (_ c d secs)
     (match
-      ((= c 89) (%cu-int->str (%cu-date-get d (lit year))))            ; Y
+      ((= c 89) (cu-int->str (%cu-date-get d (lit year))))            ; Y
       ((= c 121) (%cu-date-pad2 (% (%cu-date-get d (lit year)) 100)))  ; y
       ((= c 67) (%cu-date-pad2 (/ (- (%cu-date-get d (lit year))
                                      (% (%cu-date-get d (lit year)) 100))
@@ -115,47 +124,47 @@
       ((= c 77) (%cu-date-pad2 (%cu-date-get d (lit minute))))         ; M
       ((= c 83) (%cu-date-pad2 (%cu-date-get d (lit second))))         ; S
       ((= c 106) (%cu-date-pad (%cu-date-yday d) 3 "0"))               ; j
-      ((= c 97) (%cu-nth (%cu-date-get d (lit wday)) %cu-date-wday-abbr)) ; a
-      ((= c 65) (%cu-nth (%cu-date-get d (lit wday)) %cu-date-wday-full)) ; A
-      ((= c 98) (%cu-nth (- (%cu-date-get d (lit month)) 1)
-                  %cu-date-mon-abbr))                                  ; b
-      ((= c 104) (%cu-nth (- (%cu-date-get d (lit month)) 1)
-                   %cu-date-mon-abbr))                                 ; h
-      ((= c 66) (%cu-nth (- (%cu-date-get d (lit month)) 1)
+      ((= c 97) (cu-nth (%cu-date-get d (lit wday)) %cu-date-wday-abbr)) ; a
+      ((= c 65) (cu-nth (%cu-date-get d (lit wday)) %cu-date-wday-full)) ; A
+      ((= c 98) (cu-nth (- (%cu-date-get d (lit month)) 1)
+                  cu-date-mon-abbr))                                  ; b
+      ((= c 104) (cu-nth (- (%cu-date-get d (lit month)) 1)
+                   cu-date-mon-abbr))                                 ; h
+      ((= c 66) (cu-nth (- (%cu-date-get d (lit month)) 1)
                   %cu-date-mon-full))                                  ; B
       ((= c 112) (if (< (%cu-date-get d (lit hour)) 12) "AM" "PM"))    ; p
-      ((= c 119) (%cu-int->str (%cu-date-get d (lit wday))))           ; w
-      ((= c 117) (%cu-int->str (if (= (%cu-date-get d (lit wday)) 0) 7
+      ((= c 119) (cu-int->str (%cu-date-get d (lit wday))))           ; w
+      ((= c 117) (cu-int->str (if (= (%cu-date-get d (lit wday)) 0) 7
                                  (%cu-date-get d (lit wday)))))        ; u
-      ((= c 115) (%cu-int->str secs))                                  ; s
+      ((= c 115) (cu-int->str secs))                                  ; s
       ((= c 122) (%cu-date-zone d #f))                                  ; z
       ((= c 90) (Assoc get-or "UTC" (lit zone) d))                      ; Z
       ((= c 110) "\n")                                                 ; n
       ((= c 116) "\t")                                                 ; t
       ((= c 37) "%")                                                   ; %
-      ((= c 68) (%cu-date-fmt "%m/%d/%y" d secs))                      ; D
-      ((= c 70) (%cu-date-fmt "%Y-%m-%d" d secs))                      ; F
-      ((= c 84) (%cu-date-fmt "%H:%M:%S" d secs))                      ; T
-      ((= c 82) (%cu-date-fmt "%H:%M" d secs))                         ; R
-      ((= c 114) (%cu-date-fmt "%I:%M:%S %p" d secs))                  ; r
-      ; unreachable: %cu-date-fmt asks %cu-date-known? first and copies
+      ((= c 68) (cu-date-fmt "%m/%d/%y" d secs))                      ; D
+      ((= c 70) (cu-date-fmt "%Y-%m-%d" d secs))                      ; F
+      ((= c 84) (cu-date-fmt "%H:%M:%S" d secs))                      ; T
+      ((= c 82) (cu-date-fmt "%H:%M" d secs))                         ; R
+      ((= c 114) (cu-date-fmt "%I:%M:%S %p" d secs))                  ; r
+      ; unreachable: cu-date-fmt asks %cu-date-known? first and copies
       ; an unknown directive straight out of the format, which is how a
       ; stray % survives unharmed without a byte->string door here
       (#t ""))))
 
 ; The scanning is cu/fmt-lex.x's; the table above is date's. Escapes are off:
 ; the system date prints "a\nb" for the format "a\nb", and so does this.
-(def %cu-date-fmt
+(def cu-date-fmt
   (fn (_ fmt d secs)
     (def go
       (fn (self ts acc)
         (if (null? ts) acc
           (self (rest ts)
             (string-append acc
-              (if (%cu-fmt-dir? (first ts))
-                (%cu-date-directive (%cu-fmt-conv (first ts)) d secs)
+              (if (cu-fmt-dir? (first ts))
+                (%cu-date-directive (cu-fmt-conv (first ts)) d secs)
                 (first ts)))))))
-    (go (%cu-fmt-parse fmt #f) "")))
+    (go (cu-fmt-parse fmt #f) "")))
 
 (def %cu-date-directive
   (fn (_ conv d secs)
@@ -217,8 +226,8 @@
       (fn (self ts si acc)
         (if (null? ts) (pair acc si)
           (let ((t (first ts)))
-            (if (%cu-fmt-dir? t)
-              (let ((conv (%cu-fmt-conv t)))
+            (if (cu-fmt-dir? t)
+              (let ((conv (cu-fmt-conv t)))
                 (if (= (byte-len conv) 0) ()
                   (let ((r (%cu-date-digits s si
                              (if (= (byte-at conv 0) 89) 4 2))))
@@ -228,7 +237,7 @@
                                 (first r)) acc))))))
               (let ((si2 (lit-match t si 0)))
                 (if (null? si2) () (self (rest ts) si2 acc))))))))
-    (go (%cu-fmt-parse fmt #f) 0 ())))
+    (go (cu-fmt-parse fmt #f) 0 ())))
 
 ; the fields alone, as -D reads them
 (def %cu-date-scan
@@ -239,11 +248,11 @@
 ; The day must exist in its month -- February 29th only in a leap year -- and
 ; the second may reach MAX-SECOND: touch -t takes 60 and rolls it into the next
 ; minute, where date -d stops at 59.
-(def %cu-date-moment
+(def cu-date-moment
   (fn (_ year month day hour minute second max-second utc)
     (def month-days
       (if (if (>= month 1) (<= month 12) #f)
-        (+ (%cu-nth (- month 1) %cu-date-mon-days)
+        (+ (cu-nth (- month 1) %cu-date-mon-days)
            (if (if (= month 2) (Date leap-year? year) #f) 1 0))
         0))
     (match
@@ -281,8 +290,8 @@
           (let ((b (byte-at s i)))
             (match
               ((space? b) (self (+ i 1) acc (pair? acc)))
-              (gap? (self (+ i 1) (pair (%cu-b->s b) (pair " " acc)) #f))
-              (#t (self (+ i 1) (pair (%cu-b->s b) acc) #f)))))))
+              (gap? (self (+ i 1) (pair (cu-b->s b) (pair " " acc)) #f))
+              (#t (self (+ i 1) (pair (cu-b->s b) acc) #f)))))))
     (go 0 () #f)))
 
 ; the seconds a -d with no -D names, or nil, read in UTC or the local zone
@@ -290,11 +299,11 @@
   (fn (_ spec utc)
     (def s (%cu-date-squeeze spec))
     (def end (byte-len s))
-    (def today (%cu-date-today utc))
+    (def today (cu-date-today utc))
     (def moment
       (fn (_ d)
         (def field (fn (_ k default) (Assoc get-or default k d)))
-        (%cu-date-moment
+        (cu-date-moment
           (field (lit year) (Assoc get (lit year) today))
           (field (lit month) (Assoc get (lit month) today))
           (field (lit day) (Assoc get (lit day) today))
@@ -317,7 +326,7 @@
       ((= c 77) (lit minute)) ((= c 83) (lit second))
       (#t (lit ignored)))))
 
-(def %cu-date-of
+(def cu-date-of
   (fn (_ spec fmt utc)
     ; the seconds -d asked for, or nil
     (match
@@ -366,11 +375,11 @@
         (substring (first ops) 1 (byte-len (first ops)))
         (self (rest ops))))))
 
-(def %cu-date
+(def cu-date
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "date" argv))
+    (def o (cu-opts "date" argv))
     (def ops (Opts operands o))
-    (%cu-operands "date" ops 0 1 (fn (_) (%cu-date-run o ops)))))
+    (cu-operands "date" ops 0 1 (fn (_) (%cu-date-run o ops)))))
 
 (def %cu-date-run
   (fn (_ o ops)
@@ -381,14 +390,14 @@
     (def secs
       (match
         ((not (null? rfile))
-          (%cu-stat-get (file-stat-full rfile) (lit mtime)))
-        ((not (null? dspec)) (%cu-date-of dspec (Opts value o "-D") (Opts on? o "-u")))
+          (cu-stat-get (file-stat-full rfile) (lit mtime)))
+        ((not (null? dspec)) (cu-date-of dspec (Opts value o "-D") (Opts on? o "-u")))
         (#t (date-now-unix))))
     (if (null? secs)
       (do (file-write 2
             (string-append "date: invalid date '"
               (string-append dspec "'\n"))) 1)
-      (let ((d (%cu-date-split secs (Opts on? o "-u"))))
+      (let ((d (cu-date-split secs (Opts on? o "-u"))))
         (def iso (%cu-date-iso-fmt o (%cu-date-zone d #t)))
         (let ((fmt
                 (match
@@ -396,5 +405,7 @@
                   ((not (null? iso)) iso)
                   ((not (null? (%cu-date-plus ops))) (%cu-date-plus ops))
                   (#t "%a %b %e %H:%M:%S %Z %Y"))))
-          (do (display (string-append (%cu-date-fmt fmt d secs) "\n")) 0))))))
+          (do (display (string-append (cu-date-fmt fmt d secs) "\n")) 0))))))
 
+(provide cu/date cu-date cu-date-fmt cu-date-moment cu-date-mon-abbr
+  cu-date-of cu-date-split cu-date-today)

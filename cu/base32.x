@@ -14,6 +14,15 @@
 ; group the input ends inside is `truncated input`.  -i is taken and changes
 ; nothing.  One file at most; `-` and none are standard input.
 
+(module cu/base32)
+
+(import cu/cli cu-opts)
+(import cu/prims byte-at byte-len cal/ cu-nth cu-sweep-lines cu-sweep-tick!
+  cu-take file-err-text file-write file-write-run length map reverse
+  string-append string-concat substring vec-make vec-ref vec-set!)
+(import cu/strings cu-range-number)
+(import cu/text cu-fold-one)
+
 (def %b32-alphabet "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567")
 
 ; --- encoding -------------------------------------------------------------
@@ -23,7 +32,7 @@
 (def %b32-group
   (fn (_ bs)
     (def n (length bs))
-    (def b (fn (_ i) (if (< i n) (%cu-nth i bs) 0)))
+    (def b (fn (_ i) (if (< i n) (cu-nth i bs) 0)))
     (def v (+ (* (b 0) 4294967296) (+ (* (b 1) 16777216) (+ (* (b 2) 65536) (+ (* (b 3) 256) (b 4))))))
     (def kept (match ((= n 1) 2) ((= n 2) 4) ((= n 3) 5) ((= n 4) 7) (#t 8)))
     (def go
@@ -68,12 +77,12 @@
             (#t (self (+ i 1) (pair (byte-at text i) held) line)))))
       (let ((r (go 0 (first s) (rest s))))
         (do (file-write 1 (string-concat (reverse (first out))))
-            (%cu-sweep-tick! %cu-sweep-lines)
+            (cu-sweep-tick! cu-sweep-lines)
             r)))))
 
 (def %b32-encode
   (fn (_ name stdin-thunk col)
-    (let ((r (%cu-fold-one name stdin-thunk (%b32-encode-take col) (pair () 0))))
+    (let ((r (cu-fold-one name stdin-thunk (%b32-encode-take col) (pair () 0))))
       (let ((held (first (first r))) (k (rest (first r))))
         (do (if (pair? held)
               (let ((g (%b32-group (reverse held))))
@@ -117,8 +126,8 @@
     (def emit
       (fn (_ v eq)
         (def all (list (>> v 32) (>> v 24) (>> v 16) (>> v 8) v))
-        (def keep (if (= eq 0) 5 (- 5 (%cal/ (* (+ eq 1) 2) 3))))
-        (map put! (%cu-take all keep))))
+        (def keep (if (= eq 0) 5 (- 5 (cal/ (* (+ eq 1) 2) 3))))
+        (map put! (cu-take all keep))))
     (def go
       (fn (self i v k eq)
         (if (= i n) (list v k eq)
@@ -139,14 +148,14 @@
             (let ((bs (reverse (first out))))
               (file-write-run 1 (pair (bytes->str bs) (length bs)))))
           (vec-set! st 0 (first r))
-          (vec-set! st 1 (%cu-nth 1 r))
-          (vec-set! st 2 (%cu-nth 2 r))
-          (%cu-sweep-tick! %cu-sweep-lines)
+          (vec-set! st 1 (cu-nth 1 r))
+          (vec-set! st 2 (cu-nth 2 r))
+          (cu-sweep-tick! cu-sweep-lines)
           st))))
 
 (def %b32-decode
   (fn (_ name stdin-thunk)
-    (let ((r (%cu-fold-one name stdin-thunk %b32-decode-take (vec-make 3 0))))
+    (let ((r (cu-fold-one name stdin-thunk %b32-decode-take (vec-make 3 0))))
       (if (not (null? (rest r))) (rest r)
         (if (= (vec-ref (first r) 1) 0) ()
           (lit truncated))))))
@@ -162,13 +171,13 @@
         1)))
 
 ; base32 [-d] [-w COL] [FILE]
-(def %cu-base32
+(def cu-base32
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "base32" argv))
+    (def o (cu-opts "base32" argv))
     (def ops (Opts operands o))
     (def name (if (null? ops) "-" (first ops)))
     (def w (Opts value o "-w"))
-    (def col (if (null? w) 76 (%cu-range-number "base32" w 0 2147483647)))
+    (def col (if (null? w) 76 (cu-range-number "base32" w 0 2147483647)))
     (def said
       (fn (_ err)
         (match
@@ -182,3 +191,5 @@
       ((null? col) 1)
       ((Opts on? o "-d") (said (%b32-decode name stdin-thunk)))
       (#t (said (%b32-encode name stdin-thunk col))))))
+
+(provide cu/base32 cu-base32)

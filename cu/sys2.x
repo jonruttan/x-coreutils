@@ -8,8 +8,20 @@
 ;
 ; true false env printenv sleep date which xargs test.
 
-(def %cu-true (fn (_ argv stdin-thunk) 0))
-(def %cu-false (fn (_ argv stdin-thunk) 1))
+(module cu/sys2)
+
+(import cu/cli cu-missing-operand cu-opts)
+(import cu/prims append byte-at byte-len cu-lines cu-member-s?
+  cu-stdin-to-command! cu-words-line file-err-sym file-err-text file-exists?
+  file-write filter map proc-run reverse string-append string-concat string=?
+  substring sys-environ sys-exec-or-err sys-exit sys-fork sys-getenv
+  sys-setenv sys-unsetenv sys-wait)
+(import cu/text cu-delim-fields-said cu-join-with cu-num-prefix
+  cu-print-fields cu-print-lines cu-read-said cu-says cu-sleep-for cu-sleep-us
+  cu-split-byte)
+
+(def cu-true (fn (_ argv stdin-thunk) 0))
+(def cu-false (fn (_ argv stdin-thunk) 1))
 
 ; Is "NAME=VALUE" one of NAMES?
 (def %cu-env-named?
@@ -109,10 +121,10 @@
                     (sys-exit (if (eq? (file-err-sym e) (lit enoent)) 127 126))))))
         (sys-exit 125))))
 
-(def %cu-env
+(def cu-env
   (fn (_ argv stdin-thunk)
     (let ((z (%cu-env-zero argv () #f)))
-      (let ((o (%cu-opts "env" (rest z))))
+      (let ((o (cu-opts "env" (rest z))))
         (let ((ops (Opts operands o)))
           (let ((dash? (if (pair? ops) (string=? (first ops) "-") #f)))
             (let ((clear? (if dash? #t (Opts on? o "-i")))
@@ -124,7 +136,7 @@
                                (filter (fn (_ e) (not (%cu-env-named? e drop)))
                                  (if clear? () (sys-environ)))
                                (first split))))
-                    (do (if (first z) (%cu-print-fields env 0) (%cu-print-lines env))
+                    (do (if (first z) (cu-print-fields env 0) (cu-print-lines env))
                         0)))
                 ((first z)
                   (do (file-write 2 "env: cannot specify --null (-0) with command\n")
@@ -137,7 +149,7 @@
 
 ; printenv NAME...: the value of each that is set, a line apiece, and status 1
 ; where any is not; with no NAME, the whole environment, as env prints it
-(def %cu-printenv
+(def cu-printenv
   (fn (_ argv stdin-thunk)
     (def go
       (fn (self ns st)
@@ -145,13 +157,13 @@
           (let ((v (sys-getenv (first ns))))
             (if (null? v) (self (rest ns) 1)
               (do (display (string-append v "\n")) (self (rest ns) st)))))))
-    (if (null? argv) (%cu-env argv stdin-thunk) (go argv 0))))
+    (if (null? argv) (cu-env argv stdin-thunk) (go argv 0))))
 
 ; sleep INTERVAL...: as long as they come to between them.  The first interval
 ; that is not one is said, as busybox says it, and nothing is slept: status 1.
-(def %cu-sleep
+(def cu-sleep
   (fn (_ argv stdin-thunk)
-    (def us (map %cu-sleep-us argv))
+    (def us (map cu-sleep-us argv))
     (def bad
       (fn (self as xs)
         (match
@@ -163,49 +175,10 @@
         (if (null? xs) acc (self (rest xs) (+ acc (first xs))))))
     (def b (bad argv us))
     (match
-      ((null? argv) (%cu-missing-operand "sleep" argv))
+      ((null? argv) (cu-missing-operand "sleep" argv))
       ((not (null? b))
         (do (file-write 2 (string-concat (list "sleep: invalid number '" b "'\n"))) 1))
-      (#t (do (%cu-sleep-for (total us 0)) 0)))))
-
-; Interval A in microseconds, or nil where it is not one: digits, with a
-; point and digits of a fraction, either part empty but not both, then a
-; unit -- s seconds, the default, m minutes, h hours or d days.  A fraction
-; past the sixth digit is dropped.
-(def %cu-sleep-us
-  (fn (_ a)
-    (def end (byte-len a))
-    (def last (if (> end 0) (byte-at a (- end 1)) 0))
-    (def unit
-      (match ((= last 115) 1) ((= last 109) 60) ((= last 104) 3600)
-             ((= last 100) 86400) (#t 0)))
-    (def parts
-      (%cu-split-byte (substring a 0 (if (= unit 0) end (- end 1))) 46))
-    (def digits?
-      (fn (_ s)
-        (let ((go (fn (self i)
-                    (if (>= i (byte-len s)) #t
-                      (if (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f)
-                        (self (+ i 1)) #f)))))
-          (go 0))))
-    (def whole (first parts))
-    (def frac (if (null? (rest parts)) "" (first (rest parts))))
-    (match
-      ((if (null? (rest parts)) #f (pair? (rest (rest parts)))) ())
-      ((if (= (byte-len whole) 0) (= (byte-len frac) 0) #f) ())
-      ((not (if (digits? whole) (digits? frac) #f)) ())
-      (#t (* (if (= unit 0) 1 unit)
-             (+ (* (if (= (byte-len whole) 0) 0 (%cu-num-prefix whole)) 1000000)
-                (%cu-num-prefix
-                  (substring (string-append frac "000000") 0 6))))))))
-
-; US microseconds slept: the whole seconds through sleep, the rest through
-; usleep, which on Darwin takes less than a second
-(def %cu-sleep-for
-  (fn (_ us)
-    (let ((secs (/ (- us (% us 1000000)) 1000000)))
-      (do (if (> secs 0) (sys-sleep secs) ())
-          (if (> (% us 1000000) 0) (sys-usleep (% us 1000000)) ())))))
+      (#t (do (cu-sleep-for (total us 0)) 0)))))
 
 ; date: ISO-8601 UTC by default (a recorded divergence from the locale
 ; format), +%s for unix seconds
@@ -214,12 +187,12 @@
 ; which: the PATH walk; existence is the test (there is no access(X_OK)
 ; door -- the recorded divergence).  -a lists every directory that has
 ; the name, in PATH order, rather than stopping at the first.
-(def %cu-which
+(def cu-which
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "which" argv))
+    (def o (cu-opts "which" argv))
     (def all? (Opts on? o "-a"))
     (def path (sys-getenv "PATH"))
-    (def dirs (if (null? path) () (%cu-split-byte path 58)))  ; :
+    (def dirs (if (null? path) () (cu-split-byte path 58)))  ; :
     (def hits
       (fn (self ds name)
         (if (null? ds) ()
@@ -235,7 +208,7 @@
           (let ((found (hits dirs (first os))))
             (if (null? found)
               (self (rest os) 1)
-              (do (%cu-print-lines found)
+              (do (cu-print-lines found)
                   (self (rest os) st)))))))
     (each (Opts operands o) 0)))
 
@@ -278,7 +251,7 @@
 ; Taking zero would not shorten the line, it would loop forever.
 (def %cu-xargs-batch
   (fn (_ cmd ws n maxs)
-    (def base (byte-len (%cu-join-with cmd " ")))
+    (def base (byte-len (cu-join-with cmd " ")))
     (def go
       (fn (self l k len acc)
         (if (null? l)
@@ -306,26 +279,26 @@
       (let ((argv (map (fn (_ a) (%cu-xargs-subst a repl (first ws))) cmd)))
         (do
           (if trace?
-            (file-write 2 (string-append (%cu-join-with argv " ") "\n"))
+            (file-write 2 (string-append (cu-join-with argv " ") "\n"))
             ())
           (let ((st2 (proc-run argv)))
             (self cmd repl (rest ws) trace?
               (if (> st2 st) st2 st))))))))
 
-(def %cu-xargs
+(def cu-xargs
   (fn (_ argv stdin-thunk)
     ; -0 reads as a negative NUMBER to Opts before the declaration is
     ; consulted (x-lang#650, what ls's -1 works around).  Here that also
     ; ENDS the parse, since this row stops at its first operand, so a -a
     ; after it would never be read: the token is taken off the line
     ; first, and what is left parses as it should.
-    (def zero? (%cu-member-s? "-0" argv))
-    (def o (%cu-opts "xargs"
+    (def zero? (cu-member-s? "-0" argv))
+    (def o (cu-opts "xargs"
              (filter (fn (_ a) (not (string=? a "-0"))) argv)))
     (def cmd0 (Opts operands o))
     (def cmd (if (null? cmd0) (list "echo") cmd0))
-    (def n (let ((v (Opts value o "-n"))) (if (null? v) 0 (%cu-num-prefix v))))
-    (def maxs (let ((v (Opts value o "-s"))) (if (null? v) 0 (%cu-num-prefix v))))
+    (def n (let ((v (Opts value o "-n"))) (if (null? v) 0 (cu-num-prefix v))))
+    (def maxs (let ((v (Opts value o "-s"))) (if (null? v) 0 (cu-num-prefix v))))
     (def repl (Opts value o "-I"))
     (def eof (Opts value o "-E"))
     (def trace? (Opts on? o "-t"))
@@ -334,18 +307,18 @@
     ; item is part of it, which is the whole reason for the flag.
     ; an -a file xargs cannot read is said, and nothing is run
     (def zread
-      (if zero? (%cu-delim-fields-said src stdin-thunk 0 (%cu-says "xargs") #t)
+      (if zero? (cu-delim-fields-said src stdin-thunk 0 (cu-says "xargs") #t)
         (pair () 0)))
     (def input
       (if (if zero? #t (null? src)) ()
-        (%cu-read-said (%cu-says "xargs") (first src))))
+        (cu-read-said (cu-says "xargs") (first src))))
     (def failed? (if (Err err? input) #t (> (rest zread) 0)))
     (def words0
       (match
         (zero? (first zread))
         (failed? ())
         (#t (let ((text (if (null? src) (stdin-thunk) input)))
-              (%cu-words-line (%cu-join-with (%cu-lines text) " "))))))
+              (cu-words-line (cu-join-with (cu-lines text) " "))))))
     (def words (if (null? eof) words0 (%cu-xargs-until words0 eof)))
     (def run!
       (fn (_ ws)
@@ -354,7 +327,7 @@
           ; command's own output and nothing else.
           (if trace?
             (file-write 2
-              (string-append (%cu-join-with (append cmd ws) " ") "\n"))
+              (string-append (cu-join-with (append cmd ws) " ") "\n"))
             ())
           (proc-run (append cmd ws)))))
     (match
@@ -363,7 +336,7 @@
       ((not (null? repl)) (%cu-xargs-each cmd repl words trace? 0))
       ((if (Opts on? o "-x")
               (if (> maxs 0)
-                (> (+ (byte-len (%cu-join-with cmd " "))
+                (> (+ (byte-len (cu-join-with cmd " "))
                       (+ 1 (byte-len (first words)))) maxs)
                 #f)
               #f)
@@ -372,9 +345,10 @@
 
 ; test, [ and [[ moved to cu/test.x, which parses the whole grammar.
 
-(def %cu-last
-  (fn (self l) (if (null? (rest l)) (first l) (self (rest l)))))
-(def %cu-drop-last
+(def cu-drop-last
   (fn (self l)
     (if (null? (rest l)) ()
       (pair (first l) (self (rest l))))))
+
+(provide cu/sys2 cu-drop-last cu-env cu-false cu-printenv cu-sleep cu-true
+  cu-which cu-xargs)

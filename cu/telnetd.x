@@ -23,6 +23,26 @@
 ; ADDR[:PORT] and, without -F, leaves the terminal.  Each session is recorded
 ; in utmp, as busybox records it.
 
+(module cu/telnetd)
+
+(import cu/cli cu-opts cu-usage)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/inetd in-af in-bind in-c in-call in-count in-errtext in-exec
+  in-percent in-reuse! in-sockaddr6 in-strtou in-zeroed)
+(import cu/nc nc-count)
+(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-ptr->str
+  cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep-lines
+  cu-sweep-tick! date-now-unix file-close file-err-sym file-exists?
+  file-read-all file-read-run file-write filter in-index-of length map
+  net-aton net-peer net-send-run net-sockaddr net-stdin-socket reverse
+  str-make-raw string-append string-concat substring sys-close sys-dup2
+  sys-exit sys-fork sys-poll sys-signal sys-time-ms sys-uname vec-make vec-ref
+  vec-set!)
+(import cu/session hd-daemonize)
+(import cu/signal ts-signal-number)
+(import cu/telnet tn-run)
+(import cu/who cu-uname-field)
+
 (def %td-login "/bin/login")
 (def %td-issue "/etc/issue.net")
 (def %td-verbose 0)
@@ -41,7 +61,7 @@
 (def %td-say
   (fn (_ msg)
     (if %td-syslog?
-      (%cu-ptr-call (%in-c "syslog") 3 (%in-percent msg))
+      (cu-ptr-call (in-c "syslog") 3 (in-percent msg))
       (file-write 2 (string-concat (list "telnetd: " msg "\n"))))))
 
 (def %td-die (fn (_ msg) (Err raise (lit net) msg ())))
@@ -50,7 +70,7 @@
 
 ; fcntl is a system call here: its third argument is variadic
 (def %td-fcntl (syscall-door (lit fcntl)))
-(def %td-nonblock! (fn (_ fd) (%td-fcntl fd 4 (| (%in-call (%td-fcntl fd 3 0)) (if os-darwin? 4 2048)))))
+(def %td-nonblock! (fn (_ fd) (%td-fcntl fd 4 (| (in-call (%td-fcntl fd 3 0)) (if os-darwin? 4 2048)))))
 (def %td-cloexec! (fn (_ fd) (%td-fcntl fd 2 1)))
 
 ; --- the terminal --------------------------------------------------------------
@@ -58,61 +78,61 @@
 ; xgetpty: the controlling side's descriptor and the terminal's path
 (def %td-getpty
   (fn (_)
-    (def m (%in-call (%cu-ptr-call (%in-c "posix_openpt") (+ 2 (if os-darwin? 131072 256)))))
+    (def m (in-call (cu-ptr-call (in-c "posix_openpt") (+ 2 (if os-darwin? 131072 256)))))
     (when (< m 0) (%td-die "can't find free pty"))
-    (%cu-ptr-call (%in-c "grantpt") m)
-    (%cu-ptr-call (%in-c "unlockpt") m)
-    (def p (%cu-ptr-call (%in-c "ptsname") m))
-    (when (= (%td-ptr->int p) 0) (%td-die "can't find free pty"))
-    (pair m (%cu-ptr->str p))))
+    (cu-ptr-call (in-c "grantpt") m)
+    (cu-ptr-call (in-c "unlockpt") m)
+    (def p (cu-ptr-call (in-c "ptsname") m))
+    (when (= (td-ptr->int p) 0) (%td-die "can't find free pty"))
+    (pair m (cu-ptr->str p))))
 
-(def %td-ptr->int (prim-ref (lit ptr) (lit ->int)))
+(def td-ptr->int (prim-ref (lit ptr) (lit ->int)))
 
 ; the termios flag words, by offset: Darwin's tcflag_t is eight bytes, Linux's four
 (def %td-tio-at (fn (_ k) (* k (if os-darwin? 8 4))))
-(def %td-tio-get (fn (_ buf k) (%cu-ptr-ref (%cu-str->ptr buf) (%td-tio-at k) 4)))
-(def %td-tio-set! (fn (_ buf k v) (%cu-ptr-set! (%cu-str->ptr buf) (%td-tio-at k) v 4)))
+(def %td-tio-get (fn (_ buf k) (cu-ptr-ref (cu-str->ptr buf) (%td-tio-at k) 4)))
+(def %td-tio-set! (fn (_ buf k v) (cu-ptr-set! (cu-str->ptr buf) (%td-tio-at k) v 4)))
 
 ; cooked mode with ECHO, ONLCR and XTABS on and ICRNL, IXOFF off, as the child
 ; sets its terminal before LOGIN
 (def %td-cook-terminal!
   (fn (_)
-    (def buf (%str-make-raw 128))
-    (when (>= (%in-call (%cu-ptr-call (%in-c "tcgetattr") 0 (%cu-str->ptr buf))) 0)
+    (def buf (str-make-raw 128))
+    (when (>= (in-call (cu-ptr-call (in-c "tcgetattr") 0 (cu-str->ptr buf))) 0)
       (do (%td-tio-set! buf 3 (| (%td-tio-get buf 3) 8))
           (%td-tio-set! buf 1 (| (%td-tio-get buf 1) (if os-darwin? (| 2 4) (| 4 6144))))
           (let ((iflag (| (%td-tio-get buf 0) 256)) (ixoff (if os-darwin? 1024 4096)))
             (%td-tio-set! buf 0 (- iflag (& iflag ixoff))))
-          (%cu-ptr-call (%in-c "tcsetattr") 0 0 (%cu-str->ptr buf))))))
+          (cu-ptr-call (in-c "tcsetattr") 0 0 (cu-str->ptr buf))))))
 
 ; fabricate_ctrl_D_on_pty: in canonical mode, the EOF character twice
 (def %td-ctrl-d!
   (fn (_ fd)
-    (def buf (%str-make-raw 128))
-    (when (>= (%in-call (%cu-ptr-call (%in-c "tcgetattr") fd (%cu-str->ptr buf))) 0)
+    (def buf (str-make-raw 128))
+    (when (>= (in-call (cu-ptr-call (in-c "tcgetattr") fd (cu-str->ptr buf))) 0)
       (let ((icanon? (> (& (%td-tio-get buf 3) (if os-darwin? 256 2)) 0))
-            (eof (%cu-ptr-ref (%cu-str->ptr buf) (if os-darwin? 32 21) 1)))
+            (eof (cu-ptr-ref (cu-str->ptr buf) (if os-darwin? 32 21) 1)))
         (when (if icanon? (> eof 0) #f)
-          (let ((b (%str-make-raw 2)))
-            (do (%cu-ptr-set! (%cu-str->ptr b) 0 eof 1)
-                (%cu-ptr-set! (%cu-str->ptr b) 1 eof 1)
+          (let ((b (str-make-raw 2)))
+            (do (cu-ptr-set! (cu-str->ptr b) 0 eof 1)
+                (cu-ptr-set! (cu-str->ptr b) 1 eof 1)
                 (File write fd b 1)
                 (File write fd b 1))))))))
 
 (def %td-winsize!
   (fn (_ fd cols rows)
-    (def ws (%in-zeroed 8))
-    (%cu-ptr-set! (%cu-str->ptr ws) 0 rows 2)
-    (%cu-ptr-set! (%cu-str->ptr ws) 2 cols 2)
+    (def ws (in-zeroed 8))
+    (cu-ptr-set! (cu-str->ptr ws) 0 rows 2)
+    (cu-ptr-set! (cu-str->ptr ws) 2 cols 2)
     ((syscall-door (lit ioctl)) fd (if os-darwin? 2148037735 21524) ws)))
 
 ; --- the issue file ---------------------------------------------------------------
 
 (def %td-domainname
   (fn (_)
-    (def buf (%in-zeroed 256))
-    (%cu-ptr-call (%in-c "getdomainname") (%cu-str->ptr buf) 255)
-    (%cu-ptr->str (%cu-str->ptr buf))))
+    (def buf (in-zeroed 256))
+    (cu-ptr-call (in-c "getdomainname") (cu-str->ptr buf) 255)
+    (cu-ptr->str (cu-str->ptr buf))))
 
 ; \D, \o and \O: the domainname, which only Linux's utsname has
 (def %td-domain-escape?
@@ -122,7 +142,7 @@
 (def %td-issue-text
   (fn (_ text tty)
     (def u (sys-uname))
-    (def field (fn (_ k) (%cu-uname-field u k)))
+    (def field (fn (_ k) (cu-uname-field u k)))
     (def n (byte-len text))
     (def now (date-now-unix))
     (def escape
@@ -133,8 +153,8 @@
                ((= c #\v) (field (lit version)))
                ((= c #\m) (field (lit machine)))
                ((%td-domain-escape? c) (%td-domainname))
-               ((= c #\d) (%cu-date-fmt "%A, %d %B %Y" (%cu-date-split now #f) now))
-               ((= c #\t) (%cu-date-fmt "%H:%M:%S" (%cu-date-split now #f) now))
+               ((= c #\d) (cu-date-fmt "%A, %d %B %Y" (cu-date-split now #f) now))
+               ((= c #\t) (cu-date-fmt "%H:%M:%S" (cu-date-split now #f) now))
                ((= c #\l) tty)
                (#t (bytes->str (list c))))))
     (let go ((i 0) (acc ()))
@@ -163,25 +183,25 @@
 (def %td-put-str!
   (fn (_ buf at s cap)
     (let go ((i 0)) (when (if (< i (byte-len s)) (< i (- cap 1)) #f)
-                      (do (%cu-ptr-set! (%cu-str->ptr buf) (+ at i) (byte-at s i) 1) (go (+ i 1)))))))
+                      (do (cu-ptr-set! (cu-str->ptr buf) (+ at i) (byte-at s i) 1) (go (+ i 1)))))))
 
 (def %td-skip-dev (fn (_ tty) (if (Str8 starts? "/dev/" tty) (substring tty 5 (byte-len tty)) tty)))
 
 ; write_new_utmp: a LOGIN_PROCESS record for PID on TTY from HOST
 (def %td-utmp-login!
   (fn (_ pid tty host)
-    (def u (%in-zeroed %td-ut-size))
+    (def u (in-zeroed %td-ut-size))
     (def line (%td-skip-dev tty))
-    (%cu-ptr-set! (%cu-str->ptr u) %td-ut-pid pid 4)
-    (%cu-ptr-set! (%cu-str->ptr u) %td-ut-type 6 2)
+    (cu-ptr-set! (cu-str->ptr u) %td-ut-pid pid 4)
+    (cu-ptr-set! (cu-str->ptr u) %td-ut-type 6 2)
     (%td-put-str! u %td-ut-line line %td-ut-line-len)
     (%td-put-str! u %td-ut-user "LOGIN" %td-ut-user-len)
     (unless (null? host) (%td-put-str! u %td-ut-host host %td-ut-host-len))
-    (%cu-ptr-set! (%cu-str->ptr u) %td-ut-tv (date-now-unix) (if os-darwin? 8 4))
+    (cu-ptr-set! (cu-str->ptr u) %td-ut-tv (date-now-unix) (if os-darwin? 8 4))
     (def id (string-append (if (= (byte-at line 0) #\p) "p" "")
                            (if (> (byte-len line) 3) (substring line 3 (byte-len line)) line)))
     (let go ((i 0)) (when (if (< i 4) (< i (byte-len id)) #f)
-                      (do (%cu-ptr-set! (%cu-str->ptr u) (+ %td-ut-id i) (byte-at id i) 1) (go (+ i 1)))))
+                      (do (cu-ptr-set! (cu-str->ptr u) (+ %td-ut-id i) (byte-at id i) 1) (go (+ i 1)))))
     (%td-utmp-write! u)))
 
 ; touch: the utmp file made when it is not there, as busybox makes it
@@ -194,30 +214,30 @@
 (def %td-utmp-write!
   (fn (_ u)
     (%td-utmp-touch!)
-    (%cu-ptr-call (%in-c "setutxent"))
-    (%cu-ptr-call (%in-c "pututxline") (%cu-str->ptr u))
-    (%cu-ptr-call (%in-c "endutxent"))
-    (unless os-darwin? (%cu-ptr-call (%in-c "updwtmpx") "/var/log/wtmp" (%cu-str->ptr u)))))
+    (cu-ptr-call (in-c "setutxent"))
+    (cu-ptr-call (in-c "pututxline") (cu-str->ptr u))
+    (cu-ptr-call (in-c "endutxent"))
+    (unless os-darwin? (cu-ptr-call (in-c "updwtmpx") "/var/log/wtmp" (cu-str->ptr u)))))
 
 ; update_utmp_DEAD_PROCESS: PID's record, if it has one, made DEAD_PROCESS
 (def %td-utmp-dead!
   (fn (_ pid)
     (%td-utmp-touch!)
-    (%cu-ptr-call (%in-c "setutxent"))
+    (cu-ptr-call (in-c "setutxent"))
     (let go ()
-      (let ((p (%cu-ptr-call (%in-c "getutxent"))))
-        (if (= (%td-ptr->int p) 0) (%cu-ptr-call (%in-c "endutxent"))
-          (let ((type (%cu-ptr-ref p %td-ut-type 2)))
-            (if (if (= (%cu-ptr-ref p %td-ut-pid 4) pid)
-                  (if (> (%cu-ptr-ref p %td-ut-id 1) 0) (if (>= type 5) (<= type 8) #f) #f) #f)
-              (let ((u (%str-make-raw %td-ut-size)))
+      (let ((p (cu-ptr-call (in-c "getutxent"))))
+        (if (= (td-ptr->int p) 0) (cu-ptr-call (in-c "endutxent"))
+          (let ((type (cu-ptr-ref p %td-ut-type 2)))
+            (if (if (= (cu-ptr-ref p %td-ut-pid 4) pid)
+                  (if (> (cu-ptr-ref p %td-ut-id 1) 0) (if (>= type 5) (<= type 8) #f) #f) #f)
+              (let ((u (str-make-raw %td-ut-size)))
                 (do (let copy ((i 0)) (when (< i %td-ut-size)
-                                        (do (%cu-ptr-set! (%cu-str->ptr u) i (%cu-ptr-ref p i 1) 1) (copy (+ i 1)))))
-                    (%cu-ptr-set! (%cu-str->ptr u) %td-ut-type 8 2)
-                    (%cu-ptr-set! (%cu-str->ptr u) %td-ut-tv (date-now-unix) (if os-darwin? 8 4))
-                    (%cu-ptr-call (%in-c "pututxline") (%cu-str->ptr u))
-                    (%cu-ptr-call (%in-c "endutxent"))
-                    (unless os-darwin? (%cu-ptr-call (%in-c "updwtmpx") "/var/log/wtmp" (%cu-str->ptr u)))))
+                                        (do (cu-ptr-set! (cu-str->ptr u) i (cu-ptr-ref p i 1) 1) (copy (+ i 1)))))
+                    (cu-ptr-set! (cu-str->ptr u) %td-ut-type 8 2)
+                    (cu-ptr-set! (cu-str->ptr u) %td-ut-tv (date-now-unix) (if os-darwin? 8 4))
+                    (cu-ptr-call (in-c "pututxline") (cu-str->ptr u))
+                    (cu-ptr-call (in-c "endutxent"))
+                    (unless os-darwin? (cu-ptr-call (in-c "updwtmpx") "/var/log/wtmp" (cu-str->ptr u)))))
               (go))))))))
 
 ; --- a session ---------------------------------------------------------------------
@@ -267,27 +287,27 @@
 
 (def %td-keepalive!
   (fn (_ fd)
-    (let ((one (%str-make-raw 4)))
-      (do (%cu-ptr-set! (%cu-str->ptr one) 0 1 4)
-          (%cu-ptr-call (%in-c "setsockopt") fd (if os-darwin? 65535 1) (if os-darwin? 8 9) (%cu-str->ptr one) 4)))))
+    (let ((one (str-make-raw 4)))
+      (do (cu-ptr-set! (cu-str->ptr one) 0 1 4)
+          (cu-ptr-call (in-c "setsockopt") fd (if os-darwin? 65535 1) (if os-darwin? 8 9) (cu-str->ptr one) 4)))))
 
 ; the child: a new session on the terminal, its settings, the issue, LOGIN
 (def %td-child
   (fn (_ m tty rd wr host others)
     (sys-signal %td-chld 0)
     (sys-signal 13 0)
-    (def pid (%in-call (%cu-ptr-call (%in-c "setsid"))))
+    (def pid (in-call (cu-ptr-call (in-c "setsid"))))
     (map (fn (_ fd) (when (>= fd 0) (sys-close fd))) (append (list m rd wr 3) others))
     (sys-close 0)
     (File open tty (list (lit rdwr)))
     (sys-dup2 0 1)
     (sys-dup2 0 2)
-    (%cu-ptr-call (%in-c "tcsetpgrp") 0 pid)
+    (cu-ptr-call (in-c "tcsetpgrp") 0 pid)
     (%td-utmp-login! pid tty host)
     (%td-cook-terminal!)
     (let ((text (guard (_ ()) (file-read-all %td-issue))))
       (unless (null? text) (file-write 1 (%td-issue-text text tty))))
-    (%in-exec %td-login (list %td-login))
+    (in-exec %td-login (list %td-login))
     (sys-exit 1)))
 
 ; --- from the client to the terminal --------------------------------------------------
@@ -298,8 +318,8 @@
   (fn (_ l)
     (let go ((l (rest (rest (rest l)))) (vals ()) (used 3))
       (match ((= (length vals) 4)
-               (pair (+ (* 256 (%cu-nth 3 vals)) (%cu-nth 2 vals))
-                     (list (+ (* 256 (%cu-nth 1 vals)) (first vals)) used)))
+               (pair (+ (* 256 (cu-nth 3 vals)) (cu-nth 2 vals))
+                     (list (+ (* 256 (cu-nth 1 vals)) (first vals)) used)))
              ((null? l) ())
              ((if (= (first l) %td-iac) (if (null? (rest l)) #f (= (first (rest l)) %td-iac)) #f)
                (go (rest (rest l)) (pair %td-iac vals) (+ used 2)))
@@ -312,7 +332,7 @@
     (def pty (%td-get s %td-pty))
     (let go ((l (%td-get s %td-in)) (out ()))
       (def flush (fn (_ rest-bytes)
-        (do (unless (null? out) (let ((r (%tn-run (reverse out)))) (guard (_ ()) (File write pty (first r) (rest r)))))
+        (do (unless (null? out) (let ((r (tn-run (reverse out)))) (guard (_ ()) (File write pty (first r) (rest r)))))
             (%td-set! s %td-in (if (%td-get s %td-net-eof) () rest-bytes)))))
       (match
         ((null? l) (flush ()))
@@ -326,19 +346,19 @@
                   (match
                     ((= c %td-iac) (go (rest (rest l)) (pair %td-iac out)))
                     ((if (>= c %td-se) (<= c 249) #f)
-                      (do (when (= c %td-ayt) (guard (_ ()) (net-send-run (%td-get s %td-wr) (%tn-run (list %td-iac %td-nop)))))
+                      (do (when (= c %td-ayt) (guard (_ ()) (net-send-run (%td-get s %td-wr) (tn-run (list %td-iac %td-nop)))))
                           (go (rest (rest l)) out)))
                     ((null? (rest (rest l))) (flush l))
                     ((if (= c %td-sb) (= (first (rest (rest l))) %td-opt-naws) #f)
                       (if (< (length l) 9) (flush l)
                         (let ((w (%td-naws l)))
                           (if (null? w) (flush l)
-                            (do (when (if (> (first w) 0) (> (%cu-nth 1 w) 0) #f)
-                                  (%td-winsize! pty (first w) (%cu-nth 1 w)))
+                            (do (when (if (> (first w) 0) (> (cu-nth 1 w) 0) #f)
+                                  (%td-winsize! pty (first w) (cu-nth 1 w)))
                                 (when (> %td-verbose 0)
-                                  (%td-say (string-concat (list "pfd:" (%cu-int->str pty) " window size:"
-                                                                (%cu-int->str (%cu-nth 1 w)) "x" (%cu-int->str (first w))))))
-                                (go (List drop (%cu-nth 2 w) l) out))))))
+                                  (%td-say (string-concat (list "pfd:" (cu-int->str pty) " window size:"
+                                                                (cu-int->str (cu-nth 1 w)) "x" (cu-int->str (first w))))))
+                                (go (List drop (cu-nth 2 w) l) out))))))
                     (#t (go (rest (rest (rest l))) out))))))))))
 
 ; a read from the client: its bytes queued and passed on, or its end noted
@@ -356,13 +376,13 @@
 (def %td-from-pty!
   (fn (_ s)
     (def pty (%td-get s %td-pty))
-    (def buf (%str-make-raw 2048))
-    (def r (%in-call (%cu-ptr-call (%in-c "read") pty (%cu-str->ptr buf) 2048)))
+    (def buf (str-make-raw 2048))
+    (def r (in-call (cu-ptr-call (in-c "read") pty (cu-str->ptr buf) 2048)))
     (def errno (if (< r 0) (file-err-sym (Err from-errno (Err errno-of r) (lit read) ())) ()))
     (match
       ((> r 0)
         (do (%td-set! s %td-eio 0)
-            (let ((out (%tn-run (%td-double-iac (%td-buf-bytes buf r)))))
+            (let ((out (tn-run (%td-double-iac (%td-buf-bytes buf r)))))
               (guard (_ #f) (do (net-send-run (%td-get s %td-wr) out) #t)))))
       ((if (< r 0) (eq? errno (lit eagain)) #f) #t)
       ((if (< r 0) (eq? errno (lit eio)) #f)
@@ -376,7 +396,7 @@
 ; among them would end a substring's byte-len
 (def %td-buf-bytes
   (fn (_ buf n)
-    (let go ((i (- n 1)) (acc ())) (if (< i 0) acc (go (- i 1) (pair (%cu-ptr-ref (%cu-str->ptr buf) i 1) acc))))))
+    (let go ((i (- n 1)) (acc ())) (if (< i 0) acc (go (- i 1) (pair (cu-ptr-ref (cu-str->ptr buf) i 1) acc))))))
 
 (def %td-double-iac
   (fn (_ bytes)
@@ -410,8 +430,8 @@
 ; reap: each child that has ended; with -K its session marked to end
 (def %td-reap!
   (fn (self)
-    (def st (%str-make-raw 4))
-    (def pid (%in-call (%cu-ptr-call (%in-c "waitpid") -1 (%cu-str->ptr st) 1)))
+    (def st (str-make-raw 4))
+    (def pid (in-call (cu-ptr-call (in-c "waitpid") -1 (cu-str->ptr st) 1)))
     (when (> pid 0)
       (do (%td-utmp-dead! pid)
           (map (fn (_ s) (when (= (%td-get s %td-pid) pid) (%td-set! s %td-pid -1))) %td-sessions)
@@ -421,7 +441,7 @@
 
 (def %td-loop
   (fn (self lfd linger quiet-since)
-    (%cu-sweep-tick! %cu-sweep-lines)
+    (cu-sweep-tick! cu-sweep-lines)
     (when (if %td-watch? (Sys take-signal %td-chld) #f) (%td-reap!))
     (map %td-tend! %td-sessions)
     (def now (%td-now-ms))
@@ -447,7 +467,7 @@
       (#t
         (let ((ready (sys-poll watched (if pending? 5 (if (> linger 0) 200 1000)))))
           (do (when (if (>= lfd 0) (%td-ready? ready lfd) #f)
-                (let ((c (%in-call (%cu-ptr-call (%in-c "accept") lfd 0 0))))
+                (let ((c (in-call (cu-ptr-call (in-c "accept") lfd 0 0))))
                   (when (>= c 0) (do (%td-cloexec! c) (%td-session! c c (list lfd))))))
               (map (fn (_ s)
                      (do (when (if (not (%td-get s %td-net-eof)) (%td-ready? ready (%td-get s %td-rd)) #f)
@@ -461,10 +481,10 @@
 
 ; --- the applet --------------------------------------------------------------------------
 
-(def %cu-telnetd
+(def cu-telnetd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "telnetd" argv))
-    (if (if (Opts on? o "-i") (not (null? (Opts value o "-w"))) #f) (%cu-usage "telnetd")
+    (def o (cu-opts "telnetd" argv))
+    (if (if (Opts on? o "-i") (not (null? (Opts value o "-w"))) #f) (cu-usage "telnetd")
       (guard (e (if (eq? (Err label e) (lit net))
                   (do (%td-say (e msg)) 1)
                   (error e)))
@@ -474,24 +494,24 @@
 ; every interface
 (def %td-bind
   (fn (_ addr port)
-    (def colon (if (null? addr) () (%in-index-of addr #\:)))
+    (def colon (if (null? addr) () (in-index-of addr #\:)))
     (def host (if (null? colon) addr (substring addr 0 colon)))
     (def p (if (null? colon) port (%td-port (substring addr (+ colon 1) (byte-len addr)))))
-    (def sa (if (if (null? host) #t (= (byte-len host) 0)) (%in-sockaddr6 () p)
+    (def sa (if (if (null? host) #t (= (byte-len host) 0)) (in-sockaddr6 () p)
               (if (null? (net-aton host)) (%td-die (string-concat (list "bad address '" host "'")))
                 (pair (net-sockaddr host p) 16))))
-    (def fd (%in-call (%cu-ptr-call (%in-c "socket") (if (= (rest sa) 16) 2 (%in-af (lit inet6))) 1 0)))
-    (when (< fd 0) (%td-die (string-append "socket: " (%in-errtext fd))))
-    (%in-reuse! fd)
-    (def r (%in-bind fd sa))
-    (when (< r 0) (%td-die (string-append "bind: " (%in-errtext r))))
-    (%cu-ptr-call (%in-c "listen") fd 1)
+    (def fd (in-call (cu-ptr-call (in-c "socket") (if (= (rest sa) 16) 2 (in-af (lit inet6))) 1 0)))
+    (when (< fd 0) (%td-die (string-append "socket: " (in-errtext fd))))
+    (in-reuse! fd)
+    (def r (in-bind fd sa))
+    (when (< r 0) (%td-die (string-append "bind: " (in-errtext r))))
+    (cu-ptr-call (in-c "listen") fd 1)
     fd))
 
 ; xatou16
 (def %td-port
   (fn (_ s)
-    (let ((n (%in-strtou s)))
+    (let ((n (in-strtou s)))
       (match ((null? n) (%td-die (string-concat (list "invalid number '" s "'"))))
              ((> n 65535) (%td-die (string-concat (list "number " s " is not in 0..65535 range"))))
              (#t n)))))
@@ -500,16 +520,16 @@
   (fn (_ o)
     (set! %td-login (let ((l (Opts value o "-l"))) (if (null? l) "/bin/login" l)))
     (set! %td-issue (let ((f (Opts value o "-f"))) (if (null? f) "/etc/issue.net" f)))
-    (set! %td-verbose (%nc-count o "-v"))
+    (set! %td-verbose (nc-count o "-v"))
     (set! %td-watch? (Opts on? o "-K"))
     (def inetd? (Opts on? o "-i"))
-    (def w (let ((v (Opts value o "-w"))) (if (null? v) () (%in-count v))))
+    (def w (let ((v (Opts value o "-w"))) (if (null? v) () (in-count v))))
     (def fg? (if (Opts on? o "-F") #t (not (null? w))))
     (def port (let ((p (Opts value o "-p"))) (if (null? p) 23 (%td-port p))))
-    (unless (if inetd? #t fg?) (%hd-daemonize))
+    (unless (if inetd? #t fg?) (hd-daemonize))
     (when (if inetd? #t (if (Opts on? o "-S") #t (not fg?)))
-      (do (%cu-ptr-call (%in-c "openlog") "telnetd" 1 24) (set! %td-syslog? #t)))
-    (set! %td-chld (%ts-signal-number "CHLD"))
+      (do (cu-ptr-call (in-c "openlog") "telnetd" 1 24) (set! %td-syslog? #t)))
+    (set! %td-chld (ts-signal-number "CHLD"))
     (sys-signal 13 cu-sig-ign)
     (if %td-watch? (Sys catch-signal %td-chld) (sys-signal %td-chld cu-sig-ign))
     (match
@@ -522,3 +542,5 @@
               (%td-loop (if (null? lfd) 0 lfd) w (%td-now-ms)))))
       (#t (let ((lfd (%td-bind (Opts value o "-b") port)))
             (do (%td-cloexec! lfd) (%td-loop lfd 0 (%td-now-ms))))))))
+
+(provide cu/telnetd cu-telnetd td-ptr->int)

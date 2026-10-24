@@ -15,7 +15,7 @@ setsid replaces the process that runs it, so its runs are in a child, the
 parent waiting for it.
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-ss && mkdir -p /tmp/x-cu-ss/d && touch /tmp/x-cu-ss/f")) (def nf (fn (_ n) (string-append "/tmp/x-cu-ss/" n))) (def show (fn (_ st) (display (Str8 replace "/tmp/x-cu-ss/" "" (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n")))))) (def aside (fn (_) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (file-close oo) (file-close ee)))))) (def back (fn (_) (do (sys-dup2 9 1) (sys-dup2 8 2)))) (def run (fn (_ argv in) (do (aside) (def st (cu-run argv in)) (back) (show st)))) (def forked (fn (_ argv) (do (aside) (def pid (sys-fork)) (if (= pid 0) (sys-exit (cu-run argv "")) ()) (def st (sys-wait pid)) (back) (show st)))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-ss && mkdir -p /tmp/x-cu-ss/d && touch /tmp/x-cu-ss/f")) (def nf (fn (_ n) (string-append "/tmp/x-cu-ss/" n))) (def show (fn (_ st) (display (Str8 replace "/tmp/x-cu-ss/" "" (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))) (def aside (fn (_) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (file-close oo) (file-close ee)))))) (def back (fn (_) (do (sys-dup2 9 1) (sys-dup2 8 2)))) (def run (fn (_ argv in) (do (aside) (def st (cu-run argv in)) (back) (show st)))) (def forked (fn (_ argv) (do (aside) (def pid (sys-fork)) (if (= pid 0) (sys-exit (cu-run argv "")) ()) (def st (sys-wait pid)) (back) (show st)))) (display "made"))
 ```
 ---
     made
@@ -120,7 +120,7 @@ status 1
 ### a file locked elsewhere: -n fails with 1 and no word; a descriptor is locked and unlocked by its number
 
 ```cu
-(do (%ss-resolve!) (def held (File open (nf "f") (lit rdonly))) (%cu-ptr-call %ss-c-flock held 2) (run (list "flock" "-n" (nf "f") "true") "") (%cu-ptr-call %ss-c-flock held 8) (run (list "flock" "-n" (nf "f") "true") "") (run (list "flock" (%cu-int->str held)) "") (run (list "flock" "-u" (%cu-int->str held)) "") (file-close held) (display ""))
+(do (ss-resolve!) (def held (File open (nf "f") (lit rdonly))) (ss-flock held 2) (run (list "flock" "-n" (nf "f") "true") "") (ss-flock held 8) (run (list "flock" "-n" (nf "f") "true") "") (run (list "flock" (cu-int->str held)) "") (run (list "flock" "-u" (cu-int->str held)) "") (file-close held) (display ""))
 ```
 ---
 ```output

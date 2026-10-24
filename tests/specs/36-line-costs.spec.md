@@ -22,7 +22,7 @@ output sent to /dev/null.  The per-line cases take the difference between
 The lines are the numbers from N down to 1, one to a line.
 
 ```cu
-(do (set-first! %cu-sweeps-cell #f) (def mkn (fn (self n acc) (if (= n 0) acc (self (- n 1) (string-append acc (string-append (%cu-int->str n) "\n")))))) (def in100 (mkn 100 "")) (def in1000 (mkn 1000 "")) (def cost (fn (_ argv input) (do (sys-dup2 1 9) (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (cu-run argv "2\n1\n") (def h0 (Heap count)) (cu-run argv input) (def h1 (Heap count)) (sys-dup2 9 1) (file-close nul) (- h1 h0)))))) (def per-900 (fn (_ argv) (- (cost argv in1000) (cost argv in100)))) (display "made"))
+(do (set-first! cu-sweeps-cell #f) (def mkn (fn (self n acc) (if (= n 0) acc (self (- n 1) (string-append acc (string-append (cu-int->str n) "\n")))))) (def in100 (mkn 100 "")) (def in1000 (mkn 1000 "")) (def cost (fn (_ argv input) (do (sys-dup2 1 9) (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (cu-run argv "2\n1\n") (def h0 (Heap count)) (cu-run argv input) (def h1 (Heap count)) (sys-dup2 9 1) (file-close nul) (- h1 h0)))))) (def per-900 (fn (_ argv) (- (cost argv in1000) (cost argv in100)))) (display "made"))
 ```
 ---
     made
@@ -79,7 +79,7 @@ digits as well as the option reads.
 ### the sweeps turned back on, for what runs next
 
 ```cu
-(do (set-first! %cu-sweeps-cell #t) (display "on"))
+(do (set-first! cu-sweeps-cell #t) (display "on"))
 ```
 ---
     on

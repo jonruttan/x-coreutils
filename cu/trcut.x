@@ -14,6 +14,16 @@
 ;
 ; [c*] with no count is one c, which is all it needs to be: a SET2 shorter than
 ; SET1 already repeats its last byte, which is what the form asks for.
+(module cu/trcut)
+
+(import cu/cli cu-extra-operand cu-missing-operand cu-opts)
+(import cu/fmt-lex cu-esc-at)
+(import cu/prims append byte-at byte-len cu-b->s cu-lines cu-member-s? cu-nth
+  cu-run-bytes cu-sweep! cu-sweep-steps file-write file-write-run filter
+  length map reverse string-concat string=? substring)
+(import cu/text cu-fold-lines-said cu-fold-stdin cu-join-with cu-map-swept
+  cu-num-prefix cu-print-lines cu-says cu-split-byte)
+
 (def %cu-tr-set
   (fn (_ s) (%cu-tr-ranges (%cu-tr-items s 0 ()))))
 
@@ -24,10 +34,10 @@
     (if (>= i (byte-len s)) (reverse acc)
       (match
         ((= (byte-at s i) 92)
-          (let ((e (%cu-esc-at s i (lit tr))))
-            (self s (%cu-nth 1 e)
-              (if (< (%cu-nth 3 e) 0) acc
-                (pair (pair (%cu-nth 3 e) #t) acc)))))
+          (let ((e (cu-esc-at s i (lit tr))))
+            (self s (cu-nth 1 e)
+              (if (< (cu-nth 3 e) 0) acc
+                (pair (pair (cu-nth 3 e) #t) acc)))))
         ((= (byte-at s i) 91)                                      ; [
           (let ((br (%cu-tr-bracket s i)))
             (if (null? br) (self s (+ i 1) (pair (pair 91 #f) acc))
@@ -59,7 +69,7 @@
               ((if (> end 1) (= (byte-at body 1) 42) #f)           ; [c*n]
                 (pair (%cu-tr-copies (byte-at body 0)
                         (if (= end 2) 1
-                          (%cu-num-prefix (substring body 2 end))))
+                          (cu-num-prefix (substring body 2 end))))
                   (+ close 1)))
               (#t ()))))))))
 
@@ -185,13 +195,13 @@
 (def %cu-tr-other-class
   (fn (self names)
     (if (null? names) ()
-      (if (%cu-member-s? (first names) (list "upper" "lower"))
+      (if (cu-member-s? (first names) (list "upper" "lower"))
         (self (rest names))
         (first names)))))
 
-(def %cu-tr
+(def cu-tr
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "tr" argv))
+    (def o (cu-opts "tr" argv))
     (def del? (Opts on? o "-d"))
     (def sq? (Opts on? o "-s"))
     (def args (Opts operands o))
@@ -207,7 +217,7 @@
 ; delete was given two, a second line says it takes one
 (def %cu-tr-many
   (fn (_ args most)
-    (do (%cu-extra-operand "tr" (%cu-nth most args))
+    (do (cu-extra-operand "tr" (cu-nth most args))
         (if (= (length args) 2)
           (file-write 2
             "Only one string may be given when deleting without squeezing repeats.\n")
@@ -218,7 +228,7 @@
 ; another is wanted
 (def %cu-tr-few
   (fn (_ args sq?)
-    (do (%cu-missing-operand "tr" args)
+    (do (cu-missing-operand "tr" args)
         (if (null? args) ()
           (file-write 2
             (if sq?
@@ -264,20 +274,20 @@
     (def go
       (fn (self text end i acc n prev)
         (match
-          ((>= i end) (do (file-write-run 1 (%cu-run-bytes (reverse acc) n)) prev))
+          ((>= i end) (do (file-write-run 1 (cu-run-bytes (reverse acc) n)) prev))
           ((>= n 4096)
-            (do (file-write-run 1 (%cu-run-bytes (reverse acc) n))
+            (do (file-write-run 1 (cu-run-bytes (reverse acc) n))
                 (self text end i () 0 prev)))
           (#t
             (let ((b (byte-at text i)))
-              (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
+              (do (if (= (& i cu-sweep-steps) 0) (cu-sweep! i) ())
                 (if (if del? (%cu-member-b? b set1) #f)
                   (self text end (+ i 1) acc n prev)
                   (let ((v (if (null? set2) b (%cu-tr-map set1 set2 b))))
                     (if (if sq? (if (= v prev) (%cu-member-b? v squeeze-set) #f) #f)
                       (self text end (+ i 1) acc n prev)
                       (self text end (+ i 1) (pair v acc) (+ n 1) v))))))))))
-    (do (%cu-fold-stdin stdin-thunk
+    (do (cu-fold-stdin stdin-thunk
           (fn (_ p prev) (go (first p) (rest p) 0 () 0 prev)) (- 0 1))
         0)))
 
@@ -285,7 +295,7 @@
 ; with hi () for open
 (def %cu-cut-list
   (fn (_ s)
-    (def parts (%cu-split-byte s 44))                     ; ,
+    (def parts (cu-split-byte s 44))                     ; ,
     (map
       (fn (_ p)
         (let ((dash (let ((go (fn (self i)
@@ -294,11 +304,11 @@
                                     (self (+ i 1)))))))
                       (go 0))))
           (if (< dash 0)
-            (pair (%cu-num-prefix p) (%cu-num-prefix p))
+            (pair (cu-num-prefix p) (cu-num-prefix p))
             (let ((lo-s (substring p 0 dash)))
               (def hi-s (substring p (+ dash 1) (byte-len p)))
-              (pair (if (= (byte-len lo-s) 0) 1 (%cu-num-prefix lo-s))
-                (if (= (byte-len hi-s) 0) () (%cu-num-prefix hi-s)))))))
+              (pair (if (= (byte-len lo-s) 0) 1 (cu-num-prefix lo-s))
+                (if (= (byte-len hi-s) 0) () (cu-num-prefix hi-s)))))))
       parts)))
 
 (def %cu-in-ranges?
@@ -319,9 +329,9 @@
 ; rather than ignored: this cut is byte-oriented, so a character is a byte,
 ; and "do not split a multibyte character" cannot fail when nothing is
 ; multibyte.
-(def %cu-cut
+(def cu-cut
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "cut" argv))
+    (def o (cu-opts "cut" argv))
     (def ops (Opts operands o))
     (def blist (Opts value o "-b"))
     (def clist (Opts value o "-c"))
@@ -344,16 +354,16 @@
                       (if (>= i end) (string-concat (reverse acc))
                         (self (+ i 1)
                           (if (%cu-in-ranges? (+ i 1) ranges)
-                            (pair (%cu-b->s (byte-at line i)) acc)
+                            (pair (cu-b->s (byte-at line i)) acc)
                             acc)))))
                   (go 0 ())))
-              (fn (_ lines) (%cu-print-lines (%cu-map-swept cut-line lines))))
+              (fn (_ lines) (cu-print-lines (cu-map-swept cut-line lines))))
             (let ((ranges (%cu-cut-list flist)))
               (def db (if (null? delim) 9 (byte-at delim 0)))
-              (def sep (%cu-b->s db))
+              (def sep (cu-b->s db))
               (def cut-line
                 (fn (_ line)
-                  (def fields (%cu-split-byte line db))
+                  (def fields (cu-split-byte line db))
                   (if (null? (rest fields))
                     line                                  ; no delimiter
                     (let ((go (fn (self fs n acc)
@@ -362,19 +372,20 @@
                                     (if (%cu-in-ranges? n ranges)
                                       (pair (first fs) acc)
                                       acc))))))
-                      (%cu-join-with (go fields 1 ()) sep)))))
+                      (cu-join-with (go fields 1 ()) sep)))))
               (def keep?
                 (fn (_ line)
-                  (if suppress? (pair? (rest (%cu-split-byte line db))) #t)))
+                  (if suppress? (pair? (rest (cu-split-byte line db))) #t)))
               ; a line -s leaves out is made nil, and the nils are dropped after
               (fn (_ lines)
-                (%cu-print-lines
+                (cu-print-lines
                   (filter (fn (_ x) (not (null? x)))
-                    (%cu-map-swept (fn (_ l) (if (keep? l) (cut-line l) ()))
+                    (cu-map-swept (fn (_ l) (if (keep? l) (cut-line l) ()))
                       lines)))))))
         ; each block of whole lines cut and put out as it is read
         (rest
-          (%cu-fold-lines-said ops stdin-thunk (%cu-says "cut")
-            (fn (_ block s) (do (put-lines (%cu-lines block)) s))
+          (cu-fold-lines-said ops stdin-thunk (cu-says "cut")
+            (fn (_ block s) (do (put-lines (cu-lines block)) s))
             ()))))))
 
+(provide cu/trcut cu-cut cu-tr)

@@ -27,7 +27,7 @@ and timeout are the TLS engines' build, which a session pays once.
     " && openssl req -x509 -newkey rsa:2048 -nodes -keyout rsa.key -out rsa.crt -days 1 -subj /CN=localhost >/dev/null 2>&1"
     " && cat rsa.key rsa.crt > rsa.pem")))
   (def ss (fn (_ args)
-    (%cu-heap-collect)
+    (cu-heap-collect)
     (def l (Socket tcp-listen-on "127.0.0.1" 0))
     (def port (Socket local-port l))
     (def pid (sys-fork))
@@ -39,11 +39,11 @@ and timeout are the TLS engines' build, which a session pays once.
           (let ((e (file-open-write "/tmp/x-cu-ssls/err"))) (do (sys-dup2 e 2) (sys-close e)))
           (sys-exit (guard (e (do (file-write 2 "uncaught\n") 99)) (cu-run (pair "ssl_server" args) "")))))
     (Socket close l)
-    (sys-setenv "SS_PORT" (%cu-int->str port))
+    (sys-setenv "SS_PORT" (cu-int->str port))
     (ss-sh "cd /tmp/x-cu-ssls && printf 'hello\\n' | openssl s_client -quiet -tls1_3 -connect 127.0.0.1:$SS_PORT > out 2>/dev/null")
     (def st (sys-wait pid))
     (ss-sh (string-concat (list
-      "cd /tmp/x-cu-ssls && { cat out; echo \"[status " (%cu-int->str st) "]\"; cat err; } > report")))
+      "cd /tmp/x-cu-ssls && { cat out; echo \"[status " (cu-int->str st) "]\"; cat err; } > report")))
     (display (file-read-all "/tmp/x-cu-ssls/report"))))
   (display "made"))
 ```

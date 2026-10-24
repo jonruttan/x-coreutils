@@ -14,6 +14,20 @@
 
 ; the escapes od -c spells; everything printable is itself, everything
 ; else is three octal digits
+(module cu/encode)
+
+(import cu/cli cu-opts)
+(import cu/prims bit-and bit-shl bit-xor byte-at byte-len cu% cu& cu* cu+ cu-
+  cu-b->s cu-hexs cu-int->str cu-last cu-lines cu-nth cu-run-bytes cu-stat-get
+  cu-sweep-at cu-sweep-lines cu-sweep-steps cu/ cu< cu<< cu>> file-close
+  file-err-text file-open-or-err file-open-write file-stat-full file-write
+  file-write-run filter length map reverse set-first! string-append
+  string-concat string=? substring sys-umask)
+(import cu/text cu-enough cu-fold-said cu-gather-said cu-join-with
+  cu-num-prefix cu-pad-left cu-pad-zero cu-run-join cu-run-part cu-says)
+(import cu/text2 cu-oct->str)
+(import cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from)
+
 (def %cu-od-char
   (fn (_ b)
     (match
@@ -25,8 +39,8 @@
       ((= b 11) "\\v")
       ((= b 12) "\\f")
       ((= b 13) "\\r")
-      ((if (>= b 32) (<= b 126) #f) (%cu-b->s b))
-      (#t (%cu-pad-zero (%cu-oct->str b) 3)))))
+      ((if (>= b 32) (<= b 126) #f) (cu-b->s b))
+      (#t (cu-pad-zero (cu-oct->str b) 3)))))
 
 ; a word of `size` bytes, LITTLE-endian, from position i, the bytes from END
 ; on read as 0
@@ -34,11 +48,11 @@
   (fn (_ s i size end)
     (def go
       (fn (self k acc)
-        (if (%cu< k size)
-          (self (%cu+ k 1)
-            (%cu+ acc
-              (%cu<< (if (%cu< (%cu+ i k) end) (byte-at s (%cu+ i k)) 0)
-                (%cu* 8 k))))
+        (if (cu< k size)
+          (self (cu+ k 1)
+            (cu+ acc
+              (cu<< (if (cu< (cu+ i k) end) (byte-at s (cu+ i k)) 0)
+                (cu* 8 k))))
           acc)))
     (go 0 0)))
 
@@ -53,22 +67,22 @@
   (fn (_ s i end od-type size)
     (def w (fn (_ one two four)
              (match ((= size 1) one) ((= size 2) two) (#t four))))
-    (if (eq? od-type (lit c)) (%cu-pad-left (%cu-od-char (byte-at s i)) 4)
+    (if (eq? od-type (lit c)) (cu-pad-left (%cu-od-char (byte-at s i)) 4)
       (do (def v (%cu-od-word s i size end))
         ; a word of up to four bytes is below 2^32, so its digits are made on
         ; the integer prims; a wider one may pass a machine word
         (match
-          ((if (eq? od-type (lit o)) (%cu< size 5) #f)
+          ((if (eq? od-type (lit o)) (cu< size 5) #f)
             (%cu-od-digits v 8 (w 3 6 11) #t))
-          ((if (eq? od-type (lit x)) (%cu< size 5) #f)
+          ((if (eq? od-type (lit x)) (cu< size 5) #f)
             (%cu-od-digits v 16 (w 2 4 8) #t))
           ((eq? od-type (lit o))
-            (string-append " " (%cu-pad-zero (%cu-oct->str v) (w 3 6 11))))
+            (string-append " " (cu-pad-zero (cu-oct->str v) (w 3 6 11))))
           ((eq? od-type (lit x))
-            (string-append " " (%cu-pad-zero (%cu-hexs v) (w 2 4 8))))
+            (string-append " " (cu-pad-zero (cu-hexs v) (w 2 4 8))))
           ((eq? od-type (lit u))
-            (%cu-pad-left (%cu-int->str v) (w 4 6 11)))
-          (#t (%cu-pad-left (%cu-int->str (%cu-od-signed v size))
+            (cu-pad-left (cu-int->str v) (w 4 6 11)))
+          (#t (cu-pad-left (cu-int->str (%cu-od-signed v size))
                 (w 5 7 12))))))))
 
 (def %cu-od-address
@@ -86,11 +100,11 @@
   (fn (_ n base width space?)
     (def go
       (fn (self t k acc)
-        (if (if (= t 0) (%cu< (%cu- width 1) k) #f)
+        (if (if (= t 0) (cu< (cu- width 1) k) #f)
           (bytes->str (if space? (pair 32 acc) acc))
-          (do (def d (%cu% t base))
-              (self (%cu/ t base) (%cu+ k 1)
-                (pair (if (%cu< d 10) (%cu+ 48 d) (%cu+ 87 d)) acc))))))
+          (do (def d (cu% t base))
+              (self (cu/ t base) (cu+ k 1)
+                (pair (if (cu< d 10) (cu+ 48 d) (cu+ 87 d)) acc))))))
     (go n 0 ())))
 
 ; -t's argument is a letter and an optional size: o2, x1, c, d4
@@ -100,7 +114,7 @@
     (def size
       (match
         ((> (byte-len spec) 1)
-          (%cu-num-prefix (substring spec 1 (byte-len spec))))
+          (cu-num-prefix (substring spec 1 (byte-len spec))))
         ((= c 99) 1)
         ((= c 97) 1)
         (#t 2)))
@@ -126,16 +140,16 @@
           ; field bytes AT to J of the table onto ACC, the last first
           (def field
             (fn (self at j acc)
-              (if (%cu< j at) acc (self at (%cu- j 1) (pair (byte-at tb j) acc)))))
+              (if (cu< j at) acc (self at (cu- j 1) (pair (byte-at tb j) acc)))))
           (def go
             (fn (self i acc)
-              (if (%cu< i from) (bytes->str acc)
-                (do (def at (%cu* (byte-at s i) w))
-                    (self (%cu- i 1) (field at (%cu- (%cu+ at w) 1) acc))))))
-          (go (%cu- stop 1) ()))
+              (if (cu< i from) (bytes->str acc)
+                (do (def at (cu* (byte-at s i) w))
+                    (self (cu- i 1) (field at (cu- (cu+ at w) 1) acc))))))
+          (go (cu- stop 1) ()))
       (let go ((i from) (acc ()))
-        (if (%cu< i stop)
-          (go (%cu+ i size) (pair (%cu-od-field s i stop od-type size) acc))
+        (if (cu< i stop)
+          (go (cu+ i size) (pair (%cu-od-field s i stop od-type size) acc))
           (string-concat (reverse acc)))))))
 
 ; the one-byte fields of each type asked for so far: (TYPE W . TABLE), TABLE
@@ -155,8 +169,8 @@
     (if (null? have)
       (do (def fields
             (let go ((b 255) (acc ()))
-              (if (%cu< b 0) acc
-                (go (%cu- b 1)
+              (if (cu< b 0) acc
+                (go (cu- b 1)
                     (pair (%cu-od-field (bytes->str (list b)) 0 1 od-type 1) acc)))))
           (def t (pair (byte-len (first fields)) (string-concat fields)))
           (set-first! %cu-od-tables (pair (pair od-type t) (first %cu-od-tables)))
@@ -195,10 +209,10 @@
               (pair (pair (lit type) (%cu-od-type (first (rest as)))) st)))
           ((string=? a "-N")
             (self (rest (rest as))
-              (pair (pair (lit limit) (%cu-num-prefix (first (rest as)))) st)))
+              (pair (pair (lit limit) (cu-num-prefix (first (rest as)))) st)))
           ((string=? a "-j")
             (self (rest (rest as))
-              (pair (pair (lit skip) (%cu-num-prefix (first (rest as)))) st)))
+              (pair (pair (lit skip) (cu-num-prefix (first (rest as)))) st)))
           ((string=? a "-v")
             (self (rest as) (pair (pair (lit verbose) #t) st)))
           (#t (self (rest as) (pair (%cu-od-short a) st))))))))
@@ -233,7 +247,7 @@
           (let ((stop (if (> (+ i 16) end) end (+ i 16))))
             (if (if (>= i end) #t (if (< (- stop i) 16) (not last?) #f))
               (list i prior starred?)
-              (do (%cu-sweep-at i %cu-sweep-steps)
+              (do (cu-sweep-at i cu-sweep-steps)
                 (let ((body (%cu-od-line text i stop od-type size)))
                   (if (%cu-od-repeat? v? body prior (- stop i))
                     (do (if starred? () (display "*\n"))
@@ -252,20 +266,20 @@
 (def %cu-od-take
   (fn (_ dump)
     (fn (_ r s)
-      (let ((skip (first s)) (left (%cu-nth 1 s)) (end (rest r))
-            (part (%cu-nth 2 s)))
+      (let ((skip (first s)) (left (cu-nth 1 s)) (end (rest r))
+            (part (cu-nth 2 s)))
         (def from (if (> skip end) end skip))
         (def upto
           (if (if (>= left 0) (< (+ from left) end) #f) (+ from left) end))
         (def text
-          (if (= (rest part) 0) (%cu-run-part r from upto)
-            (%cu-run-join part r from upto)))
-        (def d (dump text (%cu-nth 3 s) (%cu-nth 4 s) (%cu-nth 5 s) #f))
+          (if (= (rest part) 0) (cu-run-part r from upto)
+            (cu-run-join part r from upto)))
+        (def d (dump text (cu-nth 3 s) (cu-nth 4 s) (cu-nth 5 s) #f))
         (def left2 (if (< left 0) left (- left (- upto from))))
         (let ((s2 (list (- skip from) left2
-                    (%cu-run-part text (first d) (rest text))
-                    (+ (%cu-nth 3 s) (first d)) (%cu-nth 1 d) (%cu-nth 2 d))))
-          (if (if (= left2 0) (= skip from) #f) (%cu-enough s2) s2))))))
+                    (cu-run-part text (first d) (rest text))
+                    (+ (cu-nth 3 s) (first d)) (cu-nth 1 d) (cu-nth 2 d))))
+          (if (if (= left2 0) (= skip from) #f) (cu-enough s2) s2))))))
 
 (def %cu-od-repeat?
   (fn (_ v? body prev width)
@@ -297,7 +311,7 @@
               (pair (substring a 0 2) acc)))
           (self (rest as) (pair a acc)))))))
 
-(def %cu-od
+(def cu-od
   (fn (_ argv stdin-thunk)
     (def st (%cu-od-scan (%cu-od-normalize argv ()) ()))
     (def ops
@@ -312,7 +326,7 @@
     ; and the lines go out as the input is read.  A file od cannot read is
     ; said, and what the others hold is still dumped.
     (def skip (%cu-od-opt st (lit skip) 0))
-    (def g (%cu-fold-said ops stdin-thunk (%cu-says "od") (%cu-od-take dump)
+    (def g (cu-fold-said ops stdin-thunk (cu-says "od") (%cu-od-take dump)
              (list skip lim (pair "" 0) skip () #f)))
     (def s (first g))
     ; a skip past the end is refused the way od refuses it: there is nothing
@@ -320,48 +334,48 @@
     ; and the address past the last byte.
     (if (> (first s) 0)
       (do (file-write 2 "od: cannot skip past end of combined input\n") 1)
-      (let ((part (%cu-nth 2 s)))
-        (do (dump part (%cu-nth 3 s) (%cu-nth 4 s) (%cu-nth 5 s) #t)
+      (let ((part (cu-nth 2 s)))
+        (do (dump part (cu-nth 3 s) (cu-nth 4 s) (cu-nth 5 s) #t)
             (if (eq? rad (lit n)) ()
               (display
                 (string-append
-                  (%cu-od-address (+ (%cu-nth 3 s) (rest part)) rad) "\n")))
+                  (%cu-od-address (+ (cu-nth 3 s) (rest part)) rad) "\n")))
             (rest g))))))
 ; --- uuencode / uudecode --------------------------------------------------------
 
 ; the historical alphabet: six bits plus 32, with 0 written as a
 ; backtick rather than a space (the busybox table)
 (def %cu-uu-char
-  (fn (_ v) (if (= v 0) 96 (%cu+ v 32))))
+  (fn (_ v) (if (= v 0) 96 (cu+ v 32))))
 
 (def %cu-uu-value
-  (fn (_ b) (if (= b 96) 0 (%cu& (%cu- b 32) 63))))
+  (fn (_ b) (if (= b 96) 0 (cu& (cu- b 32) 63))))
 
 ; the line of the historical encoding that bytes FROM to STOP of S make: its
 ; length character, then four characters a step of three bytes, the bytes past
 ; STOP read as 0
 (def %cu-uu-line
   (fn (_ s from stop)
-    (def at (fn (_ i) (if (%cu< i stop) (byte-at s i) 0)))
+    (def at (fn (_ i) (if (cu< i stop) (byte-at s i) 0)))
     (def go
       (fn (self i acc)
-        (if (%cu< i stop)
-          (do (def w (%cu+ (%cu<< (byte-at s i) 16)
-                           (%cu+ (%cu<< (at (%cu+ i 1)) 8) (at (%cu+ i 2)))))
-              (self (%cu+ i 3)
-                (pair (%cu-uu-char (%cu& w 63))
-                  (pair (%cu-uu-char (%cu& (%cu>> w 6) 63))
-                    (pair (%cu-uu-char (%cu& (%cu>> w 12) 63))
-                      (pair (%cu-uu-char (%cu>> w 18)) acc))))))
+        (if (cu< i stop)
+          (do (def w (cu+ (cu<< (byte-at s i) 16)
+                           (cu+ (cu<< (at (cu+ i 1)) 8) (at (cu+ i 2)))))
+              (self (cu+ i 3)
+                (pair (%cu-uu-char (cu& w 63))
+                  (pair (%cu-uu-char (cu& (cu>> w 6) 63))
+                    (pair (%cu-uu-char (cu& (cu>> w 12) 63))
+                      (pair (%cu-uu-char (cu>> w 18)) acc))))))
           (bytes->str (reverse acc)))))
-    (go from (list (%cu-uu-char (%cu- stop from))))))
+    (go from (list (%cu-uu-char (cu- stop from))))))
 
 ; uuencode [FILE] NAME: one operand or two.  There is no GNU build here to
 ; measure; BSD's refuses any other count with a usage line and 1, and so does
 ; this one, naming its own options.
-(def %cu-uuencode
+(def cu-uuencode
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "uuencode" argv))
+    (def o (cu-opts "uuencode" argv))
     (def n (length (Opts operands o)))
     (if (if (> n 0) (<= n 2) #f)
       (%cu-uuencode-run o stdin-thunk)
@@ -372,7 +386,7 @@
     (def m? (Opts on? o "-m"))
     (def ops (Opts operands o))
     ; uuencode NAME, or uuencode FILE NAME
-    (def name (if (null? ops) "-" (%cu-last ops)))
+    (def name (if (null? ops) "-" (cu-last ops)))
     (def src (if (pair? (rest ops)) (list (first ops)) ()))
     ; the begin line names the FILE's permissions, as busybox's and the system's
     ; uuencode do, or what the umask leaves of 0666 for standard input
@@ -380,19 +394,19 @@
       (let ((st (if (if (null? src) #t (string=? (first src) "-")) ()
                   (file-stat-full (first src)))))
         (if (null? st) (bit-and 438 (bit-xor (sys-umask) 511))
-          (bit-and (%cu-stat-get st (lit mode)) 511))))
+          (bit-and (cu-stat-get st (lit mode)) 511))))
     ; the input is encoded as it is read, and the begin line goes out with its
     ; first piece, so a FILE that could not be read puts out nothing
     (def begin
       (string-concat
-        (list (if m? "begin-base64 " "begin ") (%cu-oct->str mode) " " name
+        (list (if m? "begin-base64 " "begin ") (cu-oct->str mode) " " name
               "\n")))
-    (def g (%cu-fold-said src stdin-thunk (%cu-says "uuencode")
+    (def g (cu-fold-said src stdin-thunk (cu-says "uuencode")
              (%cu-uu-take begin m?) (list #f (pair "" 0) () 0)))
     (def s (first g))
     (if (> (rest g) 0) 1
       (do (if (first s) () (display begin))
-          (%cu-uu-end m? (%cu-nth 1 s) (%cu-nth 2 s) (%cu-nth 3 s))
+          (%cu-uu-end m? (cu-nth 1 s) (cu-nth 2 s) (cu-nth 3 s))
           0))))
 
 ; uuencode's TAKE: the state is (BEGUN LEFT LINE COL) -- whether the begin line
@@ -403,14 +417,14 @@
   (fn (_ begin m?)
     (fn (_ r s)
       (do (if (first s) () (display begin))
-          (let ((text (if (= (rest (%cu-nth 1 s)) 0) r
-                        (%cu-run-join (%cu-nth 1 s) r 0 (rest r)))))
+          (let ((text (if (= (rest (cu-nth 1 s)) 0) r
+                        (cu-run-join (cu-nth 1 s) r 0 (rest r)))))
             (if m?
-              (let ((b (%cu-b64-put-from text 76 (%cu-nth 2 s) (%cu-nth 3 s)
+              (let ((b (cu-b64-put-from text 76 (cu-nth 2 s) (cu-nth 3 s)
                          #f)))
-                (list #t (%cu-run-part text (first b) (rest text))
-                      (%cu-nth 1 b) (%cu-nth 2 b)))
-              (list #t (%cu-run-part text (%cu-uu-lines text) (rest text))
+                (list #t (cu-run-part text (first b) (rest text))
+                      (cu-nth 1 b) (cu-nth 2 b)))
+              (list #t (cu-run-part text (%cu-uu-lines text) (rest text))
                     () 0)))))))
 
 ; the whole lines of 45 bytes run R holds, put out; answers where they stop
@@ -420,7 +434,7 @@
     (def go
       (fn (self i k)
         (if (> (+ i 45) end) i
-          (do (%cu-sweep-at k %cu-sweep-lines)
+          (do (cu-sweep-at k cu-sweep-lines)
               (display (string-append (%cu-uu-line (first r) i (+ i 45)) "\n"))
               (self (+ i 45) (+ k 1))))))
     (go 0 0)))
@@ -430,8 +444,8 @@
 (def %cu-uu-end
   (fn (_ m? left line col)
     (if m?
-      (let ((b (%cu-b64-put-from left 76 line col #t)))
-        (do (%cu-b64-put-end 76 (%cu-nth 1 b) (%cu-nth 2 b))
+      (let ((b (cu-b64-put-from left 76 line col #t)))
+        (do (cu-b64-put-end 76 (cu-nth 1 b) (cu-nth 2 b))
             (display "====\n")))
       (do (if (> (rest left) 0)
             (display
@@ -445,20 +459,20 @@
   (fn (_ line)
     (def n (%cu-uu-value (byte-at line 0)))
     (def end (byte-len line))
-    (def at (fn (_ i) (if (%cu< i end) (%cu-uu-value (byte-at line i)) 0)))
+    (def at (fn (_ i) (if (cu< i end) (%cu-uu-value (byte-at line i)) 0)))
     ; a step: four characters, the three bytes they spell, as many of those as
     ; the line still owes kept
     (def go
       (fn (self i out acc)
-        (if (if (%cu< i end) (%cu< out n) #f)
-          (do (def w (%cu+ (%cu<< (at i) 18)
-                           (%cu+ (%cu<< (at (%cu+ i 1)) 12)
-                                 (%cu+ (%cu<< (at (%cu+ i 2)) 6) (at (%cu+ i 3))))))
-              (def left (%cu- n out))
-              (def one (pair (%cu& (%cu>> w 16) 255) acc))
-              (def two (if (%cu< 1 left) (pair (%cu& (%cu>> w 8) 255) one) one))
-              (self (%cu+ i 4) (%cu+ out 3)
-                (if (%cu< 2 left) (pair (%cu& w 255) two) two)))
+        (if (if (cu< i end) (cu< out n) #f)
+          (do (def w (cu+ (cu<< (at i) 18)
+                           (cu+ (cu<< (at (cu+ i 1)) 12)
+                                 (cu+ (cu<< (at (cu+ i 2)) 6) (at (cu+ i 3))))))
+              (def left (cu- n out))
+              (def one (pair (cu& (cu>> w 16) 255) acc))
+              (def two (if (cu< 1 left) (pair (cu& (cu>> w 8) 255) one) one))
+              (self (cu+ i 4) (cu+ out 3)
+                (if (cu< 2 left) (pair (cu& w 255) two) two)))
           (reverse acc))))
     (if (= n 0) () (go 1 0 ()))))
 
@@ -471,13 +485,13 @@
 ; writes, where busybox writes the file the begin line names; that
 ; default predates -o and stays, since the applet protocol is a
 ; standard-output one and the begin line's name is rarely meant here.
-(def %cu-uudecode
+(def cu-uudecode
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "uudecode" argv))
+    (def o (cu-opts "uudecode" argv))
     (def out (let ((v (Opts value o "-o"))) (if (null? v) "-" v)))
-    (def g (%cu-gather-said (Opts operands o) stdin-thunk (%cu-says "uudecode")
+    (def g (cu-gather-said (Opts operands o) stdin-thunk (cu-says "uudecode")
              #f))
-    (def ls (%cu-lines (first g)))
+    (def ls (cu-lines (first g)))
     (def b64?
       (let ((go (fn (self xs)
                   (if (null? xs) #f
@@ -533,12 +547,14 @@
     (def go
       (fn (self ls out n k)
         (match
-          ((null? ls) (if (> n 0) (put (%cu-run-bytes (reverse out) n)) ()))
+          ((null? ls) (if (> n 0) (put (cu-run-bytes (reverse out) n)) ()))
           ((>= n 4096)
-            (do (put (%cu-run-bytes (reverse out) n)) (self ls () 0 k)))
+            (do (put (cu-run-bytes (reverse out) n)) (self ls () 0 k)))
           (#t (let ((bs (%cu-uu-decode-line (first ls))))
-                (do (%cu-sweep-at k %cu-sweep-lines)
+                (do (cu-sweep-at k cu-sweep-lines)
                     (self (rest ls) (%cu-onto bs out) (+ n (length bs))
                       (+ k 1))))))))
-    (if b64? (%cu-b64-decode-to (%cu-join-with body "\n") put #t)
+    (if b64? (cu-b64-decode-to (cu-join-with body "\n") put #t)
       (go (filter (fn (_ l) (> (byte-len l) 0)) body) () 0 0))))
+
+(provide cu/encode cu-od cu-uudecode cu-uuencode)

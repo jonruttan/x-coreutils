@@ -19,7 +19,19 @@
 ; sample is taken and thrown away, as busybox's is, to set each rate's last
 ; count.
 
-(def %nm-scale (fn (_ n) (%vm-four n " kmgtpezy")))
+(module cu/nmeter)
+
+(import cu/cli cu-opts cu-refuse-option cu-usage)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/iostat io-time)
+(import cu/prims byte-at byte-len cu-int->str cu-nth file-write filter
+  host-counters host-cpu host-disks host-interfaces host-interrupts
+  host-memory host-tasks host-wait map ps-div reverse string-append
+  string-concat substring)
+(import cu/text cu-pad-zero)
+(import cu/vmstat vm-four vm-get vm-ticks vm-zip)
+
+(def %nm-scale (fn (_ n) (vm-four n " kmgtpezy")))
 (def %nm-marks (fn (_ k) (%str-make-raw-of k #\?)))
 
 ; K copies of the byte C
@@ -30,7 +42,7 @@
 (def %nm-delta (fn (_ now old) (if (< now old) 0 (- now old))))
 
 ; A sample: the records each field reads from, fetched once a line
-(def %nm-sample
+(def nm-sample
   (fn (_)
     (list (pair (lit cpu) (host-cpu)) (pair (lit memory) (host-memory))
           (pair (lit counters) (host-counters)) (pair (lit tasks) (host-tasks))
@@ -46,14 +58,14 @@
   (fn (_ size)
     (fn (_ s old)
       (def t (Assoc get (lit cpu) s))
-      (def now (map (fn (_ k) (%vm-ticks (Assoc get k t))) (lit (user nice system idle iowait irq softirq))))
-      (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (%vm-zip now (if (null? old) (map (fn (_ x) 0) now) old))))
+      (def now (map (fn (_ k) (vm-ticks (Assoc get k t))) (lit (user nice system idle iowait irq softirq))))
+      (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (vm-zip now (if (null? old) (map (fn (_ x) 0) now) old))))
       (def all (List fold + 0 d))
       (if (= all 0) (pair (%nm-marks size) now)
-        (let ((shares (map (fn (_ v) (%ps-div (* size v) all)) d))
+        (let ((shares (map (fn (_ v) (ps-div (* size v) all)) d))
               (fracs (map (fn (_ v) (% (* size v) all)) d)))
           (def bumped (%nm-bump shares fracs (- size (List fold + 0 shares))))
-          (def run (fn (_ i c) (%str-make-raw-of (%cu-nth i bumped) c)))
+          (def run (fn (_ i c) (%str-make-raw-of (cu-nth i bumped) c)))
           (def bar (string-concat (list (run 2 #\S) (run 0 #\U) (run 1 #\N) (run 4 #\D) (run 5 #\I) (run 6 #\i))))
           (pair (%cu-pad-right-with bar size #\.) now))))))
 
@@ -63,7 +75,7 @@
   (fn (self shares fracs left)
     (if (<= left 0) shares
       (let ((pos (%nm-max-at fracs)))
-        (self (%nm-set-at shares pos (+ (%cu-nth pos shares) 1)) (%nm-set-at fracs pos 0) (- left 1))))))
+        (self (%nm-set-at shares pos (+ (cu-nth pos shares) 1)) (%nm-set-at fracs pos 0) (- left 1))))))
 
 (def %nm-max-at
   (fn (_ vs)
@@ -102,7 +114,7 @@
     (match
       ((null? (Assoc get (lit interrupts) (Assoc get (lit counters) s))) ())
       ((null? hits) 0)
-      (#t (%vm-get (lit total) (first hits))))))
+      (#t (vm-get (lit total) (first hits))))))
 
 ; %n: an interface's bytes in and out, a * before each where errors came
 (def %nm-if
@@ -110,10 +122,10 @@
     (fn (_ s old)
       (def r (filter (fn (_ r) (str=? (Assoc get (lit name) r) name)) (Assoc get (lit interfaces) s)))
       (if (null? r) (pair "??????????" old)
-        (let ((now (map (fn (_ k) (%vm-get k (first r))) (lit (rx-bytes rx-errors tx-bytes tx-errors)))))
-          (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (%vm-zip now (if (null? old) (list 0 0 0 0) old))))
-          (pair (string-concat (list (if (> (%cu-nth 1 d) 0) "*" " ") (%nm-scale (first d))
-                                     (if (> (%cu-nth 3 d) 0) "*" " ") (%nm-scale (%cu-nth 2 d))))
+        (let ((now (map (fn (_ k) (vm-get k (first r))) (lit (rx-bytes rx-errors tx-bytes tx-errors)))))
+          (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (vm-zip now (if (null? old) (list 0 0 0 0) old))))
+          (pair (string-concat (list (if (> (cu-nth 1 d) 0) "*" " ") (%nm-scale (first d))
+                                     (if (> (cu-nth 3 d) 0) "*" " ") (%nm-scale (cu-nth 2 d))))
                 now))))))
 
 ; %m and its variants: used (total less free, buffers, cached and slab),
@@ -122,7 +134,7 @@
   (fn (_ opt)
     (fn (_ s old)
       (def m (Assoc get (lit memory) s))
-      (def g (fn (_ k) (%vm-get k m)))
+      (def g (fn (_ k) (vm-get k m)))
       (def free (+ (+ (g (lit free)) (g (lit buffers))) (+ (g (lit cached)) (g (lit slab)))))
       (pair (%nm-scale
               (match
@@ -136,7 +148,7 @@
 (def %nm-swap
   (fn (_ s old)
     (def m (Assoc get (lit memory) s))
-    (pair (%nm-scale (- (%vm-get (lit swap-total) m) (%vm-get (lit swap-free) m))) old)))
+    (pair (%nm-scale (- (vm-get (lit swap-total) m) (vm-get (lit swap-free) m))) old)))
 
 ; %f: the file handles in use
 (def %nm-files
@@ -163,8 +175,8 @@
                     (if (str=? (substring n 0 (byte-len last)) last)
                       (let ((c (byte-at n (byte-len last)))) (if (>= c #\0) (<= c #\9) #f)) #f) #f))
               (self (rest ds) last rd wr)
-              (self (rest ds) n (+ rd (%ps-div (%vm-get (lit read-bytes) (first ds)) 512))
-                (+ wr (%ps-div (%vm-get (lit write-bytes) (first ds)) 512))))))))
+              (self (rest ds) n (+ rd (ps-div (vm-get (lit read-bytes) (first ds)) 512))
+                (+ wr (ps-div (vm-get (lit write-bytes) (first ds)) 512))))))))
     (def now (go (Assoc get (lit disks) s) () 0 0))
     (def o (if (null? old) (list 0 0) old))
     (pair (string-concat (list (%nm-scale (* 512 (%nm-delta (first now) (first o)))) " "
@@ -186,12 +198,12 @@
       (def us (if since (- (rest t) (rest %nm-t0)) (rest t)))
       (def borrow (< us 0))
       (def sec0 (if borrow (- secs 1) secs))
-      (def us0 (+ (if borrow (+ us 1000000) us) (%ps-div scale 2)))
+      (def us0 (+ (if borrow (+ us 1000000) us) (ps-div scale 2)))
       (def carry (>= us0 1000000))
       (def sec1 (if carry (+ sec0 1) sec0))
       (def us1 (if carry (- us0 1000000) us0))
-      (def hms (if since (%cu-date-fmt "%H:%M:%S" (%cu-date-split sec1 #t) sec1) (%io-time sec1)))
-      (pair (if (= prec 0) hms (string-concat (list hms "." (%cu-pad-zero (%cu-int->str (%ps-div us1 scale)) prec))))
+      (def hms (if since (cu-date-fmt "%H:%M:%S" (cu-date-split sec1 #t) sec1) (io-time sec1)))
+      (pair (if (= prec 0) hms (string-concat (list hms "." (cu-pad-zero (cu-int->str (ps-div us1 scale)) prec))))
             old))))
 
 ; --- the format ----------------------------------------------------------------
@@ -199,7 +211,7 @@
 ; The fields of FMT, and whether a line ends in a carriage return:
 ; (FIELDS . CR), or nil where the format is not one nmeter reads.  A field is
 ; (LABEL READ . STATE).
-(def %nm-parse
+(def nm-parse
   (fn (_ fmt)
     (def n (byte-len fmt))
     (def at (fn (_ i) (byte-at fmt i)))
@@ -249,7 +261,7 @@
       ((= c #\m) (%nm-mem (if (str=? arg "") "" (substring arg 0 1))))
       ((= c #\s) %nm-swap)
       ((= c #\f) %nm-files)
-      ((= c #\i) (%nm-rate (%nm-irq (if (str=? arg "") "" (%cu-int->str (%nm-number arg))))))
+      ((= c #\i) (%nm-rate (%nm-irq (if (str=? arg "") "" (cu-int->str (%nm-number arg))))))
       ((= c #\x) (%nm-rate (%nm-counter (lit context-switches))))
       ((= c #\p) (if (if (> (byte-len arg) 0) (= (byte-at arg 0) #\n) #f) %nm-procs (%nm-rate (%nm-counter (lit forks)))))
       ((= c #\t) (%nm-clock (%nm-prec arg) #f))
@@ -272,7 +284,7 @@
 
 ; One line over sample S: (TEXT . FIELDS), each field's state brought up to S.
 ; A clock field's state is the first line's time, kept.
-(def %nm-line
+(def nm-line
   (fn (_ fields s)
     (def go
       (fn (self fs acc out)
@@ -285,17 +297,17 @@
 
 ; --- nmeter --------------------------------------------------------------------
 
-(def %cu-nmeter
+(def cu-nmeter
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "nmeter" argv))
+    (def o (cu-opts "nmeter" argv))
     (def ops (Opts operands o))
     (def d (Opts value o "-d"))
     (def delta (if (null? d) 1000000 (let ((v (%nm-xatoi d))) (if (null? v) () (* v 1000)))))
-    (def parsed (if (null? ops) () (%nm-parse (first ops))))
+    (def parsed (if (null? ops) () (nm-parse (first ops))))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option "nmeter" (Opts unknown o)))
+      ((not (null? (Opts unknown o))) (cu-refuse-option "nmeter" (Opts unknown o)))
       ((null? delta) (do (file-write 2 (string-concat (list "nmeter: invalid number '" d "'\n"))) 1))
-      ((null? parsed) (%cu-usage "nmeter"))
+      ((null? parsed) (cu-usage "nmeter"))
       (#t (%nm-main (first parsed) (if (rest parsed) "\r" "\n") delta)))))
 
 ; xatoi: an optionally signed decimal that fits an int, or nil
@@ -316,19 +328,21 @@
   (fn (_ fields end delta)
     (def nz (if (> delta 0) delta 1))
     (def seconds (not (= (% 1000000 nz) 0)))
-    (def primed (rest (%nm-line fields (%nm-sample))))
+    (def primed (rest (nm-line fields (nm-sample))))
     (def us (fn (_ t) (if seconds (% (+ (* (first t) 1000000) (rest t)) nz) (% (rest t) nz))))
     (if (>= delta 0)
-      (let ((t (Sys time-of-day))) (%vm-wait (if (> delta 1000000) 1000000 (- delta (% (rest t) nz))))))
-    (def first-sample (%nm-sample))
+      (let ((t (Sys time-of-day))) (host-wait (if (> delta 1000000) 1000000 (- delta (% (rest t) nz))))))
+    (def first-sample (nm-sample))
     (def t0 (Assoc get (lit time) first-sample))
     (set! %nm-t0 (if (> delta 0) (pair (first t0) (- (rest t0) (% (rest t0) delta))) t0))
     (def go
       (fn (self fields s)
-        (def r (%nm-line fields s))
+        (def r (nm-line fields s))
         (file-write 1 (string-append (first r) end))
         (if (>= delta 0)
           (let ((rem (- delta (us (Sys time-of-day)))))
-            (%vm-wait (if (< rem (%ps-div delta 128)) (+ rem delta) rem))))
-        (self (rest r) (%nm-sample))))
+            (host-wait (if (< rem (ps-div delta 128)) (+ rem delta) rem))))
+        (self (rest r) (nm-sample))))
     (go primed first-sample)))
+
+(provide cu/nmeter cu-nmeter nm-line nm-parse nm-sample)

@@ -21,6 +21,18 @@
 ; An error is said, under the file's name and line where a file is read, and
 ; ends dc with status 1.
 
+(module cu/dc)
+
+(import cu/cli cu-opts)
+(import cu/dump dp-find)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-nthrest
+  cu-ptr-set! cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text
+  file-write file-write-run filter length map reverse str-make-raw
+  string-append string-concat string=? substring sys-getenv vec-build vec-make
+  vec-ref vec-set!)
+(import cu/sysinfo si-digits?)
+(import cu/text cu-num-prefix cu-pad-zero cu-pieces cu-run-text)
+
 (def %dc-big+ (fn (_ a b) (Bigint + a b)))
 (def %dc-big- (fn (_ a b) (Bigint - a b)))
 (def %dc-big* (fn (_ a b) (Bigint * a b)))
@@ -217,7 +229,7 @@
 
 (def %dcn-parse10
   (fn (_ t)
-    (def dot (%dp-find t 0 #\.))
+    (def dot (dp-find t 0 #\.))
     (let go ((i 0) (m 0))
       (if (>= i (byte-len t)) (pair m (if (< dot 0) 0 (- (byte-len t) (+ dot 1))))
         (if (= i dot) (go (+ i 1) m)
@@ -225,7 +237,7 @@
 
 (def %dcn-parse-base
   (fn (_ t base)
-    (def dot (%dp-find t 0 #\.))
+    (def dot (dp-find t 0 #\.))
     (def end (if (< dot 0) (byte-len t) dot))
     (def int (let go ((i 0) (m 0)) (if (>= i end) m (go (+ i 1) (%dc-big+ (%dc-big* m base) (%dcn-digit (byte-at t i) (- base 1)))))))
     (if (< dot 0) (pair int 0)
@@ -336,7 +348,7 @@
 (def %dc-nul! (fn (_) (%dc-emit! (lit nul))))
 
 (def %dc-nul-str
-  (fn (_) (let ((b (%str-make-raw 2))) (do (%cu-ptr-set! (%cu-str->ptr b) 0 0 1) b))))
+  (fn (_) (let ((b (str-make-raw 2))) (do (cu-ptr-set! (cu-str->ptr b) 0 0 1) b))))
 
 ; one character counted on the line
 (def %dc-char! (fn (_ s) (do (%dc-put! s) (%dg! 6 (+ (%dg 6) 1)))))
@@ -358,7 +370,7 @@
 ; point, then WIDTH decimal digits
 (def %dc-digits!
   (fn (_ d width radix)
-    (def text (%cu-pad-zero (%cu-int->str d) width))
+    (def text (cu-pad-zero (cu-int->str d) width))
     (do (%dc-wrap!)
         (%dc-char! (if radix "." " "))
         (map (fn (_ i) (do (%dc-wrap!) (%dc-char! (substring text i (+ i 1))))) (List range 0 width)))))
@@ -375,7 +387,7 @@
 
 (def %dc-print-dec!
   (fn (_ n)
-    (def digits (%cu-pad-zero (%cu-int->str (%dcn-abs (first n))) (rest n)))
+    (def digits (cu-pad-zero (cu-int->str (%dcn-abs (first n))) (rest n)))
     (def point (- (byte-len digits) (rest n)))
     (do (if (%dcn-neg? n) (%dc-char! "-") ())
         (map (fn (_ i) (%dc-hex! (- (byte-at digits i) #\0) (= i point))) (List range 0 (byte-len digits))))))
@@ -383,7 +395,7 @@
 (def %dc-print-base!
   (fn (_ n)
     (def base (%dg 5))
-    (def width (byte-len (%cu-int->str (- base 1))))
+    (def width (byte-len (cu-int->str (- base 1))))
     (def put (if (<= base 16) (fn (_ d radix) (%dc-hex! d radix)) (fn (_ d radix) (%dc-digits! d width radix))))
     (do (if (%dcn-neg? n) (%dc-char! "-") ())
         (%dc-print-in! (pair (%dcn-abs (first n)) (rest n)) base put))))
@@ -478,7 +490,7 @@
 (def %dcl-rest
   (fn (_ src)
     (let ((text (vec-ref src 0)) (pos (vec-ref src 1)))
-      (let ((nl (%dp-find text pos #\newline)))
+      (let ((nl (dp-find text pos #\newline)))
         (substring text pos (if (< nl 0) (byte-len text) nl))))))
 
 (def %dc-space? (fn (_ c) (if (= c #\space) #t (if (>= c 9) (<= c 13) #f))))
@@ -534,7 +546,7 @@
       ((= c #\.) (if (%dc-digit? (%dcl-peek src 0)) (%dcl-number src c) (%dc-bad-char c)))
       ((%dc-numch? c) (%dcl-number src c))
       ((= c #\[) (%dcl-string src))
-      ((if (> c 0) (>= (%dp-find %dc-ops 0 c) 0) #f) (list (lit ch) (bytes->str (list c))))
+      ((if (> c 0) (>= (dp-find %dc-ops 0 c) 0) #f) (list (lit ch) (bytes->str (list c))))
       (#t (%dc-bad-char c)))))
 
 (def %dc-bad-char
@@ -627,7 +639,7 @@
   (fn (_) (do (%dc-need 2) (pair (%dc-num! (first (rest (%dg 0)))) (%dc-num! (first (%dg 0)))))))
 
 ; the top N items replaced by IT
-(def %dc-replace! (fn (_ n it) (%dg! 0 (pair it (%cu-nthrest n (%dg 0))))))
+(def %dc-replace! (fn (_ n it) (%dg! 0 (pair it (cu-nthrest n (%dg 0))))))
 
 (def %dc-binop!
   (fn (_ f)
@@ -814,7 +826,7 @@
 
 (def %dc-stdin
   (fn (_)
-    (if (null? (%dg 12)) (%dg! 12 (%dcl-make "" (%dc-more (%cu-pieces "-" %dc-stdin-thunk)))) ())
+    (if (null? (%dg 12)) (%dg! 12 (%dcl-make "" (%dc-more (cu-pieces "-" %dc-stdin-thunk)))) ())
     (%dg 12)))
 
 (def %dc-stdin-thunk ())
@@ -822,7 +834,7 @@
 ; a thunk for SRC's pieces as text, nil at the end
 (def %dc-more
   (fn (_ src)
-    (fn (_) (let ((p (src))) (if (if (Err err? p) #t (= (rest p) 0)) () (%cu-run-text p))))))
+    (fn (_) (let ((p (src))) (if (if (Err err? p) #t (= (rest p) 0)) () (cu-run-text p))))))
 
 ; --- the applet ----------------------------------------------------------------------
 
@@ -835,13 +847,13 @@
         (let ((r (%dcp-parse src tok)))
           (do (if (null? (first r)) () (%dc-run (first r)))
               (%dc-flush!)
-              (%cu-sweep-tick! %cu-sweep-lines)
+              (cu-sweep-tick! cu-sweep-lines)
               (go (rest r))))))))
 
 ; FILE's commands run, its name and line before an error's words
 (def %dc-file
   (fn (_ file)
-    (let ((p (%cu-pieces file ())))
+    (let ((p (cu-pieces file ())))
       (if (Err err? p) (%dc-die (string-concat (list "can't open '" file "': " (file-err-text p))))
         (do (%dg! 10 file) (%dc-process (%dcl-make "" (%dc-more p))) (p (lit close)) (%dg! 10 ()))))))
 
@@ -850,7 +862,7 @@
   (fn (_)
     (let ((e (sys-getenv "DC_LINE_LENGTH")))
       (if (null? e) 70
-        (let ((n (if (%si-digits? e) (%cu-num-prefix e) ())))
+        (let ((n (if (si-digits? e) (cu-num-prefix e) ())))
           (match ((null? n) 70) ((= n 0) 2147483647) ((< n 2) 70) (#t n)))))))
 
 ; the -e and -f options in the order given, as getopt meets them: (FLAG . VALUE)
@@ -874,19 +886,19 @@
           (%dc-cluster again w (+ i 1) more))))))
 
 ; dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...
-(def %cu-dc
+(def cu-dc
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "dc" argv))
+    (def o (cu-opts "dc" argv))
     (do (set! %dc (vec-build 13 (fn (_ i) (match ((= i 3) 0) ((= i 4) 10) ((= i 5) 10) ((= i 6) 0) ((= i 7) (%dc-line-len))
                                                 ((= i 8) (Opts on? o "-x")) ((= i 9) 1) ((= i 11) 1) (#t ())))))
         (set! %dc-out ())
         (set! %dc-stdin-thunk stdin-thunk)
         (guard (e (do (%dc-flush!)
                       (match
-                        ((eq? (%cu-err-label e) (lit dc-quit)) 0)
-                        ((eq? (%cu-err-label e) (lit dc))
+                        ((eq? (cu-err-label e) (lit dc-quit)) 0)
+                        ((eq? (cu-err-label e) (lit dc))
                           (do (file-write 2 (string-concat (list "dc: " (if (null? (%dg 10)) ""
-                                                                           (string-concat (list (%dg 10) ":" (%cu-int->str (%dg 11)) ": ")))
+                                                                           (string-concat (list (%dg 10) ":" (cu-int->str (%dg 11)) ": ")))
                                                                  (e msg) "\n")))
                               1))
                         (#t (error e)))))
@@ -895,3 +907,5 @@
                 (map %dc-file files)
                 (if (if (null? scripts) (null? files) #f) (%dc-process (%dc-stdin)) ())
                 0))))))
+
+(provide cu/dc cu-dc)

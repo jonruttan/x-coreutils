@@ -29,7 +29,7 @@ directory: a DIR is a chroot, which only root may make.
       (let go ((i (- (rest run) 1)) (acc ()))
         (if (< i 0) acc
           (let ((b (& (byte-at (first run) i) 255)))
-            (go (- i 1) (pair (string-concat (list (substring h (%wget-div b 16) (+ (%wget-div b 16) 1))
+            (go (- i 1) (pair (string-concat (list (substring h (wget-div b 16) (+ (wget-div b 16) 1))
                                                    (substring h (% b 16) (+ (% b 16) 1))
                                                    (if (null? acc) "" " ")))
                               acc))))))))
@@ -51,11 +51,11 @@ directory: a DIR is a chroot, which only root may make.
     (sys-dup2 1 9) (sys-dup2 2 8)
     (def out (file-open-write (td-f "cout")))
     (sys-dup2 out 1) (sys-dup2 out 2)
-    (def st (cu-run (append words (list "127.0.0.1" (%cu-int->str port))) ""))
+    (def st (cu-run (append words (list "127.0.0.1" (cu-int->str port))) ""))
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close out)
     (Sys chdir "/")
     (td-sh "tr '\\r' '\\n' < /tmp/x-cu-td/cout | grep -v -e '% |' -e '^ *$' > /tmp/x-cu-td/cout2")
-    (string-append (file-read-all (td-f "cout2")) (string-concat (list "client status " (%cu-int->str st) "\n")))))
+    (string-append (file-read-all (td-f "cout2")) (string-concat (list "client status " (cu-int->str st) "\n")))))
   (def td-run (fn (_ args pre client)
     (sys-setenv "TD_PRE" pre)
     (td-sh "rm -rf /tmp/x-cu-td; mkdir -p /tmp/x-cu-td/srv /tmp/x-cu-td/cli; cd /tmp/x-cu-td/srv && sh -c \"$TD_PRE\" >/dev/null 2>&1; printf 'client\\n' > /tmp/x-cu-td/cli/c.txt")
@@ -76,7 +76,7 @@ directory: a DIR is a chroot, which only root may make.
     (sys-kill pid 9)
     (def st (sys-wait pid))
     (file-write-all (td-f "out") out)
-    (file-write-all (td-f "st") (%cu-int->str st))
+    (file-write-all (td-f "st") (cu-int->str st))
     (td-sh "cd /tmp/x-cu-td; tree() { (cd \"$1\" && find . | sort | while read f; do if [ -f \"$f\" ]; then echo \"$f: $(cat \"$f\")\"; else echo \"$f/\"; fi; done); }; { cat out; echo \"server status $(cat st)\"; echo 'log:'; cat log; echo '==='; tree srv; echo '--- cli'; tree cli; } > report")
     (display (file-read-all (td-f "report")))))
   (display "made"))
@@ -763,7 +763,7 @@ before it reads an option, -u's user too.
 ### the fixture: a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (def nf (fn (_ n) (string-append "/tmp/x-cu-td/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n")))))))) (display "made"))
+(do (def nf (fn (_ n) (string-append "/tmp/x-cu-td/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
 ```
 ---
     made

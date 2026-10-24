@@ -46,7 +46,7 @@ two
 ### an interval in microseconds: whole, fraction, both, a unit; and what is not one
 
 ```cu
-(display (list (map %cu-sleep-us (list "2" "0.5" ".25" "5." "1.5m" "2h" "1d" "3s" "0.0000019")) (map %cu-sleep-us (list "1x" "" "." "1.2.3" "m" "-1" "1 "))))
+(display (list (map cu-sleep-us (list "2" "0.5" ".25" "5." "1.5m" "2h" "1d" "3s" "0.0000019")) (map cu-sleep-us (list "1x" "" "." "1.2.3" "m" "-1" "1 "))))
 ```
 ---
     ((2000000 500000 250000 5000000 90000000 7200000000 86400000000 3000000 1) (() () () () () () ()))
