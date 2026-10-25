@@ -215,6 +215,7 @@
     (list "popmaildir" (%letters "bdmVcasTktRZLHMF"))
     (list "ntpd" (%letters "nqNxkwpSlId46aAbgL"))
     (list "dumpleases" (list "-a" "-r" "-f" "-d" "--absolute" "--remaining" "--file" "--decimal"))
+    (list "pscan" (%letters "cbpPtT"))
     (list "ssl_client" (%letters "srne"))
     (list "ssl_server" (%letters "vf"))
     (list "tcpsvd" (%letters "hEvcCbul"))
