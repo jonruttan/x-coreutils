@@ -14,6 +14,7 @@
 (module cu/applets)
 
 (import cu/arp cu-arp)
+(import cu/arping cu-arping)
 (import cu/ascii cu-ascii cu-crc32 cu-uuidgen)
 (import cu/base32 cu-base32)
 (import cu/cal cu-cal)
@@ -292,6 +293,7 @@
     (method lsmod (self argv stdin-thunk) (cu-lsmod argv stdin-thunk))
     (method route (self argv stdin-thunk) (cu-route argv stdin-thunk))
     (method arp (self argv stdin-thunk) (cu-arp argv stdin-thunk))
+    (method arping (self argv stdin-thunk) (cu-arping argv stdin-thunk))
     (method netstat (self argv stdin-thunk) (cu-netstat argv stdin-thunk))
     (method ifconfig (self argv stdin-thunk) (cu-ifconfig argv stdin-thunk))
     (method ip (self argv stdin-thunk) (cu-ip argv stdin-thunk))

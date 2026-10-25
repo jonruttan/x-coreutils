@@ -11,6 +11,7 @@
 
 (import cu/applets Applets)
 (import cu/arp ar-ether cu-arp)
+(import cu/arping cu-arping)
 (import cu/ascii cu-ascii cu-crc32 cu-uuidgen)
 (import cu/base32 cu-base32)
 (import cu/cal cal-sum cu-cal)
