@@ -2331,6 +2331,25 @@
             (Opts hidden (Opts flag "-e" ""))
             (Opts hidden (Opts arg "-A" "inet[6]" ""))))
         (lit leading)))
+    (pair "arping"
+      (list
+        (Opts declare "arping" "[-fqbDUA] [-c CNT] [-w TIMEOUT] [-I IFACE] [-s SRC_IP] DST_IP"
+          "Send ARP requests/replies"
+          (append
+            (list
+              (Opts text "\t-f\t\tQuit on first ARP reply")
+              (Opts text "\t-q\t\tQuiet")
+              (Opts text "\t-b\t\tKeep broadcasting, don't go unicast")
+              (Opts text "\t-D\t\tExit with 1 if DST_IP replies")
+              (Opts text "\t-U\t\tUnsolicited ARP mode, update your neighbors")
+              (Opts text "\t-A\t\tARP answer mode, update your neighbors")
+              (Opts text "\t-c N\t\tStop after sending N ARP requests")
+              (Opts text "\t-w TIMEOUT\tSeconds to wait for ARP reply")
+              (Opts text "\t-I IFACE\tInterface to use (default eth0)")
+              (Opts text "\t-s SRC_IP\tSender IP address")
+              (Opts text "\tDST_IP\t\tTarget IP address"))
+            (%cu-hidden-flags (list "-f" "-q" "-b" "-D" "-U" "-A"))
+            (%cu-hidden-args (list "-c" "-w" "-I" "-s"))))))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list

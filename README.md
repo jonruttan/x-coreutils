@@ -22,26 +22,26 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
-`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute` and `traceroute6`.**
+`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute`, `traceroute6` and `arping`.**
 
-    arch arp ascii base32 base64 basename cal cat chgrp chmod chown chroot
-    cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
-    dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand
-    expr factor fakeidentd false find flock fold free fsync ftpd ftpget
-    ftpput fuser getopt groups gunzip gzip hd head hexdump hostid hostname
-    httpd id ifconfig inetd install iostat ip ipaddr ipcalc iplink ipneigh
-    iproute iprule iptunnel join kill killall link ln logname ls lsmod
-    lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp more
-    mountpoint mpstat mv nc netcat netstat nice nl nmeter nohup nologin
-    nproc nslookup ntpd od paste patch pgrep pidof ping ping6
-    pipe_progress pkill pmap popmaildir printenv printf ps pwd readlink
-    renice reset rev rm rmdir route run-parts sendmail seq setsid sha1sum
-    sha256sum sha384sum sha3sum sha512sum shred shuf sleep sort split
-    ssl_client ssl_server stat strings sum sync sysctl tac tail tar tcpsvd
-    tee telnet telnetd test tftp tftpd time timeout top touch tr traceroute
-    traceroute6 tree true truncate ts tsort tty ttysize udpsvd unexpand uniq
-    unix2dos unlink unzip uname uptime users uudecode uuencode uuidgen usleep
-    vi vmstat w watch wc wget which who whois whoami xargs xxd yes zcat [ [[
+    arch arp arping ascii base32 base64 basename cal cat chgrp chmod chown
+    chroot cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
+    dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand expr
+    factor fakeidentd false find flock fold free fsync ftpd ftpget ftpput
+    fuser getopt groups gunzip gzip hd head hexdump hostid hostname httpd id
+    ifconfig inetd install iostat ip ipaddr ipcalc iplink ipneigh iproute
+    iprule iptunnel join kill killall link ln logname ls lsmod lsof makemime
+    md5sum mesg mkdir mkfifo mknod mkpasswd mktemp more mountpoint mpstat mv
+    nc netcat netstat nice nl nmeter nohup nologin nproc nslookup ntpd od
+    paste patch pgrep pidof ping ping6 pipe_progress pkill pmap popmaildir
+    printenv printf ps pwd readlink renice reset rev rm rmdir route run-parts
+    sendmail seq setsid sha1sum sha256sum sha384sum sha3sum sha512sum shred
+    shuf sleep sort split ssl_client ssl_server stat strings sum sync sysctl
+    tac tail tar tcpsvd tee telnet telnetd test tftp tftpd time timeout top
+    touch tr traceroute traceroute6 tree true truncate ts tsort tty ttysize
+    udpsvd unexpand uniq unix2dos unlink unzip uname uptime users uudecode
+    uuencode uuidgen usleep vi vmstat w watch wc wget which who whois whoami
+    xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -166,7 +166,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping` and `traceroute` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute` and `arping` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -262,6 +262,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/lsmod.x        lsmod: the kernel's loaded modules, from /proc/modules
     cu/route.x        route: the routing tables shown, and routes added and deleted through the kernel's ioctls
     cu/arp.x          arp: the ARP cache shown, and entries set and deleted through the kernel's ioctls
+    cu/arping.x       arping: ARP requests over a packet socket, the replies timed
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls
     cu/ip.x           the links and their addresses shown, and the netlink calls the ip verbs share
