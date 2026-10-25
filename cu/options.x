@@ -1444,6 +1444,20 @@
             (Opts hidden (Opts flag "-r" "--remaining" ""))
             (Opts hidden (Opts arg "-f" "--file" "FILE" ""))
             (Opts hidden (Opts flag "-d" "--decimal" ""))))))
+    (pair "pscan"
+      (list
+        (Opts declare "pscan" "[-cb] [-p MIN_PORT] [-P MAX_PORT] [-t TIMEOUT] [-T MIN_RTT] HOST"
+          "Scan HOST, print all open ports"
+          (append
+            (list
+              (Opts text "\t-c\tShow closed ports too")
+              (Opts text "\t-b\tShow blocked ports too")
+              (Opts text "\t-p PORT\tScan from this port (default 1)")
+              (Opts text "\t-P PORT\tScan up to this port (default 1024)")
+              (Opts text "\t-t MS\tTimeout (default 5000 ms)")
+              (Opts text "\t-T MS\tMinimum rtt (default 5 ms)"))
+            (%cu-hidden-flags (list "-c" "-b"))
+            (%cu-hidden-args (list "-p" "-P" "-t" "-T"))))))
     (pair "ntpd"
       (list
         (Opts declare "ntpd" "[-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]..."

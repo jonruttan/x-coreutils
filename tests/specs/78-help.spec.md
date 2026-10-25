@@ -2419,6 +2419,27 @@ stderr:
 status 0
 ```
 
+### pscan
+
+```cu
+(run (list "pscan" "--help") "")
+```
+---
+```output
+Usage: pscan [-cb] [-p MIN_PORT] [-P MAX_PORT] [-t TIMEOUT] [-T MIN_RTT] HOST|
+|
+Scan HOST, print all open ports|
+|
+	-c	Show closed ports too|
+	-b	Show blocked ports too|
+	-p PORT	Scan from this port (default 1)|
+	-P PORT	Scan up to this port (default 1024)|
+	-t MS	Timeout (default 5000 ms)|
+	-T MS	Minimum rtt (default 5 ms)|
+stderr:
+status 0
+```
+
 ### netcat
 
 ```cu
