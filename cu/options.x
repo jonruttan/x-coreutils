@@ -30,7 +30,7 @@
 ; them spellable.
 (module cu/options)
 
-(import cu/prims append length map reverse string=? substring)
+(import cu/prims append length map reverse string-append string=? substring)
 
 ; -u, -b (UDP's broadcasts) and -s are not here: refused, rather than read as
 ; TCP or as no address at all.  -e is split off before the parse.
@@ -82,6 +82,39 @@
           (%cu-hidden-flags (list "-4" "-6" "-A" "-q" "-v" "-n"))
           (%cu-hidden-args (list "-c" "-s" "-i" "-t" "-I" "-W" "-w" "-p"))))
       (lit families))))
+
+; traceroute's row, under NAME: traceroute6's help leaves out -4,-6, -F and -l
+(def %cu-traceroute-row
+  (fn (_ name)
+    (def six? (string=? name "traceroute6"))
+    (list
+      (Opts declare name
+        (string-append (if six? "[-Inrv]" "[-46IFlnrv]")
+          " [-f 1ST_TTL] [-m MAXTTL] [-q PROBES] [-p PORT]\n\t[-t TOS] [-w WAIT_SEC] [-s SRC_IP] [-i IFACE]\n\t[-z PAUSE_MSEC] HOST [BYTES]")
+        "Trace the route to HOST"
+        (append
+          (if six? () (list (Opts text "\t-4,-6\tForce IP or IPv6 name resolution")
+                            (Opts text "\t-F\tSet don't fragment bit")))
+          (list (Opts text "\t-I\tUse ICMP ECHO instead of UDP datagrams"))
+          (if six? () (list (Opts text "\t-l\tDisplay TTL value of the returned packet")))
+          (list
+            (Opts text "\t-n\tPrint numeric addresses")
+            (Opts text "\t-r\tBypass routing tables, send directly to HOST")
+            (Opts text "\t-v\tVerbose")
+            (Opts text "\t-f N\tFirst number of hops (default 1)")
+            (Opts text "\t-m N\tMax number of hops")
+            (Opts text "\t-q N\tNumber of probes per hop (default 3)")
+            (Opts text "\t-p N\tBase UDP port number used in probes")
+            (Opts text "\t\t(default 33434)")
+            (Opts text "\t-s IP\tSource address")
+            (Opts text "\t-i IFACE Source interface")
+            (Opts text "\t-t N\tType-of-service in probe packets (default 0)")
+            (Opts text "\t-w SEC\tWait for a response (default 3)")
+            (Opts text "\t-z MSEC\tWait before each send"))
+          (%cu-hidden-flags (list "-4" "-6" "-F" "-I" "-l" "-n" "-r" "-d" "-v"))
+          (%cu-hidden-args (list "-t" "-i" "-m" "-p" "-q" "-s" "-w" "-z" "-f"))))
+      (lit families))))
+
 
 ; nc's row, under NAME: netcat is the same applet, its usage text nc's
 (def %cu-nc-row
@@ -2517,6 +2550,9 @@
     ; ping6 is ping -6: its help leaves out -4,-6 and -t, its parse takes them
     (pair "ping" (%cu-ping-row "ping"))
     (pair "ping6" (%cu-ping-row "ping6"))
+    ; traceroute6 is traceroute -6: its help leaves out -4,-6, -F and -l, its parse takes them
+    (pair "traceroute" (%cu-traceroute-row "traceroute"))
+    (pair "traceroute6" (%cu-traceroute-row "traceroute6"))
     (pair "pmap"
       (list
         (Opts declare "pmap" "[-xq] PID..."

@@ -27,7 +27,7 @@ the work.  Applet parity is the other axis: see the README.
 | `cmp` | -l -s -n | -l -s -n |  | 100% |
 | `comm` | -1 -2 -3 | -1 -2 -3 |  | 100% |
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -R -r -L -H -p -f -i -l -s -T -u -P |  | 100% |
-| `cpio` | -t -i -o -p -H -d -m -v -u -F -R -L -0 --ignore-devno --renumber-inodes | -t -i -o -p -H -d -m -v -u -F -R -L -0 --extract --list --create --format --pass-through --owner --file --verbose --null --quiet --to-stdout --ignore-devno --renumber-inodes |  | 100% |
+| `cpio` | -t -i -o -p -H -d -m -v -u -F -R -L -0 --ignore-devno --renumber-inodes | -t -i -o -p -d -m -v -u -L -0 --extract --list --create --pass-through --verbose --null --quiet --to-stdout --ignore-devno --renumber-inodes -H -F -R --format --owner --file |  | 100% |
 | `crc32` |  |  |  | - |
 | `cryptpw` | -P -m -S | -s --stdin -P -m -a -S --password-fd --salt --method |  | 100% |
 | `cut` | -b -c -f -d -s -n | -s -n -b -c -d -f |  | 100% |
@@ -41,9 +41,9 @@ the work.  Applet parity is the other axis: see the README.
 | `dnsdomainname` |  | -s -i -d -f -v --domain --fqdn -F --file |  | - |
 | `dos2unix` | -u -d | -u -d |  | 100% |
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -a -L -H -c -l -s -x -h -m -k -P -d |  | 100% |
-| `dumpleases` | -a -r -f -d --absolute --remaining --file --decimal | -a -r -f -d --absolute --remaining --file --decimal |  | 100% |
-| `ed` | -p -s | -p -s |  | 100% |
+| `dumpleases` | -a -r -f -d --absolute --remaining --file --decimal | -a --absolute -r --remaining -d --decimal -f --file |  | 100% |
 | `echo` | -n -e -E | -n -e -E |  | 100% |
+| `ed` | -p -s | -s -p |  | 100% |
 | `env` | -i -u -0 | -0 -i -u |  | 100% |
 | `expand` | -i -t | -i -t |  | 100% |
 | `expr` |  |  |  | - |
@@ -68,7 +68,7 @@ the work.  Applet parity is the other axis: see the README.
 | `hexdump` | -b -c -d -o -x -C -e -f -n -s -v | -b -c -d -o -x -C -v -e -n -s -f |  | 100% |
 | `hostid` |  |  |  | - |
 | `hostname` | -s -i -d -f -F | -s -i -d -f -v --domain --fqdn -F --file |  | 100% |
-| `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -r -h -c -e -d | -m -u | 84% |
+| `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -u -r -h -c -m -e -d |  | 100% |
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
 | `ifconfig` |  |  |  | - |
 | `inetd` | -f -e -q -R | -f -e -q -R |  | 100% |
@@ -82,8 +82,8 @@ the work.  Applet parity is the other axis: see the README.
 | `iproute` |  |  |  | - |
 | `iprule` |  |  |  | - |
 | `iptunnel` |  |  |  | - |
-| `kill` | -l -s | -l -s |  | 100% |
 | `join` | _not a busybox applet_ | -t | | - |
+| `kill` | -l -s | -l -s |  | 100% |
 | `killall` | -l -q -s | -l -q -s |  | 100% |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
@@ -116,13 +116,13 @@ the work.  Applet parity is the other axis: see the README.
 | `ntpd` | -n -q -N -x -k -w -p -S -l -I -d -4 -6 -a -A -b -g -L | -n -q -N -x -w -l -d -4 -6 -a -A -b -g -L -k -p -S -I |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
 | `paste` | -d -s | -s -d |  | 100% |
-| `patch` | -p -i -R -N -E --dry-run | -R -u -p -i -N -E -f -g --reverse --unified --strip --input --forward --remove-empty-files --force --get --dry-run --backup-if-mismatch --no-backup-if-mismatch |  | 100% |
+| `patch` | -p -i -R -N -E --dry-run | -R -u -N -E -f --reverse --unified --forward --remove-empty-files --force --dry-run --backup-if-mismatch --no-backup-if-mismatch -p -i -g --strip --input --get |  | 100% |
 | `pgrep` | -l -a -f -n -o -v -x -s -P | -l -a -f -n -o -v -x -e -s -P |  | 100% |
 | `pidof` | -s -o | -s -o |  | 100% |
-| `pipe_progress` |  |  |  | - |
-| `pkill` | -l -x -f -s -P -v -n -o -e | -l -x -f -v -n -o -e -a -s -P |  | 100% |
 | `ping` | -q -v -A -c -s -t -w -W -I -n -p -i -4 -6 | -4 -6 -A -q -v -n -c -s -i -t -I -W -w -p |  | 100% |
 | `ping6` | -q -v -A -c -s -t -w -W -I -n -p -i -4 -6 | -4 -6 -A -q -v -n -c -s -i -t -I -W -w -p |  | 100% |
+| `pipe_progress` |  |  |  | - |
+| `pkill` | -l -x -f -s -P -v -n -o -e | -l -x -f -v -n -o -e -a -s -P |  | 100% |
 | `pmap` | -x -q | -x -q |  | 100% |
 | `popmaildir` | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F |  | 100% |
 | `printenv` |  |  |  | - |
@@ -153,7 +153,7 @@ the work.  Applet parity is the other axis: see the README.
 | `sleep` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -c -b -f -i -d -n -g -M -r -s -u -z -o -t -k |  | 100% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
-| `ssl_client` | -s -r -n -e | -s -r -n -e |  | 100% |
+| `ssl_client` | -s -r -n -e | -e -s -r -n |  | 100% |
 | `ssl_server` | -v -f | -v -f |  | 100% |
 | `stat` | -L -f -t -c | -f -L -t -c |  | 100% |
 | `strings` | -a -f -o -n -t | -f -o -a -t -n |  | 100% |
@@ -175,6 +175,8 @@ the work.  Applet parity is the other axis: see the README.
 | `top` | -b -n -d -m -H | -b -m -H -n -d |  | 100% |
 | `touch` | -c -d -t -r | -c -d -t -r |  | 100% |
 | `tr` | -c -d -s | -c -d -s |  | 100% |
+| `traceroute` | -F -I -l -n -r -d -v -t -i -m -p -q -s -w -z -f -4 -6 | -4 -6 -F -I -l -n -r -d -v -t -i -m -p -q -s -w -z -f |  | 100% |
+| `traceroute6` | -F -I -l -n -r -d -v -t -i -m -p -q -s -w -z -f -4 -6 | -4 -6 -F -I -l -n -r -d -v -t -i -m -p -q -s -w -z -f |  | 100% |
 | `tree` |  |  |  | - |
 | `true` |  |  |  | - |
 | `truncate` | -c -s | -c -s |  | 100% |
@@ -210,4 +212,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 903 of 919 busybox options accepted (98%).**
+**Total: 941 of 955 busybox options accepted (98%).**

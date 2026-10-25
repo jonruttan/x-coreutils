@@ -118,6 +118,8 @@
     (list "pkill" (%letters "lxfsPvnoe"))
     (list "ping" (%letters "qvAcstwWInpi46"))
     (list "ping6" (%letters "qvAcstwWInpi46"))
+    (list "traceroute" (%letters "FIlnrdvtimpqswzf46"))
+    (list "traceroute6" (%letters "FIlnrdvtimpqswzf46"))
     (list "pmap" (%letters "xq"))
     (list "kill" (%letters "ls"))
     (list "printf" ())
