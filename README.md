@@ -35,14 +35,13 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     nameif nc netcat netstat nice nl nmeter nohup nologin nproc nslookup ntpd
     od paste patch pgrep pidof ping ping6 pipe_progress pkill pmap popmaildir
     printenv printf ps pscan pwd readlink renice reset rev rm rmdir route
-    run-parts
-    sendmail seq setsid sha1sum sha256sum sha384sum sha3sum sha512sum shred
-    shuf sleep sort split ssl_client ssl_server stat strings sum sync sysctl
-    tac tail tar tcpsvd tee telnet telnetd test tftp tftpd time timeout top
-    touch tr traceroute traceroute6 tree true truncate ts tsort tty ttysize
-    udpsvd unexpand uniq unix2dos unlink unzip uname uptime users uudecode
-    uuencode uuidgen usleep vconfig vi vmstat w watch wc wget which who whois
-    whoami xargs xxd yes zcat [ [[
+    run-parts sendmail seq setsid sha1sum sha256sum sha384sum sha3sum
+    sha512sum shred shuf sleep sort split ssl_client ssl_server stat strings
+    sum sync sysctl tac tail tar tcpsvd tee telnet telnetd test tftp tftpd
+    time timeout top touch tr traceroute traceroute6 tree true truncate ts
+    tsort tty ttysize udpsvd unexpand uniq unix2dos unlink unzip uname uptime
+    users uudecode uuencode uuidgen usleep vconfig vi vmstat w watch wc wget
+    which who whois whoami xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and

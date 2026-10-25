@@ -70,10 +70,10 @@
 (import cu/ping cu-ping cu-ping6)
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
-(import cu/pscan cu-pscan)
 (import cu/prims filter map)
 (import cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
   cu-pkill cu-ps cu-pwdx cu-uptime)
+(import cu/pscan cu-pscan)
 (import cu/route cu-route)
 (import cu/runparts cu-run-parts)
 (import cu/sendmail cu-sendmail)
