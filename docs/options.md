@@ -187,6 +187,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tsort` |  |  |  | - |
 | `tty` | -s | -s |  | 100% |
 | `ttysize` |  |  |  | - |
+| `tunctl` | -f -t -d -u -g -b | -b -f -t -d -u -g |  | 100% |
 | `udpsvd` | -h -E -v -c -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -m -n -r -s -p -v -i -o |  | 100% |
 | `unexpand` | -f -a -t | -a -f -t |  | 100% |
@@ -216,4 +217,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 959 of 973 busybox options accepted (98%).**
+**Total: 965 of 979 busybox options accepted (98%).**

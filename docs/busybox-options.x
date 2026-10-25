@@ -25,6 +25,7 @@
     (list "arping" (%letters "fqbDUAcwIs"))
     (list "nameif" (%letters "sc"))
     (list "vconfig" ())
+    (list "tunctl" (%letters "ftdugb"))
     (list "ascii" ())
     (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))
