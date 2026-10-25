@@ -70,6 +70,7 @@
 (import cu/ping cu-ping cu-ping6)
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
+(import cu/pscan cu-pscan)
 (import cu/prims filter map)
 (import cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
   cu-pkill cu-ps cu-pwdx cu-uptime)
@@ -317,6 +318,7 @@
     (method ping6 (self argv stdin-thunk) (cu-ping6 argv stdin-thunk))
     (method traceroute (self argv stdin-thunk) (cu-traceroute argv stdin-thunk))
     (method traceroute6 (self argv stdin-thunk) (cu-traceroute6 argv stdin-thunk))
+    (method pscan (self argv stdin-thunk) (cu-pscan argv stdin-thunk))
     (method pmap (self argv stdin-thunk) (cu-pmap argv stdin-thunk))
     (method watch (self argv stdin-thunk) (cu-watch argv stdin-thunk))
     (method fuser (self argv stdin-thunk) (cu-fuser argv stdin-thunk))

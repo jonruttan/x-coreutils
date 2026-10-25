@@ -6665,6 +6665,50 @@ Usage: ssl_server -f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server
 status 1
 ```
 
+### pscan -~
+
+```cu
+(run (list "pscan" "-~") "")
+```
+---
+```output
+stderr:
+pscan: unrecognized option: ~
+Usage: pscan [-cb] [-p MIN_PORT] [-P MAX_PORT] [-t TIMEOUT] [-T MIN_RTT] HOST
+
+Scan HOST, print all open ports
+
+	-c	Show closed ports too
+	-b	Show blocked ports too
+	-p PORT	Scan from this port (default 1)
+	-P PORT	Scan up to this port (default 1024)
+	-t MS	Timeout (default 5000 ms)
+	-T MS	Minimum rtt (default 5 ms)
+status 1
+```
+
+### pscan --nope
+
+```cu
+(run (list "pscan" "--nope") "")
+```
+---
+```output
+stderr:
+pscan: unrecognized option: nope
+Usage: pscan [-cb] [-p MIN_PORT] [-P MAX_PORT] [-t TIMEOUT] [-T MIN_RTT] HOST
+
+Scan HOST, print all open ports
+
+	-c	Show closed ports too
+	-b	Show blocked ports too
+	-p PORT	Scan from this port (default 1)
+	-P PORT	Scan up to this port (default 1024)
+	-t MS	Timeout (default 5000 ms)
+	-T MS	Minimum rtt (default 5 ms)
+status 1
+```
+
 ### httpd -c
 
 ```cu
