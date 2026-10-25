@@ -109,7 +109,6 @@
   pn-resolve pn-setopt pn-sol-socket pn-sum)
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
-(import cu/pscan cu-pscan)
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
   byte-len cal/ char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
   cu-dirname-of cu-dlopen cu-dlsym cu-dot? cu-err-label cu-fd-fields
@@ -157,6 +156,7 @@
   cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head ps-args
   ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o ps-printable
   ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)
+(import cu/pscan cu-pscan)
 (import cu/route cu-route rt-show4)
 (import cu/runparts cu-run-parts)
 (import cu/sendmail cu-sendmail sm-atoi sm-helper-check sm-helper-pid!
@@ -215,6 +215,7 @@
 (import cu/tree cu-tree)
 (import cu/tsort cu-tsort ts-space?)
 (import cu/unzip cu-unzip)
+(import cu/vconfig cu-vconfig)
 (import cu/vi cu-vi vi% vi& vi+ vi- vi-bsub vi-bundle-version vi-dim vi-in?
   vi-init-g! vi-init-text-buffer! vi-key-down vi-key-end vi-key-home
   vi-key-page-down vi-key-page-up vi-key-up vi-max vi-min vi-num-from

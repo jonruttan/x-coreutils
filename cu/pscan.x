@@ -23,10 +23,10 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-service inet-set! inet-zeros)
 (import cu/inetd in-c in-call)
-(import cu/ping pn-be16! pn-div pn-family pn-now pn-number pn-resolve pn-setopt
-  pn-sol-socket)
+(import cu/ping pn-be16! pn-div pn-family pn-now pn-number pn-resolve
+  pn-setopt pn-sol-socket)
 (import cu/prims cu-err-label cu-int->str cu-ptr-call cu-ptr-ref cu-str->ptr
-  file-write libc-strerror string-append string-concat sys-usleep)
+  file-write length libc-strerror string-append string-concat sys-usleep)
 (import cu/text cu-pad-left)
 
 (def %ps-die

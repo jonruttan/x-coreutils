@@ -2374,6 +2374,17 @@
               (Opts text "\t-s\tLog to syslog"))
             (%cu-hidden-flags (list "-s"))
             (%cu-hidden-args (list "-c"))))))
+    (pair "vconfig"
+      (list
+        (Opts declare "vconfig" "COMMAND [OPTIONS]"
+          "Create and remove virtual ethernet devices"
+          (list
+            (Opts text "\tadd IFACE VLAN_ID")
+            (Opts text "\trem VLAN_NAME")
+            (Opts text "\tset_flag IFACE 0|1 VLAN_QOS")
+            (Opts text "\tset_egress_map VLAN_NAME SKB_PRIO VLAN_QOS")
+            (Opts text "\tset_ingress_map VLAN_NAME SKB_PRIO VLAN_QOS")
+            (Opts text "\tset_name_type NAME_TYPE")))))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list
