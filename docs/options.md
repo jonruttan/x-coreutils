@@ -199,6 +199,7 @@ the work.  Applet parity is the other axis: see the README.
 | `uudecode` | -o | -o |  | 100% |
 | `uuencode` | -m | -m |  | 100% |
 | `uuidgen` | -r | -r |  | 100% |
+| `vconfig` |  |  |  | - |
 | `vi` | -c -R -H | -R -H -h -c |  | 100% |
 | `vmstat` | -n | -n |  | 100% |
 | `w` |  |  |  | - |
