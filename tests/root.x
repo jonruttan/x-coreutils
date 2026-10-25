@@ -89,6 +89,7 @@
   mm-source!)
 (import cu/more cu-clear cu-more cu-reset more-typed)
 (import cu/mpstat cu-mpstat)
+(import cu/nameif cu-nameif)
 (import cu/nc cu-nc cu-netcat nc-count)
 (import cu/net cu-dial cu-dial-host cu-wget cu-whois ftp-code ftp-connect
   ftp-data-port ftp-fd ftp-final? ftp-line ftp-open! ftp-reply ftp-send

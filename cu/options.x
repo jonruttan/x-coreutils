@@ -2350,6 +2350,16 @@
               (Opts text "\tDST_IP\t\tTarget IP address"))
             (%cu-hidden-flags (list "-f" "-q" "-b" "-D" "-U" "-A"))
             (%cu-hidden-args (list "-c" "-w" "-I" "-s"))))))
+    (pair "nameif"
+      (list
+        (Opts declare "nameif" "[-s] [-c FILE] [IFNAME SELECTOR]..."
+          "Rename network interface while it in the down state.\nThe device matched by SELECTOR is renamed to IFNAME.\nSELECTOR can be a combination of:\n\tdriver=STRING\n\tbus=STRING\n\tphy_address=NUM\n\t[mac=]XX:XX:XX:XX:XX:XX"
+          (append
+            (list
+              (Opts text "\t-c FILE\tConfiguration file (default: /etc/mactab)")
+              (Opts text "\t-s\tLog to syslog"))
+            (%cu-hidden-flags (list "-s"))
+            (%cu-hidden-args (list "-c"))))))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list
