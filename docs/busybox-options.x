@@ -23,6 +23,7 @@
     (list "arch" ())
     (list "arp" (%letters "adsvniDApH"))
     (list "arping" (%letters "fqbDUAcwIs"))
+    (list "nameif" (%letters "sc"))
     (list "ascii" ())
     (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))
