@@ -27,6 +27,7 @@
     (list "vconfig" ())
     (list "tunctl" (%letters "ftdugb"))
     (list "taskset" (%letters "pac"))
+    (list "nsenter" (append (%letters "tmuinpUSGrwF") (list "--preserve-credentials")))
     (list "brctl" ())
     (list "ascii" ())
     (list "base32" (%letters "diw"))
