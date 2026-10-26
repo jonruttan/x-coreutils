@@ -151,6 +151,7 @@ the work.  Applet parity is the other axis: see the README.
 | `run-parts` | -a -u --reverse --test --exit-on-error --list | --reverse --test --exit-on-error --list -a -u --arg --umask |  | 100% |
 | `sendmail` | -t -f -o -i -w -H -S -a -v | -t -i -v -f -o -w -H -S -a |  | 100% |
 | `seq` | -w -s | -w -s |  | 100% |
+| `setpriv` | -d --dump --nnp --no-new-privs --inh-caps --ambient-caps | -d --dump --nnp --no-new-privs --inh-caps --ambient-caps |  | 100% |
 | `setsid` | -c | -c |  | 100% |
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
@@ -224,4 +225,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 984 of 999 busybox options accepted (98%).**
+**Total: 990 of 1005 busybox options accepted (98%).**

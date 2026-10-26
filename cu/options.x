@@ -1733,6 +1733,19 @@
           (list
             (Opts flag "-c" "Set controlling terminal to stdin")))
         (lit leading)))
+    (pair "setpriv"
+      (list
+        (Opts declare "setpriv" "[OPTIONS] PROG ARGS"
+          "Run PROG with different privilege settings"
+          (append
+            (list
+              (Opts text "-d,--dump\t\tShow current capabilities")
+              (Opts text "--nnp,--no-new-privs\tIgnore setuid/setgid bits and file capabilities")
+              (Opts text "--inh-caps CAP,CAP\tSet inheritable capabilities")
+              (Opts text "--ambient-caps CAP,CAP\tSet ambient capabilities"))
+            (%cu-hidden-flags (list "-d" "--dump" "--nnp" "--no-new-privs"))
+            (%cu-hidden-args (list "--inh-caps" "--ambient-caps"))))
+        (lit prefixes)))
     (pair "ttysize"
       (list
         (Opts declare "ttysize" "[w] [h]"
