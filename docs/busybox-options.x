@@ -87,6 +87,7 @@
     (list "iprule" ())
     (list "iptunnel" ())
     (list "install" (%letters "cdDspogmt"))
+    (list "ionice" (%letters "ncpt"))
     (list "iostat" (%letters "cdtzkm"))
     (list "killall" (%letters "lqs"))
     (list "link" ())

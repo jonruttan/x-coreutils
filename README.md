@@ -17,7 +17,7 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `pscan`, `ipcalc`,
 `ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
-`kill`, `killall`, `pwdx`, `pmap`, `top`, `lsof` and `fuser`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`kill`, `killall`, `pwdx`, `pmap`, `top`, `lsof`, `fuser` and `ionice`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
@@ -29,19 +29,19 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     diff dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand
     expr factor fakeidentd false find flock fold free fsync ftpd ftpget ftpput
     fuser getopt groups gunzip gzip hd head hexdump hostid hostname httpd id
-    ifconfig inetd install iostat ip ipaddr ipcalc iplink ipneigh iproute
-    iprule iptunnel join kill killall link ln logname ls lsmod lsof makemime
-    md5sum mesg mkdir mkfifo mknod mkpasswd mktemp more mountpoint mpstat mv
-    nameif nc netcat netstat nice nl nmeter nohup nologin nproc nslookup ntpd
-    od paste patch pgrep pidof ping ping6 pipe_progress pkill pmap popmaildir
-    printenv printf ps pscan pwd readlink renice reset rev rm rmdir route
-    run-parts sendmail seq setsid sha1sum sha256sum sha384sum sha3sum
-    sha512sum shred shuf sleep sort split ssl_client ssl_server stat strings
-    sum sync sysctl tac tail tar tcpsvd tee telnet telnetd test tftp tftpd
-    time timeout top touch tr traceroute traceroute6 tree true truncate ts
-    tsort tty ttysize tunctl udpsvd unexpand uniq unix2dos unlink unzip uname
-    uptime users uudecode uuencode uuidgen usleep vconfig vi vmstat w watch wc
-    wget which who whois whoami xargs xxd yes zcat [ [[
+    ifconfig inetd ionice install iostat ip ipaddr ipcalc iplink ipneigh
+    iproute iprule iptunnel join kill killall link ln logname ls lsmod lsof
+    makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp more mountpoint
+    mpstat mv nameif nc netcat netstat nice nl nmeter nohup nologin nproc
+    nslookup ntpd od paste patch pgrep pidof ping ping6 pipe_progress pkill
+    pmap popmaildir printenv printf ps pscan pwd readlink renice reset rev rm
+    rmdir route run-parts sendmail seq setsid sha1sum sha256sum sha384sum
+    sha3sum sha512sum shred shuf sleep sort split ssl_client ssl_server stat
+    strings sum sync sysctl tac tail tar tcpsvd tee telnet telnetd test tftp
+    tftpd time timeout top touch tr traceroute traceroute6 tree true truncate
+    ts tsort tty ttysize tunctl udpsvd unexpand uniq unix2dos unlink unzip
+    uname uptime users uudecode uuencode uuidgen usleep vconfig vi vmstat w
+    watch wc wget which who whois whoami xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -166,7 +166,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl` and `brctl` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice` and `brctl` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -267,6 +267,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/nameif.x       nameif: interfaces renamed to the entry their address, driver, bus or phyaddr matches
     cu/vconfig.x      vconfig: 802.1Q VLAN interfaces made, removed and set through SIOCSIFVLAN
     cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
+    cu/ionice.x       ionice: a process's I/O class and priority asked and set through ioprio_get and ioprio_set
     cu/brctl.x        brctl: bridges made and joined through the SIOCBR ioctls, set and shown through /sys/class/net
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls
