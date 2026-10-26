@@ -1,11 +1,12 @@
 # @weight 2
 
 busybox's pstree (procps/pstree.c) over trees of processes made here: a
-process becomes /bin/sleep once each child it forked shows the program it
-became, so a tree is whole when its top is a sleep.  Each case draws one
-tree by its top's id; the table's other processes are this host's and are
-not drawn.  Threads, users and busybox's own drawing of the same trees are
-tested as root in the Linux leg.
+shell starts each tree's children in the background and becomes the
+tree's top with exec, and the cases wait until every process in the tree
+shows the program it became.  Each case draws one tree by its top's id;
+the table's other processes are this host's and are not drawn.  Threads,
+users and busybox's own drawing of the same trees are tested as root in
+the Linux leg.
 
 ## the fixture
 
@@ -22,26 +23,27 @@ tested as root in the Linux leg.
                 (display (string-concat (list (file-read-all (pt-f "out")) "stderr:\n"
                                               (file-read-all (pt-f "err")) "status " (cu-int->str st) "\n")))
                 ())))))
-    (def pt-comm (fn (_ pid) (let ((p (host-process pid))) (if (null? p) "" (Assoc get (lit comm) p)))))
-    (def pt-ready? (fn (_ pid) (List includes? (pt-comm pid) (list "sleep" "tail" "s\tl" "s\\l"))))
-    (def pt-wait (fn (self pids n)
-      (if (if (> n 0) (not (List all? pt-ready? pids)) #f) (do (sys-usleep 20000) (self pids (- n 1))) ())))
-    ; a node: (PROGRAM ARGS CHILDREN); its process forks the children, waits
-    ; for them, then becomes the program
-    (def pt-spawn (fn (self node)
-      (let ((pid (sys-fork)))
-        (if (= pid 0)
-          (do (def kids (map (fn (_ k) (self k)) (first (rest (rest node)))))
-              (pt-wait kids 500)
-              (sys-exec (first node) (first (rest node)))
-              (sys-exit 127))
-          pid))))
-    (def pt-leaf (list "/bin/sleep" (list "600") ()))
     (def pt-pids (fn (_ ps ppid)
       (List sort (fn (_ a b) (< a b))
         (map (fn (_ p) (Assoc get (lit pid) p))
              (List filter (fn (_ p) (= (Assoc get (lit ppid) p) ppid)) ps)))))
-    (def pt-top (fn (_ node) (let ((t (pt-spawn node))) (do (pt-wait (list t) 500) t))))
+    (def pt-comm (fn (_ ps pid) (Assoc get (lit comm) (List find (fn (_ p) (= (Assoc get (lit pid) p) pid)) ps))))
+    ; the tree from TOP as names: its own, then each child's, a slash and its children's
+    (def pt-shape (fn (_ ps top)
+      (pair (pt-comm ps top) (map (fn (_ k) (string-concat (pair (pt-comm ps k) (pair "/" (map (fn (_ g) (pt-comm ps g)) (pt-pids ps k))))))
+           (pt-pids ps top)))))
+    (def pt-wait (fn (self top want n)
+      (cu-heap-collect)
+      (if (if (> n 0) (not (equal? (pt-shape (host-processes) top) want)) #f)
+        (do (sys-usleep 200000) (self top want (- n 1)))
+        (equal? (pt-shape (host-processes) top) want))))
+    ; SCRIPT run by a shell with no terminal and no pipe of this file's
+    (def pt-start (fn (_ script)
+      (let ((pid (sys-fork)))
+        (if (= pid 0)
+          (do (sys-exec "/bin/sh" (list "-c" (string-append "exec < /dev/null > /dev/null 2>&1; " script)))
+              (sys-exit 127))
+          pid))))
     (def pt-end (fn (_ top)
       (do (def ps (host-processes))
           (def all (List flat-map (fn (_ k) (pair k (pt-pids ps k))) (pair top (pt-pids ps top))))
@@ -49,20 +51,18 @@ tested as root in the Linux leg.
           (sys-wait top)
           ())))
     (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-pst.d; mkdir /tmp/x-cu-pst.d && cp /bin/sleep '/tmp/x-cu-pst.d/s\tl' && cp /bin/sleep '/tmp/x-cu-pst.d/s\\l'"))
-    (def pt-a (pt-top (list "/bin/sleep" (list "601")
-                (list pt-leaf pt-leaf
-                      (list "/bin/sleep" (list "600") (list pt-leaf))
-                      (list "/bin/sleep" (list "600") (list pt-leaf))
-                      (list "/usr/bin/tail" (list "-f" "/dev/null") ())))))
-    (def pt-b (pt-top (list "/bin/sleep" (list "601")
-                (list (list "/tmp/x-cu-pst.d/s\\l" (list "600") ())
-                      (list "/tmp/x-cu-pst.d/s\tl" (list "600") ())))))
+    (def pt-a (pt-start (string-concat (list
+                "/bin/sleep 600 & /bin/sleep 600 & "
+                "/bin/sh -c '/bin/sleep 600 & exec /bin/sleep 600' & "
+                "/bin/sh -c '/bin/sleep 600 & exec /bin/sleep 600' & "
+                "/usr/bin/tail -f /dev/null & exec /bin/sleep 601"))))
+    (def pt-b (pt-start "'/tmp/x-cu-pst.d/s\\l' 600 & '/tmp/x-cu-pst.d/s\tl' 600 & exec /bin/sleep 601"))
     (sys-unsetenv "COLUMNS")
-    (def ps (host-processes))
-    (display (list (pt-comm pt-a) (List length (pt-pids ps pt-a)) (List length (pt-pids ps pt-b)))))
+    (display (list (pt-wait pt-a (list "sleep" "sleep/" "sleep/" "sleep/sleep" "sleep/sleep" "tail/") 100)
+                   (pt-wait pt-b (list "sleep" "s\\l/" "s\tl/") 100))))
 ```
 ---
-    (sleep 5 2)
+    (#t #t)
 
 ## the tree
 
