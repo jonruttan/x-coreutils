@@ -212,6 +212,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/vi-ex.x        vi's search and : commands, over busybox's addresses
     cu/vi-set.x       vi's options: :set, and what ai et fl ic sm ts do
     cu/vi-undo.x      vi's u and .: the undo stack and the keys . replays
+    cu/vi-syntax.x    vi's syntax option, x's own: rows in their grammar's colours
     cu/more.x         more, the pager, and clear and reset, the terminal tools
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/strings.x      strings: printable runs, found by libc's strspn
