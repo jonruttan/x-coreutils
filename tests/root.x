@@ -65,6 +65,7 @@
 (import cu/inetd cu-inetd in-af in-bind in-c in-call in-count in-dontwait
   in-errtext in-exec in-lines in-now in-percent in-recvfrom in-reuse!
   in-sendto in-sockaddr6 in-strtou in-tokens-max in-zeroed tn-port)
+(import cu/ionice cu-ionice)
 (import cu/iostat cu-iostat io-time io-uname-line)
 (import cu/ip ip-addr-of ip-addr-shown? ip-addr1 ip-align ip-attr ip-attrs
   ip-bytes ip-cstr ip-dev-index ip-die ip-die-usage ip-digit ip-dump
