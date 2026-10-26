@@ -166,6 +166,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tac` |  |  |  | - |
 | `tail` | -c -f -n -q -s -v | -q -v -f -c -n -s |  | 100% |
 | `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -z --gzip -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -J -j --lzma --to-command | 84% |
+| `taskset` | -p -a -c | -p -a -c |  | 100% |
 | `tcpsvd` | -h -E -v -c -C -b -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `tee` | -a -i | -a -i |  | 100% |
 | `telnet` | -a -l | -a -l |  | 100% |
@@ -217,4 +218,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 965 of 979 busybox options accepted (98%).**
+**Total: 968 of 982 busybox options accepted (98%).**
