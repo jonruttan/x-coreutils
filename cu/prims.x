@@ -998,6 +998,46 @@
 (def sys-nice (fn (_ n) (Sys nice n)))
 (def sys-chroot (fn (_ path) (Sys chroot path)))
 
+; CPU affinity, sched_getaffinity's mask in BUF's BYTES for process PID (0 is
+; this one): 0, or the errno the call failed with.  Darwin binds no process to
+; CPUs, so a process's mask there is every CPU online, and setting one stands
+; only when it holds them all: none of them is EINVAL, as Linux answers, and
+; some of them ENOTSUP.  A PID with no process is ESRCH, and one this user
+; may not signal is EPERM to set.
+(def %cu-affinity-call
+  (fn (_ name pid buf bytes)
+    (let ((r (Sys %sign-fold (cu-ptr-call (cu-dlsym (cu-dlopen () 1) name) pid bytes (cu-str->ptr buf)))))
+      (if (< r 0) (Err errno-of r) 0))))
+
+(def %cu-affinity-pid
+  (fn (_ pid)
+    (if (= pid 0) 0
+      (let ((r (Sys %sign-fold (cu-ptr-call (cu-dlsym (cu-dlopen () 1) "kill") pid 0))))
+        (if (< r 0) (Err errno-of r) 0)))))
+
+(def sys-affinity
+  (fn (_ pid buf bytes)
+    (if (not os-darwin?) (%cu-affinity-call "sched_getaffinity" pid buf bytes)
+      (let ((e (%cu-affinity-pid pid)))
+        (if (if (= e 0) #f (not (= e 1))) e
+          (let ((n (sys-cpu-count)))
+            (List map (fn (_ k)
+                        (let ((on (- n (* k 8))))
+                          (cu-ptr-set! (cu-str->ptr buf) k
+                            (match ((<= on 0) 0) ((>= on 8) 255) (#t (- (bit-shl 1 on) 1))) 1)))
+                      (List range 0 bytes))
+            0))))))
+
+(def sys-affinity!
+  (fn (_ pid buf bytes)
+    (if (not os-darwin?) (%cu-affinity-call "sched_setaffinity" pid buf bytes)
+      (let ((e (%cu-affinity-pid pid)))
+        (if (not (= e 0)) e
+          (let ((n (sys-cpu-count)))
+            (def on? (fn (_ c) (if (< c (* bytes 8)) (not (= (bit-and (byte-at buf (bit-shr c 3)) (bit-shl 1 (bit-and c 7))) 0)) #f)))
+            (def set (List length (List filter on? (List range 0 n))))
+            (match ((= set 0) 22) ((= set n) 0) (#t 45))))))))
+
 ; the wide stat WITHOUT following a link: ls -l shows a link as itself
 (def file-lstat-full
   (fn (_ path)
@@ -1460,9 +1500,10 @@
   net-sockaddr net-sockaddr-read net-stdin-socket net-udp-bind net-udp-connect
   net-udp-open proc-run ps-div re-compile re-search reverse rng-int rng-make
   set-first! str-make-raw string-append string-concat string=? substring
-  sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ sys-exec
-  sys-exec-or-err sys-exit sys-fork sys-fsync sys-getcwd sys-getegid
-  sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid sys-getuid
+  sys-affinity sys-affinity! sys-chroot sys-close sys-cpu-count sys-dup2
+  sys-environ sys-exec sys-exec-or-err sys-exit sys-fork sys-fsync
+  sys-getcwd sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups
+  sys-getpid sys-getuid
   sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe sys-poll
   sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms sys-umask
   sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id

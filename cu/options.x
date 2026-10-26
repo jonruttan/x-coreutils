@@ -2426,6 +2426,17 @@
               (Opts text "\t-b\tBrief output"))
             (%cu-hidden-flags (list "-b"))
             (%cu-hidden-args (list "-f" "-t" "-d" "-u" "-g"))))))
+    (pair "taskset"
+      (list
+        (Opts declare "taskset" "[-ap] [HEXMASK | -c LIST] { PID | PROG ARGS }"
+          "Set or get CPU affinity"
+          (append
+            (list
+              (Opts text "\t-p\tOperate on PID")
+              (Opts text "\t-a\tOperate on all threads")
+              (Opts text "\t-c\tAffinity is a list, not mask"))
+            (%cu-hidden-flags (list "-p" "-a" "-c"))))
+        (lit leading)))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list

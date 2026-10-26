@@ -185,6 +185,7 @@
   tar-mkdir tar-mknod tar-printable tar-reader tar-resolve! tar-skip!
   tar-str-bytes tar-verbose-line tar-why tc-block tc-sub-run tm-link tm-mode
   tm-name tm-size)
+(import cu/taskset cu-taskset)
 (import cu/tcpsvd cu-tcpsvd cu-udpsvd)
 (import cu/telnet cu-telnet tn-run tn-str-bytes)
 (import cu/telnetd cu-telnetd td-ptr->int)
