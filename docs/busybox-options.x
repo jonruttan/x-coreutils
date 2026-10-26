@@ -35,6 +35,7 @@
     (list "chgrp" (%letters "RhLHPcvf"))
     (list "chmod" (%letters "Rcvf"))
     (list "chown" (%letters "RhLHPcvf"))
+    (list "chrt" (%letters "mprfobi"))
     (list "chroot" ())
     (list "cksum" ())
     (list "clear" ())
