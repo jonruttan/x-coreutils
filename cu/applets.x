@@ -93,6 +93,7 @@
 (import cu/sysinfo cu-dnsdomainname cu-hostid cu-hostname cu-mesg cu-mknod
   cu-mountpoint cu-renice cu-ts)
 (import cu/tar cu-tar)
+(import cu/taskset cu-taskset)
 (import cu/tcpsvd cu-tcpsvd cu-udpsvd)
 (import cu/telnet cu-telnet)
 (import cu/telnetd cu-telnetd)
@@ -304,6 +305,7 @@
     (method nameif (self argv stdin-thunk) (cu-nameif argv stdin-thunk))
     (method vconfig (self argv stdin-thunk) (cu-vconfig argv stdin-thunk))
     (method tunctl (self argv stdin-thunk) (cu-tunctl argv stdin-thunk))
+    (method taskset (self argv stdin-thunk) (cu-taskset argv stdin-thunk))
     (method brctl (self argv stdin-thunk) (cu-brctl argv stdin-thunk))
     (method netstat (self argv stdin-thunk) (cu-netstat argv stdin-thunk))
     (method ifconfig (self argv stdin-thunk) (cu-ifconfig argv stdin-thunk))

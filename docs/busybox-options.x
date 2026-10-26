@@ -26,6 +26,7 @@
     (list "nameif" (%letters "sc"))
     (list "vconfig" ())
     (list "tunctl" (%letters "ftdugb"))
+    (list "taskset" (%letters "pac"))
     (list "brctl" ())
     (list "ascii" ())
     (list "base32" (%letters "diw"))
