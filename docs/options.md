@@ -98,6 +98,7 @@ the work.  Applet parity is the other axis: see the README.
 | `makemime` | -c -e -o -C -N -a | -c -e -o -C -N -a |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mesg` |  |  |  | - |
+| `minips` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
 | `mknod` | -m | -m |  | 100% |
@@ -222,4 +223,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 980 of 994 busybox options accepted (98%).**
+**Total: 981 of 996 busybox options accepted (98%).**

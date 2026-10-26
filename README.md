@@ -16,7 +16,7 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `pscan`, `ipcalc`,
-`ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
+`ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `minips`, `pidof`, `pgrep`, `pkill`,
 `kill`, `killall`, `pwdx`, `pmap`, `pstree`, `top`, `lsof`, `fuser`, `ionice` and `taskset`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
@@ -31,9 +31,9 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     ftpget ftpput fuser getopt groups gunzip gzip hd head hexdump hostid
     hostname httpd id ifconfig inetd ionice install iostat ip ipaddr ipcalc
     iplink ipneigh iproute iprule iptunnel join kill killall link ln logname
-    ls lsmod lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp
-    more mountpoint mpstat mv nameif nc netcat netstat nice nl nmeter nohup
-    nologin nproc nslookup ntpd od paste patch pgrep pidof ping ping6
+    ls lsmod lsof makemime md5sum mesg minips mkdir mkfifo mknod mkpasswd
+    mktemp more mountpoint mpstat mv nameif nc netcat netstat nice nl nmeter
+    nohup nologin nproc nslookup ntpd od paste patch pgrep pidof ping ping6
     pipe_progress pkill pmap popmaildir printenv printf ps pscan pstree pwd
     readlink renice reset rev rm rmdir route run-parts sendmail seq setsid
     sha1sum sha256sum sha384sum sha3sum sha512sum shred shuf sleep sort split
@@ -260,7 +260,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/ed.x           ed: busybox's line editor, its commands read from standard input
     cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
-    cu/procps.x       uptime, free, ps, pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
+    cu/procps.x       uptime, free, ps (and minips, its other name), pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
     cu/signal.x       signal names and numbers, read as busybox's get_signum reads them
     cu/sysctl.x       sysctl: the kernel's parameters, read and written under /proc/sys
     cu/lsmod.x        lsmod: the kernel's loaded modules, from /proc/modules
