@@ -17,7 +17,7 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `pscan`, `ipcalc`,
 `ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
-`kill`, `killall`, `pwdx`, `pmap`, `top`, `lsof`, `fuser`, `ionice` and `taskset`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`kill`, `killall`, `pwdx`, `pmap`, `pstree`, `top`, `lsof`, `fuser`, `ionice` and `taskset`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
@@ -34,9 +34,9 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     ls lsmod lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp
     more mountpoint mpstat mv nameif nc netcat netstat nice nl nmeter nohup
     nologin nproc nslookup ntpd od paste patch pgrep pidof ping ping6
-    pipe_progress pkill pmap popmaildir printenv printf ps pscan pwd readlink
-    renice reset rev rm rmdir route run-parts sendmail seq setsid sha1sum
-    sha256sum sha384sum sha3sum sha512sum shred shuf sleep sort split
+    pipe_progress pkill pmap popmaildir printenv printf ps pscan pstree pwd
+    readlink renice reset rev rm rmdir route run-parts sendmail seq setsid
+    sha1sum sha256sum sha384sum sha3sum sha512sum shred shuf sleep sort split
     ssl_client ssl_server stat strings sum sync sysctl tac tail tar taskset
     tcpsvd tee telnet telnetd test tftp tftpd time timeout top touch tr
     traceroute traceroute6 tree true truncate ts tsort tty ttysize tunctl
@@ -204,9 +204,9 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/diff.x         diff, normal and unified formats (LCS by DP)
     cu/diff-lex.x     which lines diff counts the same under -i -b -w
     cu/find.x         find: the expression grammar, and the walk it drives
-    cu/hash.x         md5sum sha1sum cksum sum
-    cu/sha256.x       FIPS 180-4, in x
-    cu/sha512.x       its 64-bit sibling, addition masked in halves, and SHA-384 from it
+    cu/hash.x         md5sum sha1sum cksum sum; the digests are x-lang's codecs
+    cu/sha256.x       sha256sum, and the driver every digest applet shares
+    cu/sha512.x       SHA-512 in x, addition masked in halves, and SHA-384 from it
     cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, files
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/vi-edit.x      vi's operators over those motions, registers, marks
@@ -244,6 +244,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/ntpd.x         ntpd: an NTP client and server, its clock filter, selection and discipline, -k keys
     cu/dumpleases.x   dumpleases: the leases of a udhcpd lease file, time left or when each ends
     cu/pscan.x        pscan: a TCP port scan of a host, its open ports and their services
+    cu/pstree.x       pstree: the process tree, its threads too, from a process or for a user
     cu/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
     cu/sslserver.x    ssl_server: a TLS 1.3 server on the connection inetd or tcpsvd hands it, PROG on the far side
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name

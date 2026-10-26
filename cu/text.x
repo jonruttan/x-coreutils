@@ -17,13 +17,15 @@
   cu-opts)
 (import cu/prims append byte-at byte-len cu-dirname-of cu-fd-fields
   cu-file-read cu-int->str cu-lines cu-nth cu-piece-bytes cu-rev cu-run-bytes
-  cu-run-list cu-run-of cu-stat-get cu-stdin-fields! cu-sweep! cu-sweep-at
+  cu-run-of cu-stat-get cu-stdin-fields! cu-sweep! cu-sweep-at
   cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick! cu-walk-worst
   cu-words-line file-close file-dir? file-err-op file-err-text
   file-open-or-err file-open-read file-or-err file-read-all file-read-fd
   file-seek file-stat-full file-write file-write-field file-write-run filter
   length map reverse set-first! str-make-raw string-append string-concat
   string=? substring sys-sleep sys-usleep)
+
+(import x/codec/bytes)
 
 ; cu-opts, cu-operands, cu-last-given, cu-last-valued and cu-missing-operand
 ; are cu/cli's, which loads after this file: they are reached through the root
@@ -521,16 +523,21 @@
         (do (cu-say says name (rest g)) (rest g))))))
 
 ; the runs RS, last first, joined into one run: their texts concatenated where
-; none holds a NUL, and otherwise their bytes gathered into one buffer
+; none holds a NUL, and otherwise their bytes copied into one buffer by a
+; Bytes writer, a piece at a time, never a byte at a time
 (def %cu-runs-join
   (fn (_ rs)
     (if (null? (filter cu-run-nul? rs))
       (cu-run-of (string-concat (reverse (map cu-run-text rs))))
-      (let ((go (fn (self rs acc n)
-                  (if (null? rs) (cu-run-bytes acc n)
-                    (self (rest rs) (cu-run-list (first rs) acc)
-                      (+ n (rest (first rs))))))))
-        (go rs () 0)))))
+      (let ((w (Bytes writer)))
+        (def put
+          (fn (self ps)
+            (unless (null? ps)
+              (do (Bytes put w (list (first (first ps)) 0 (rest (first ps))))
+                  (self (rest ps))))))
+        (put (reverse rs))
+        (let ((r (Bytes written w)))
+          (pair (first r) (Bytes length r)))))))
 
 ; the line SAYS gives for NAME and its io Err, on stderr -- or nothing, where
 ; SAYS answers nil, as cmp -s does

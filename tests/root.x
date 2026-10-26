@@ -55,8 +55,8 @@
 (import cu/getopt cu-getopt)
 (import cu/gzip cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
   gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)
-(import cu/hash cu-bytes cu-cksum-applet cu-crypt64 cu-hash-blocks cu-md5
-  cu-md5-bytes cu-md5sum cu-sha1-block cu-sha1sum cu-sum)
+(import cu/hash cu-bytes cu-cksum-applet cu-crypt64 cu-md5 cu-md5-bytes
+  cu-md5sum cu-sha1-bytes cu-sha1sum cu-sum)
 (import cu/hexdump cu-hd cu-hexdump cu-xxd)
 (import cu/httpd cu-httpd hd-crypt-equal? hd-system-password hd-ugid)
 (import cu/ifconfig cu-ifconfig if-ref if-req)
@@ -100,8 +100,7 @@
   whois-after whois-trim)
 (import cu/netstat cu-netstat)
 (import cu/nmeter cu-nmeter nm-line nm-parse nm-sample)
-(import cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-sha1-bytes nt-unhex
-  nt-zeros)
+(import cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-unhex nt-zeros)
 (import cu/options cu-option-spec nc-flags nc-values)
 (import cu/patch cu-patch)
 (import cu/perm cu-basename-of cu-chgrp cu-chmod cu-chown cu-chown-number
@@ -160,14 +159,14 @@
   ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o ps-printable
   ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)
 (import cu/pscan cu-pscan)
+(import cu/pstree cu-pstree)
 (import cu/route cu-route rt-show4)
 (import cu/runparts cu-run-parts)
 (import cu/sendmail cu-sendmail sm-atoi sm-helper-check sm-helper-pid!
   sm-space?)
 (import cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
   cu-ttysize hd-daemonize ss-call ss-flock ss-resolve!)
-(import cu/sha256 cu-add32 cu-hex-digit cu-m32 cu-sha-pad cu-sha256
-  cu-sha256sum cu-sum-applet cu-word-hex)
+(import cu/sha256 cu-hex-digit cu-m32 cu-sha256 cu-sha256sum cu-sum-applet)
 (import cu/sha3 cu-sha3sum)
 (import cu/sha512 cu-sha384sum cu-sha512sum)
 (import cu/signal fu-args pg-nsig pg-rt pg-signal-word pg-signum pg-strto
