@@ -31,6 +31,7 @@
                       (list "--mount" "--uts" "--ipc" "--net" "--pid" "--user" "--mount-proc"
                             "--propagation" "--setgroups")))
     (list "brctl" ())
+    (list "ether-wake" (%letters "bip"))
     (list "ascii" ())
     (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))
