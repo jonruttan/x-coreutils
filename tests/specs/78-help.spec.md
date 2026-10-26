@@ -2729,6 +2729,25 @@ stderr:
 status 0
 ```
 
+### setpriv
+
+```cu
+(run (list "setpriv" "--help") "")
+```
+---
+```output
+Usage: setpriv [OPTIONS] PROG ARGS|
+|
+Run PROG with different privilege settings|
+|
+-d,--dump		Show current capabilities|
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities|
+--inh-caps CAP,CAP	Set inheritable capabilities|
+--ambient-caps CAP,CAP	Set ambient capabilities|
+stderr:
+status 0
+```
+
 ### ttysize
 
 ```cu
