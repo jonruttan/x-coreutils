@@ -16,6 +16,7 @@
 (import cu/base32 cu-base32)
 (import cu/brctl cu-brctl)
 (import cu/cal cal-sum cu-cal)
+(import cu/chrt cu-chrt)
 (import cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand cu-families
   cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand
   cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of

@@ -2149,6 +2149,21 @@
             (Opts hidden (Opts flag "-g" ""))
             (Opts hidden (Opts flag "-u" ""))))
         (lit none)))
+    (pair "chrt"
+      (list
+        (Opts declare "chrt" "-m | -p [PRIO] PID | [-rfobi] PRIO PROG ARGS"
+          "Change scheduling priority and class for a process"
+          (append
+            (list
+              (Opts text "\t-m\tShow min/max priorities")
+              (Opts text "\t-p\tOperate on PID")
+              (Opts text "\t-r\tSet SCHED_RR class")
+              (Opts text "\t-f\tSet SCHED_FIFO class")
+              (Opts text "\t-o\tSet SCHED_OTHER class")
+              (Opts text "\t-b\tSet SCHED_BATCH class")
+              (Opts text "\t-i\tSet SCHED_IDLE class"))
+            (%cu-hidden-flags (list "-m" "-p" "-r" "-f" "-o" "-b" "-i"))))
+        (lit leading)))
     (pair "ts"
       (list
         (Opts declare "ts" "[-is] [STRFTIME]"
