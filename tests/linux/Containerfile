@@ -13,12 +13,14 @@ RUN apk add --no-cache socat
 RUN apk add --no-cache iproute2 && mv /sbin/ip /usr/sbin/ip2 && ln -sf /bin/busybox /sbin/ip
 # Alpine builds its busybox without some applets -- taskset, chrt, powertop,
 # smemcap, minips -- so busybox 1.36.1 is built here with every applet on
-# (tc off: it does not build against these headers), as busybox-extra, the
-# oracle for those; /bin/busybox stays Alpine's
+# (tc off: it does not build against these headers; minips on: defconfig
+# leaves it off), as busybox-extra, the oracle for those; /bin/busybox stays
+# Alpine's
 RUN apk add --no-cache linux-headers \
  && curl -fsSL https://github.com/mirror/busybox/archive/refs/tags/1_36_1.tar.gz | tar xz -C /tmp \
  && cd /tmp/busybox-1_36_1 && make defconfig >/dev/null \
  && sed -i 's/^CONFIG_TC=y/# CONFIG_TC is not set/' .config \
+ && sed -i 's/^# CONFIG_MINIPS is not set/CONFIG_MINIPS=y/' .config \
  && make -j"$(nproc)" busybox >/dev/null && cp busybox /usr/local/bin/busybox-extra \
  && cd / && rm -rf /tmp/busybox-1_36_1
 # The platform's tools call `shasum`; Alpine has the digests under their own

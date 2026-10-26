@@ -163,13 +163,15 @@
 
 (def %ps-max-width 2048)
 
-(def cu-ps
-  (fn (_ argv stdin-thunk)
-    (def o (cu-opts "ps" argv))
+; ps under NAME: busybox's minips (klibc-utils/minips.c) is ps's main under
+; another name, which its usage and its messages carry
+(def %ps-run
+  (fn (_ name argv)
+    (def o (cu-opts name argv))
     (def specs (Opts values o "-o"))
     (def cols (ps-parse-o (if (null? specs) (list "pid,user,time,args") specs)))
     (if (str? cols)
-      (do (file-write 2 (string-append "ps: " (string-append cols "\n"))) 1)
+      (do (file-write 2 (string-concat (list name ": " cols "\n"))) 1)
       (do (display (ps-table cols (ps-sorted (host-processes)) (date-now-unix)
                      (if (sys-isatty 1)
                        (let ((w (- (first (Term window 0)) 1)))
@@ -177,6 +179,9 @@
                        %ps-max-width)
                      host-args))
           0))))
+
+(def cu-ps (fn (_ argv stdin-thunk) (%ps-run "ps" argv)))
+(def cu-minips (fn (_ argv stdin-thunk) (%ps-run "minips" argv)))
 
 ; the processes by pid, as a walk of /proc lists them
 (def ps-sorted
@@ -832,7 +837,7 @@
           (List fold (fn (_ acc pid) (+ acc (send pid))) 0 (reverse (first hits))))))
     (& (List fold (fn (_ acc name) (+ acc (one name))) 0 names) 255)))
 
-(provide cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
-  cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head ps-args
-  ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o ps-printable
-  ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)
+(provide cu/procps cu-free cu-kill cu-killall cu-lsof cu-minips cu-pgrep
+  cu-pidof cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head
+  ps-args ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o
+  ps-printable ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)
