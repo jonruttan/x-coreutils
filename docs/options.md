@@ -131,6 +131,7 @@ the work.  Applet parity is the other axis: see the README.
 | `printf` |  |  |  | - |
 | `ps` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
 | `pscan` | -c -b -p -P -t -T | -c -b -p -P -t -T |  | 100% |
+| `pstree` | -p | -p |  | 100% |
 | `pwd` | -L -P | -L -P |  | 100% |
 | `pwdx` |  |  |  | - |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
@@ -217,4 +218,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 965 of 979 busybox options accepted (98%).**
+**Total: 966 of 980 busybox options accepted (98%).**

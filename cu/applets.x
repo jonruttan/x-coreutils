@@ -74,6 +74,7 @@
 (import cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
   cu-pkill cu-ps cu-pwdx cu-uptime)
 (import cu/pscan cu-pscan)
+(import cu/pstree cu-pstree)
 (import cu/route cu-route)
 (import cu/runparts cu-run-parts)
 (import cu/sendmail cu-sendmail)
@@ -293,6 +294,7 @@
     (method kill (self argv stdin-thunk) (cu-kill argv stdin-thunk))
     (method killall (self argv stdin-thunk) (cu-killall argv stdin-thunk))
     (method pwdx (self argv stdin-thunk) (cu-pwdx argv stdin-thunk))
+    (method pstree (self argv stdin-thunk) (cu-pstree argv stdin-thunk))
     (method sysctl (self argv stdin-thunk) (cu-sysctl argv stdin-thunk))
     (method lsmod (self argv stdin-thunk) (cu-lsmod argv stdin-thunk))
     (method route (self argv stdin-thunk) (cu-route argv stdin-thunk))
