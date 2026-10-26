@@ -20,7 +20,7 @@
 (import cu/inetd in-call)
 (import cu/prims bit-and bit-or bit-shl bit-xor byte-at byte-len cu-err-label
   cu-int->str cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-err-sym
-  file-err-text file-write libc-strerror string-append string-concat substring
+  file-err-text file-write libc-strerror string-append string-concat string=? substring
   sys-exec-or-err sys-exit sys-getegid sys-geteuid sys-getgid sys-getgroups
   sys-getuid)
 
@@ -95,10 +95,10 @@
     (def at (let skip ((i 4)) (if (if (< i n) (%sp-space? (byte-at s i)) #f) (skip (+ i 1)) i)))
     (def sign (if (< at n) (byte-at s at) 0))
     (def from (if (if (= sign #\-) #t (= sign #\+)) (+ at 1) at))
-    (def v (let digits ((i from) (v ()))
-             (if (if (< i n) (%sp-digit? (byte-at s i)) #f)
-               (digits (+ i 1) (+ (* 10 (if (null? v) 0 v)) (- (byte-at s i) 48)))
-               v)))
+    (def v (let digits ((k from) (acc ()))
+             (if (if (< k n) (%sp-digit? (byte-at s k)) #f)
+               (digits (+ k 1) (+ (* 10 (if (null? acc) 0 acc)) (- (byte-at s k) 48)))
+               acc)))
     (match
       ((null? v) ())
       ((if (= sign #\-) (> v 0) #f) (+ %sp-last-cap 1))
@@ -106,14 +106,11 @@
 
 (def %sp-cap-number
   (fn (_ name)
-    (def prefixed (if (>= (byte-len name) 4)
-                    (if (= (byte-at name 0) #\c)
-                      (if (= (byte-at name 1) #\a)
-                        (if (= (byte-at name 2) #\p) (= (byte-at name 3) #\_) #f) #f) #f) #f))
+    (def prefixed (if (>= (byte-len name) 4) (string=? (substring name 0 4) "cap_") #f))
     (def n (if prefixed (%sp-cap-digits name) ()))
     (def i (if (null? n)
-             (let find ((ns %sp-names) (i 0))
-               (match ((null? ns) ()) ((%sp-same-case? (first ns) name) i) (#t (find (rest ns) (+ i 1)))))
+             (let find ((ns %sp-names) (k 0))
+               (match ((null? ns) ()) ((%sp-same-case? (first ns) name) k) (#t (find (rest ns) (+ k 1)))))
              n))
     (if (if (null? i) #t (> i %sp-last-cap))
       (%sp-die (string-concat (list "unknown capability '" name "'")))
@@ -223,7 +220,7 @@
     (def nnp? (if (Opts on? o "--nnp") #t (Opts on? o "--no-new-privs")))
     (def inh (Opts value o "--inh-caps"))
     (def amb (Opts value o "--ambient-caps"))
-    (def others? (if (pair? prog) #t (if nnp? #t (if (null? inh) (not (null? amb)) #t))))
+    (def others? (match ((pair? prog) #t) (nnp? #t) (#t (not (if (null? inh) (null? amb) #f)))))
     (match
       ((if (Opts on? o "-d") #t (Opts on? o "--dump")) (if others? (%sp-usage) (%sp-dump)))
       (#t (do (when nnp?
