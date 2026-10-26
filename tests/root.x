@@ -214,6 +214,7 @@
 (import cu/trcut cu-cut cu-tr)
 (import cu/tree cu-tree)
 (import cu/tsort cu-tsort ts-space?)
+(import cu/tunctl cu-tunctl)
 (import cu/unzip cu-unzip)
 (import cu/vconfig cu-vconfig)
 (import cu/vi cu-vi vi% vi& vi+ vi- vi-bsub vi-bundle-version vi-dim vi-in?

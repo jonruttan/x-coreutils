@@ -2385,6 +2385,20 @@
             (Opts text "\tset_egress_map VLAN_NAME SKB_PRIO VLAN_QOS")
             (Opts text "\tset_ingress_map VLAN_NAME SKB_PRIO VLAN_QOS")
             (Opts text "\tset_name_type NAME_TYPE")))))
+    (pair "tunctl"
+      (list
+        (Opts declare "tunctl" "[-f DEVICE] [-t NAME | -d NAME] [-u USER] [-g GRP] [-b]"
+          "Create or delete TUN/TAP interfaces"
+          (append
+            (list
+              (Opts text "\t-f DEV\tTUN device (default /dev/net/tun)")
+              (Opts text "\t-t NAME\tCreate iface (default: tapN)")
+              (Opts text "\t-d NAME\tDelete iface")
+              (Opts text "\t-u USER\tSet iface owner")
+              (Opts text "\t-g GRP\tSet iface group")
+              (Opts text "\t-b\tBrief output"))
+            (%cu-hidden-flags (list "-b"))
+            (%cu-hidden-args (list "-f" "-t" "-d" "-u" "-g"))))))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list

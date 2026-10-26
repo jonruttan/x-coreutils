@@ -22,7 +22,7 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
-`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute`, `traceroute6`, `arping`, `nameif` and `vconfig`.**
+`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute`, `traceroute6`, `arping`, `nameif`, `vconfig` and `tunctl`.**
 
     arch arp arping ascii base32 base64 basename cal cat chgrp chmod chown
     chroot cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df diff
@@ -39,9 +39,9 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     sha512sum shred shuf sleep sort split ssl_client ssl_server stat strings
     sum sync sysctl tac tail tar tcpsvd tee telnet telnetd test tftp tftpd
     time timeout top touch tr traceroute traceroute6 tree true truncate ts
-    tsort tty ttysize udpsvd unexpand uniq unix2dos unlink unzip uname uptime
-    users uudecode uuencode uuidgen usleep vconfig vi vmstat w watch wc wget
-    which who whois whoami xargs xxd yes zcat [ [[
+    tsort tty ttysize tunctl udpsvd unexpand uniq unix2dos unlink unzip uname
+    uptime users uudecode uuencode uuidgen usleep vconfig vi vmstat w watch wc
+    wget which who whois whoami xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -166,7 +166,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif` and `vconfig` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig` and `tunctl` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -266,6 +266,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/arping.x       arping: ARP requests over a packet socket, the replies timed
     cu/nameif.x       nameif: interfaces renamed to the entry their address, driver, bus or phyaddr matches
     cu/vconfig.x      vconfig: 802.1Q VLAN interfaces made, removed and set through SIOCSIFVLAN
+    cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls
     cu/ip.x           the links and their addresses shown, and the netlink calls the ip verbs share
