@@ -3497,6 +3497,20 @@ stderr:
 status 0
 ```
 
+### smemcap
+
+```cu
+(run (list "smemcap" "--help") "")
+```
+---
+```output
+Usage: smemcap >SMEMDATA.TAR|
+|
+Collect memory usage data in /proc and write it to stdout|
+stderr:
+status 0
+```
+
 ### sysctl
 
 ```cu

@@ -81,6 +81,7 @@
 (import cu/route cu-route)
 (import cu/runparts cu-run-parts)
 (import cu/sendmail cu-sendmail)
+(import cu/smemcap cu-smemcap)
 (import cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
   cu-ttysize)
 (import cu/sha256 cu-sha256sum)
@@ -302,6 +303,7 @@
     (method killall (self argv stdin-thunk) (cu-killall argv stdin-thunk))
     (method pwdx (self argv stdin-thunk) (cu-pwdx argv stdin-thunk))
     (method pstree (self argv stdin-thunk) (cu-pstree argv stdin-thunk))
+    (method smemcap (self argv stdin-thunk) (cu-smemcap argv stdin-thunk))
     (method sysctl (self argv stdin-thunk) (cu-sysctl argv stdin-thunk))
     (method lsmod (self argv stdin-thunk) (cu-lsmod argv stdin-thunk))
     (method route (self argv stdin-thunk) (cu-route argv stdin-thunk))

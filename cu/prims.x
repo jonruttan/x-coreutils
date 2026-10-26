@@ -171,6 +171,7 @@
 ; variants.
 (def %cu-sys-stat   (syscall-door (if os-darwin? (lit stat64) (lit stat))))
 (def %cu-sys-lstat  (syscall-door (if os-darwin? (lit lstat64) (lit lstat))))
+(def %cu-sys-fstat  (syscall-door (if os-darwin? (lit fstat64) (lit fstat))))
 (def %cu-sys-statfs (syscall-door (if os-darwin? (lit statfs64) (lit statfs))))
 (def %cu-sys-utimes (syscall-door (lit utimes)))
 
@@ -196,7 +197,17 @@
 (def file-stat-full
   (fn (_ path)
     (def buf (str-make-raw 160))
-    (def r (%cu-sys-stat path buf))
+    (%cu-stat-of (%cu-sys-stat path buf) buf)))
+
+; file-stat-full of the open FD
+(def file-fstat-full
+  (fn (_ fd)
+    (def buf (str-make-raw 160))
+    (%cu-stat-of (%cu-sys-fstat fd buf) buf)))
+
+; the stat in BUF, or nil where the call answered R below 0
+(def %cu-stat-of
+  (fn (_ r buf)
     (if (< r 0) ()
       (let ((d (Struct unpack stat-layout buf)))
         (pair (pair (lit file-type)
@@ -364,6 +375,7 @@
 (def host-users (fn (_) (Host users)))
 (def host-utmp (fn (_) (Host utmp)))
 (def host-processes (fn (_) (Host processes)))
+(def host-proc-root (fn (_) (Host proc-root)))
 (def host-args (fn (_ pid) (Host args pid)))
 (def host-process (fn (_ pid) (Host process pid)))
 (def host-exe (fn (_ pid) (Host exe pid)))
@@ -1478,8 +1490,8 @@
   cu-sweep-at cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick!
   cu-sweeps-cell cu-take cu-type-of cu-walk-worst cu-words-line cu/ cu< cu<<
   cu>> cvt date-now-unix file-chmod file-chown file-close file-copy file-dir?
-  file-err-op file-err-sym file-err-text file-exists? file-lchown file-link
-  file-list-dir file-lstat-file-type file-lstat-full file-lstat-wide
+  file-err-op file-err-sym file-err-text file-exists? file-fstat-full
+  file-lchown file-link file-list-dir file-lstat-file-type file-lstat-full file-lstat-wide
   file-mkdir file-mkfifo file-mounts file-open-append file-open-err
   file-open-excl file-open-or-err file-open-read file-open-update
   file-open-write file-open-wronly file-or-err file-read-all file-read-fd
@@ -1490,7 +1502,8 @@
   file-write-run filter gz-word-bytes host-args host-boot-time host-counters
   host-cpu host-cpus host-cwd host-disks host-exe host-files host-files-of
   host-holders host-interfaces host-interrupts host-load-centi host-load-fixed
-  host-maps host-memory host-now host-process host-processes host-regions
+  host-maps host-memory host-now host-proc-root host-process host-processes
+  host-regions
   host-tasks host-threads host-uptime host-users host-utmp host-wait
   http-close http-head http-open http-read http-status hx-hex-digit hx-strtoul
   in-index-of integer->char length libc-strerror list->string load-centi
