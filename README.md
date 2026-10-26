@@ -16,33 +16,33 @@ dumpers, `hexdump`, `hd` and `xxd`, its `base32`, `crc32`, `ascii` and
 its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `pscan`, `ipcalc`,
-`ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
+`ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `minips`, `pidof`, `pgrep`, `pkill`,
 `kill`, `killall`, `pwdx`, `pmap`, `pstree`, `top`, `lsof`, `fuser`, `ionice` and `taskset`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
-`hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `ts`, `sha384sum` and
+`hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `chrt`, `ts`, `sha384sum` and
 `sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute`, `traceroute6`, `arping`, `nameif`, `vconfig`, `tunctl` and `brctl`.**
 
     arch arp arping ascii base32 base64 basename brctl cal cat chgrp chmod
-    chown chroot cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df
-    diff dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand
-    expr factor fakeidentd false find flock fold free fsync ftpd ftpget ftpput
-    fuser getopt groups gunzip gzip hd head hexdump hostid hostname httpd id
-    ifconfig inetd ionice install iostat ip ipaddr ipcalc iplink ipneigh
-    iproute iprule iptunnel join kill killall link ln logname ls lsmod lsof
-    makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp more mountpoint
-    mpstat mv nameif nc netcat netstat nice nl nmeter nohup nologin nproc
-    nslookup ntpd od paste patch pgrep pidof ping ping6 pipe_progress pkill
-    pmap popmaildir printenv printf ps pscan pstree pwd readlink renice reset
-    rev rm rmdir route run-parts sendmail seq setsid sha1sum sha256sum
-    sha384sum sha3sum sha512sum shred shuf sleep sort split ssl_client
-    ssl_server stat strings sum sync sysctl tac tail tar taskset tcpsvd tee
-    telnet telnetd test tftp tftpd time timeout top touch tr traceroute
-    traceroute6 tree true truncate ts tsort tty ttysize tunctl udpsvd unexpand
-    uniq unix2dos unlink unzip uname uptime users uudecode uuencode uuidgen
-    usleep vconfig vi vmstat w watch wc wget which who whois whoami xargs xxd
-    yes zcat [ [[
+    chown chrt chroot cksum clear cmp comm cp cpio crc32 cryptpw cut date dc
+    dd df diff dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env
+    expand expr factor fakeidentd false find flock fold free fsync ftpd
+    ftpget ftpput fuser getopt groups gunzip gzip hd head hexdump hostid
+    hostname httpd id ifconfig inetd ionice install iostat ip ipaddr ipcalc
+    iplink ipneigh iproute iprule iptunnel join kill killall link ln logname
+    ls lsmod lsof makemime md5sum mesg minips mkdir mkfifo mknod mkpasswd
+    mktemp more mountpoint mpstat mv nameif nc netcat netstat nice nl nmeter
+    nohup nologin nproc nslookup ntpd od paste patch pgrep pidof ping ping6
+    pipe_progress pkill pmap popmaildir printenv printf ps pscan pstree pwd
+    readlink renice reset rev rm rmdir route run-parts sendmail seq setsid
+    sha1sum sha256sum sha384sum sha3sum sha512sum shred shuf sleep sort split
+    ssl_client ssl_server stat strings sum sync sysctl tac tail tar taskset
+    tcpsvd tee telnet telnetd test tftp tftpd time timeout top touch tr
+    traceroute traceroute6 tree true truncate ts tsort tty ttysize tunctl
+    udpsvd unexpand uniq unix2dos unlink unzip uname uptime users uudecode
+    uuencode uuidgen usleep vconfig vi vmstat w watch wc wget which who whois
+    whoami xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -167,7 +167,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice`, `taskset` and `brctl` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice`, `taskset`, `brctl` and `chrt` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -218,6 +218,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/strings.x      strings: printable runs, found by libc's strspn
     cu/cal.x          cal: a month or a year, Julian to 1752
+    cu/chrt.x         chrt: a process's scheduling policy and priority, shown and set through the kernel's calls
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/nc.x           nc and netcat: busybox's netcat 1.10, the copy waiting on the platform's poll
     cu/dns.x          nslookup: busybox's DNS client, its queries and replies in x
@@ -260,7 +261,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/ed.x           ed: busybox's line editor, its commands read from standard input
     cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
-    cu/procps.x       uptime, free, ps, pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
+    cu/procps.x       uptime, free, ps (and minips, its other name), pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
     cu/signal.x       signal names and numbers, read as busybox's get_signum reads them
     cu/sysctl.x       sysctl: the kernel's parameters, read and written under /proc/sys
     cu/lsmod.x        lsmod: the kernel's loaded modules, from /proc/modules
