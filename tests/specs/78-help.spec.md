@@ -2729,6 +2729,25 @@ stderr:
 status 0
 ```
 
+### setpriv
+
+```cu
+(run (list "setpriv" "--help") "")
+```
+---
+```output
+Usage: setpriv [OPTIONS] PROG ARGS|
+|
+Run PROG with different privilege settings|
+|
+-d,--dump		Show current capabilities|
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities|
+--inh-caps CAP,CAP	Set inheritable capabilities|
+--ambient-caps CAP,CAP	Set ambient capabilities|
+stderr:
+status 0
+```
+
 ### ttysize
 
 ```cu
@@ -3358,6 +3377,24 @@ the records it reads.
 ---
 ```output
 Usage: ps [-o COL1,COL2=HEADER]|
+|
+Show list of processes|
+|
+	-o COL1,COL2=HEADER	Select columns for display|
+stderr:
+status 0
+```
+
+### minips
+
+ps under another name, as busybox's is.
+
+```cu
+(run (list "minips" "--help") "")
+```
+---
+```output
+Usage: minips [-o COL1,COL2=HEADER]|
 |
 Show list of processes|
 |

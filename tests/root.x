@@ -155,10 +155,10 @@
   sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!
   vm-dash-number wget-digits wget-div wget-err-text wget-find wget-index
   wget-last-index wget-lower wget-memv)
-(import cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
-  cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head ps-args
-  ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o ps-printable
-  ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)
+(import cu/procps cu-free cu-kill cu-killall cu-lsof cu-minips cu-pgrep
+  cu-pidof cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head
+  ps-args ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o
+  ps-printable ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)
 (import cu/pscan cu-pscan)
 (import cu/pstree cu-pstree)
 (import cu/route cu-route rt-show4)
@@ -167,6 +167,7 @@
   sm-space?)
 (import cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
   cu-ttysize hd-daemonize ss-call ss-flock ss-resolve!)
+(import cu/setpriv cu-setpriv)
 (import cu/sha256 cu-hex-digit cu-m32 cu-sha256 cu-sha256sum cu-sum-applet)
 (import cu/sha3 cu-sha3sum)
 (import cu/sha512 cu-sha384sum cu-sha512sum)

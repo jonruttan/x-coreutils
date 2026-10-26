@@ -56,6 +56,23 @@
 (def %cu-hidden-args
   (fn (_ opts) (map (fn (_ o) (Opts hidden (Opts arg o "" ""))) opts)))
 
+; ps's row, under NAME.  busybox's usage names -T too; threads are not in the
+; records ps reads, so -T is not accepted and not shown
+(def %cu-ps-row
+  (fn (_ name)
+    (list
+      (Opts declare name "[-o COL1,COL2=HEADER]"
+        "Show list of processes"
+        (list
+          (Opts arg "-o" "COL1,COL2=HEADER" "Select columns for display")
+          (Opts hidden (Opts flag "-Z" ""))
+          (Opts hidden (Opts flag "-a" ""))
+          (Opts hidden (Opts flag "-A" ""))
+          (Opts hidden (Opts flag "-d" ""))
+          (Opts hidden (Opts flag "-e" ""))
+          (Opts hidden (Opts flag "-f" ""))
+          (Opts hidden (Opts flag "-l" "")))))))
+
 ; ping's row, under NAME: ping6's help is ping's without -4,-6 and -t
 (def %cu-ping-row
   (fn (_ name)
@@ -1716,6 +1733,19 @@
           (list
             (Opts flag "-c" "Set controlling terminal to stdin")))
         (lit leading)))
+    (pair "setpriv"
+      (list
+        (Opts declare "setpriv" "[OPTIONS] PROG ARGS"
+          "Run PROG with different privilege settings"
+          (append
+            (list
+              (Opts text "-d,--dump\t\tShow current capabilities")
+              (Opts text "--nnp,--no-new-privs\tIgnore setuid/setgid bits and file capabilities")
+              (Opts text "--inh-caps CAP,CAP\tSet inheritable capabilities")
+              (Opts text "--ambient-caps CAP,CAP\tSet ambient capabilities"))
+            (%cu-hidden-flags (list "-d" "--dump" "--nnp" "--no-new-privs"))
+            (%cu-hidden-args (list "--inh-caps" "--ambient-caps"))))
+        (lit prefixes)))
     (pair "ttysize"
       (list
         (Opts declare "ttysize" "[w] [h]"
@@ -2249,21 +2279,9 @@
             (Opts hidden (Opts flag "-m" ""))
             (Opts hidden (Opts flag "-g" ""))
             (Opts hidden (Opts flag "-h" ""))))))
-    ; busybox's usage names -T too; threads are not in the records ps reads,
-    ; so -T is not accepted and not shown
-    (pair "ps"
-      (list
-        (Opts declare "ps" "[-o COL1,COL2=HEADER]"
-          "Show list of processes"
-          (list
-            (Opts arg "-o" "COL1,COL2=HEADER" "Select columns for display")
-            (Opts hidden (Opts flag "-Z" ""))
-            (Opts hidden (Opts flag "-a" ""))
-            (Opts hidden (Opts flag "-A" ""))
-            (Opts hidden (Opts flag "-d" ""))
-            (Opts hidden (Opts flag "-e" ""))
-            (Opts hidden (Opts flag "-f" ""))
-            (Opts hidden (Opts flag "-l" ""))))))
+    ; minips is ps under another name
+    (pair "ps" (%cu-ps-row "ps"))
+    (pair "minips" (%cu-ps-row "minips"))
     (pair "pidof"
       (list
         (Opts declare "pidof" "[-s] [-o PID] [NAME]..."
