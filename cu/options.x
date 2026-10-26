@@ -2447,7 +2447,8 @@
               (Opts text "\t-c\tAffinity is a list, not mask"))
             (%cu-hidden-flags (list "-p" "-a" "-c"))))
         (lit leading)))
-    ; getopt_long's options, read by the applet itself (cu/unshare.x)
+    ; unshare reads its own options, as getopt32long does: a namespace's FILE
+    ; only after an =, and a long option by any prefix, which Opts has no form for
     (pair "unshare"
       (list
         (Opts declare "unshare" "[OPTIONS] [PROG ARGS]" ()
@@ -2469,7 +2470,7 @@
                                     "--ipc" "--net" "--pid" "--user" "--fork" "--map-root-user"
                                     "--mount-proc"))
             (%cu-hidden-args (list "--propagation" "--setgroups"))))
-        (lit own)))
+        (lit none)))
     (pair "brctl"
       (list
         (Opts declare "brctl" "COMMAND [BRIDGE [ARGS]]"
