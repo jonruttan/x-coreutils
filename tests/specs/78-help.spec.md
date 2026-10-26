@@ -3385,6 +3385,24 @@ stderr:
 status 0
 ```
 
+### minips
+
+ps under another name, as busybox's is.
+
+```cu
+(run (list "minips" "--help") "")
+```
+---
+```output
+Usage: minips [-o COL1,COL2=HEADER]|
+|
+Show list of processes|
+|
+	-o COL1,COL2=HEADER	Select columns for display|
+stderr:
+status 0
+```
+
 ### pidof
 
 ```cu

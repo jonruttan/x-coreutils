@@ -8009,6 +8009,57 @@ Show list of processes
 status 1
 ```
 
+### minips -~
+
+```cu
+(run (list "minips" "-~") "")
+```
+---
+```output
+stderr:
+minips: unrecognized option: ~
+Usage: minips [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
+### minips --nope
+
+```cu
+(run (list "minips" "--nope") "")
+```
+---
+```output
+stderr:
+minips: unrecognized option: nope
+Usage: minips [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
+### minips -o
+
+```cu
+(run (list "minips" "-o") "")
+```
+---
+```output
+stderr:
+minips: option requires an argument: o
+Usage: minips [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
 ### pidof -~
 
 ```cu

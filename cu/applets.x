@@ -74,8 +74,8 @@
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
 (import cu/prims filter map)
-(import cu/procps cu-free cu-kill cu-killall cu-lsof cu-pgrep cu-pidof
-  cu-pkill cu-ps cu-pwdx cu-uptime)
+(import cu/procps cu-free cu-kill cu-killall cu-lsof cu-minips cu-pgrep
+  cu-pidof cu-pkill cu-ps cu-pwdx cu-uptime)
 (import cu/pscan cu-pscan)
 (import cu/pstree cu-pstree)
 (import cu/route cu-route)
@@ -296,6 +296,7 @@
     (method uptime (self argv stdin-thunk) (cu-uptime argv stdin-thunk))
     (method free (self argv stdin-thunk) (cu-free argv stdin-thunk))
     (method ps (self argv stdin-thunk) (cu-ps argv stdin-thunk))
+    (method minips (self argv stdin-thunk) (cu-minips argv stdin-thunk))
     (method pidof (self argv stdin-thunk) (cu-pidof argv stdin-thunk))
     (method pgrep (self argv stdin-thunk) (cu-pgrep argv stdin-thunk))
     (method pkill (self argv stdin-thunk) (cu-pkill argv stdin-thunk))
