@@ -74,6 +74,7 @@ the work.  Applet parity is the other axis: see the README.
 | `ifconfig` |  |  |  | - |
 | `inetd` | -f -e -q -R | -f -e -q -R |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
+| `ionice` | -n -c -p -t | -t -n -c -p |  | 100% |
 | `iostat` | -c -d -t -z -k -m | -c -d -t -z -k -m |  | 100% |
 | `ip` |  |  |  | - |
 | `ipaddr` |  |  |  | - |
@@ -218,4 +219,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 966 of 980 busybox options accepted (98%).**
+**Total: 970 of 984 busybox options accepted (98%).**

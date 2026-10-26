@@ -830,6 +830,18 @@
           (list
             (Opts arg "-n" "ADJUST" "Adjust priority by ADJUST")))
         (lit leading)))
+    (pair "ionice"
+      (list
+        (Opts declare "ionice" "[-c 1-3] [-n 0-7] [-t] { -p PID | PROG ARGS }"
+          "Change I/O priority and class"
+          (append
+            (list
+              (Opts text "\t-c N\tClass. 1:realtime 2:best-effort 3:idle")
+              (Opts text "\t-n N\tPriority")
+              (Opts text "\t-t\tIgnore errors"))
+            (%cu-hidden-flags (list "-t"))
+            (%cu-hidden-args (list "-n" "-c" "-p"))))
+        (lit leading)))
     ; the command a runner runs takes its own flags
     (pair "chroot"
       (list
