@@ -2437,6 +2437,11 @@
               (Opts text "\t-c\tAffinity is a list, not mask"))
             (%cu-hidden-flags (list "-p" "-a" "-c"))))
         (lit leading)))
+    (pair "brctl"
+      (list
+        (Opts declare "brctl" "COMMAND [BRIDGE [ARGS]]"
+          "Manage ethernet bridges\nCommands:\n\tshow [BRIDGE]...\tShow bridges\n\taddbr BRIDGE\t\tCreate BRIDGE\n\tdelbr BRIDGE\t\tDelete BRIDGE\n\taddif BRIDGE IFACE\tAdd IFACE to BRIDGE\n\tdelif BRIDGE IFACE\tDelete IFACE from BRIDGE\n\tshowmacs BRIDGE\t\t\tList MAC addresses\n\tshowstp\tBRIDGE\t\t\tShow STP info\n\tstp BRIDGE 1/yes/on|0/no/off\tSet STP on/off\n\tsetageing BRIDGE SECONDS\tSet ageing time\n\tsetfd BRIDGE SECONDS\t\tSet bridge forward delay\n\tsethello BRIDGE SECONDS\t\tSet hello time\n\tsetmaxage BRIDGE SECONDS\tSet max message age\n\tsetbridgeprio BRIDGE PRIO\tSet bridge priority\n\tsetportprio BRIDGE IFACE PRIO\tSet port priority\n\tsetpathcost BRIDGE IFACE COST\tSet path cost"
+          ())))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list

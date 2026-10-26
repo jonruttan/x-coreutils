@@ -22,17 +22,17 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `chrt`, `ts`, `sha384sum` and
-`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute`, `traceroute6`, `arping`, `nameif`, `vconfig` and `tunctl`.**
+`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute`, `traceroute6`, `arping`, `nameif`, `vconfig`, `tunctl` and `brctl`.**
 
-    arch arp arping ascii base32 base64 basename cal cat chgrp chmod chown
-    chrt chroot cksum clear cmp comm cp cpio crc32 cryptpw cut date dc dd df
-    diff dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env expand
-    expr factor fakeidentd false find flock fold free fsync ftpd ftpget
-    ftpput fuser getopt groups gunzip gzip hd head hexdump hostid hostname
-    httpd id ifconfig inetd ionice install iostat ip ipaddr ipcalc iplink
-    ipneigh iproute iprule iptunnel join kill killall link ln logname ls
-    lsmod lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp more
-    mountpoint mpstat mv nameif nc netcat netstat nice nl nmeter nohup
+    arch arp arping ascii base32 base64 basename brctl cal cat chgrp chmod
+    chown chrt chroot cksum clear cmp comm cp cpio crc32 cryptpw cut date dc
+    dd df diff dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env
+    expand expr factor fakeidentd false find flock fold free fsync ftpd
+    ftpget ftpput fuser getopt groups gunzip gzip hd head hexdump hostid
+    hostname httpd id ifconfig inetd ionice install iostat ip ipaddr ipcalc
+    iplink ipneigh iproute iprule iptunnel join kill killall link ln logname
+    ls lsmod lsof makemime md5sum mesg mkdir mkfifo mknod mkpasswd mktemp
+    more mountpoint mpstat mv nameif nc netcat netstat nice nl nmeter nohup
     nologin nproc nslookup ntpd od paste patch pgrep pidof ping ping6
     pipe_progress pkill pmap popmaildir printenv printf ps pscan pwd readlink
     renice reset rev rm rmdir route run-parts sendmail seq setsid sha1sum
@@ -167,7 +167,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice`, `taskset` and `chrt` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice`, `taskset`, `brctl` and `chrt` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -271,6 +271,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
     cu/ionice.x       ionice: a process's I/O class and priority asked and set through ioprio_get and ioprio_set
     cu/taskset.x      taskset: a process's CPU affinity shown and set, as a mask or a list
+    cu/brctl.x        brctl: bridges made and joined through the SIOCBR ioctls, set and shown through /sys/class/net
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls
     cu/ip.x           the links and their addresses shown, and the netlink calls the ip verbs share
