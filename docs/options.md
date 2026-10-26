@@ -24,6 +24,7 @@ the work.  Applet parity is the other axis: see the README.
 | `chmod` | -R -c -v -f | -R -c -v -f |  | 100% |
 | `chown` | -R -h -L -H -P -c -v -f | -h -L -H -P -R -c -v -f |  | 100% |
 | `chroot` |  |  |  | - |
+| `chrt` | -m -p -r -f -o -b -i | -m -p -r -f -o -b -i |  | 100% |
 | `cksum` |  |  |  | - |
 | `clear` |  |  |  | - |
 | `cmp` | -l -s -n | -l -s -n |  | 100% |
@@ -222,4 +223,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 976 of 990 busybox options accepted (98%).**
+**Total: 983 of 997 busybox options accepted (98%).**
