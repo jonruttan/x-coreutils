@@ -830,6 +830,18 @@
           (list
             (Opts arg "-n" "ADJUST" "Adjust priority by ADJUST")))
         (lit leading)))
+    (pair "ionice"
+      (list
+        (Opts declare "ionice" "[-c 1-3] [-n 0-7] [-t] { -p PID | PROG ARGS }"
+          "Change I/O priority and class"
+          (append
+            (list
+              (Opts text "\t-c N\tClass. 1:realtime 2:best-effort 3:idle")
+              (Opts text "\t-n N\tPriority")
+              (Opts text "\t-t\tIgnore errors"))
+            (%cu-hidden-flags (list "-t"))
+            (%cu-hidden-args (list "-n" "-c" "-p"))))
+        (lit leading)))
     ; the command a runner runs takes its own flags
     (pair "chroot"
       (list
@@ -2306,6 +2318,11 @@
         (Opts declare "pwdx" "PID..."
           "Show current directory for PIDs"
           (list))))
+    (pair "pstree"
+      (list
+        (Opts declare "pstree" "[-p] [PID|USER]"
+          "Display process tree, optionally start from USER or PID"
+          (list (Opts flag "-p" "Show pids")))))
     ; sysctl's -q row is spaced, not tabbed, in busybox's help, so its rows
     ; are laid out by hand
     (pair "sysctl"
@@ -2399,6 +2416,22 @@
               (Opts text "\t-b\tBrief output"))
             (%cu-hidden-flags (list "-b"))
             (%cu-hidden-args (list "-f" "-t" "-d" "-u" "-g"))))))
+    (pair "taskset"
+      (list
+        (Opts declare "taskset" "[-ap] [HEXMASK | -c LIST] { PID | PROG ARGS }"
+          "Set or get CPU affinity"
+          (append
+            (list
+              (Opts text "\t-p\tOperate on PID")
+              (Opts text "\t-a\tOperate on all threads")
+              (Opts text "\t-c\tAffinity is a list, not mask"))
+            (%cu-hidden-flags (list "-p" "-a" "-c"))))
+        (lit leading)))
+    (pair "brctl"
+      (list
+        (Opts declare "brctl" "COMMAND [BRIDGE [ARGS]]"
+          "Manage ethernet bridges\nCommands:\n\tshow [BRIDGE]...\tShow bridges\n\taddbr BRIDGE\t\tCreate BRIDGE\n\tdelbr BRIDGE\t\tDelete BRIDGE\n\taddif BRIDGE IFACE\tAdd IFACE to BRIDGE\n\tdelif BRIDGE IFACE\tDelete IFACE from BRIDGE\n\tshowmacs BRIDGE\t\t\tList MAC addresses\n\tshowstp\tBRIDGE\t\t\tShow STP info\n\tstp BRIDGE 1/yes/on|0/no/off\tSet STP on/off\n\tsetageing BRIDGE SECONDS\tSet ageing time\n\tsetfd BRIDGE SECONDS\t\tSet bridge forward delay\n\tsethello BRIDGE SECONDS\t\tSet hello time\n\tsetmaxage BRIDGE SECONDS\tSet max message age\n\tsetbridgeprio BRIDGE PRIO\tSet bridge priority\n\tsetportprio BRIDGE IFACE PRIO\tSet port priority\n\tsetpathcost BRIDGE IFACE COST\tSet path cost"
+          ())))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list
