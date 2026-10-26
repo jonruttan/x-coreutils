@@ -26,7 +26,7 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/date cu-date-fmt cu-date-split)
-(import cu/hash cu-hash-blocks cu-md5-bytes cu-sha1-block)
+(import cu/hash cu-md5-bytes cu-sha1-bytes)
 (import cu/inetd in-c in-call in-dontwait in-errtext in-exec in-lines
   in-reuse! in-sockaddr6 in-strtou in-tokens-max in-zeroed)
 (import cu/mime mm-ci=)
@@ -176,20 +176,12 @@
 
 ; --- digests over bytes ---------------------------------------------------------------
 
-(def nt-sha1-bytes
-  (fn (_ bytes)
-    (def n (length bytes))
-    (def hs (cu-hash-blocks (append bytes (list 128) (nt-zeros (% (- 119 (% n 64)) 64)) (nt-be-bytes (* n 8) 8))
-              (list 1732584193 4023233417 2562383102 271733878 3285377520)
-              (fn (_ st block) (cu-sha1-block st block))))
-    (List fold (fn (_ acc w) (append acc (nt-be-bytes w 4))) () hs)))
-
 ; hash(): the key's bytes then the packet's first 48, MD5 or SHA1
 (def %nt-hash
   (fn (_ key msg48)
     (if (eq? (cu-nth 1 key) (lit md5))
       (cu-md5-bytes (append (cu-nth 3 key) msg48))
-      (nt-sha1-bytes (append (cu-nth 3 key) msg48)))))
+      (cu-sha1-bytes (append (cu-nth 3 key) msg48)))))
 
 ; --- addresses -------------------------------------------------------------------------
 
@@ -1127,5 +1119,4 @@
       (unless (List any? (fn (_ p) (> (%np p %np-reach) 0)) %nt-peers)
         (do (%nt-clamp!) (%nt-run-script "unsync" (Float from 0)))))))
 
-(provide cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-sha1-bytes nt-unhex
-  nt-zeros)
+(provide cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-unhex nt-zeros)

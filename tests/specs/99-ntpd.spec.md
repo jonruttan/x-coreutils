@@ -65,7 +65,7 @@ then the server's record or the reply.
         (let ((got (List drop 52 q)) (head (List take 48 q)))
           (string-concat (list ", keyid " (nt-hexs (List take 4 (List drop 48 q)))
             (match ((equal? got (cu-md5-bytes (append (tn-str-bytes "secret") head))) ", md5 digest ok")
-                   ((equal? got (nt-sha1-bytes (append nt-sha-key head))) ", sha1 digest ok")
+                   ((equal? got (cu-sha1-bytes (append nt-sha-key head))) ", sha1 digest ok")
                    (#t (string-append ", digest " (nt-hexs got))))))))
       "\n"))))
   ; the reply FLAGS make to Q
@@ -81,7 +81,7 @@ then the server's record or the reply.
                (append head (List take 4 (List drop 48 q))
                        (if (has? "badkey") (list 0 17 34 51 68 85 102 119 136 153 170 187 204 221 238 255)
                          (cu-md5-bytes (append (tn-str-bytes "secret") head)))))
-             ((has? "keysha") (append head (List take 4 (List drop 48 q)) (nt-sha1-bytes (append nt-sha-key head))))
+             ((has? "keysha") (append head (List take 4 (List drop 48 q)) (cu-sha1-bytes (append nt-sha-key head))))
              ((has? "size68") (append head (nt-zeros 20)))
              ((has? "size100") (append head (nt-zeros 52)))
              (#t head)))
