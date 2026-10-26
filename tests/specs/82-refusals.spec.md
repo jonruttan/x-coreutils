@@ -7555,6 +7555,66 @@ and will not be affected by keyboard signals (^C etc).
 status 1
 ```
 
+### setpriv -~
+
+```cu
+(run (list "setpriv" "-~") "")
+```
+---
+```output
+stderr:
+setpriv: unrecognized option: ~
+Usage: setpriv [OPTIONS] PROG ARGS
+
+Run PROG with different privilege settings
+
+-d,--dump		Show current capabilities
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities
+--inh-caps CAP,CAP	Set inheritable capabilities
+--ambient-caps CAP,CAP	Set ambient capabilities
+status 1
+```
+
+### setpriv --nope
+
+```cu
+(run (list "setpriv" "--nope") "")
+```
+---
+```output
+stderr:
+setpriv: unrecognized option: nope
+Usage: setpriv [OPTIONS] PROG ARGS
+
+Run PROG with different privilege settings
+
+-d,--dump		Show current capabilities
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities
+--inh-caps CAP,CAP	Set inheritable capabilities
+--ambient-caps CAP,CAP	Set ambient capabilities
+status 1
+```
+
+### setpriv --inh-caps
+
+```cu
+(run (list "setpriv" "--inh-caps") "")
+```
+---
+```output
+stderr:
+setpriv: option requires an argument: inh-caps
+Usage: setpriv [OPTIONS] PROG ARGS
+
+Run PROG with different privilege settings
+
+-d,--dump		Show current capabilities
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities
+--inh-caps CAP,CAP	Set inheritable capabilities
+--ambient-caps CAP,CAP	Set ambient capabilities
+status 1
+```
+
 ### pipe_progress -~
 
 ```cu
