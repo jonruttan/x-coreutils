@@ -84,6 +84,7 @@
 (import cu/smemcap cu-smemcap)
 (import cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
   cu-ttysize)
+(import cu/setpriv cu-setpriv)
 (import cu/sha256 cu-sha256sum)
 (import cu/sha3 cu-sha3sum)
 (import cu/sha512 cu-sha384sum cu-sha512sum)
@@ -263,6 +264,7 @@
     (method fsync (self argv stdin-thunk) (cu-fsync argv stdin-thunk))
     (method flock (self argv stdin-thunk) (cu-flock argv stdin-thunk))
     (method setsid (self argv stdin-thunk) (cu-setsid argv stdin-thunk))
+    (method setpriv (self argv stdin-thunk) (cu-setpriv argv stdin-thunk))
     (method ttysize (self argv stdin-thunk) (cu-ttysize argv stdin-thunk))
     (method nologin (self argv stdin-thunk) (cu-nologin argv stdin-thunk))
     (method pipe_progress (self argv stdin-thunk) (cu-pipe-progress argv stdin-thunk))

@@ -148,6 +148,7 @@
     (list "run-parts" (list "-a" "-u" "--reverse" "--test" "--exit-on-error" "--list"))
     (list "seq" (%letters "ws"))
     (list "setsid" (%letters "c"))
+    (list "setpriv" (list "-d" "--dump" "--nnp" "--no-new-privs" "--inh-caps" "--ambient-caps"))
     (list "sha1sum" (%letters "csw"))
     (list "sha256sum" (%letters "csw"))
     (list "sha384sum" (%letters "csw"))
