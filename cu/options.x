@@ -2318,6 +2318,11 @@
         (Opts declare "pwdx" "PID..."
           "Show current directory for PIDs"
           (list))))
+    (pair "pstree"
+      (list
+        (Opts declare "pstree" "[-p] [PID|USER]"
+          "Display process tree, optionally start from USER or PID"
+          (list (Opts flag "-p" "Show pids")))))
     ; sysctl's -q row is spaced, not tabbed, in busybox's help, so its rows
     ; are laid out by hand
     (pair "sysctl"

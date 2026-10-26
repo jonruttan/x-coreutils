@@ -158,6 +158,7 @@
   ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o ps-printable
   ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)
 (import cu/pscan cu-pscan)
+(import cu/pstree cu-pstree)
 (import cu/route cu-route rt-show4)
 (import cu/runparts cu-run-parts)
 (import cu/sendmail cu-sendmail sm-atoi sm-helper-check sm-helper-pid!
