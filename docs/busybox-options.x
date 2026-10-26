@@ -101,6 +101,7 @@
     (list "md5sum" (%letters "csw"))
     (list "mkdir" (%letters "mp"))
     (list "mesg" ())
+    (list "minips" (%letters "oT"))
     (list "mkfifo" (%letters "m"))
     (list "mknod" (%letters "m"))
     (list "mkpasswd" (%letters "PmS"))
