@@ -15,6 +15,7 @@
 (import cu/ascii cu-ascii cu-crc32 cu-uuidgen)
 (import cu/base32 cu-base32)
 (import cu/brctl cu-brctl)
+(import cu/etherwake cu-ether-wake)
 (import cu/cal cal-sum cu-cal)
 (import cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand cu-families
   cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand

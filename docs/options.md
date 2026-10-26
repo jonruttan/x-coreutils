@@ -47,6 +47,7 @@ the work.  Applet parity is the other axis: see the README.
 | `echo` | -n -e -E | -n -e -E |  | 100% |
 | `ed` | -p -s | -s -p |  | 100% |
 | `env` | -i -u -0 | -0 -i -u |  | 100% |
+| `ether-wake` | -b -i -p | -b -i -p |  | 100% |
 | `expand` | -i -t | -i -t |  | 100% |
 | `expr` |  |  |  | - |
 | `factor` |  | -h |  | - |
@@ -221,4 +222,4 @@ the work.  Applet parity is the other axis: see the README.
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
 
-**Total: 973 of 987 busybox options accepted (98%).**
+**Total: 976 of 990 busybox options accepted (98%).**
