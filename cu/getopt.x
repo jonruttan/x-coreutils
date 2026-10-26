@@ -72,6 +72,21 @@
       ((eq? (%go-quoting g) (lit none)) arg)
       (#t (%go-quote arg (eq? (%go-quoting g) (lit tcsh)))))))
 
+; Under the quoting items the parse is an applet's own, busybox's getopt32
+; over getopt_long: each option an (OPT . ARG) pair, and the first refusal
+; ends it
+(def %go-items? (fn (_ g) (eq? (%go-quoting g) (lit items))))
+
+; OPT, -c or --name, as the output gives it with ARG, the argument: nil for
+; an optional one not given, none where the option takes none
+(def %go-item
+  (fn (_ g opt arg)
+    (match
+      ((%go-items? g) (pair opt arg))
+      ((eq? arg (lit none)) (string-append " " opt))
+      ((null? arg) (string-concat (list " " opt " ''")))
+      (#t (string-concat (list " " opt " " (%go-norm g arg)))))))
+
 ; a word of musl's to stderr under the run's name, unless it is quiet
 (def %go-say
   (fn (_ g msg what)
@@ -99,23 +114,21 @@
       (fn (self i out code)
         (if (>= i n) (list out code more)
           (let ((c (byte-at token i)))
-            (let ((s (%go-short g c)) (opt (string-append " -" (bytes->str (list c)))))
+            (let ((s (%go-short g c)) (opt (string-append "-" (bytes->str (list c)))))
               (match
                 ((null? s)
                   (do (if (%go-colon g) () (%go-say g ": unrecognized option: " (bytes->str (list c))))
-                      (self (+ i 1) out 1)))
-                ((not (first s)) (self (+ i 1) (pair opt out) code))
+                      (if (%go-items? g) (list out 1 (lit stop)) (self (+ i 1) out 1))))
+                ((not (first s)) (self (+ i 1) (pair (%go-item g opt (lit none)) out) code))
                 ; an argument: what is left of the cluster, else the next word
                 ; unless it is only optional
                 ((< (+ i 1) n)
-                  (list (pair (string-append opt (string-append " " (%go-norm g (substring token (+ i 1) n)))) out)
-                        code more))
-                ((rest s) (list (pair (string-append opt " ''") out) code more))
+                  (list (pair (%go-item g opt (substring token (+ i 1) n)) out) code more))
+                ((rest s) (list (pair (%go-item g opt ()) out) code more))
                 ((null? more)
                   (do (if (%go-colon g) () (%go-say g ": option requires an argument: " (bytes->str (list c))))
                       (list out 1 (lit stop))))
-                (#t (list (pair (string-append opt (string-append " " (%go-norm g (first more)))) out)
-                          code (rest more)))))))))
+                (#t (list (pair (%go-item g opt (first more)) out) code (rest more)))))))))
     (go 1 () 0)))
 
 ; The long option TOKEN names, from START, by musl's getopt_long: (I . AT),
@@ -161,15 +174,15 @@
               ((if eq (= has 0) #f)
                 (do (if (%go-colon g) () (%go-say g ": option does not take an argument: " name))
                     (list () 1 more)))
-              (eq (list (list (string-concat (list " --" name " " (%go-norm g (substring token (+ at 1) (byte-len token))))))
+              (eq (list (list (%go-item g (string-append "--" name) (substring token (+ at 1) (byte-len token))))
                         0 more))
               ((= has 1)
                 (if (null? more)
                   (do (if (%go-colon g) () (%go-say g ": option requires an argument: " name))
                       (list () 1 more))
-                  (list (list (string-concat (list " --" name " " (%go-norm g (first more))))) 0 (rest more))))
-              ((= has 2) (list (list (string-concat (list " --" name " ''"))) 0 more))
-              (#t (list (list (string-append " --" name)) 0 more))))))
+                  (list (list (%go-item g (string-append "--" name) (first more))) 0 (rest more))))
+              ((= has 2) (list (list (%go-item g (string-append "--" name) ())) 0 more))
+              (#t (list (list (%go-item g (string-append "--" name) (lit none))) 0 more))))))
       ((= dashes 2)
         (do (if (%go-colon g) ()
               (%go-say g (if (if (pair? m) (> (first m) 0) #f) ": option is ambiguous: " ": unrecognized option: ")
@@ -200,7 +213,7 @@
                 (let ((r (if (if longs? (if (%go-alt g) #t (if (> (byte-len a) 2) (= (byte-at a 1) #\-) #f)) #f)
                            (%go-long g a (rest args)) ())))
                   (let ((r2 (if (null? r) (%go-cluster g a (rest args)) r)))
-                    (if (eq? (cu-nth 2 r2) (lit stop))
+                    (if (if (eq? (cu-nth 2 r2) (lit stop)) #t (if (%go-items? g) (= (cu-nth 1 r2) 1) #f))
                       (list (append (first r2) out) 1 ())
                       (self (cu-nth 2 r2) skipped (append (first r2) out)
                         (if (= (cu-nth 1 r2) 0) code 1)))))))))))
@@ -316,4 +329,15 @@
               (if (null? optstr) (rest ops) ops)
               (on "-Q" "--quiet-output")))))))
 
-(provide cu/getopt cu-getopt)
+; An applet's ARGV read as busybox's getopt32 reads it over getopt_long:
+; OPTSTRING's short options, LONGS as (NAME . TAKES), TAKES 0 none, 1 one
+; and 2 an optional one, refusals said under NAME.  Answers (ITEMS CODE
+; OPERANDS): the options given as (OPT . ARG) in order, ARG nil for an
+; optional one not given and none for an option that takes none; CODE 1
+; at the first refusal, which ends the parse.
+(def cu-getopt-long
+  (fn (_ optstr longs name argv)
+    (let ((r (%go-parse (%go-settings optstr longs #f name #t (lit items)) argv)))
+      (list (reverse (first r)) (cu-nth 1 r) (cu-nth 2 r)))))
+
+(provide cu/getopt cu-getopt cu-getopt-long)

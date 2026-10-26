@@ -17,7 +17,7 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `pscan`, `ipcalc`,
 `ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `pidof`, `pgrep`, `pkill`,
-`kill`, `killall`, `pwdx`, `pmap`, `pstree`, `top`, `lsof`, `fuser`, `ionice` and `taskset`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`kill`, `killall`, `pwdx`, `pmap`, `pstree`, `top`, `lsof`, `fuser`, `ionice`, `taskset` and `unshare`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
@@ -40,9 +40,9 @@ its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
     ssl_server stat strings sum sync sysctl tac tail tar taskset tcpsvd tee
     telnet telnetd test tftp tftpd time timeout top touch tr traceroute
     traceroute6 tree true truncate ts tsort tty ttysize tunctl udpsvd unexpand
-    uniq unix2dos unlink unzip uname uptime users uudecode uuencode uuidgen
-    usleep vconfig vi vmstat w watch wc wget which who whois whoami xargs xxd
-    yes zcat [ [[
+    uniq unix2dos unlink unshare unzip uname uptime users uudecode uuencode
+    uuidgen usleep vconfig vi vmstat w watch wc wget which who whois whoami
+    xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -167,7 +167,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice`, `taskset` and `brctl` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice`, `taskset`, `unshare` and `brctl` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -271,6 +271,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
     cu/ionice.x       ionice: a process's I/O class and priority asked and set through ioprio_get and ioprio_set
     cu/taskset.x      taskset: a process's CPU affinity shown and set, as a mask or a list
+    cu/unshare.x      unshare: PROG run in new namespaces, bound to files, as root in a user namespace
     cu/brctl.x        brctl: bridges made and joined through the SIOCBR ioctls, set and shown through /sys/class/net
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls

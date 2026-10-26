@@ -104,6 +104,9 @@
       ((eq? label (lit known))
         (let ((split (%cu-known-flags flags argv ())))
           (Opts parse flags values (append (first split) (pair "--" (rest split))))))
+      ; options the applet reads itself, as getopt_long does: every word is
+      ; an operand here, the applet handed them all
+      ((eq? label (lit own)) (Opts parse () () (pair "--" argv)))
       ; no options at all: a first -- goes, as getopt's would, and the rest
       ; reach the parse behind a -- of its own, so each is an operand
       ((eq? label (lit none))
