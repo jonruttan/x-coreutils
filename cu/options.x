@@ -2356,6 +2356,13 @@
         (Opts declare "pstree" "[-p] [PID|USER]"
           "Display process tree, optionally start from USER or PID"
           (list (Opts flag "-p" "Show pids")))))
+    ; powertop reads no options: every word is ignored
+    (pair "powertop"
+      (list
+        (Opts declare "powertop" ""
+          "Analyze power consumption on Intel-based laptops"
+          (list))
+        (lit none)))
     ; busybox's smemcap reads no options: every word is an operand, unread
     (pair "smemcap"
       (list

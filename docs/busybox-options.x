@@ -137,6 +137,7 @@
     (list "pwd" (%letters "LP"))
     (list "pwdx" ())
     (list "pstree" (%letters "p"))
+    (list "powertop" ())
     (list "smemcap" ())
     (list "readlink" (%letters "fnv"))
     (list "realpath" ())

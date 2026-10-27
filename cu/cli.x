@@ -382,26 +382,10 @@
       (if (if (null? spec) #t (null? (rest (rest spec)))) #f
         (if (eq? (first (rest (rest spec))) (lit inetd)) (null? (net-stdin-socket)) #f)))))
 
-(def %cu-cli-engine-flag?
-  (fn (_ s)
-    (match
-      ((string=? s "--quiet")    #t)
-      ((string=? s "--batch")    #t)
-      ((string=? s "--no-color") #t)
-      (#t (string=? s "--verbose")))))
-
-(def cu-argv
-  (fn (_ raw)
-    (def ops
-      (filter (fn (_ a) (not (%cu-cli-engine-flag? a)))
-        (if (pair? raw) (rest raw) ())))
-    (if (if (pair? ops) (string=? (first ops) "--") #f)
-      (rest ops)
-      ops)))
-
+; The operands, (Sys args 'program) past the engine's path: the applet's name,
+; then its arguments.
 (def cu-main
-  (fn (_ raw-args)
-    (def argv (cu-argv raw-args))
+  (fn (_ argv)
     (def cache (list ()))
     (def stdin-thunk
       (fn (_ . how)
@@ -418,7 +402,7 @@
           (sys-exit (cu-run argv ""))
           (sys-exit (cu-dispatch h (first argv) (rest argv) stdin-thunk)))))))
 
-(provide cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand cu-families
+(provide cu/cli cu-applets! cu-dispatch cu-extra-operand cu-families
   cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand
   cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of
   cu-string-stdin cu-usage)
