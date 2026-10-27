@@ -139,7 +139,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.37.1 (`lang.xon` is the checkable row).
+Paired with x-lang v0.40.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -213,6 +213,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/vi-ex.x        vi's search and : commands, over busybox's addresses
     cu/vi-set.x       vi's options: :set, and what ai et fl ic sm ts do
     cu/vi-undo.x      vi's u and .: the undo stack and the keys . replays
+    cu/vi-syntax.x    vi's syntax option, x's own: rows in their grammar's colours
     cu/more.x         more, the pager, and clear and reset, the terminal tools
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/strings.x      strings: printable runs, found by libc's strspn

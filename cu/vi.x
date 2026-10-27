@@ -601,18 +601,27 @@
 ; drew them: the text, the top of the screen, the left offset, the tab stop,
 ; and the rows themselves, which a redraw or an erase replaces.  Busybox
 ; formats every row and finds them the same; the bytes written are the same.
+; With the option syntax set, cu/vi-syntax.x draws the rows with their
+; colours, and turning it on or off draws them all again.
 (def %vi-drawn-screen ())
 (def %vi-drawn-version -1)
 (def %vi-drawn-top -1)
 (def %vi-drawn-tabstop -1)
 (def %vi-refresh!
   (fn (_ full?)
-    (def full (%vi-window-check full?))
+    (def sy (%vi-syntax))
+    (def toggled (if (null? sy) %vi-drawn-sy (not %vi-drawn-sy)))
+    (def full (if (%vi-window-check full?) #t toggled))
     (%vi-sync-cursor! %vi-dot)
     (def moved (if (= %vi-offset %vi-old-offset) #f #t))
     (if (%vi-rows-current? (if full #t moved)) ()
       (do (set! %vi-screen
-            (%vi-refresh-rows %vi-screenbegin 0 %vi-screen (if full #t moved) ()))
+            (if (null? sy)
+              (%vi-refresh-rows %vi-screenbegin 0 %vi-screen (if full #t moved) ())
+              (%vi-refresh-rows-sy sy (if full #t moved))))
+          (if (null? sy) (set! %vi-cells ()) ())
+          (set! %vi-cells-screen %vi-screen)
+          (set! %vi-drawn-sy (if (null? sy) #f #t))
           (set! %vi-drawn-screen %vi-screen)
           (set! %vi-drawn-version %vi-text-version)
           (set! %vi-drawn-top %vi-screenbegin)
@@ -2032,6 +2041,7 @@
 (include-once "./vi-ex.x")
 (include-once "./vi-set.x")
 (include-once "./vi-undo.x")
+(include-once "./vi-syntax.x")
 
 (provide cu/vi cu-vi vi% vi& vi+ vi- vi-bsub vi-bundle-version vi-dim vi-in?
   vi-init-g! vi-init-text-buffer! vi-key-down vi-key-end vi-key-home

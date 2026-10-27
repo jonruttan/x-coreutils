@@ -8,7 +8,8 @@
 ;
 ; :set and the options it sets, each busybox's (editors/vi.c, with
 ; FEATURE_VI_SETOPTS): autoindent, expandtab, flash, ignorecase, showmatch
-; and tabstop.  An option is a bit of %vi-setops, as busybox's vi_setops.
+; and tabstop, and x's own syntax (cu/vi-syntax.x).  An option is a bit of
+; %vi-setops, as busybox's vi_setops.
 ; What each one does lives here, called from the places busybox checks it:
 ; char_insert for autoindent, expandtab and showmatch, indicate_error for
 ; flash, char_search for ignorecase.
@@ -23,6 +24,7 @@
 (def %vi-ic 8)          ; ignorecase
 (def %vi-sm 16)         ; showmatch
 (def %vi-ts 32)         ; tabstop, whose value is %vi-tabstop
+(def %vi-sy 64)         ; syntax, x's own: colour by the file's grammar
 
 (def %vi-setops 0)
 (def %vi-indentcol 0)   ; the column of the autoindent just made, or 0
@@ -33,7 +35,8 @@
   (fn (_)
     (set! %vi-setops 0)
     (set! %vi-indentcol 0)
-    (set! %vi-newindent -1)))
+    (set! %vi-newindent -1)
+    (%vi-syntax-init!)))
 
 (def %vi-opt? (fn (_ bit) (if (= (vi& %vi-setops bit) 0) #f #t)))
 
@@ -44,7 +47,8 @@
         (pair "fl" %vi-fl) (pair "flash" %vi-fl)
         (pair "ic" %vi-ic) (pair "ignorecase" %vi-ic)
         (pair "sm" %vi-sm) (pair "showmatch" %vi-sm)
-        (pair "ts" %vi-ts) (pair "tabstop" %vi-ts)))
+        (pair "ts" %vi-ts) (pair "tabstop" %vi-ts)
+        (pair "sy" %vi-sy) (pair "syntax" %vi-sy)))
 
 (def %vi-opt-bit
   (fn (self name opts)
@@ -68,7 +72,8 @@
     (string-concat
       (list (%vi-no %vi-ai) "autoindent " (%vi-no %vi-et) "expandtab "
             (%vi-no %vi-fl) "flash " (%vi-no %vi-ic) "ignorecase "
-            (%vi-no %vi-sm) "showmatch tabstop=" (%vi-num->str %vi-tabstop)))))
+            (%vi-no %vi-sm) "showmatch tabstop=" (%vi-num->str %vi-tabstop)
+            (if (%vi-opt? %vi-sy) " syntax" "")))))
 (def %vi-no (fn (_ bit) (if (%vi-opt? bit) "" "no")))
 
 (def %vi-set-words
