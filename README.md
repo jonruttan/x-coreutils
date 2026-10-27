@@ -82,6 +82,8 @@ a line:**
     ip
     ipaddr
     ipcalc
+    ipcrm
+    ipcs
     iplink
     ipneigh
     iproute
@@ -365,6 +367,8 @@ The applets tested there so far:
 - `ifconfig`
 - `ionice`
 - `ip`
+- `ipcrm`
+- `ipcs`
 - `lsmod`
 - `nameif`
 - `netstat`
@@ -428,6 +432,8 @@ The applets tested there so far:
     cu/ip-main.x      ip, ipaddr and iplink: the common options, then the object word hands the rest to its verb
     cu/ip.x           the links and their addresses shown, and the netlink calls the ip verbs share
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
+    cu/ipcrm.x        ipcrm: System V message queues, shared memory and semaphores removed by id or key
+    cu/ipcs.x         ipcs: the System V message queues, shared memory and semaphores, and the calls on each kernel
     cu/ipneigh.x      ip neigh and ipneigh: the neighbour tables shown and flushed, over netlink
     cu/iproute.x      ip route and iproute: the routes listed, flushed, changed and asked after, over netlink
     cu/iprule.x       ip rule and iprule: the routing rules listed, added and deleted, over netlink
