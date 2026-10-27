@@ -121,6 +121,7 @@ the work.  Applet parity is the other axis: see the README.
 | `nohup` |  |  |  | - |
 | `nologin` |  |  |  | - |
 | `nproc` | --all --ignore=N | --all --ignore |  | 100% |
+| `nsenter` | -t -m -u -i -n -p -U -S -G -r -w -F --preserve-credentials | -m -u -i -n -p -U --preserve-credentials -r -w -F -t -S -G |  | 100% |
 | `nslookup` | -type -debug | -debug -type -querytype -port -retry -timeout -t |  | 100% |
 | `ntpd` | -n -q -N -x -k -w -p -S -l -I -d -4 -6 -a -A -b -g -L | -n -q -N -x -w -l -d -4 -6 -a -A -b -g -L -k -p -S -I |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
@@ -229,3 +230,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
+| `zcip` | -f -q -r -l -v | -f -q -v -r -l |  | 100% |

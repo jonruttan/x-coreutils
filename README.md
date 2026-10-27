@@ -121,6 +121,7 @@ a line:**
     nohup
     nologin
     nproc
+    nsenter
     nslookup
     ntpd
     od
@@ -226,6 +227,7 @@ a line:**
     xxd
     yes
     zcat
+    zcip
     [
     [[
 
@@ -374,6 +376,7 @@ The applets tested there so far:
 - `lsmod`
 - `nameif`
 - `netstat`
+- `nsenter`
 - `ping`
 - `powertop`
 - `route`
@@ -385,6 +388,7 @@ The applets tested there so far:
 - `tunctl`
 - `unshare`
 - `vconfig`
+- `zcip`
 
 ## Layout
 
@@ -453,6 +457,7 @@ The applets tested there so far:
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/nmeter.x       nmeter: a line of readings laid out by a format string, over the Host
+    cu/nsenter.x      nsenter: PROG run in other processes' namespaces, entered through setns, its root and directory too
     cu/ntpd.x         ntpd: an NTP client and server, its clock filter, selection and discipline, -k keys
     cu/options.x      each applet's option declaration and help text
     cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
@@ -514,6 +519,7 @@ The applets tested there so far:
     cu/walk.x         the directory walk the recursive applets share
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
     cu/who.x          id whoami logname groups uname arch nproc nice chroot, who w users
+    cu/zcip.x         zcip: a ZeroConf link-local address probed and announced over ARP, then defended
     tests/            markdown specs + the platform's runner, vendored nowhere
     tests/root.x      every module's exports bound in the root, where the specs read them
 

@@ -102,6 +102,7 @@
   wget-last-part wget-open-failure wget-pm-init! wget-pm-update! wget-times
   whois-after whois-trim)
 (import cu/netstat cu-netstat)
+(import cu/nsenter cu-nsenter)
 (import cu/nmeter cu-nmeter nm-line nm-parse nm-sample)
 (import cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-unhex nt-zeros)
 (import cu/options cu-option-spec nc-flags nc-values)
@@ -239,3 +240,4 @@
 (import cu/watch cu-watch)
 (import cu/who cu-arch cu-chroot cu-groups cu-id cu-logname cu-nice cu-nproc
   cu-uname cu-uname-field cu-users cu-w cu-who cu-whoami)
+(import cu/zcip cu-zcip)
