@@ -126,6 +126,7 @@
 (import cu/watch cu-watch)
 (import cu/who cu-arch cu-chroot cu-groups cu-id cu-logname cu-nice cu-nproc
   cu-uname cu-users cu-w cu-who cu-whoami)
+(import cu/zcip cu-zcip)
 
 (def-class Applets ()
   (static
@@ -322,6 +323,7 @@
     (method taskset (self argv stdin-thunk) (cu-taskset argv stdin-thunk))
     (method brctl (self argv stdin-thunk) (cu-brctl argv stdin-thunk))
     (method ether-wake (self argv stdin-thunk) (cu-ether-wake argv stdin-thunk))
+    (method zcip (self argv stdin-thunk) (cu-zcip argv stdin-thunk))
     (method netstat (self argv stdin-thunk) (cu-netstat argv stdin-thunk))
     (method ifconfig (self argv stdin-thunk) (cu-ifconfig argv stdin-thunk))
     (method ip (self argv stdin-thunk) (cu-ip argv stdin-thunk))
