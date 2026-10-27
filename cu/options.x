@@ -2567,6 +2567,25 @@
               (Opts text "\t-p PASSWORD\tAppend four or six byte PASSWORD to the packet"))
             (%cu-hidden-flags (list "-b"))
             (%cu-hidden-args (list "-i" "-p"))))))
+    (pair "zcip"
+      (list
+        (Opts declare "zcip" "[OPTIONS] IFACE SCRIPT"
+          "Manage a ZeroConf IPv4 link-local address"
+          (append
+            (list
+              (Opts text "\t-f\t\tRun in foreground")
+              (Opts text "\t-q\t\tQuit after obtaining address")
+              (Opts text "\t-r 169.254.x.x\tRequest this address first")
+              (Opts text "\t-l x.x.0.0\tUse this range instead of 169.254")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "")
+              (Opts text "$LOGGING=none\t\tSuppress logging")
+              (Opts text "$LOGGING=syslog \tLog to syslog")
+              (Opts text "")
+              (Opts text "With no -q, runs continuously monitoring for ARP conflicts,")
+              (Opts text "exits only on I/O errors (link down etc)"))
+            (%cu-hidden-flags (list "-f" "-q" "-v"))
+            (%cu-hidden-args (list "-r" "-l"))))))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list

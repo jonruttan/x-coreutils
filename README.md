@@ -227,6 +227,7 @@ a line:**
     xxd
     yes
     zcat
+    zcip
     [
     [[
 
@@ -387,6 +388,7 @@ The applets tested there so far:
 - `tunctl`
 - `unshare`
 - `vconfig`
+- `zcip`
 
 ## Layout
 
@@ -517,6 +519,7 @@ The applets tested there so far:
     cu/walk.x         the directory walk the recursive applets share
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
     cu/who.x          id whoami logname groups uname arch nproc nice chroot, who w users
+    cu/zcip.x         zcip: a ZeroConf link-local address probed and announced over ARP, then defended
     tests/            markdown specs + the platform's runner, vendored nowhere
     tests/root.x      every module's exports bound in the root, where the specs read them
 

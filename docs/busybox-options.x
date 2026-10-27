@@ -33,6 +33,7 @@
                             "--propagation" "--setgroups")))
     (list "brctl" ())
     (list "ether-wake" (%letters "bip"))
+    (list "zcip" (%letters "fqrlv"))
     (list "ascii" ())
     (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))

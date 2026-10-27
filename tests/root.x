@@ -240,3 +240,4 @@
 (import cu/watch cu-watch)
 (import cu/who cu-arch cu-chroot cu-groups cu-id cu-logname cu-nice cu-nproc
   cu-uname cu-uname-field cu-users cu-w cu-who cu-whoami)
+(import cu/zcip cu-zcip)
