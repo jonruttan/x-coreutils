@@ -82,6 +82,8 @@ the work.  Applet parity is the other axis: see the README.
 | `ip` |  |  |  | - |
 | `ipaddr` |  |  |  | - |
 | `ipcalc` | -b -n -m -p -h -s | -b -n -m -p -h -s --broadcast --network --netmask --prefix --hostname --silent |  | 100% |
+| `ipcrm` | -q -m -s -Q -M -S | -q -m -s -Q -M -S |  | 100% |
+| `ipcs` | -i -a -q -s -m -t -c -p -l -u | -a -q -s -m -t -c -p -l -u -i |  | 100% |
 | `iplink` |  |  |  | - |
 | `ipneigh` |  |  |  | - |
 | `iproute` |  |  |  | - |
@@ -226,5 +228,3 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
-
-**Total: 1003 of 1018 busybox options accepted (98%).**

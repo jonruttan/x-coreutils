@@ -93,6 +93,8 @@
     (list "install" (%letters "cdDspogmt"))
     (list "ionice" (%letters "ncpt"))
     (list "iostat" (%letters "cdtzkm"))
+    (list "ipcrm" (%letters "qmsQMS"))
+    (list "ipcs" (%letters "iaqsmtcplu"))
     (list "killall" (%letters "lqs"))
     (list "link" ())
     (list "ln" (%letters "sfnbtv"))

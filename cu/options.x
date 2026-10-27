@@ -859,6 +859,36 @@
             (%cu-hidden-flags (list "-t"))
             (%cu-hidden-args (list "-n" "-c" "-p"))))
         (lit leading)))
+    (pair "ipcs"
+      (list
+        (Opts declare "ipcs" "[[-smq] -i SHMID] | [[-asmq] [-tcplu]]" ()
+          (append
+            (list
+              (Opts text "\t-i ID\tShow specific resource")
+              (Opts text "Resource specification:")
+              (Opts text "\t-m\tShared memory segments")
+              (Opts text "\t-q\tMessage queues")
+              (Opts text "\t-s\tSemaphore arrays")
+              (Opts text "\t-a\tAll (default)")
+              (Opts text "Output format:")
+              (Opts text "\t-t\tTime")
+              (Opts text "\t-c\tCreator")
+              (Opts text "\t-p\tPid")
+              (Opts text "\t-l\tLimits")
+              (Opts text "\t-u\tSummary"))
+            (%cu-hidden-flags (list "-a" "-q" "-s" "-m" "-t" "-c" "-p" "-l" "-u"))
+            (%cu-hidden-args (list "-i"))))))
+    (pair "ipcrm"
+      (list
+        (Opts declare "ipcrm" "[-MQS key] [-mqs id]"
+          "Upper-case options MQS remove an object by shmkey value.\nLower-case options remove an object by shmid value."
+          (append
+            (list
+              (Opts text "\t-mM\tRemove memory segment after last detach")
+              (Opts text "\t-qQ\tRemove message queue")
+              (Opts text "\t-sS\tRemove semaphore"))
+            (%cu-hidden-args (list "-q" "-m" "-s" "-Q" "-M" "-S"))))
+        (lit leading)))
     ; the command a runner runs takes its own flags
     (pair "chroot"
       (list
