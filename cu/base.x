@@ -12,7 +12,7 @@
 (module cu/base)
 
 (import cu/applets)
-(import cu/cli cu-argv cu-main cu-run)
+(import cu/cli cu-main cu-run)
 (import cu/sha256 cu-sha256)
 
 (def cu-version "0.1.0")
@@ -22,4 +22,4 @@
     (unless (null? result) (write result))
     (newline)))
 
-(provide cu/base cu-version cu-run cu-argv cu-main cu-sha256 cu-repl-print)
+(provide cu/base cu-version cu-run cu-main cu-sha256 cu-repl-print)

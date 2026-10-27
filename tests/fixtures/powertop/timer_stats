@@ -1,0 +1,9 @@
+Timer Stats Version: v0.2
+Sample period: 1.329 s
+   76,     0 swapper          hrtimer_start_range_ns (tick_sched_timer)
+   24,  3787 firefox          hrtimer_start_range_ns (hrtimer_wakeup)
+  46D,  1136 kondemand/1      do_dbs_timer (delayed_work_timer_fn)
+    9,  1656 averyveryverylongname  hrtimer_start (hrtimer_wakeup)
+    3,    12 insmod  tick_nohz_restart (x)
+    5,    13 modprobe  foo (bar)
+331 total events, 249.059 events/sec

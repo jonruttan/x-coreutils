@@ -2386,6 +2386,13 @@
         (Opts declare "pstree" "[-p] [PID|USER]"
           "Display process tree, optionally start from USER or PID"
           (list (Opts flag "-p" "Show pids")))))
+    ; powertop reads no options: every word is ignored
+    (pair "powertop"
+      (list
+        (Opts declare "powertop" ""
+          "Analyze power consumption on Intel-based laptops"
+          (list))
+        (lit none)))
     ; sysctl's -q row is spaced, not tabbed, in busybox's help, so its rows
     ; are laid out by hand
     (pair "sysctl"

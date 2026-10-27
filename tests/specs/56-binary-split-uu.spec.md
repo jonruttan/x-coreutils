@@ -48,7 +48,7 @@ third open on fd 3 at the end of the first piece.  A forked child puts the
 file on fd 3 and runs split through cu-main, which exits with split's status.
 
 ```cu
-(do (display (let ((pid (sys-fork))) (if (= pid 0) (let ((fd (file-open-read (bp "pat")))) (do (if (= fd 3) () (do (sys-dup2 fd 3) (sys-close fd))) (cu-main (list "x" "split" "-b" "7000" "-" (bp "c"))))) (sys-wait pid)))) (newline) (sys "cat caa cab cac cad cae > c-all") (display (list (sizes "c" (list "aa" "ab" "ac" "ad" "ae")) (same "c-all" "pat"))))
+(do (display (let ((pid (sys-fork))) (if (= pid 0) (let ((fd (file-open-read (bp "pat")))) (do (if (= fd 3) () (do (sys-dup2 fd 3) (sys-close fd))) (cu-main (list "split" "-b" "7000" "-" (bp "c"))))) (sys-wait pid)))) (newline) (sys "cat caa cab cac cad cae > c-all") (display (list (sizes "c" (list "aa" "ab" "ac" "ad" "ae")) (same "c-all" "pat"))))
 ```
 ---
 ```output
