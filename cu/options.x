@@ -2393,6 +2393,13 @@
           "Analyze power consumption on Intel-based laptops"
           (list))
         (lit none)))
+    ; busybox's smemcap reads no options: every word is an operand, unread
+    (pair "smemcap"
+      (list
+        (Opts declare "smemcap" ">SMEMDATA.TAR"
+          "Collect memory usage data in /proc and write it to stdout"
+          (list))
+        (lit none)))
     ; sysctl's -q row is spaced, not tabbed, in busybox's help, so its rows
     ; are laid out by hand
     (pair "sysctl"

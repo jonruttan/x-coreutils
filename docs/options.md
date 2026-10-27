@@ -164,6 +164,7 @@ the work.  Applet parity is the other axis: see the README.
 | `shred` | -f -n -u -z | -f -z -u -n |  | 100% |
 | `shuf` | -e -i -n -o -z | -z -e -n -o -i |  | 100% |
 | `sleep` |  |  |  | - |
+| `smemcap` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -c -b -f -i -d -n -g -M -r -s -u -z -o -t -k |  | 100% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
 | `ssl_client` | -s -r -n -e | -e -s -r -n |  | 100% |

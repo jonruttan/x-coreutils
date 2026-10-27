@@ -161,6 +161,7 @@ a line:**
     shred
     shuf
     sleep
+    smemcap
     sort
     split
     ssl_client
@@ -376,6 +377,7 @@ The applets tested there so far:
 - `powertop`
 - `route`
 - `setpriv`
+- `smemcap`
 - `sysctl`
 - `taskset`
 - `traceroute`
@@ -470,6 +472,7 @@ The applets tested there so far:
     cu/sha3.x         sha3sum: SHA-3 at any width busybox takes, through x-lang's Sha3
     cu/sha512.x       sha512sum sha384sum; the digests are x-lang's codecs
     cu/signal.x       signal names and numbers, read as busybox's get_signum reads them
+    cu/smemcap.x      smemcap: what smem reads of /proc, as a tar stream on standard output
     cu/sort.x         sort
     cu/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
     cu/sslserver.x    ssl_server: a TLS 1.3 server on the connection inetd or tcpsvd hands it, PROG on the far side
