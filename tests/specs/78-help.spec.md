@@ -3993,6 +3993,50 @@ stderr:
 status 0
 ```
 
+### ipcs
+
+```cu
+(run (list "ipcs" "--help") "")
+```
+---
+```output
+Usage: ipcs [[-smq] -i SHMID] | [[-asmq] [-tcplu]]|
+|
+	-i ID	Show specific resource|
+Resource specification:|
+	-m	Shared memory segments|
+	-q	Message queues|
+	-s	Semaphore arrays|
+	-a	All (default)|
+Output format:|
+	-t	Time|
+	-c	Creator|
+	-p	Pid|
+	-l	Limits|
+	-u	Summary|
+stderr:
+status 0
+```
+
+### ipcrm
+
+```cu
+(run (list "ipcrm" "--help") "")
+```
+---
+```output
+Usage: ipcrm [-MQS key] [-mqs id]|
+|
+Upper-case options MQS remove an object by shmkey value.|
+Lower-case options remove an object by shmid value.|
+|
+	-mM	Remove memory segment after last detach|
+	-qQ	Remove message queue|
+	-sS	Remove semaphore|
+stderr:
+status 0
+```
+
 ### test
 
 ```cu
