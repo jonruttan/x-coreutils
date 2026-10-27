@@ -1733,6 +1733,19 @@
           (list
             (Opts flag "-c" "Set controlling terminal to stdin")))
         (lit leading)))
+    (pair "setpriv"
+      (list
+        (Opts declare "setpriv" "[OPTIONS] PROG ARGS"
+          "Run PROG with different privilege settings"
+          (append
+            (list
+              (Opts text "-d,--dump\t\tShow current capabilities")
+              (Opts text "--nnp,--no-new-privs\tIgnore setuid/setgid bits and file capabilities")
+              (Opts text "--inh-caps CAP,CAP\tSet inheritable capabilities")
+              (Opts text "--ambient-caps CAP,CAP\tSet ambient capabilities"))
+            (%cu-hidden-flags (list "-d" "--dump" "--nnp" "--no-new-privs"))
+            (%cu-hidden-args (list "--inh-caps" "--ambient-caps"))))
+        (lit prefixes)))
     (pair "ttysize"
       (list
         (Opts declare "ttysize" "[w] [h]"
@@ -2452,6 +2465,17 @@
         (Opts declare "brctl" "COMMAND [BRIDGE [ARGS]]"
           "Manage ethernet bridges\nCommands:\n\tshow [BRIDGE]...\tShow bridges\n\taddbr BRIDGE\t\tCreate BRIDGE\n\tdelbr BRIDGE\t\tDelete BRIDGE\n\taddif BRIDGE IFACE\tAdd IFACE to BRIDGE\n\tdelif BRIDGE IFACE\tDelete IFACE from BRIDGE\n\tshowmacs BRIDGE\t\t\tList MAC addresses\n\tshowstp\tBRIDGE\t\t\tShow STP info\n\tstp BRIDGE 1/yes/on|0/no/off\tSet STP on/off\n\tsetageing BRIDGE SECONDS\tSet ageing time\n\tsetfd BRIDGE SECONDS\t\tSet bridge forward delay\n\tsethello BRIDGE SECONDS\t\tSet hello time\n\tsetmaxage BRIDGE SECONDS\tSet max message age\n\tsetbridgeprio BRIDGE PRIO\tSet bridge priority\n\tsetportprio BRIDGE IFACE PRIO\tSet port priority\n\tsetpathcost BRIDGE IFACE COST\tSet path cost"
           ())))
+    (pair "ether-wake"
+      (list
+        (Opts declare "ether-wake" "[-b] [-i IFACE] [-p aa:bb:cc:dd[:ee:ff]/a.b.c.d] MAC"
+          "Send a magic packet to wake up sleeping machines.\nMAC must be a station address (00:11:22:33:44:55) or\na hostname with a known 'ethers' entry."
+          (append
+            (list
+              (Opts text "\t-b\t\tBroadcast the packet")
+              (Opts text "\t-i IFACE\tInterface to use (default eth0)")
+              (Opts text "\t-p PASSWORD\tAppend four or six byte PASSWORD to the packet"))
+            (%cu-hidden-flags (list "-b"))
+            (%cu-hidden-args (list "-i" "-p"))))))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list

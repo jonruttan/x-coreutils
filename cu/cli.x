@@ -85,6 +85,10 @@
                 (if (null? (rest (rest spec))) () (first (rest (rest spec))))))
     (match
       ((eq? label (lit leading)) (Opts parse-leading flags values argv))
+      ; leading options, a long one named by any prefix that names no other,
+      ; as musl's getopt_long reads them
+      ((eq? label (lit prefixes))
+        (Opts parse-leading flags values (%cu-long-prefixed flags values argv ())))
       ; a first word that is -SIGNAL is the applet's own, read before getopt
       ; as busybox's pkill reads it
       ((eq? label (lit signal))
@@ -111,6 +115,57 @@
           (pair "--" (if (if (pair? argv) (string=? (first argv) "--") #f)
                        (rest argv) argv))))
       (#t (Opts parse flags values argv)))))
+
+; Where TOK's value starts: at its first =, or its end when it has none.
+(def %cu-eq-at
+  (fn (_ tok)
+    (def n (byte-len tok))
+    (def go (fn (self i) (if (if (< i n) (not (= (byte-at tok i) #\=)) #f) (self (+ i 1)) i)))
+    (go 2)))
+
+; The long spellings among NAMES that TOK, a --word, names as musl's
+; getopt_long reads it: the one spelled whole, else each one its letters
+; before any = begin.
+(def %cu-long-matches
+  (fn (_ tok names)
+    (def cut (%cu-eq-at tok))
+    (def word (substring tok 0 cut))
+    (def longs (filter (fn (_ n) (if (> (byte-len n) 2) (= (byte-at n 1) #\-) #f)) names))
+    (def whole (filter (fn (_ n) (string=? n word)) longs))
+    (if (pair? whole) whole
+      (filter (fn (_ n) (if (<= cut (byte-len n)) (string=? (substring n 0 cut) word) #f)) longs))))
+
+; Whether WORD, a cluster of short options, ends in one of VALUES with its
+; value still to come, the next word.
+(def %cu-cluster-takes-next?
+  (fn (_ word flags values)
+    (def n (byte-len word))
+    (def go
+      (fn (self i)
+        (let ((opt (bytes->str (list 45 (byte-at word i)))))
+          (match
+            ((cu-member-s? opt values) (= (+ i 1) n))
+            ((if (cu-member-s? opt flags) (< (+ i 1) n) #f) (self (+ i 1)))
+            (#t #f)))))
+    (go 1)))
+
+; ARGV with each leading long option a unique prefix names spelled whole,
+; its =VALUE kept; the words from the first operand or -- on are as given.
+(def %cu-long-prefixed
+  (fn (self flags values argv acc)
+    (def w (if (null? argv) "" (first argv)))
+    (def more (if (null? argv) () (rest argv)))
+    (def m (if (if (> (byte-len w) 2) (= (byte-at w 1) #\-) #f) (%cu-long-matches w (append flags values)) ()))
+    (def full (if (= (length m) 1) (string-append (first m) (substring w (%cu-eq-at w) (byte-len w))) w))
+    (def next? (if (= (length m) 1)
+                 (if (cu-member-s? (first m) values) (= (%cu-eq-at w) (byte-len w)) #f) #f))
+    (match
+      ((if (< (byte-len w) 2) #t (if (not (= (byte-at w 0) #\-)) #t (string=? w "--")))
+        (append (reverse acc) argv))
+      ((if (= (byte-at w 1) #\-) #f (%cu-cluster-takes-next? w flags values))
+        (if (null? more) (reverse (pair w acc)) (self flags values (rest more) (pair (first more) (pair w acc)))))
+      ((if next? (pair? more) #f) (self flags values (rest more) (pair (first more) (pair full acc))))
+      (#t (self flags values more (pair full acc))))))
 
 ; the letters of the -X spellings among VALUES, the options that take a value
 (def cu-value-letters
@@ -226,7 +281,16 @@
       ((cu-member-s? applet %cu-short-only) "unrecognized option: -")
       ((cu-member-s? tok values)
         (string-append "option requires an argument: " (substring tok 2 end)))
+      ((if (eq? (%cu-label-of applet) (lit prefixes))
+         (> (length (%cu-long-matches tok (append flags values))) 1) #f)
+        (string-append "option is ambiguous: " (substring tok 2 end)))
       (#t (string-append "unrecognized option: " (substring tok 2 end))))))
+
+; the label APPLET's row ends with, or nil
+(def %cu-label-of
+  (fn (_ applet)
+    (let ((spec (cu-spec-of applet)))
+      (if (if (null? spec) #t (null? (rest (rest spec)))) () (first (rest (rest spec)))))))
 
 ; Too few operands, in GNU's words: none at all is `missing operand`, and some
 ; is `missing operand after 'LAST'`, LAST the last of them.  GNU follows either
@@ -318,26 +382,10 @@
       (if (if (null? spec) #t (null? (rest (rest spec)))) #f
         (if (eq? (first (rest (rest spec))) (lit inetd)) (null? (net-stdin-socket)) #f)))))
 
-(def %cu-cli-engine-flag?
-  (fn (_ s)
-    (match
-      ((string=? s "--quiet")    #t)
-      ((string=? s "--batch")    #t)
-      ((string=? s "--no-color") #t)
-      (#t (string=? s "--verbose")))))
-
-(def cu-argv
-  (fn (_ raw)
-    (def ops
-      (filter (fn (_ a) (not (%cu-cli-engine-flag? a)))
-        (if (pair? raw) (rest raw) ())))
-    (if (if (pair? ops) (string=? (first ops) "--") #f)
-      (rest ops)
-      ops)))
-
+; The operands, (Sys args 'program) past the engine's path: the applet's name,
+; then its arguments.
 (def cu-main
-  (fn (_ raw-args)
-    (def argv (cu-argv raw-args))
+  (fn (_ argv)
     (def cache (list ()))
     (def stdin-thunk
       (fn (_ . how)
@@ -354,7 +402,7 @@
           (sys-exit (cu-run argv ""))
           (sys-exit (cu-dispatch h (first argv) (rest argv) stdin-thunk)))))))
 
-(provide cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand cu-families
+(provide cu/cli cu-applets! cu-dispatch cu-extra-operand cu-families
   cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand
   cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of
   cu-string-stdin cu-usage)

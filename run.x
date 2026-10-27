@@ -11,12 +11,12 @@
 ;
 ; Usage:
 ;   x -l coreutils -- APPLET [args]...
-(import cu/base cu-argv cu-main cu-repl-print cu-version)
+(import cu/base cu-main cu-repl-print cu-version)
 
 (set! %lang-name "COREUTILS")
 (set! %lang-version cu-version)
 (set! %repl-prompt "cu> ")
 (set! %repl-print cu-repl-print)
 
-(unless (null? (cu-argv args))
-  (cu-main args))
+(let ((ops (rest (Sys args (lit program)))))
+  (unless (null? ops) (cu-main ops)))
