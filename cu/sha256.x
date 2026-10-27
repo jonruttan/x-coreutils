@@ -24,9 +24,6 @@
 
 (def cu-m32 4294967295)
 
-(def cu-hex-digit
-  (fn (_ d) (if (< d 10) (+ 48 d) (+ 87 d))))
-
 ; TEXT's SHA-256 as hex: TEXT a string, or a run, digested by its count
 (def cu-sha256
   (fn (_ text)
@@ -159,4 +156,4 @@
       ((if (Opts on? o "-s") #t (Opts on? o "-w")) (cu-usage name))
       (#t (cu-each-run-said ops stdin-thunk (%cu-sum-says name) one 0)))))
 
-(provide cu/sha256 cu-hex-digit cu-m32 cu-sha256 cu-sha256sum cu-sum-applet)
+(provide cu/sha256 cu-m32 cu-sha256 cu-sha256sum cu-sum-applet)
