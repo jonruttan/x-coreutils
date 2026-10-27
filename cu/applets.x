@@ -68,6 +68,7 @@
 (import cu/nc cu-nc cu-netcat)
 (import cu/net cu-wget cu-whois)
 (import cu/netstat cu-netstat)
+(import cu/nsenter cu-nsenter)
 (import cu/nmeter cu-nmeter)
 (import cu/ntpd cu-ntpd)
 (import cu/patch cu-patch)
@@ -85,6 +86,7 @@
 (import cu/route cu-route)
 (import cu/runparts cu-run-parts)
 (import cu/sendmail cu-sendmail)
+(import cu/smemcap cu-smemcap)
 (import cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
   cu-ttysize)
 (import cu/setpriv cu-setpriv)
@@ -119,6 +121,7 @@
 (import cu/tree cu-tree)
 (import cu/tsort cu-tsort)
 (import cu/tunctl cu-tunctl)
+(import cu/unshare cu-unshare)
 (import cu/unzip cu-unzip)
 (import cu/vconfig cu-vconfig)
 (import cu/vi cu-vi)
@@ -126,6 +129,7 @@
 (import cu/watch cu-watch)
 (import cu/who cu-arch cu-chroot cu-groups cu-id cu-logname cu-nice cu-nproc
   cu-uname cu-users cu-w cu-who cu-whoami)
+(import cu/zcip cu-zcip)
 
 (def-class Applets ()
   (static
@@ -311,6 +315,7 @@
     (method pwdx (self argv stdin-thunk) (cu-pwdx argv stdin-thunk))
     (method pstree (self argv stdin-thunk) (cu-pstree argv stdin-thunk))
     (method powertop (self argv stdin-thunk) (cu-powertop argv stdin-thunk))
+    (method smemcap (self argv stdin-thunk) (cu-smemcap argv stdin-thunk))
     (method sysctl (self argv stdin-thunk) (cu-sysctl argv stdin-thunk))
     (method lsmod (self argv stdin-thunk) (cu-lsmod argv stdin-thunk))
     (method route (self argv stdin-thunk) (cu-route argv stdin-thunk))
@@ -320,8 +325,11 @@
     (method vconfig (self argv stdin-thunk) (cu-vconfig argv stdin-thunk))
     (method tunctl (self argv stdin-thunk) (cu-tunctl argv stdin-thunk))
     (method taskset (self argv stdin-thunk) (cu-taskset argv stdin-thunk))
+    (method nsenter (self argv stdin-thunk) (cu-nsenter argv stdin-thunk))
+    (method unshare (self argv stdin-thunk) (cu-unshare argv stdin-thunk))
     (method brctl (self argv stdin-thunk) (cu-brctl argv stdin-thunk))
     (method ether-wake (self argv stdin-thunk) (cu-ether-wake argv stdin-thunk))
+    (method zcip (self argv stdin-thunk) (cu-zcip argv stdin-thunk))
     (method netstat (self argv stdin-thunk) (cu-netstat argv stdin-thunk))
     (method ifconfig (self argv stdin-thunk) (cu-ifconfig argv stdin-thunk))
     (method ip (self argv stdin-thunk) (cu-ip argv stdin-thunk))

@@ -2393,6 +2393,13 @@
           "Analyze power consumption on Intel-based laptops"
           (list))
         (lit none)))
+    ; busybox's smemcap reads no options: every word is an operand, unread
+    (pair "smemcap"
+      (list
+        (Opts declare "smemcap" ">SMEMDATA.TAR"
+          "Collect memory usage data in /proc and write it to stdout"
+          (list))
+        (lit none)))
     ; sysctl's -q row is spaced, not tabbed, in busybox's help, so its rows
     ; are laid out by hand
     (pair "sysctl"
@@ -2497,6 +2504,53 @@
               (Opts text "\t-c\tAffinity is a list, not mask"))
             (%cu-hidden-flags (list "-p" "-a" "-c"))))
         (lit leading)))
+    ; nsenter reads its own options, as getopt32long does: -m and the rest
+    ; take a FILE only in their own word, which Opts has no form for
+    (pair "nsenter"
+      (list
+        (Opts declare "nsenter" "[OPTIONS] [PROG ARGS]" ()
+          (append
+            (list
+              (Opts text "\t-t PID\t\tTarget process to get namespaces from")
+              (Opts text "\t-m[FILE]\tEnter mount namespace")
+              (Opts text "\t-u[FILE]\tEnter UTS namespace (hostname etc)")
+              (Opts text "\t-i[FILE]\tEnter System V IPC namespace")
+              (Opts text "\t-n[FILE]\tEnter network namespace")
+              (Opts text "\t-p[FILE]\tEnter pid namespace")
+              (Opts text "\t-U[FILE]\tEnter user namespace")
+              (Opts text "\t-S UID\t\tSet uid in entered namespace")
+              (Opts text "\t-G GID\t\tSet gid in entered namespace")
+              (Opts text "\t--preserve-credentials\tDon't touch uids or gids")
+              (Opts text "\t-r[DIR]\t\tSet root directory")
+              (Opts text "\t-w[DIR]\t\tSet working directory")
+              (Opts text "\t-F\t\tDon't fork before exec'ing PROG"))
+            (%cu-hidden-flags (list "-m" "-u" "-i" "-n" "-p" "-U" "--preserve-credentials" "-r" "-w" "-F"))
+            (%cu-hidden-args (list "-t" "-S" "-G"))))
+        (lit none)))
+    ; unshare reads its own options, as getopt32long does: a namespace's FILE
+    ; only after an =, and a long option by any prefix, which Opts has no form for
+    (pair "unshare"
+      (list
+        (Opts declare "unshare" "[OPTIONS] [PROG ARGS]" ()
+          (append
+            (list
+              (Opts text "\t-m,--mount[=FILE]\tUnshare mount namespace")
+              (Opts text "\t-u,--uts[=FILE]\t\tUnshare UTS namespace (hostname etc.)")
+              (Opts text "\t-i,--ipc[=FILE]\t\tUnshare System V IPC namespace")
+              (Opts text "\t-n,--net[=FILE]\t\tUnshare network namespace")
+              (Opts text "\t-p,--pid[=FILE]\t\tUnshare PID namespace")
+              (Opts text "\t-U,--user[=FILE]\tUnshare user namespace")
+              (Opts text "\t-f\t\t\tFork before execing PROG")
+              (Opts text "\t-r\t\t\tMap current user to root (implies -U)")
+              (Opts text "\t--mount-proc[=DIR]\tMount /proc filesystem first (implies -m)")
+              (Opts text "\t--propagation slave|shared|private|unchanged")
+              (Opts text "\t\t\t\tModify mount propagation in mount namespace")
+              (Opts text "\t--setgroups allow|deny\tControl the setgroups syscall in user namespaces"))
+            (%cu-hidden-flags (list "-m" "-u" "-i" "-n" "-p" "-U" "-f" "-r" "--mount" "--uts"
+                                    "--ipc" "--net" "--pid" "--user" "--fork" "--map-root-user"
+                                    "--mount-proc"))
+            (%cu-hidden-args (list "--propagation" "--setgroups"))))
+        (lit none)))
     (pair "brctl"
       (list
         (Opts declare "brctl" "COMMAND [BRIDGE [ARGS]]"
@@ -2513,6 +2567,25 @@
               (Opts text "\t-p PASSWORD\tAppend four or six byte PASSWORD to the packet"))
             (%cu-hidden-flags (list "-b"))
             (%cu-hidden-args (list "-i" "-p"))))))
+    (pair "zcip"
+      (list
+        (Opts declare "zcip" "[OPTIONS] IFACE SCRIPT"
+          "Manage a ZeroConf IPv4 link-local address"
+          (append
+            (list
+              (Opts text "\t-f\t\tRun in foreground")
+              (Opts text "\t-q\t\tQuit after obtaining address")
+              (Opts text "\t-r 169.254.x.x\tRequest this address first")
+              (Opts text "\t-l x.x.0.0\tUse this range instead of 169.254")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "")
+              (Opts text "$LOGGING=none\t\tSuppress logging")
+              (Opts text "$LOGGING=syslog \tLog to syslog")
+              (Opts text "")
+              (Opts text "With no -q, runs continuously monitoring for ARP conflicts,")
+              (Opts text "exits only on I/O errors (link down etc)"))
+            (%cu-hidden-flags (list "-f" "-q" "-v"))
+            (%cu-hidden-args (list "-r" "-l"))))))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list

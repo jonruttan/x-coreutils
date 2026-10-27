@@ -121,6 +121,7 @@ the work.  Applet parity is the other axis: see the README.
 | `nohup` |  |  |  | - |
 | `nologin` |  |  |  | - |
 | `nproc` | --all --ignore=N | --all --ignore |  | 100% |
+| `nsenter` | -t -m -u -i -n -p -U -S -G -r -w -F --preserve-credentials | -m -u -i -n -p -U --preserve-credentials -r -w -F -t -S -G |  | 100% |
 | `nslookup` | -type -debug | -debug -type -querytype -port -retry -timeout -t |  | 100% |
 | `ntpd` | -n -q -N -x -k -w -p -S -l -I -d -4 -6 -a -A -b -g -L | -n -q -N -x -w -l -d -4 -6 -a -A -b -g -L -k -p -S -I |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
@@ -164,6 +165,7 @@ the work.  Applet parity is the other axis: see the README.
 | `shred` | -f -n -u -z | -f -z -u -n |  | 100% |
 | `shuf` | -e -i -n -o -z | -z -e -n -o -i |  | 100% |
 | `sleep` |  |  |  | - |
+| `smemcap` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -c -b -f -i -d -n -g -M -r -s -u -z -o -t -k |  | 100% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
 | `ssl_client` | -s -r -n -e | -e -s -r -n |  | 100% |
@@ -205,6 +207,7 @@ the work.  Applet parity is the other axis: see the README.
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
+| `unshare` | -m -u -i -n -p -U -f -r --mount --uts --ipc --net --pid --user --mount-proc --propagation --setgroups | -m -u -i -n -p -U -f -r --mount --uts --ipc --net --pid --user --fork --map-root-user --mount-proc --propagation --setgroups |  | 100% |
 | `unzip` | -l -n -o -j -p -t -q -K -x -d | -l -n -o -j -p -t -q -K -x -v -d |  | 100% |
 | `uptime` | -s | -s |  | 100% |
 | `users` |  |  |  | - |
@@ -227,3 +230,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
+| `zcip` | -f -q -r -l -v | -f -q -v -r -l |  | 100% |

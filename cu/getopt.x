@@ -206,6 +206,77 @@
                         (if (= (cu-nth 1 r2) 0) code 1)))))))))))
     (go params () () 0)))
 
+; --- busybox's getopt32long -------------------------------------------------------
+
+; A cluster TOKEN of short options, its later words MORE, as an applet reads
+; it: (TAKEN MORE-AFTER REFUSAL), TAKEN its (KEY . VALUE)s newest first
+(def %go-take-cluster
+  (fn (_ g token more)
+    (def n (byte-len token))
+    (def go
+      (fn (self i taken)
+        (if (>= i n) (list taken more ())
+          (let ((c (byte-at token i)) (s (%go-short g (byte-at token i))))
+            (let ((key (bytes->str (list c))))
+              (match
+                ((null? s) (list taken more (string-append "unrecognized option: " key)))
+                ((not (first s)) (self (+ i 1) (pair (pair key ()) taken)))
+                ((< (+ i 1) n) (list (pair (pair key (substring token (+ i 1) n)) taken) more ()))
+                ((rest s) (list (pair (pair key ()) taken) more ()))
+                ((null? more) (list taken more (string-append "option requires an argument: " key)))
+                (#t (list (pair (pair key (first more)) taken) (rest more) ()))))))))
+    (go 1 ())))
+
+; A long option TOKEN, LONGS its (NAME HAS KEY)s: as %go-take-cluster answers
+(def %go-take-long
+  (fn (_ g longs token more)
+    (def n (byte-len token))
+    (def m (%go-long-match g token 2))
+    (match
+      ((if (pair? m) (null? (rest m)) #t)
+        (list () more
+          (string-append (if (if (pair? m) (> (first m) 0) #f) "option is ambiguous: " "unrecognized option: ")
+            (substring token 2 n))))
+      (#t
+        (let ((opt (cu-nth (first m) longs)) (at (rest m)))
+          (let ((name (first opt)) (has (cu-nth 1 opt)) (key (cu-nth 2 opt)))
+            (match
+              ((if (< at n) (= has 0) #f)
+                (list () more (string-append "option does not take an argument: " name)))
+              ((< at n) (list (list (pair key (substring token (+ at 1) n))) more ()))
+              ((not (= has 1)) (list (list (pair key ())) more ()))
+              ((null? more) (list () more (string-append "option requires an argument: " name)))
+              (#t (list (list (pair key (first more))) (rest more) ())))))))))
+
+; ARGV read as busybox's getopt32long reads it, through musl's getopt_long:
+; OPTSTRING's short options, a : after a letter for an argument and :: for
+; one that may only follow it in its word, and LONGS, (NAME HAS KEY) each,
+; HAS 0 none, 1 an argument and 2 one only after a =, KEY what it reads as.
+; A + before OPTSTRING stops at the first operand.  Answers (TAKEN OPERANDS
+; REFUSAL): TAKEN the (KEY . VALUE)s in the order given, a short option's KEY
+; its letter, VALUE nil where none came; REFUSAL nil, or musl's words for
+; the option that stopped the reading, those before it taken.
+(def cu-getopt-long
+  (fn (_ optstr longs argv)
+    (def g (%go-settings optstr (map (fn (_ l) (pair (first l) (cu-nth 1 l))) longs) #f "" #f (lit none)))
+    (def go
+      (fn (self args taken skipped)
+        (def done (fn (_ ops why) (list (reverse taken) (append (reverse skipped) ops) why)))
+        (if (null? args) (done () ())
+          (let ((a (first args)))
+            (match
+              ((not (%go-option? a))
+                (if (eq? (%go-mode g) (lit stop)) (done args ()) (self (rest args) taken (pair a skipped))))
+              ((string=? a "--") (done (rest args) ()))
+              (#t
+                (let ((r (if (if (> (byte-len a) 2) (= (byte-at a 1) #\-) #f)
+                           (%go-take-long g longs a (rest args))
+                           (%go-take-cluster g a (rest args)))))
+                  (if (null? (cu-nth 2 r))
+                    (self (cu-nth 1 r) (append (first r) taken) skipped)
+                    (list (reverse (append (first r) taken)) () (cu-nth 2 r))))))))))
+    (go argv () ())))
+
 ; --- the applet -------------------------------------------------------------------
 
 ; -l's words: names split on commas and blanks, a trailing : for a required
@@ -316,4 +387,4 @@
               (if (null? optstr) (rest ops) ops)
               (on "-Q" "--quiet-output")))))))
 
-(provide cu/getopt cu-getopt)
+(provide cu/getopt cu-getopt cu-getopt-long)

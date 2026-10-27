@@ -102,6 +102,7 @@
   wget-last-part wget-open-failure wget-pm-init! wget-pm-update! wget-times
   whois-after whois-trim)
 (import cu/netstat cu-netstat)
+(import cu/nsenter cu-nsenter)
 (import cu/nmeter cu-nmeter nm-line nm-parse nm-sample)
 (import cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-unhex nt-zeros)
 (import cu/options cu-option-spec nc-flags nc-values)
@@ -127,7 +128,8 @@
   cu-sweep-at cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick!
   cu-sweeps-cell cu-take cu-type-of cu-walk-worst cu-words-line cu/ cu< cu<<
   cu>> cvt date-now-unix file-chmod file-chown file-close file-copy file-dir?
-  file-err-op file-err-sym file-err-text file-exists? file-lchown file-link
+  file-err-op file-err-sym file-err-text file-exists? file-fstat-full
+  file-lchown file-link
   file-list-dir file-lstat-file-type file-lstat-full file-lstat-wide
   file-mkdir file-mkfifo file-mounts file-open-append file-open-err
   file-open-excl file-open-or-err file-open-read file-open-update
@@ -139,7 +141,8 @@
   file-write-run filter gz-word-bytes host-args host-boot-time host-counters
   host-cpu host-cpus host-cwd host-disks host-exe host-files host-files-of
   host-holders host-interfaces host-interrupts host-load-centi host-load-fixed
-  host-maps host-memory host-now host-process host-processes host-regions
+  host-maps host-memory host-now host-proc-root host-process host-processes
+  host-regions
   host-tasks host-threads host-uptime host-users host-utmp host-wait
   http-close http-head http-open http-read http-status hx-hex-digit hx-strtoul
   in-index-of integer->char length libc-strerror list->string load-centi
@@ -176,6 +179,7 @@
 (import cu/sha512 cu-sha384sum cu-sha512sum)
 (import cu/signal fu-args pg-nsig pg-rt pg-signal-word pg-signum pg-strto
   ts-signal-number)
+(import cu/smemcap cu-smemcap)
 (import cu/sort cu-sort sort-fold)
 (import cu/sslclient cu-ssl-client sc-copy sc-run-prog)
 (import cu/sslserver cu-ssl-server)
@@ -188,8 +192,8 @@
 (import cu/tar cu-tar cu-unsafe-prefix tar-all-pieces tar-copy-out! tar-field
   tar-fill! tar-find-str tar-last-slash tar-makedev tar-member? tar-min
   tar-mkdir tar-mknod tar-printable tar-reader tar-resolve! tar-skip!
-  tar-str-bytes tar-verbose-line tar-why tc-block tc-sub-run tm-link tm-mode
-  tm-name tm-size)
+  tar-str-bytes tar-verbose-line tar-why tc-block tc-put! tc-sub-run
+  tc-write-header! tm-link tm-mode tm-name tm-size)
 (import cu/taskset cu-taskset)
 (import cu/tcpsvd cu-tcpsvd cu-udpsvd)
 (import cu/telnet cu-telnet tn-run tn-str-bytes)
@@ -223,6 +227,7 @@
 (import cu/tree cu-tree)
 (import cu/tsort cu-tsort ts-space?)
 (import cu/tunctl cu-tunctl)
+(import cu/unshare cu-unshare)
 (import cu/unzip cu-unzip)
 (import cu/vconfig cu-vconfig)
 (import cu/vi cu-vi vi% vi& vi+ vi- vi-bsub vi-bundle-version vi-dim vi-in?
@@ -235,3 +240,4 @@
 (import cu/watch cu-watch)
 (import cu/who cu-arch cu-chroot cu-groups cu-id cu-logname cu-nice cu-nproc
   cu-uname cu-uname-field cu-users cu-w cu-who cu-whoami)
+(import cu/zcip cu-zcip)

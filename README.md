@@ -121,6 +121,7 @@ a line:**
     nohup
     nologin
     nproc
+    nsenter
     nslookup
     ntpd
     od
@@ -161,6 +162,7 @@ a line:**
     shred
     shuf
     sleep
+    smemcap
     sort
     split
     ssl_client
@@ -201,6 +203,7 @@ a line:**
     uniq
     unix2dos
     unlink
+    unshare
     unzip
     uname
     uptime
@@ -224,6 +227,7 @@ a line:**
     xxd
     yes
     zcat
+    zcip
     [
     [[
 
@@ -372,15 +376,19 @@ The applets tested there so far:
 - `lsmod`
 - `nameif`
 - `netstat`
+- `nsenter`
 - `ping`
 - `powertop`
 - `route`
 - `setpriv`
+- `smemcap`
 - `sysctl`
 - `taskset`
 - `traceroute`
 - `tunctl`
+- `unshare`
 - `vconfig`
+- `zcip`
 
 ## Layout
 
@@ -449,6 +457,7 @@ The applets tested there so far:
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/nmeter.x       nmeter: a line of readings laid out by a format string, over the Host
+    cu/nsenter.x      nsenter: PROG run in other processes' namespaces, entered through setns, its root and directory too
     cu/ntpd.x         ntpd: an NTP client and server, its clock filter, selection and discipline, -k keys
     cu/options.x      each applet's option declaration and help text
     cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file
@@ -470,6 +479,7 @@ The applets tested there so far:
     cu/sha3.x         sha3sum: SHA-3 at any width busybox takes, through x-lang's Sha3
     cu/sha512.x       sha512sum sha384sum; the digests are x-lang's codecs
     cu/signal.x       signal names and numbers, read as busybox's get_signum reads them
+    cu/smemcap.x      smemcap: what smem reads of /proc, as a tar stream on standard output
     cu/sort.x         sort
     cu/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
     cu/sslserver.x    ssl_server: a TLS 1.3 server on the connection inetd or tcpsvd hands it, PROG on the far side
@@ -495,6 +505,7 @@ The applets tested there so far:
     cu/tree.x         tree: the directories drawn, as busybox draws them
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
+    cu/unshare.x      unshare: PROG run in new namespaces, bound to files, as root in a user namespace
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/vconfig.x      vconfig: 802.1Q VLAN interfaces made, removed and set through SIOCSIFVLAN
     cu/vi-edit.x      vi's operators over those motions, registers, marks
@@ -508,6 +519,7 @@ The applets tested there so far:
     cu/walk.x         the directory walk the recursive applets share
     cu/watch.x        watch: a command run every period under a header, through sh -c or exec
     cu/who.x          id whoami logname groups uname arch nproc nice chroot, who w users
+    cu/zcip.x         zcip: a ZeroConf link-local address probed and announced over ARP, then defended
     tests/            markdown specs + the platform's runner, vendored nowhere
     tests/root.x      every module's exports bound in the root, where the specs read them
 
