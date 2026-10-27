@@ -206,7 +206,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/find.x         find: the expression grammar, and the walk it drives
     cu/hash.x         md5sum sha1sum cksum sum; the digests are x-lang's codecs
     cu/sha256.x       sha256sum, and the driver every digest applet shares
-    cu/sha512.x       SHA-512 in x, addition masked in halves, and SHA-384 from it
+    cu/sha512.x       sha512sum sha384sum; the digests are x-lang's codecs
     cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, files
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/vi-edit.x      vi's operators over those motions, registers, marks
