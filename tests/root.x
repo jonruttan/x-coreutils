@@ -112,6 +112,7 @@
   pn-resolve pn-setopt pn-sol-socket pn-sum)
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
+(import cu/powertop cu-powertop)
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
   byte-len cal/ char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
   cu-dirname-of cu-dlopen cu-dlsym cu-dot? cu-err-label cu-fd-fields
