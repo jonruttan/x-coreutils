@@ -17,32 +17,32 @@ its network tools, `wget` (http, https and ftp), `whois`, `nc`, `netcat`,
 `nslookup`, `tftp`, `tftpd`, `ftpget`, `ftpput`, `httpd`, `ftpd`, `dnsd`,
 `inetd`, `fakeidentd`, `telnet`, `telnetd`, `ntpd`, `dumpleases`, `pscan`, `ipcalc`,
 `ssl_client`, `ssl_server`, `tcpsvd` and `udpsvd`, its `uptime`, `free`, `ps`, `minips`, `pidof`, `pgrep`, `pkill`,
-`kill`, `killall`, `pwdx`, `pmap`, `pstree`, `top`, `lsof`, `fuser`, `ionice`, `taskset`, `setpriv` and `nsenter`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
+`kill`, `killall`, `pwdx`, `pmap`, `pstree`, `top`, `lsof`, `fuser`, `ionice`, `taskset`, `setpriv`, `powertop` and `nsenter`, its `vmstat`, `iostat`, `mpstat`, `nmeter` and `watch`,
 its `who`, `w` and `users`, its `tar`, `unzip` and `cpio`, its `gzip`,
 `gunzip` and `zcat`, its `patch`, its `makemime`, `reformime`,
 `sendmail` and `popmaildir`, and its `hostname`, `dnsdomainname`,
 `hostid`, `mountpoint`, `mknod`, `mesg`, `renice`, `chrt`, `ts`, `sha384sum` and
-`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute`, `traceroute6`, `arping`, `nameif`, `vconfig`, `tunctl` and `brctl`.**
+`sha3sum`, its `cryptpw` and `mkpasswd`, and its `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, and `ip` with `ipaddr`, `iplink`, `iproute`, `ipneigh`, `iprule` and `iptunnel`, and its `ping`, `ping6`, `traceroute`, `traceroute6`, `arping`, `nameif`, `vconfig`, `tunctl`, `brctl` and `ether-wake`.**
 
     arch arp arping ascii base32 base64 basename brctl cal cat chgrp chmod
     chown chrt chroot cksum clear cmp comm cp cpio crc32 cryptpw cut date dc
     dd df diff dirname dnsd dnsdomainname dos2unix du dumpleases ed echo env
-    expand expr factor fakeidentd false find flock fold free fsync ftpd
-    ftpget ftpput fuser getopt groups gunzip gzip hd head hexdump hostid
+    ether-wake expand expr factor fakeidentd false find flock fold free fsync
+    ftpd ftpget ftpput fuser getopt groups gunzip gzip hd head hexdump hostid
     hostname httpd id ifconfig inetd ionice install iostat ip ipaddr ipcalc
     iplink ipneigh iproute iprule iptunnel join kill killall link ln logname
     ls lsmod lsof makemime md5sum mesg minips mkdir mkfifo mknod mkpasswd
     mktemp more mountpoint mpstat mv nameif nc netcat netstat nice nl nmeter
     nohup nologin nproc nsenter nslookup ntpd od paste patch pgrep pidof ping
-    ping6 pipe_progress pkill pmap popmaildir printenv printf ps pscan pstree pwd
-    readlink renice reset rev rm rmdir route run-parts sendmail seq setpriv
-    setsid sha1sum sha256sum sha384sum sha3sum sha512sum shred shuf sleep
-    sort split ssl_client ssl_server stat strings sum sync sysctl tac tail
-    tar taskset tcpsvd tee telnet telnetd test tftp tftpd time timeout top
-    touch tr traceroute traceroute6 tree true truncate ts tsort tty ttysize
-    tunctl udpsvd unexpand uniq unix2dos unlink unzip uname uptime users
-    uudecode uuencode uuidgen usleep vconfig vi vmstat w watch wc wget which
-    who whois whoami xargs xxd yes zcat [ [[
+    ping6 pipe_progress pkill pmap popmaildir powertop printenv printf ps pscan
+    pstree pwd readlink renice reset rev rm rmdir route run-parts sendmail
+    seq setpriv setsid sha1sum sha256sum sha384sum sha3sum sha512sum shred
+    shuf sleep sort split ssl_client ssl_server stat strings sum sync sysctl
+    tac tail tar taskset tcpsvd tee telnet telnetd test tftp tftpd time
+    timeout top touch tr traceroute traceroute6 tree true truncate ts tsort
+    tty ttysize tunctl udpsvd unexpand uniq unix2dos unlink unzip uname
+    uptime users uudecode uuencode uuidgen usleep vconfig vi vmstat w watch
+    wc wget which who whois whoami xargs xxd yes zcat [ [[
 
 Highlights: **every digest is byte-identical with the system tool**,
 reading every byte, a NUL too -- `md5sum`, `sha1sum`, `sha256sum` and
@@ -139,7 +139,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.37.1 (`lang.xon` is the checkable row).
+Paired with x-lang v0.40.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -167,7 +167,7 @@ parsed by x-lang's `Opts`.
     make check          # judged against tests/contract/known-failures.txt
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
-The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice`, `taskset`, `brctl`, `chrt`, `setpriv` and `nsenter` so far --
+The applets whose work is the kernel's -- `sysctl`, `lsmod`, `route`, `arp`, `netstat`, `ifconfig`, `ip`, `ping`, `traceroute`, `arping`, `nameif`, `vconfig`, `tunctl`, `ionice`, `taskset`, `brctl`, `chrt`, `setpriv`, `ether-wake`, `powertop` and `nsenter` so far --
 are tested on Linux as root, in a container tests/linux/Containerfile
 builds: x at the release lang.xon declares, beside busybox.  Each case in
 tests/linux/specs runs the bundle's applet and busybox on the same words
@@ -213,6 +213,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/vi-ex.x        vi's search and : commands, over busybox's addresses
     cu/vi-set.x       vi's options: :set, and what ai et fl ic sm ts do
     cu/vi-undo.x      vi's u and .: the undo stack and the keys . replays
+    cu/vi-syntax.x    vi's syntax option, x's own: rows in their grammar's colours
     cu/more.x         more, the pager, and clear and reset, the terminal tools
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/strings.x      strings: printable runs, found by libc's strspn
@@ -245,6 +246,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/dumpleases.x   dumpleases: the leases of a udhcpd lease file, time left or when each ends
     cu/pscan.x        pscan: a TCP port scan of a host, its open ports and their services
     cu/pstree.x       pstree: the process tree, its threads too, from a process or for a user
+    cu/powertop.x     powertop: the wakeups the kernel counts and their causes, the C-states' residency
     cu/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
     cu/sslserver.x    ssl_server: a TLS 1.3 server on the connection inetd or tcpsvd hands it, PROG on the far side
     cu/ipcalc.x       ipcalc: an address's netmask, broadcast, network, prefix and name
@@ -275,6 +277,7 @@ kernel's own, whichever kernel runs it.  `ENGINE=docker` for Docker,
     cu/taskset.x      taskset: a process's CPU affinity shown and set, as a mask or a list
     cu/nsenter.x      nsenter: PROG run in other processes' namespaces, entered through setns, its root and directory too
     cu/brctl.x        brctl: bridges made and joined through the SIOCBR ioctls, set and shown through /sys/class/net
+    cu/etherwake.x    ether-wake: a Wake-On-LAN magic packet sent over a packet socket
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls
     cu/ip.x           the links and their addresses shown, and the netlink calls the ip verbs share

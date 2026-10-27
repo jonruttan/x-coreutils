@@ -15,9 +15,10 @@
 (import cu/ascii cu-ascii cu-crc32 cu-uuidgen)
 (import cu/base32 cu-base32)
 (import cu/brctl cu-brctl)
+(import cu/etherwake cu-ether-wake)
 (import cu/cal cal-sum cu-cal)
 (import cu/chrt cu-chrt)
-(import cu/cli cu-applets! cu-argv cu-dispatch cu-extra-operand cu-families
+(import cu/cli cu-applets! cu-dispatch cu-extra-operand cu-families
   cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand
   cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of
   cu-string-stdin cu-usage)
@@ -112,6 +113,7 @@
   pn-resolve pn-setopt pn-sol-socket pn-sum)
 (import cu/pmap cu-pmap)
 (import cu/popmaildir cu-popmaildir)
+(import cu/powertop cu-powertop)
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
   byte-len cal/ char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
   cu-dirname-of cu-dlopen cu-dlsym cu-dot? cu-err-label cu-fd-fields
