@@ -132,6 +132,7 @@ a line:**
     pkill
     pmap
     popmaildir
+    powertop
     printenv
     printf
     ps
@@ -319,7 +320,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.37.1 (`lang.xon` is the checkable row).
+Paired with x-lang v0.40.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -368,6 +369,7 @@ The applets tested there so far:
 - `nameif`
 - `netstat`
 - `ping`
+- `powertop`
 - `route`
 - `setpriv`
 - `sysctl`
@@ -448,6 +450,7 @@ The applets tested there so far:
     cu/ping.x         ping and ping6: echo requests over a raw socket, the replies timed
     cu/pmap.x         pmap: a process's memory regions, over the Host
     cu/popmaildir.x   popmaildir: a POP3 mailbox fetched into a maildir, by a connection helper or stdin
+    cu/powertop.x     powertop: the wakeups the kernel counts and their causes, the C-states' residency
     cu/prims.x        the platform layer (byte doors, bitwise, File, the wide stat)
     cu/procps.x       uptime, free, ps (and minips, its other name), pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
     cu/pscan.x        pscan: a TCP port scan of a host, its open ports and their services
@@ -492,6 +495,7 @@ The applets tested there so far:
     cu/vi-ex.x        vi's search and : commands, over busybox's addresses
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/vi-set.x       vi's options: :set, and what ai et fl ic sm ts do
+    cu/vi-syntax.x    vi's syntax option, x's own: rows in their grammar's colours
     cu/vi-undo.x      vi's u and .: the undo stack and the keys . replays
     cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, files
     cu/vmstat.x       vmstat, and the compact numbers and %.2f the counter applets share

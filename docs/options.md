@@ -132,6 +132,7 @@ the work.  Applet parity is the other axis: see the README.
 | `pkill` | -l -x -f -s -P -v -n -o -e | -l -x -f -v -n -o -e -a -s -P |  | 100% |
 | `pmap` | -x -q | -x -q |  | 100% |
 | `popmaildir` | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F |  | 100% |
+| `powertop` |  |  |  | - |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
 | `ps` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
