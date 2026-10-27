@@ -162,6 +162,7 @@ a line:**
     shred
     shuf
     sleep
+    smemcap
     sort
     split
     ssl_client
@@ -202,6 +203,7 @@ a line:**
     uniq
     unix2dos
     unlink
+    unshare
     unzip
     uname
     uptime
@@ -378,10 +380,12 @@ The applets tested there so far:
 - `powertop`
 - `route`
 - `setpriv`
+- `smemcap`
 - `sysctl`
 - `taskset`
 - `traceroute`
 - `tunctl`
+- `unshare`
 - `vconfig`
 
 ## Layout
@@ -473,6 +477,7 @@ The applets tested there so far:
     cu/sha3.x         sha3sum: SHA-3 at any width busybox takes, through x-lang's Sha3
     cu/sha512.x       sha512sum sha384sum; the digests are x-lang's codecs
     cu/signal.x       signal names and numbers, read as busybox's get_signum reads them
+    cu/smemcap.x      smemcap: what smem reads of /proc, as a tar stream on standard output
     cu/sort.x         sort
     cu/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
     cu/sslserver.x    ssl_server: a TLS 1.3 server on the connection inetd or tcpsvd hands it, PROG on the far side
@@ -498,6 +503,7 @@ The applets tested there so far:
     cu/tree.x         tree: the directories drawn, as busybox draws them
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
+    cu/unshare.x      unshare: PROG run in new namespaces, bound to files, as root in a user namespace
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/vconfig.x      vconfig: 802.1Q VLAN interfaces made, removed and set through SIOCSIFVLAN
     cu/vi-edit.x      vi's operators over those motions, registers, marks

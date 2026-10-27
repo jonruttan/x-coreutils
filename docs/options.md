@@ -165,6 +165,7 @@ the work.  Applet parity is the other axis: see the README.
 | `shred` | -f -n -u -z | -f -z -u -n |  | 100% |
 | `shuf` | -e -i -n -o -z | -z -e -n -o -i |  | 100% |
 | `sleep` |  |  |  | - |
+| `smemcap` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -c -b -f -i -d -n -g -M -r -s -u -z -o -t -k |  | 100% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
 | `ssl_client` | -s -r -n -e | -e -s -r -n |  | 100% |
@@ -206,6 +207,7 @@ the work.  Applet parity is the other axis: see the README.
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
+| `unshare` | -m -u -i -n -p -U -f -r --mount --uts --ipc --net --pid --user --mount-proc --propagation --setgroups | -m -u -i -n -p -U -f -r --mount --uts --ipc --net --pid --user --fork --map-root-user --mount-proc --propagation --setgroups |  | 100% |
 | `unzip` | -l -n -o -j -p -t -q -K -x -d | -l -n -o -j -p -t -q -K -x -v -d |  | 100% |
 | `uptime` | -s | -s |  | 100% |
 | `users` |  |  |  | - |

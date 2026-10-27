@@ -619,7 +619,7 @@
 
 ; S into the header H at OFF, at most MAX bytes, as strncpy puts it: no NUL
 ; where it fills the field
-(def %tc-put!
+(def tc-put!
   (fn (_ h off s max)
     (def p (cu-str->ptr h))
     (def n (tar-min (byte-len s) max))
@@ -633,7 +633,7 @@
     (def d (dp-udigits v 8 #f))
     (def full (cu-pad-zero d len))
     (def last (substring full (- (byte-len full) len) (byte-len full)))
-    (%tc-put! h off (if (= (byte-at last 0) #\0) (substring last 1 len) last) len)))
+    (tc-put! h off (if (= (byte-at last 0) #\0) (substring last 1 len) last) len)))
 
 ; a block of 512 NUL bytes
 (def tc-block
@@ -646,14 +646,14 @@
 ; the header H written to FD, its magic and checksum put in first: GNU's
 ; "ustar  ", and the sum of the bytes with the checksum field as blanks, in six
 ; octal digits and a NUL
-(def %tc-write-header!
+(def tc-write-header!
   (fn (_ fd h)
     (def p (cu-str->ptr h))
-    (do (%tc-put! h 257 "ustar  " 8)
-        (%tc-put! h 148 "        " 8)
+    (do (tc-put! h 257 "ustar  " 8)
+        (tc-put! h 148 "        " 8)
         (let ((sum (let ((go (fn (self i acc) (if (= i 512) acc (self (+ i 1) (+ acc (byte-at h i)))))))
                      (go 0 0))))
-          (do (%tc-put! h 148 (cu-pad-zero (dp-udigits sum 8 #f) 6) 6)
+          (do (tc-put! h 148 (cu-pad-zero (dp-udigits sum 8 #f) 6) 6)
               (cu-ptr-set! p 154 0 1)))
         (%tc-emit! fd (pair h 512)))))
 
@@ -662,19 +662,19 @@
   (fn (_ fd type name dir?)
     (def h (tc-block))
     (def size (+ (byte-len name) (if dir? 2 1)))
-    (do (%tc-put! h 0 "././@LongLink" 100)
-        (%tc-put! h 100 "0000000" 8)
-        (%tc-put! h 108 "0000000" 8)
-        (%tc-put! h 116 "0000000" 8)
-        (%tc-put! h 124 "00000000000" 12)
-        (%tc-put! h 136 "00000000000" 12)
+    (do (tc-put! h 0 "././@LongLink" 100)
+        (tc-put! h 100 "0000000" 8)
+        (tc-put! h 108 "0000000" 8)
+        (tc-put! h 116 "0000000" 8)
+        (tc-put! h 124 "00000000000" 12)
+        (tc-put! h 136 "00000000000" 12)
         (%tc-octal! h 124 12 size)
         (cu-ptr-set! (cu-str->ptr h) 156 type 1)
-        (%tc-write-header! fd h)
+        (tc-write-header! fd h)
         (let ((blocks (cal/ (+ size 511) 512)))
           (let ((buf (str-make-raw (* 512 blocks))))
             (do (map (fn (_ i) (cu-ptr-set! (cu-str->ptr buf) i 0 1)) (List range 0 (* 512 blocks)))
-                (%tc-put! buf 0 (if dir? (string-append name "/") name) (* 512 blocks))
+                (tc-put! buf 0 (if dir? (string-append name "/") name) (* 512 blocks))
                 (%tc-emit! fd (pair buf (* 512 blocks)))))))))
 
 ; The run's create settings, in a vector: the archive's descriptor, verbose,
@@ -702,18 +702,18 @@
         ((= type 24576) #\4) ((= type 4096) #\6) ((= type 32768) #\0) (#t ())))
     (if (null? flag)
       (do (%tar-say (string-append path ": unknown file type")) #f)
-      (do (%tc-put! h 0 name 100)
+      (do (tc-put! h 0 name 100)
           (%tc-octal! h 100 8 (& mode 4095))
           (%tc-octal! h 108 8 (get (lit uid)))
           (%tc-octal! h 116 8 (get (lit gid)))
-          (%tc-put! h 124 "00000000000" 11)
+          (tc-put! h 124 "00000000000" 11)
           (%tc-octal! h 136 12 (let ((t (get (lit mtime)))) (if (< t 0) 0 t)))
-          (%tc-put! h 265 (%tc-uname (get (lit uid))) 31)
-          (%tc-put! h 297 (%tc-gname (get (lit gid))) 31)
+          (tc-put! h 265 (%tc-uname (get (lit uid))) 31)
+          (tc-put! h 297 (%tc-gname (get (lit gid))) 31)
           (cu-ptr-set! (cu-str->ptr h) 156 flag 1)
-          (if (null? link) () (%tc-put! h 157 link 100))
+          (if (null? link) () (tc-put! h 157 link 100))
           (match
-            ((if (= flag #\5) (< (byte-len name) 100) #f) (%tc-put! h (byte-len name) "/" 1))
+            ((if (= flag #\5) (< (byte-len name) 100) #f) (tc-put! h (byte-len name) "/" 1))
             ((if (= flag #\3) #t (= flag #\4) )
               (do (%tc-octal! h 329 8 (cu-dev-major (get (lit rdev))))
                   (%tc-octal! h 337 8 (cu-dev-minor (get (lit rdev))))))
@@ -721,7 +721,7 @@
             (#t ()))
           (if (if (null? link) #f (>= (byte-len link) 100)) (%tc-longname! fd #\K link #f) ())
           (if (>= (byte-len name) 100) (%tc-longname! fd #\L name (= flag #\5)) ())
-          (%tc-write-header! fd h)
+          (tc-write-header! fd h)
           (if (vec-ref c 1)
             (file-write (if (= fd 1) 2 1) (string-append (tar-printable name) (if (= flag #\5) "/\n" "\n")))
             ())
@@ -998,5 +998,5 @@
 (provide cu/tar cu-tar cu-unsafe-prefix tar-all-pieces tar-copy-out! tar-field
   tar-fill! tar-find-str tar-last-slash tar-makedev tar-member? tar-min
   tar-mkdir tar-mknod tar-printable tar-reader tar-resolve! tar-skip!
-  tar-str-bytes tar-verbose-line tar-why tc-block tc-sub-run tm-link tm-mode
-  tm-name tm-size)
+  tar-str-bytes tar-verbose-line tar-why tc-block tc-put! tc-sub-run
+  tc-write-header! tm-link tm-mode tm-name tm-size)
