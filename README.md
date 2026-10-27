@@ -462,7 +462,7 @@ The applets tested there so far:
     cu/setpriv.x      setpriv: PROG run with no_new_privs and inheritable or ambient capabilities, the state shown by -d
     cu/sha256.x       sha256sum, and the driver every digest applet shares
     cu/sha3.x         sha3sum: SHA-3 at any width busybox takes, through x-lang's Sha3
-    cu/sha512.x       SHA-512 in x, addition masked in halves, and SHA-384 from it
+    cu/sha512.x       sha512sum sha384sum; the digests are x-lang's codecs
     cu/signal.x       signal names and numbers, read as busybox's get_signum reads them
     cu/sort.x         sort
     cu/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
