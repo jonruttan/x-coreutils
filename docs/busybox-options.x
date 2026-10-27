@@ -27,6 +27,7 @@
     (list "vconfig" ())
     (list "tunctl" (%letters "ftdugb"))
     (list "taskset" (%letters "pac"))
+    (list "nsenter" (append (%letters "tmuinpUSGrwF") (list "--preserve-credentials")))
     (list "unshare" (append (%letters "muinpUfr")
                       (list "--mount" "--uts" "--ipc" "--net" "--pid" "--user" "--mount-proc"
                             "--propagation" "--setgroups")))

@@ -121,6 +121,7 @@ a line:**
     nohup
     nologin
     nproc
+    nsenter
     nslookup
     ntpd
     od
@@ -374,6 +375,7 @@ The applets tested there so far:
 - `lsmod`
 - `nameif`
 - `netstat`
+- `nsenter`
 - `ping`
 - `powertop`
 - `route`
@@ -453,6 +455,7 @@ The applets tested there so far:
     cu/net.x          wget, over the platform's Http, and whois, over its Socket
     cu/netstat.x      netstat: the kernel's sockets, each kind and side, with names, services and processes
     cu/nmeter.x       nmeter: a line of readings laid out by a format string, over the Host
+    cu/nsenter.x      nsenter: PROG run in other processes' namespaces, entered through setns, its root and directory too
     cu/ntpd.x         ntpd: an NTP client and server, its clock filter, selection and discipline, -k keys
     cu/options.x      each applet's option declaration and help text
     cu/patch.x        patch: unified diffs applied a hunk at a time, in one pass over each file

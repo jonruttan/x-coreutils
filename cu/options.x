@@ -2504,6 +2504,29 @@
               (Opts text "\t-c\tAffinity is a list, not mask"))
             (%cu-hidden-flags (list "-p" "-a" "-c"))))
         (lit leading)))
+    ; nsenter reads its own options, as getopt32long does: -m and the rest
+    ; take a FILE only in their own word, which Opts has no form for
+    (pair "nsenter"
+      (list
+        (Opts declare "nsenter" "[OPTIONS] [PROG ARGS]" ()
+          (append
+            (list
+              (Opts text "\t-t PID\t\tTarget process to get namespaces from")
+              (Opts text "\t-m[FILE]\tEnter mount namespace")
+              (Opts text "\t-u[FILE]\tEnter UTS namespace (hostname etc)")
+              (Opts text "\t-i[FILE]\tEnter System V IPC namespace")
+              (Opts text "\t-n[FILE]\tEnter network namespace")
+              (Opts text "\t-p[FILE]\tEnter pid namespace")
+              (Opts text "\t-U[FILE]\tEnter user namespace")
+              (Opts text "\t-S UID\t\tSet uid in entered namespace")
+              (Opts text "\t-G GID\t\tSet gid in entered namespace")
+              (Opts text "\t--preserve-credentials\tDon't touch uids or gids")
+              (Opts text "\t-r[DIR]\t\tSet root directory")
+              (Opts text "\t-w[DIR]\t\tSet working directory")
+              (Opts text "\t-F\t\tDon't fork before exec'ing PROG"))
+            (%cu-hidden-flags (list "-m" "-u" "-i" "-n" "-p" "-U" "--preserve-credentials" "-r" "-w" "-F"))
+            (%cu-hidden-args (list "-t" "-S" "-G"))))
+        (lit none)))
     ; unshare reads its own options, as getopt32long does: a namespace's FILE
     ; only after an =, and a long option by any prefix, which Opts has no form for
     (pair "unshare"
