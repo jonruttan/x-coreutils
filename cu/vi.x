@@ -33,11 +33,11 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-err-label
-  cu-heap-collect cu-ptr-call cu-stat-get cu-stdin-to-command! file-close
-  file-err-sym file-err-text file-exists? file-open-or-err file-open-read
-  file-read-all file-stat-full file-truncate file-unlink file-write filter
-  length map reverse set-first! str-make-raw string-append string-concat
-  string=? sys-getenv sys-getuid sys-kill)
+  cu-heap-collect cu-ptr-call cu-stat-get cu-stdin-to-command! cu-string-type
+  cvt file-close file-err-sym file-err-text file-exists? file-open-or-err
+  file-open-read file-read-all file-stat-full file-truncate file-unlink
+  file-write filter length map reverse set-first! str-make-raw string-append
+  string-concat string=? sys-getenv sys-getuid sys-kill)
 
 (import x/repl/term)
 
@@ -602,7 +602,7 @@
 ; and the rows themselves, which a redraw or an erase replaces.  Busybox
 ; formats every row and finds them the same; the bytes written are the same.
 ; With the option syntax set, cu/vi-syntax.x draws the rows with their
-; colours, and turning it on or off draws them all again.
+; colours, and turning it on or off, or a new theme, draws them all again.
 (def %vi-drawn-screen ())
 (def %vi-drawn-version -1)
 (def %vi-drawn-top -1)
@@ -610,7 +610,7 @@
 (def %vi-refresh!
   (fn (_ full?)
     (def sy (%vi-syntax))
-    (def toggled (if (null? sy) %vi-drawn-sy (not %vi-drawn-sy)))
+    (def toggled (%vi-colours-stale? sy))
     (def full (if (%vi-window-check full?) #t toggled))
     (%vi-sync-cursor! %vi-dot)
     (def moved (if (= %vi-offset %vi-old-offset) #f #t))
@@ -622,6 +622,7 @@
           (if (null? sy) (set! %vi-cells ()) ())
           (set! %vi-cells-screen %vi-screen)
           (set! %vi-drawn-sy (if (null? sy) #f #t))
+          (set! %vi-drawn-theme (if (null? sy) () (Theme current)))
           (set! %vi-drawn-screen %vi-screen)
           (set! %vi-drawn-version %vi-text-version)
           (set! %vi-drawn-top %vi-screenbegin)
