@@ -2504,6 +2504,30 @@
               (Opts text "\t-c\tAffinity is a list, not mask"))
             (%cu-hidden-flags (list "-p" "-a" "-c"))))
         (lit leading)))
+    ; unshare reads its own options, as getopt32long does: a namespace's FILE
+    ; only after an =, and a long option by any prefix, which Opts has no form for
+    (pair "unshare"
+      (list
+        (Opts declare "unshare" "[OPTIONS] [PROG ARGS]" ()
+          (append
+            (list
+              (Opts text "\t-m,--mount[=FILE]\tUnshare mount namespace")
+              (Opts text "\t-u,--uts[=FILE]\t\tUnshare UTS namespace (hostname etc.)")
+              (Opts text "\t-i,--ipc[=FILE]\t\tUnshare System V IPC namespace")
+              (Opts text "\t-n,--net[=FILE]\t\tUnshare network namespace")
+              (Opts text "\t-p,--pid[=FILE]\t\tUnshare PID namespace")
+              (Opts text "\t-U,--user[=FILE]\tUnshare user namespace")
+              (Opts text "\t-f\t\t\tFork before execing PROG")
+              (Opts text "\t-r\t\t\tMap current user to root (implies -U)")
+              (Opts text "\t--mount-proc[=DIR]\tMount /proc filesystem first (implies -m)")
+              (Opts text "\t--propagation slave|shared|private|unchanged")
+              (Opts text "\t\t\t\tModify mount propagation in mount namespace")
+              (Opts text "\t--setgroups allow|deny\tControl the setgroups syscall in user namespaces"))
+            (%cu-hidden-flags (list "-m" "-u" "-i" "-n" "-p" "-U" "-f" "-r" "--mount" "--uts"
+                                    "--ipc" "--net" "--pid" "--user" "--fork" "--map-root-user"
+                                    "--mount-proc"))
+            (%cu-hidden-args (list "--propagation" "--setgroups"))))
+        (lit none)))
     (pair "brctl"
       (list
         (Opts declare "brctl" "COMMAND [BRIDGE [ARGS]]"

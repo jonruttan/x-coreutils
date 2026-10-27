@@ -1050,6 +1050,67 @@
             (def set (List length (List filter on? (List range 0 n))))
             (match ((= set 0) 22) ((= set n) 0) (#t 45))))))))
 
+(def %cu-libc (fn (_ name) (cu-dlsym (cu-dlopen () 1) name)))
+
+; Namespaces: unshare(2) with the CLONE_NEW* bits FLAGS, and mount(2) with
+; TYPE nil for none -- 0, or the errno the call failed with.  Darwin has no
+; namespaces: unsharing none stands there as it does on Linux, and anything
+; else is ENOSYS, mount too.
+(def sys-unshare
+  (fn (_ flags)
+    (if os-darwin? (if (= flags 0) 0 78)
+      (let ((r (Sys %sign-fold (cu-ptr-call (%cu-libc "unshare") flags))))
+        (if (< r 0) (Err errno-of r) 0)))))
+
+(def sys-mount
+  (fn (_ source target type flags)
+    (if os-darwin? 78
+      (let ((r (Sys %sign-fold (cu-ptr-call (%cu-libc "mount") source target (if (null? type) 0 type) flags 0))))
+        (if (< r 0) (Err errno-of r) 0)))))
+
+; TEXT written to PATH, opened for writing alone, as busybox writes /proc's
+; files: 0, or (OP . ERRNO), OP open, write, or short for a write that took
+; less than all of it
+(def file-put-or-errno
+  (fn (_ path text)
+    (let ((fd (Sys %sign-fold (cu-ptr-call (%cu-libc "open") path 1))))
+      (if (< fd 0) (pair (lit open) (Err errno-of fd))
+        (let ((w (Sys %sign-fold (cu-ptr-call (%cu-libc "write") fd text (byte-len text)))))
+          (def e (if (< w 0) (Err errno-of w) 0))
+          (cu-ptr-call (%cu-libc "close") fd)
+          (match ((< w 0) (pair (lit write) e))
+                 ((< w (byte-len text)) (pair (lit short) 0))
+                 (#t 0)))))))
+
+; PATH run in place of this process with ARGV whole, its first word the name
+; it runs under, as execv runs it, looking nowhere on PATH: a login shell's
+; -sh.  Answers the errno when exec refuses.
+(def sys-execv
+  (fn (_ path argv)
+    (def n (List length argv))
+    (def buf (str-make-raw (* (+ n 1) 8)))
+    (def p (cu-str->ptr buf))
+    (def set-word! (prim-ref (lit ptr) (lit set-word!)))
+    (def ->int (prim-ref (lit ptr) (lit ->int)))
+    (def fill
+      (fn (self ws i)
+        (if (null? ws) (set-word! p (* i 8) 0)
+          (do (set-word! p (* i 8) (->int (cu-str->ptr (first ws)))) (self (rest ws) (+ i 1))))))
+    (fill argv 0)
+    (Err errno-of (Sys %sign-fold (cu-ptr-call (%cu-libc "execv") path p)))))
+
+; The child PID waited for, as waitpid tells it: (CODE . SIGNAL), SIGNAL 0
+; where the child exited, CODE its status, else the signal that ended it.
+; Sys wait answers 128 and the signal for that, which an exit can answer too.
+(def sys-wait-status
+  (fn (self pid)
+    (def buf (str-make-raw 4))
+    (def r (Sys %sign-fold (cu-ptr-call (%cu-libc "waitpid") pid (cu-str->ptr buf) 0)))
+    (match ((if (< r 0) (= (Err errno-of r) 4) #f) (self pid))
+           ((< r 0) (error (Err from-errno (Err errno-of r) (lit waitpid) pid)))
+           (#t (let ((raw (cu-ptr-ref (cu-str->ptr buf) 0 4)))
+                 (pair (& (>> raw 8) 255) (& raw 127)))))))
+
 ; the wide stat WITHOUT following a link: ls -l shows a link as itself
 (def file-lstat-full
   (fn (_ path)
@@ -1494,7 +1555,7 @@
   file-lchown file-link file-list-dir file-lstat-file-type file-lstat-full file-lstat-wide
   file-mkdir file-mkfifo file-mounts file-open-append file-open-err
   file-open-excl file-open-or-err file-open-read file-open-update
-  file-open-write file-open-wronly file-or-err file-read-all file-read-fd
+  file-open-write file-open-wronly file-or-err file-put-or-errno file-read-all file-read-fd
   file-read-run file-read-to-end file-read-unsized file-readlink file-rename
   file-rmdir file-seek file-set-times file-stat file-stat-full file-stat-wide
   file-statfs-full file-symlink file-truncate file-unlink file-utimes
@@ -1514,12 +1575,12 @@
   net-udp-open proc-run ps-div re-compile re-search reverse rng-int rng-make
   set-first! str-make-raw string-append string-concat string=? substring
   sys-affinity sys-affinity! sys-chroot sys-close sys-cpu-count sys-dup2
-  sys-environ sys-exec sys-exec-or-err sys-exit sys-fork sys-fsync
+  sys-environ sys-exec sys-exec-or-err sys-execv sys-exit sys-fork sys-fsync
   sys-getcwd sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups
   sys-getpid sys-getuid
-  sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe sys-poll
+  sys-group-id sys-group-name sys-isatty sys-kill sys-mount sys-nice sys-pipe sys-poll
   sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms sys-umask
-  sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
-  sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!
+  sys-uname sys-unshare sys-unsetenv sys-user-group sys-user-groups sys-user-id
+  sys-user-name sys-usleep sys-wait sys-wait-status vec-build vec-make vec-ref vec-set!
   vm-dash-number wget-digits wget-div wget-err-text wget-find wget-index
   wget-last-index wget-lower wget-memv)

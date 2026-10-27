@@ -202,6 +202,7 @@ a line:**
     uniq
     unix2dos
     unlink
+    unshare
     unzip
     uname
     uptime
@@ -382,6 +383,7 @@ The applets tested there so far:
 - `taskset`
 - `traceroute`
 - `tunctl`
+- `unshare`
 - `vconfig`
 
 ## Layout
@@ -498,6 +500,7 @@ The applets tested there so far:
     cu/tree.x         tree: the directories drawn, as busybox draws them
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
+    cu/unshare.x      unshare: PROG run in new namespaces, bound to files, as root in a user namespace
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams
     cu/vconfig.x      vconfig: 802.1Q VLAN interfaces made, removed and set through SIOCSIFVLAN
     cu/vi-edit.x      vi's operators over those motions, registers, marks

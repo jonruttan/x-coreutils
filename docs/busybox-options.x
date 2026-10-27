@@ -27,6 +27,9 @@
     (list "vconfig" ())
     (list "tunctl" (%letters "ftdugb"))
     (list "taskset" (%letters "pac"))
+    (list "unshare" (append (%letters "muinpUfr")
+                      (list "--mount" "--uts" "--ipc" "--net" "--pid" "--user" "--mount-proc"
+                            "--propagation" "--setgroups")))
     (list "brctl" ())
     (list "ether-wake" (%letters "bip"))
     (list "ascii" ())
