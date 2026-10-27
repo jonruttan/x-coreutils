@@ -21,7 +21,7 @@
 (include-once "docs/busybox-options.x")
 
 (import cu/cli cu-spec-of)
-(import cu/prims append byte-at byte-len cu-int->str filter length
+(import cu/prims append byte-at byte-len cu-int->str file-write filter length
   string-append string-concat string=? substring)
 (import cu/text cu-join-with cu-msort cu-str<)
 
@@ -139,10 +139,12 @@
                     (let ((r (%mx-row (first ns))))
                       (self (rest ns) (+ have (first r)) (+ want (rest r))))))))
         (go %mx-names 0 0)))
-    (display
+    ; the total goes to stderr, not the page: every applet's PR moves it,
+    ; and a line every PR changes is a conflict between any two of them
+    (file-write 2
       (string-concat
-        (list "\n**Total: " (cu-int->str (first totals)) " of "
+        (list "Total: " (cu-int->str (first totals)) " of "
               (cu-int->str (rest totals)) " busybox options accepted ("
-              (%mx-pct (first totals) (rest totals)) ").**\n")))))
+              (%mx-pct (first totals) (rest totals)) ").\n")))))
 
 (%mx-main)
