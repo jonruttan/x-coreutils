@@ -78,6 +78,8 @@
   ip-scope-id ip-scope-name ip-scopes ip-sl ip-some)
 (import cu/ip-main cu-ip cu-ipaddr cu-iplink)
 (import cu/ipcalc cu-ipcalc)
+(import cu/ipcrm cu-ipcrm)
+(import cu/ipcs cu-ipcs sv-ctl sv-die sv-eidrm sv-get sv-ipc-rmid sv-strtoul sv-u>)
 (import cu/ipneigh cu-ipneigh ip-neigh)
 (import cu/iproute cu-iproute ip-host-len ip-hz ip-r-attr ip-r-dst-len
   ip-r-family ip-r-src-len ip-r-type ip-route ip-rtn-id ip-rtn-name ip-tables)
