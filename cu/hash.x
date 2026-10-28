@@ -6,26 +6,24 @@
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)
 ;
-; md5sum sha1sum cksum sum.  The digests are x/codec/md5's and
-; x/codec/sha1's, read by count through hex-n and bytes-n, so a NUL in the
-; input is a byte like any other.
+; md5sum sha1sum cksum sum.  The digests are x/codec/md5's and x/codec/sha1's,
+; read by count through hex-n and bytes-n, and the checksums x/codec/cksum's
+; and x/codec/sum's, so a NUL in the input is a byte like any other.
 
 (module cu/hash)
 
 (import cu/cli cu-opts)
-(import cu/prims bit-and bit-shl bit-shr bit-xor byte-at cu-as-run
-  cu-int->str cu-sweep! cu-sweep-bytes cu-sweep-steps length string-append
-  string-concat vec-make vec-ref vec-set!)
-(import cu/sha256 cu-m32 cu-sum-applet)
+(import cu/prims bit-and byte-at cu-as-run cu-int->str length string-append
+  string-concat)
+(import cu/sha256 cu-sum-applet)
 (import cu/text cu-each-run-said cu-pad-left cu-pad-zero cu-read-run-said
   cu-says-open)
 
+(import x/codec/cksum)
 (import x/codec/hex)
 (import x/codec/md5)
 (import x/codec/sha1)
-
-(def %cu-not32
-  (fn (_ x) (bit-xor x cu-m32)))
+(import x/codec/sum)
 
 ; the bytes of S from A to B
 (def cu-bytes
@@ -81,54 +79,11 @@
 
 ; --- cksum: the POSIX CRC-32 --------------------------------------------------
 
-; the table is COMPUTED, not embedded: 256 entries from the polynomial
-; 0x04C11DB7, MSB-first, which is shorter to read than to transcribe.
-(def %cu-crc-bit8
-  (fn (self k c)
-    (if (= k 0) c
-      (self (- k 1)
-        (bit-and
-          (if (= (bit-and c 2147483648) 0)
-            (bit-shl c 1)
-            (bit-xor (bit-shl c 1) 79764919))
-          cu-m32)))))
-
-(def %cu-crc-build
-  (fn (_)
-    (def v (vec-make 256 0))
-    (def go
-      (fn (self i)
-        (if (> i 255) v
-          (do (vec-set! v i (%cu-crc-bit8 8 (bit-and (bit-shl i 24) cu-m32)))
-              (self (+ i 1))))))
-    (go 0)))
-
-(def %cu-crc-table (%cu-crc-build))
-
-(def %cu-crc-byte
-  (fn (_ crc b)
-    (bit-xor (bit-and (bit-shl crc 8) cu-m32)
-      (vec-ref %cu-crc-table
-        (bit-and (bit-xor (bit-shr crc 24) b) 255)))))
-
-; TEXT is a string or a run, so a NUL in it is a byte like any other
+; TEXT is a string or a run, digested by its count through x/codec/cksum
 (def cu-cksum
   (fn (_ text)
     (def run (cu-as-run text))
-    (def end (rest run))
-    ; a byte here costs a few thousand objects, a table lookup's dispatch
-    ; with it, so the walk sweeps as often as a loop of cheap steps
-    (def over
-      (fn (self i crc)
-        (if (>= i end) crc
-          (do (if (= (& i cu-sweep-steps) 0) (cu-sweep! i) ())
-              (self (+ i 1) (%cu-crc-byte crc (byte-at (first run) i)))))))
-    ; POSIX folds the LENGTH in after the bytes, low octet first
-    (def tail
-      (fn (self n crc)
-        (if (= n 0) crc
-          (self (bit-shr n 8) (%cu-crc-byte crc (bit-and n 255))))))
-    (bit-and (%cu-not32 (tail end (over 0 0))) cu-m32)))
+    (Cksum of (first run) 0 (rest run))))
 
 (def cu-cksum-applet
   (fn (_ argv stdin-thunk)
@@ -146,36 +101,18 @@
 
 ; --- sum: the two historical checksums ----------------------------------------
 
-; BSD (the default): a 16-bit rotate-then-add, blocks of 1024.  TEXT, here
-; and for System V, is a string or a run.
+; BSD (the default): a 16-bit rotate-then-add, blocks of 1024.  System V
+; (-s): the byte sum, folded twice into 16 bits, blocks of 512.  Both are
+; x/codec/sum's; TEXT is a string or a run.
 (def cu-sum-bsd
   (fn (_ text)
     (def run (cu-as-run text))
-    (def end (rest run))
-    (def go
-      (fn (self i s)
-        (if (>= i end) s
-          (do (if (= (& i cu-sweep-bytes) 0) (cu-sweep! i) ())
-              (self (+ i 1)
-                (bit-and
-                  (+ (+ (bit-shr s 1) (bit-shl (bit-and s 1) 15))
-                    (byte-at (first run) i))
-                  65535))))))
-    (go 0 0)))
+    (Sum bsd (first run) 0 (rest run))))
 
-; System V (-s): the byte sum, folded twice into 16 bits, blocks of 512
 (def cu-sum-sysv
   (fn (_ text)
     (def run (cu-as-run text))
-    (def end (rest run))
-    (def total
-      (let ((go (fn (self i s)
-                  (if (>= i end) s
-                    (do (if (= (& i cu-sweep-bytes) 0) (cu-sweep! i) ())
-                        (self (+ i 1) (+ s (byte-at (first run) i))))))))
-        (go 0 0)))
-    (def r (+ (bit-and total 65535) (bit-shr total 16)))
-    (bit-and (+ (bit-and r 65535) (bit-shr r 16)) 65535)))
+    (Sum sysv (first run) 0 (rest run))))
 
 ; busybox's lines: the sum, the blocks, a space and the name.  -r wins over
 ; -s.  The name is shown under -s, standard input's as `-`, and for BSD only
