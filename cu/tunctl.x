@@ -19,10 +19,10 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-set! inet-zeros)
-(import cu/inetd in-c in-call)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr->str
-  cu-ptr-call cu-str->ptr file-write libc-strerror map string-append
-  string-concat sys-geteuid sys-group-id sys-user-id)
+(import cu/inetd in-call)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
+  cu-ptr->str cu-ptr-call cu-str->ptr file-write libc-strerror map
+  string-append string-concat sys-geteuid sys-group-id sys-user-id)
 
 (def %tu-die
   (fn (_ msg)
@@ -32,7 +32,7 @@
 ; IOCTL: REQ on FD with ARG, its failure busybox's bare strerror
 (def %tu-ioctl
   (fn (_ fd req arg)
-    (let ((r (in-call (cu-ptr-call (in-c "ioctl") fd req arg))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req arg))))
       (when (< r 0) (%tu-die (libc-strerror (Err errno-of r)))))))
 
 (def %tu-fd -1)
@@ -66,7 +66,7 @@
     (List map (fn (_ i) (inet-set! ifr i (byte-at name i) 1))
               (List range 0 (if (> (byte-len name) 15) 15 (byte-len name))))
     (inet-set! ifr 16 4098 2)
-    (set! %tu-fd (in-call (cu-ptr-call (in-c "open") dev 2)))
+    (set! %tu-fd (in-call (cu-ptr-call (cu-libc-sym "open") dev 2)))
     (when (< %tu-fd 0) (%tu-die (string-concat (list "can't open '" dev "': " (libc-strerror (Err errno-of %tu-fd))))))
     (%tu-ioctl %tu-fd 1074025674 (cu-str->ptr ifr))
     (def made (cu-ptr->str (cu-str->ptr ifr)))
@@ -82,9 +82,9 @@
     (def status
       (guard (e (match ((eq? (cu-err-label e) (lit tunctl-usage)) (cu-usage "tunctl"))
                        ((eq? (cu-err-label e) (lit tunctl)) 1)
-                       (#t (do (unless (< %tu-fd 0) (cu-ptr-call (in-c "close") %tu-fd)) (error e)))))
+                       (#t (do (unless (< %tu-fd 0) (cu-ptr-call (cu-libc-sym "close") %tu-fd)) (error e)))))
         (%tu-main argv)))
-    (unless (< %tu-fd 0) (cu-ptr-call (in-c "close") %tu-fd))
+    (unless (< %tu-fd 0) (cu-ptr-call (cu-libc-sym "close") %tu-fd))
     status))
 
 (provide cu/tunctl cu-tunctl)

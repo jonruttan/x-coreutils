@@ -25,7 +25,7 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/httpd hd-ugid)
 (import cu/nc nc-count)
-(import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-int->ptr cu-int->str
+(import cu/prims byte-at byte-len cu-int->ptr cu-int->str cu-libc-sym
   cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-sig-ign
   cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text file-read-run
   file-write filter length map net-accept net-close net-peer net-resolve
@@ -42,7 +42,6 @@
 (def %ts-cnum 0)
 (def %ts-cmax 30)
 (def %ts-hosts ())            ; -C: (PID . IP) for each running child
-(def %ts-libc ())
 ; fcntl is a system call here, not libc's: its third argument is variadic
 (def %ts-fcntl (syscall-door (lit fcntl)))
 
@@ -50,11 +49,6 @@
 
 (def %ts-say
   (fn (_ msg) (file-write 2 (string-concat (list %ts-app ": " msg "\n")))))
-
-(def %ts-c
-  (fn (_ name)
-    (when (null? %ts-libc) (set! %ts-libc (cu-dlopen () 1)))
-    (cu-dlsym %ts-libc name)))
 
 ; a libc call's result folded to a signed int, as the platform folds its own
 (def %ts-call (fn (_ r) (Sys %sign-fold r)))
@@ -80,7 +74,7 @@
   (fn (_ s)
     (def n (wget-digits s))
     (if (if (null? n) #f (<= n 65535)) n
-      (let ((sv (cu-ptr-call (%ts-c "getservbyname") s (if %ts-tcp "tcp" "udp"))))
+      (let ((sv (cu-ptr-call (cu-libc-sym "getservbyname") s (if %ts-tcp "tcp" "udp"))))
         (if (= sv 0) (%ts-die (string-concat (list "bad port '" s "'")))
           (let ((p (cu-ptr-ref (cu-int->ptr sv) 16 4)))
             (+ (* (% p 256) 256) (% (wget-div p 256) 256))))))))
@@ -100,7 +94,7 @@
     (let go ((i 0) (parts (Str8 split "." quad)))
       (unless (null? parts)
         (do (cu-ptr-set! (cu-str->ptr buf) i (wget-digits (first parts)) 1) (go (+ i 1) (rest parts)))))
-    (def r (cu-ptr-call (%ts-c "gethostbyaddr") (cu-str->ptr buf) 4 2))
+    (def r (cu-ptr-call (cu-libc-sym "gethostbyaddr") (cu-str->ptr buf) 4 2))
     (if (= r 0) () (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0))))))
 
 ; --- the sockets ----------------------------------------------------------------
@@ -117,7 +111,7 @@
   (fn (_ fd)
     (def sa (net-sockaddr "0.0.0.0" 0))
     (def buf (str-make-raw 4))
-    (def r (%ts-call (cu-ptr-call (%ts-c "recvfrom") fd (cu-str->ptr buf) 1 2
+    (def r (%ts-call (cu-ptr-call (cu-libc-sym "recvfrom") fd (cu-str->ptr buf) 1 2
                                    (cu-str->ptr sa) (cu-str->ptr (%ts-len16)))))
     (if (< r 0) () (net-sockaddr-read sa))))
 
@@ -132,8 +126,8 @@
     (def fail? (fn (_ r sym)
       (let ((e (ss-call r (lit call) sym)))
         (unless (null? e) (%ts-die (string-concat (list sym ": " (file-err-text e))))))))
-    (fail? (cu-ptr-call (%ts-c "setgid") (rest ug)) "setgid")
-    (fail? (cu-ptr-call (%ts-c "setuid") (first ug)) "setuid")))
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") (rest ug)) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") (first ug)) "setuid")))
 
 ; --- the children ---------------------------------------------------------------
 
@@ -147,7 +141,7 @@
 (def %ts-reap!
   (fn (self)
     (def st (str-make-raw 4))
-    (def pid (%ts-call (cu-ptr-call (%ts-c "waitpid") -1 (cu-str->ptr st) 1)))
+    (def pid (%ts-call (cu-ptr-call (cu-libc-sym "waitpid") -1 (cu-str->ptr st) 1)))
     (when (> pid 0)
       (do (%ts-ended pid (cu-ptr-ref (cu-str->ptr st) 0 4))
           (self)))))
@@ -203,7 +197,7 @@
         (if (null? c) () (list c (net-peer c) lfd)))
       (let ((remote (%ts-udp-peek lfd)))
         (if (null? remote) ()
-          (do (cu-ptr-call (%ts-c "connect") lfd (cu-str->ptr (net-sockaddr (first remote) (rest remote))) 16)
+          (do (cu-ptr-call (cu-libc-sym "connect") lfd (cu-str->ptr (net-sockaddr (first remote) (rest remote))) 16)
               (list lfd remote (%ts-udp-bind (first %ts-bound) (rest %ts-bound)))))))))
 
 ; ipsvd_perhost_add: how many connections REMOTE's address would have, this one
@@ -220,7 +214,7 @@
       (let ((conn (first n)) (remote (first (rest n))) (next (first (rest (rest n)))))
         (def cur (if (> %ts-maxph 0) (%ts-per-host (first remote)) 0))
         (if (if (> %ts-maxph 0) (> cur %ts-maxph) #f)
-          (do (unless (null? %ts-msg) (guard (_ ()) (cu-ptr-call (%ts-c "send") conn %ts-msg (byte-len %ts-msg) (if os-darwin? 128 64))))
+          (do (unless (null? %ts-msg) (guard (_ ()) (cu-ptr-call (cu-libc-sym "send") conn %ts-msg (byte-len %ts-msg) (if os-darwin? 128 64))))
               (net-close conn)
               next)
           (do (%ts-fork conn remote cur lfd) next))))))

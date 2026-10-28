@@ -22,20 +22,15 @@
 (import cu/fs3 cu-dev-major cu-dev-minor)
 (import cu/gzip gz-ends?)
 (import cu/perm cu-mode-of cu-mode-valid?)
-(import cu/prims byte-at byte-len cu-cstr-at cu-dlopen cu-dlsym cu-int->ptr
-  cu-int->str cu-lines cu-nth cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set!
+(import cu/prims byte-at byte-len cu-cstr-at cu-int->ptr cu-int->str
+  cu-libc-sym cu-lines cu-nth cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set!
   cu-ptr-word cu-stat-get cu-str->ptr cu-words-line file-close file-err-text
   file-lstat-full file-open-err file-open-read file-stat-full file-write
   filter length map reverse str-make-raw string-append string-concat string=?
   substring sys-isatty sys-user-id)
 (import cu/strings cu-range-number)
 (import cu/tar tar-makedev)
-(import cu/text cu-fold-lines-said cu-join-with cu-num-prefix cu-pad-zero
-  cu-says)
-
-(def %si-lib ())
-(def %si-fn (fn (_ name) (cu-dlsym %si-lib name)))
-(def %si-resolve! (fn (_) (if (null? %si-lib) (set! %si-lib (cu-dlopen () 1)) ())))
+(import cu/text cu-fold-lines-said cu-num-prefix cu-pad-zero cu-says)
 
 ; a C int answered by libc's NAME on up to three ARGS, nil filling the rest,
 ; its top half folded back to negative
@@ -46,15 +41,13 @@
     (def walk
       (fn (self k l) (match ((null? l) ()) ((= k 0) (first l)) (#t (self (- k 1) (rest l))))))
     (def at (fn (_ k) (walk k args)))
-    (do (%si-resolve!)
-        (Sys %sign-fold (cu-ptr-call (%si-fn name) (at 0) (at 1) (at 2))))))
+    (Sys %sign-fold (cu-ptr-call (cu-libc-sym name) (at 0) (at 1) (at 2)))))
 
 ; errno cleared, before a call whose every answer is a value it may return
 (def %si-errno-clear!
   (fn (_)
-    (do (%si-resolve!)
-        (let ((p (cu-ptr-call (%si-fn (if os-darwin? "__error" "__errno_location")))))
-          (cu-ptr-set! (cu-int->ptr p) 0 0 4)))))
+    (let ((p (cu-ptr-call (cu-libc-sym (if os-darwin? "__error" "__errno_location")))))
+      (cu-ptr-set! (cu-int->ptr p) 0 0 4))))
 
 (def %si-say (fn (_ applet msg) (file-write 2 (string-concat (list applet ": " msg "\n")))))
 
@@ -75,13 +68,12 @@
 ; dotted quads; #f where the name is not known
 (def %si-host
   (fn (_ name)
-    (do (%si-resolve!)
-        (let ((hp (cu-ptr-call (%si-fn "gethostbyname") name)))
-          (if (= hp 0) #f
-            (let ((p (cu-int->ptr hp)))
-              (pair (cu-ptr->str (cu-int->ptr (cu-ptr-word p 0)))
-                    (if (= (& (cu-ptr-ref p 20 4) 4294967295) 4)
-                      (%si-addrs (cu-ptr-word p 24)) ()))))))))
+    (let ((hp (cu-ptr-call (cu-libc-sym "gethostbyname") name)))
+      (if (= hp 0) #f
+        (let ((p (cu-int->ptr hp)))
+          (pair (cu-ptr->str (cu-int->ptr (cu-ptr-word p 0)))
+                (if (= (& (cu-ptr-ref p 20 4) 4294967295) 4)
+                  (%si-addrs (cu-ptr-word p 24)) ())))))))
 
 ; the dotted quads of a NULL-ended list of in_addr pointers at LIST
 (def %si-addrs
@@ -95,8 +87,8 @@
 
 (def %si-quad
   (fn (_ p)
-    (cu-join-with
-      (map (fn (_ k) (cu-int->str (& (cu-ptr-ref p k 1) 255))) (list 0 1 2 3)) ".")))
+    (Str8 join "."
+      (map (fn (_ k) (cu-int->str (& (cu-ptr-ref p k 1) 255))) (list 0 1 2 3)))))
 
 (def %si-upto-dot
   (fn (_ s) (let ((d (dp-find s 0 #\.))) (if (< d 0) s (substring s 0 d)))))
@@ -138,7 +130,7 @@
         (s (do (file-write 1 (string-append (%si-upto-dot (first h)) "\n")) 0))
         (d (let ((dom (%si-after-dot (first h))))
              (do (if (null? dom) () (file-write 1 (string-append dom "\n"))) 0)))
-        (#t (do (file-write 1 (string-append (cu-join-with (rest h) " ") "\n")) 0))))))
+        (#t (do (file-write 1 (string-append (Str8 join " " (rest h)) "\n")) 0))))))
 
 (def %si-set
   (fn (_ applet name)
@@ -386,8 +378,7 @@
 ; failure
 (def %si-getprio
   (fn (_ which who)
-    (do (%si-resolve!)
-        (%si-errno-clear!)
+    (do (%si-errno-clear!)
         (let ((p (%si-call "getpriority" which who)))
           (if (if (= p -1) (not (= (Err errno-of -1) 0)) #f)
             (do (%si-say "renice" (string-append "getpriority: " (%si-why (lit getpriority) ""))) ())

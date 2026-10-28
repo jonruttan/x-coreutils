@@ -23,14 +23,14 @@
 (module cu/mime)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/inetd in-c in-call in-errtext in-exec)
+(import cu/inetd in-call in-errtext in-exec)
 (import cu/perm cu-basename-of)
-(import cu/prims append byte-at byte-len cu-int->str cu-nth cu-ptr-call
-  cu-ptr-ref cu-sig-ign cu-str->ptr file-close file-err-text file-open-or-err
-  file-open-read file-read-run file-write length map reverse set-first!
-  string-append string-concat string=? substring sys-close sys-dup2 sys-exit
-  sys-fork sys-getpid sys-pipe sys-setenv sys-signal sys-time-ms sys-wait
-  wget-index)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-nth
+  cu-ptr-call cu-ptr-ref cu-sig-ign cu-str->ptr file-close file-err-text
+  file-open-or-err file-open-read file-read-run file-write length map reverse
+  set-first! string-append string-concat string=? substring sys-close sys-dup2
+  sys-exit sys-fork sys-getpid sys-pipe sys-setenv sys-signal sys-time-ms
+  sys-wait wget-index)
 (import cu/telnet tn-run)
 
 (def %mm-charset "us-ascii")
@@ -118,7 +118,7 @@
     (set! %mm-thunk stdin-thunk)
     (set-first! mm-in ())
     (map (fn (_ h) (say (string-append h "\n"))) (Opts values o "-a"))
-    (def r (fn (_) (in-call (cu-ptr-call (in-c "random")))))
+    (def r (fn (_) (in-call (cu-ptr-call (cu-libc-sym "random")))))
     (def boundary (string-concat (list (cu-int->str (r)) "-" (cu-int->str (r)) "-" (cu-int->str (r)))))
     (say (string-concat (list "Mime-Version: 1.0\nContent-Type: multipart/mixed; boundary=\"" boundary "\"\n")))
     (let go ((fs files))
@@ -208,12 +208,10 @@
              ((delim? (byte-at header i)) (go (+ i 1) () (if (null? from) acc (pair (substring header from i) acc))))
              (#t (go (+ i 1) (if (null? from) i from) acc))))))
 
-(def %mm-lower (fn (_ c) (if (if (>= c #\A) (<= c #\Z) #f) (+ c 32) c)))
-
 (def mm-ci=
   (fn (_ a b)
     (if (not (= (byte-len a) (byte-len b))) #f
-      (let go ((i 0)) (if (>= i (byte-len a)) #t (if (= (%mm-lower (byte-at a i)) (%mm-lower (byte-at b i))) (go (+ i 1)) #f))))))
+      (let go ((i 0)) (if (>= i (byte-len a)) #t (if (= (Char downcase (byte-at a i)) (Char downcase (byte-at b i))) (go (+ i 1)) #f))))))
 
 (def %mm-ci-prefix?
   (fn (_ s at prefix)

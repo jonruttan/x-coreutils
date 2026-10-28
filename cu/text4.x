@@ -24,8 +24,8 @@
   file-open-write file-write length reverse string-append string-concat
   string=? substring)
 (import cu/sort sort-fold)
-(import cu/text cu-first-unopened cu-fold-lines-said cu-join-with
-  cu-num-prefix cu-pad-left cu-pad-zero cu-say cu-says cu-says-read)
+(import cu/text cu-first-unopened cu-fold-lines-said cu-num-prefix cu-pad-left
+  cu-pad-zero cu-say cu-says cu-says-read)
 (import cu/text2 cu-pad)
 
 (def %uniq-key
@@ -41,13 +41,12 @@
       (def after-fields
         (if (= skip-f 0) line
           (let ((fs (cu-words-line line)))
-            (cu-join-with
+            (Str8 join " "
               (let ((go (fn (self xs i acc)
                           (if (null? xs) (reverse acc)
                             (self (rest xs) (+ i 1)
                               (if (> i skip-f) (pair (first xs) acc) acc))))))
-                (go fs 1 ()))
-              " "))))
+                (go fs 1 ()))))))
       (def end (byte-len after-fields))
       (def from (if (> skip-s end) end skip-s))
       (def cut (if (= from 0) after-fields (substring after-fields from end)))

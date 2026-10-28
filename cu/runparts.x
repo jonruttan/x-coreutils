@@ -24,11 +24,11 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/dump dp-in?)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
-  cu-ptr-call cu-stat-get cu-string-type cu-type-of file-err-text
-  file-list-dir file-read-fd file-stat-full file-write filter hx-strtoul
-  length map reverse string-append string-concat sys-close sys-exec-or-err
-  sys-exit sys-fork sys-wait)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-ptr-call
+  cu-stat-get cu-string-type cu-type-of file-err-text file-list-dir
+  file-read-fd file-stat-full file-write filter hx-strtoul length map reverse
+  string-append string-concat sys-close sys-exec-or-err sys-exit sys-fork
+  sys-wait)
 (import cu/text cu-msort cu-str<)
 
 (def %rp-c-access ())
@@ -36,9 +36,8 @@
 
 (def %rp-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %rp-c-access (cu-dlsym lib "access"))
-    (set! %rp-c-umask (cu-dlsym lib "umask"))))
+    (set! %rp-c-access (cu-libc-sym "access"))
+    (set! %rp-c-umask (cu-libc-sym "umask"))))
 
 ; NAME as busybox's invalid_name reads it: letters, digits, _ - and ., and no
 ; leading dot

@@ -37,7 +37,7 @@ lines busybox draws within one.
     (if (>= i (length bs)) acc
       (let ((k (tf-cstr bs i)))
         (let ((v (tf-cstr bs (rest k))))
-          (self bs (rest v) (pair (pair (wget-lower (first k)) (first v)) acc)))))))
+          (self bs (rest v) (pair (pair (Str8 downcase (first k)) (first v)) acc)))))))
   (def tf-send (fn (_ s to bs) (Socket send-to-run s (pair (bytes->str bs) (length bs)) (first to) (rest to))))
   (def tf-recv (fn (_ s) (tf-b (first (Socket recv-from-run s 70000)))))
   (def tf-err (fn (_ s to code text) (tf-send s to (tf-cat (tf-u16 5) (tf-u16 code) (tf-z text)))))
@@ -73,7 +73,7 @@ lines busybox draws within one.
     (def opts (tf-opts bs (rest (tf-cstr bs (rest (tf-cstr bs 2)))) ()))
     (def path (string-concat (list tf "/srv/" name)))
     (match
-      ((if (= (byte-at name 0) #\.) #t (not (null? (wget-find name "/.")))) (tf-err s to 0 "dot in file name"))
+      ((if (= (byte-at name 0) #\.) #t (not (null? (Str8 index-of "/." name)))) (tf-err s to 0 "dot in file name"))
       ((= (first (rest bs)) 1) (if (file-exists? path) (tf-download s to path opts) (tf-err s to 1 "can't open file")))
       (#t (tf-upload s to path opts)))
     (Socket close s)))

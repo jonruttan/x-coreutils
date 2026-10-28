@@ -20,13 +20,13 @@
 (module cu/sendmail)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/inetd in-c in-call in-count in-errtext in-exec)
+(import cu/inetd in-call in-count in-errtext in-exec)
 (import cu/mime mm-b64 mm-ci= mm-gets mm-in mm-source!)
 (import cu/nc nc-count)
 (import cu/net cu-dial)
-(import cu/prims append byte-at byte-len cu-int->ptr cu-int->str cu-ptr->str
-  cu-ptr-call cu-ptr-ref cu-ptr-word cu-sig-ign cu-str->ptr file-read-run
-  file-write in-index-of map reverse set-first! str-make-raw string-append
+(import cu/prims append byte-at byte-len cu-int->ptr cu-int->str cu-libc-sym
+  cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-word cu-sig-ign cu-str->ptr
+  file-read-run file-write map reverse set-first! str-make-raw string-append
   string-concat substring sys-close sys-dup2 sys-exit sys-fork sys-getenv
   sys-getuid sys-pipe sys-poll sys-signal sys-sleep sys-uname sys-user-name
   wget-div wget-index wget-memv)
@@ -101,7 +101,7 @@
   (fn (_)
     (when (> %sm-helper 0)
       (let ((st (str-make-raw 4)))
-        (when (> (in-call (cu-ptr-call (in-c "waitpid") %sm-helper (cu-str->ptr st) 1)) 0)
+        (when (> (in-call (cu-ptr-call (cu-libc-sym "waitpid") %sm-helper (cu-str->ptr st) 1)) 0)
           (let ((raw (cu-ptr-ref (cu-str->ptr st) 0 4)))
             (match ((> (% raw 128) 0) (%sm-die (string-append "helper killed by signal " (cu-int->str (% raw 128)))))
                    ((> (% (wget-div raw 256) 256) 0)
@@ -133,7 +133,7 @@
 (def %sm-angle
   (fn (_ s)
     (def t (%sm-trim s))
-    (def lt (in-index-of t #\<))
+    (def lt (Str8 last-index-of "<" t))
     (%sm-sane (if (if (> (byte-len t) 0) (if (= (byte-at t (- (byte-len t) 1)) #\>) (not (null? lt)) #f) #f)
                 (substring t (+ lt 1) (- (byte-len t) 1)) t))))
 
@@ -295,7 +295,7 @@
 ; xgethostbyname's h_name for HOST
 (def %sm-canonical
   (fn (_ host)
-    (def h (cu-ptr-call (in-c "gethostbyname") host))
+    (def h (cu-ptr-call (cu-libc-sym "gethostbyname") host))
     (if (= (td-ptr->int h) 0) (%sm-die (string-concat (list "bad address '" host "'")))
       (cu-ptr->str (cu-int->ptr (cu-ptr-word h 0))))))
 

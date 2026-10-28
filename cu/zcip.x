@@ -31,12 +31,12 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-aton inet-dotted inet-set! inet-zeros)
-(import cu/inetd in-c in-call in-percent)
+(import cu/inetd in-call in-percent)
 (import cu/ping pn-byte pn-now)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr-call
-  cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-close file-write
-  libc-strerror string-append string-concat string=? sys-dup2 sys-getenv
-  sys-pipe sys-poll sys-setenv)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
+  cu-ptr-call cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-close
+  file-write libc-strerror string-append string-concat string=? sys-dup2
+  sys-getenv sys-pipe sys-poll sys-setenv)
 
 ; --- saying ----------------------------------------------------------------------------
 
@@ -47,7 +47,7 @@
 (def %zc-log
   (fn (_ level msg)
     (do (when %zc-stdio (file-write 2 (string-concat (list "zcip: " msg "\n"))))
-        (when %zc-syslog (cu-ptr-call (in-c "syslog") level (in-percent msg))))))
+        (when %zc-syslog (cu-ptr-call (cu-libc-sym "syslog") level (in-percent msg))))))
 (def %zc-say (fn (_ msg) (%zc-log 3 msg)))
 (def %zc-info (fn (_ msg) (%zc-log 6 msg)))
 (def %zc-status 0)
@@ -153,7 +153,7 @@
     (%zc-put-be32! p 28 source)
     (when target-mac? (%zc-copy! p 32 %zc-mac 0 6))
     (%zc-put-be32! p 38 target)
-    (let ((r (in-call (cu-ptr-call (in-c "sendto") %zc-fd (cu-str->ptr p) 42 0 (cu-str->ptr %zc-to) 16))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "sendto") %zc-fd (cu-str->ptr p) 42 0 (cu-str->ptr %zc-to) 16))))
       (when (< r 0) (%zc-errno-die "sendto" r)))))
 
 ; --- the script ------------------------------------------------------------------------
@@ -169,7 +169,7 @@
     (def addr (if (= host 0) "" (%zc-dotted host)))
     (%zc-info (string-concat (list word " " %zc-iface (if (= host 0) "" (string-append " " addr)))))
     (def fds (sys-pipe))
-    (cu-ptr-call (in-c "fcntl") (rest fds) 2 1)
+    (cu-ptr-call (cu-libc-sym "fcntl") (rest fds) 2 1)
     (def pid (Sys fork))
     (when (= pid 0)
       (do (guard (_ (Sys exit 111))
@@ -180,11 +180,11 @@
                 (Sys exec %zc-script (list word))
                 (let ((err (Err errno-of (- 0 1))) (b (inet-zeros 4)))
                   (do (inet-set! b 0 err 4)
-                      (cu-ptr-call (in-c "write") (rest fds) (cu-str->ptr b) 4)))))
+                      (cu-ptr-call (cu-libc-sym "write") (rest fds) (cu-str->ptr b) 4)))))
           (Sys exit 111)))
     (file-close (rest fds))
     (def b (inet-zeros 4))
-    (def got (in-call (cu-ptr-call (in-c "read") (first fds) (cu-str->ptr b) 4)))
+    (def got (in-call (cu-ptr-call (cu-libc-sym "read") (first fds) (cu-str->ptr b) 4)))
     (file-close (first fds))
     (def status (Sys wait pid))
     (match ((= got 4)
@@ -285,7 +285,7 @@
               (set! %zc-timeout (| (if (< left 0) 0 (/ (- left (% left 1000)) 1000)) 1))))
           (match ((List find (fn (_ e) (eq? e (lit in))) ready)
                   (do (let go ((i 0)) (when (< i 42) (do (inet-set! %zc-buf i 0 1) (go (+ i 1)))))
-                      (let ((r (in-call (cu-ptr-call (in-c "read") %zc-fd (cu-str->ptr %zc-buf) 42))))
+                      (let ((r (in-call (cu-ptr-call (cu-libc-sym "read") %zc-fd (cu-str->ptr %zc-buf) 42))))
                         (if (< r 0) (%zc-errno-die "read error" r) (%zc-packet)))))
                  ((List find (fn (_ e) (eq? e (lit err))) ready)
                   (do (%zc-say (string-concat (list "iface " %zc-iface " is down")))
@@ -305,7 +305,7 @@
     (when (> pid 0) (%zc-end 0))
     (set! %zc-child #t)
     (cu-stdin-to-command!)
-    (cu-ptr-call (in-c "setsid"))
+    (cu-ptr-call (cu-libc-sym "setsid"))
     (let ((fd (File open "/dev/null" (lit rdwr))))
       (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
           (when (> fd 2) (file-close fd))))))
@@ -320,10 +320,10 @@
     (set! %zc-quit (Opts on? o "-q"))
     (set! %zc-fd
       (if os-darwin? (%zc-die (string-append "socket(AF_PACKET,10,1544): " (libc-strerror 47)))
-        (let ((fd (in-call (cu-ptr-call (in-c "socket") 17 10 1544))))
+        (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") 17 10 1544))))
           (if (< fd 0) (%zc-errno-die "socket(AF_PACKET,10,1544)" fd) fd))))
     (unless fg
-      (do (cu-ptr-call (in-c "openlog") "zcip" 0 24)
+      (do (cu-ptr-call (cu-libc-sym "openlog") "zcip" 0 24)
           (set! %zc-syslog #t)))
     (let ((mode (sys-getenv "LOGGING")))
       (match ((null? mode) ())
@@ -348,12 +348,12 @@
     (set! %zc-to (inet-zeros 16))
     (let copy ((i 0)) (when (if (< i (byte-len %zc-iface)) (< i 13) #f)
                         (do (inet-set! %zc-to (+ 2 i) (byte-at %zc-iface i) 1) (copy (+ i 1)))))
-    (let ((r (in-call (cu-ptr-call (in-c "bind") %zc-fd (cu-str->ptr %zc-to) 16))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "bind") %zc-fd (cu-str->ptr %zc-to) 16))))
       (when (< r 0) (%zc-errno-die "bind" r)))
     (def ifr (inet-zeros 40))
     (let copy ((i 0)) (when (if (< i (byte-len %zc-iface)) (< i 15) #f)
                         (do (inet-set! ifr i (byte-at %zc-iface i) 1) (copy (+ i 1)))))
-    (let ((r (in-call (cu-ptr-call (in-c "ioctl") %zc-fd 35111 (cu-str->ptr ifr)))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "ioctl") %zc-fd 35111 (cu-str->ptr ifr)))))
       (when (< r 0) (%zc-errno-die "ioctl 0x8927 failed" r)))
     (set! %zc-mac (inet-zeros 6))
     (%zc-copy! %zc-mac 0 ifr 18 6)
@@ -374,11 +374,11 @@
       (guard (e (match ((eq? (cu-err-label e) (lit zcip-usage)) (cu-usage "zcip"))
                        ((eq? (cu-err-label e) (lit zcip)) %zc-status)
                        (#t (do (when %zc-child (Sys exit 1))
-                               (unless (< %zc-fd 0) (cu-ptr-call (in-c "close") %zc-fd))
+                               (unless (< %zc-fd 0) (cu-ptr-call (cu-libc-sym "close") %zc-fd))
                                (error e)))))
         (%zc-main argv)))
     (when %zc-child (Sys exit status))
-    (unless (< %zc-fd 0) (cu-ptr-call (in-c "close") %zc-fd))
+    (unless (< %zc-fd 0) (cu-ptr-call (cu-libc-sym "close") %zc-fd))
     (set! %zc-fd -1)
     status))
 

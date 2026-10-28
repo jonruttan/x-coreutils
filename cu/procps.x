@@ -24,8 +24,8 @@
 (module cu/procps)
 
 (import cu/cli cu-opts cu-refuse-option cu-usage)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-heap-collect
-  cu-int->str cu-ptr-call cu-sigterm cu-sweep-lines cu-sweep-tick!
+(import cu/prims append byte-at byte-len cu-heap-collect cu-int->str
+  cu-libc-sym cu-ptr-call cu-sigterm cu-sweep-lines cu-sweep-tick!
   date-now-unix file-err-text file-write filter host-args host-boot-time
   host-cwd host-exe host-files host-load-centi host-memory host-process
   host-processes host-users length map ps-div re-compile re-search reverse
@@ -33,7 +33,7 @@
   sys-group-name sys-isatty sys-kill sys-signals sys-user-name vm-dash-number)
 (import cu/signal pg-rt pg-signal-word pg-signum pg-strto)
 (import cu/strings cu-range-number)
-(import cu/text cu-join-with cu-pad-left cu-pad-right cu-pad-zero)
+(import cu/text cu-pad-left cu-pad-right cu-pad-zero)
 
 ; --- uptime -----------------------------------------------------------------
 
@@ -208,7 +208,7 @@
     (def bad
       (fn (_ name)
         (string-concat (list "bad -o argument '" name "', supported arguments: "
-                             (cu-join-with (map first %ps-columns) ",")))))
+                             (Str8 join "," (map first %ps-columns))))))
     (def one
       (fn (self s acc)
         (def comma (Str8 index-of "," s))
@@ -283,9 +283,8 @@
 (def ps-resolve!
   (fn (_)
     (if (null? %ps-c-strcspn)
-      (let ((lib (cu-dlopen () 1)))
-        (set! %ps-c-strcspn (cu-dlsym lib "strcspn"))
-        (set! %ps-c-strrchr (cu-dlsym lib "strrchr")))
+      (do (set! %ps-c-strcspn (cu-libc-sym "strcspn"))
+          (set! %ps-c-strrchr (cu-libc-sym "strrchr")))
       ())))
 
 ; busybox's read_cmdline: the arguments joined by spaces, a control byte as
@@ -295,7 +294,7 @@
   (fn (_ args comm)
     (ps-resolve!)
     (if (null? args) (string-concat (list "[" comm "]"))
-      (let ((line (ps-printable (cu-join-with args " ")))
+      (let ((line (ps-printable (Str8 join " " args)))
             ; argv[0] up to its first space, past a leading -, after its last /
             (argv0 (let ((a (first args)))
                      (substring a 0 (cu-ptr-call %ps-c-strcspn a " ")))))
@@ -485,7 +484,7 @@
             (if (if single (not (null? kept)) #f) (list (first kept)) kept)))
         (def all (List flat-map found (Opts operands o)))
         (if (null? all) 1
-          (do (display (string-append (cu-join-with (map cu-int->str all) " ") "\n")) 0))))))
+          (do (display (string-append (Str8 join " " (map cu-int->str all)) "\n")) 0))))))
 
 
 ; --- signals ------------------------------------------------------------------
@@ -642,7 +641,7 @@
         (if (match ((first stop) #t) ((= pid me) #t) (invert #f) (#t ids-differ)) ()
           (let ((args (host-args pid)) (comm (Assoc get (lit comm) p)))
             (def cmd (if (null? args) comm
-                       (if full (%pg-spaced (cu-join-with args " ")) (first args))))
+                       (if full (%pg-spaced (Str8 join " " args)) (first args))))
             ; what -l and -a print: the first argument, or with -f -a the line
             (def shown (if (null? args) comm (if (if full (on "-a")) cmd (first args))))
             (def by-cmd (if (null? rx) #f (matches? cmd)))

@@ -20,8 +20,8 @@
   file-write-run filter length map reverse string-append string-concat
   string=? substring sys-signal)
 (import cu/text cu-each-said cu-first-unopened cu-fold-lines-said
-  cu-fold-stdin cu-join-with cu-map-swept cu-num-prefix cu-pad-left
-  cu-pad-right cu-pad-zero cu-print-lines cu-put-each cu-read-said cu-says)
+  cu-fold-stdin cu-map-swept cu-num-prefix cu-pad-left cu-pad-right
+  cu-pad-zero cu-print-lines cu-put-each cu-read-said cu-says)
 
 (def cu-echo
   (fn (_ argv stdin-thunk)
@@ -37,7 +37,7 @@
     ; ends the output, newline and all.  What goes out is runs -- bytes and
     ; their count, one a piece between escapes -- so a \0 is written like any
     ; other byte
-    (let ((r (let ((joined (cu-join-with ops " ")))
+    (let ((r (let ((joined (Str8 join " " ops)))
                (if e? (cu-esc-run joined (lit arg))
                  (pair (list (cu-run-of joined)) #f)))))
       (do (cu-write-runs 1 (first r))
@@ -211,7 +211,7 @@
                     (self (+ i step) (pair (fmt i) acc))))))
         (go a ())))
     (if (null? vals) 0
-      (do (display (string-append (cu-join-with vals sep) "\n")) 0))))
+      (do (display (string-append (Str8 join sep vals) "\n")) 0))))
 
 (def %cu-rev-line
   (fn (_ s)
@@ -362,9 +362,8 @@
           (do (cu-sweep-tick! cu-sweep-lines)
               (display
                 (string-append
-                  (cu-join-with
-                    (map (fn (_ c) (if (pair? c) (first c) "")) cs)
-                    delim)
+                  (Str8 join delim
+                    (map (fn (_ c) (if (pair? c) (first c) "")) cs))
                   "\n"))
               (self (map (fn (_ c) (if (pair? c) (rest c) ())) cs))))))
     (if (Err err? shut) 1

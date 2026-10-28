@@ -49,7 +49,7 @@ then the server's record or the reply.
   ; the child's raw wait status, nil while it runs (WNOHANG)
   (def nt-reap (fn (_ pid hang?)
     (let ((st (str-make-raw 4)))
-      (if (> (in-call (cu-ptr-call (in-c "waitpid") pid (cu-str->ptr st) (if hang? 0 1))) 0)
+      (if (> (in-call (cu-ptr-call (cu-libc-sym "waitpid") pid (cu-str->ptr st) (if hang? 0 1))) 0)
         (cu-ptr-ref (cu-str->ptr st) 0 4) ()))))
   (def nt-status (fn (_ raw) (if (> (% raw 128) 0) (+ 128 (% raw 128)) (% (wget-div raw 256) 256))))
   (def nt-said? (fn (_ words) (let ((e (file-read-all (nt-f "err")))) (List any? (fn (_ w) (not (null? (Str8 index-of w e)))) words))))

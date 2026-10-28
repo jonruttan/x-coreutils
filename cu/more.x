@@ -96,8 +96,7 @@
   (fn (_ k)
     (match
       ((= k #\return) #\newline)
-      ((if (>= k #\A) (<= k #\Z) #f) (+ k (- #\a #\A)))
-      (#t k))))
+      (#t (Char downcase k)))))
 
 ; Ask, and wait for a key that is one of the four.  Each key first erases what
 ; was asked -- a carriage return, as many spaces, a carriage return.

@@ -23,12 +23,13 @@
 
 (import cu/cli cu-usage)
 (import cu/getopt cu-getopt-long)
-(import cu/inetd in-c in-call in-exec)
+(import cu/inetd in-call in-exec)
 (import cu/perm cu-basename-of)
-(import cu/prims cu-err-label cu-int->str cu-ptr-call cu-ptr-ref cu-str->ptr
-  cu-stdin-to-command! file-err-sym file-err-text file-open-or-err file-open-read
-  file-write libc-strerror str-make-raw string-append string-concat sys-close
-  sys-exec-or-err sys-exit sys-fork sys-getenv sys-getpid sys-kill sys-signal)
+(import cu/prims cu-err-label cu-int->str cu-libc-sym cu-ptr-call cu-ptr-ref
+  cu-stdin-to-command! cu-str->ptr file-err-sym file-err-text file-open-or-err
+  file-open-read file-write libc-strerror str-make-raw string-append
+  string-concat sys-close sys-exec-or-err sys-exit sys-fork sys-getenv
+  sys-getpid sys-kill sys-signal)
 (import cu/strings cu-range-number)
 
 (def %nse-die
@@ -86,7 +87,7 @@
 ; libc's NAME called by CALL with its address: nil, or why it failed
 (def %nse-libc
   (fn (_ name call)
-    (let ((door (in-c name)))
+    (let ((door (cu-libc-sym name)))
       (if (null? door) "Function not implemented"
         (let ((r (in-call (call door))))
           (if (< r 0) (libc-strerror (Err errno-of r)) ()))))))
@@ -109,7 +110,7 @@
 (def %nse-wait-and-exit
   (fn (self kid)
     (def st (str-make-raw 4))
-    (def r (in-call (cu-ptr-call (in-c "waitpid") kid (cu-str->ptr st) 0)))
+    (def r (in-call (cu-ptr-call (cu-libc-sym "waitpid") kid (cu-str->ptr st) 0)))
     (when (< r 0)
       (if (= (Err errno-of r) 4) (self kid) (%nse-die (string-append "waitpid: " (libc-strerror (Err errno-of r))))))
     (def raw (cu-ptr-ref (cu-str->ptr st) 0 4))

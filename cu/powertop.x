@@ -21,13 +21,14 @@
 
 (module cu/powertop)
 
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/prims byte-at byte-len cu-err-label cu-heap-collect cu-int->str
-  cu-nth cu-nthrest cu-ptr-call cu-ptr-ref cu-ptr-set! cu-stdin-to-command!
-  cu-str->ptr file-close file-list-dir file-open-read file-open-write
-  file-read-fd file-read-to-end file-write length libc-strerror map ps-div
-  set-first! str-make-raw string-append string-concat substring sys-getenv
-  sys-geteuid sys-isatty sys-poll sys-signal sys-signals vec-ref vec-set!)
+  cu-libc-sym cu-nth cu-nthrest cu-ptr-call cu-ptr-ref cu-ptr-set!
+  cu-stdin-to-command! cu-str->ptr file-close file-list-dir file-open-read
+  file-open-write file-read-fd file-read-to-end file-write length
+  libc-strerror map ps-div set-first! str-make-raw string-append string-concat
+  substring sys-getenv sys-geteuid sys-isatty sys-poll sys-signal sys-signals
+  vec-ref vec-set!)
 (import cu/text cu-pad-left)
 (import cu/vmstat vm-fixed)
 
@@ -119,10 +120,9 @@
 ; the byte at I, a C string's NUL past its end
 (def %ptop-at (fn (_ s i) (if (< i (byte-len s)) (byte-at s i) 0)))
 (def %ptop-space? (fn (_ c) (if (= c 32) #t (if (>= c 9) (<= c 13) #f))))
-(def %ptop-digit? (fn (_ c) (if (>= c 48) (<= c 57) #f)))
 (def %ptop-alnum?
   (fn (_ c)
-    (match ((%ptop-digit? c) #t)
+    (match ((Char numeric? c) #t)
            ((if (>= c 65) (<= c 90) #f) #t)
            (#t (if (>= c 97) (<= c 122) #f)))))
 
@@ -142,7 +142,7 @@
 (def %ptop-digits
   (fn (self s i v over)
     (def c (%ptop-at s i))
-    (if (not (%ptop-digit? c)) (list v i over)
+    (if (not (Char numeric? c)) (list v i over)
       (self s (+ i 1) (+ (* v 10) (- c 48))
         (match (over #t)
                ((< v 0) #t)
@@ -273,13 +273,13 @@
 (def %ptop-counts
   (fn (self s i sum)
     (def j (%ptop-skip s i))
-    (if (not (%ptop-digit? (%ptop-at s j))) (pair sum j)
+    (if (not (Char numeric? (%ptop-at s j))) (pair sum j)
       (let ((r (%ptop-strtoull s j))) (self s (rest r) (+ sum (first r)))))))
 
 (def %ptop-hpet?
   (fn (_ name)
     (let ((k (Str8 index-of "hpet" name)))
-      (if (null? k) #f (%ptop-digit? (%ptop-at name (+ k 4)))))))
+      (if (null? k) #f (Char numeric? (%ptop-at name (+ k 4)))))))
 
 ; a source's piece: its count saved, its line and the totals added to
 (def %ptop-irq-piece!
@@ -647,20 +647,20 @@
 (def %ptop-raw!
   (fn (_)
     (def saved (str-make-raw 128))
-    (if (< (in-call (cu-ptr-call (in-c "tcgetattr") 0 (cu-str->ptr saved))) 0) ()
+    (if (< (in-call (cu-ptr-call (cu-libc-sym "tcgetattr") 0 (cu-str->ptr saved))) 0) ()
       (let ((raw (str-make-raw 128)))
-        (do (cu-ptr-call (in-c "tcgetattr") 0 (cu-str->ptr raw))
+        (do (cu-ptr-call (cu-libc-sym "tcgetattr") 0 (cu-str->ptr raw))
             (let ((p (cu-str->ptr raw)) (at (%ptop-tio-at 3)) (off (if os-darwin? 408 75)))
               (do (cu-ptr-set! p at (- (cu-ptr-ref p at 4) (& (cu-ptr-ref p at 4) off)) 4)
                   (cu-ptr-set! p (%ptop-cc (if os-darwin? 16 6)) 1 1)
                   (cu-ptr-set! p (%ptop-cc (if os-darwin? 17 5)) 0 1)
-                  (cu-ptr-call (in-c "tcsetattr") 0 0 p)))
+                  (cu-ptr-call (cu-libc-sym "tcsetattr") 0 0 p)))
             saved)))))
 
 (def %ptop-restore!
   (fn (_)
     (if (null? %ptop-saved) ()
-      (cu-ptr-call (in-c "tcsetattr") 0 0 (cu-str->ptr %ptop-saved)))))
+      (cu-ptr-call (cu-libc-sym "tcsetattr") 0 0 (cu-str->ptr %ptop-saved)))))
 
 ; BB_FATAL_SIGS, caught: each ends the run as busybox's handler ends it
 (def %ptop-fatal (list "HUP" "INT" "TERM" "PIPE" "QUIT" "ABRT" "ALRM" "VTALRM" "XCPU" "XFSZ" "USR1" "USR2"))

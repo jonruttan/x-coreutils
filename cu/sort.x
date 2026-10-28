@@ -27,9 +27,8 @@
   cu-sweep-at cu-sweep-steps cu-sweep-tick! cu-words-line file-close
   file-err-op file-err-text file-open-or-err file-open-write file-write length
   reverse string-append string-concat string=? substring)
-(import cu/text cu-delim-fields-said cu-gather-said cu-join-with cu-msort
-  cu-num-prefix cu-print-fields-to cu-print-lines cu-print-lines-to
-  cu-split-byte cu-str<)
+(import cu/text cu-delim-fields-said cu-gather-said cu-msort cu-num-prefix
+  cu-print-fields-to cu-print-lines cu-print-lines-to cu-split-byte cu-str<)
 
 (def %sort-blank? (fn (_ b) (if (= b 32) #t (= b 9))))
 
@@ -143,7 +142,7 @@
                           (if (if (>= i sf) (<= i ef) #f)
                             (pair (first xs) acc) acc))))))
             (go fs 1 ())))
-        (def joined (cu-join-with picked (if (null? sep) " " sep)))
+        (def joined (Str8 join (if (null? sep) " " sep) picked))
         (def end (byte-len joined))
         (def from (let ((c (cu-nth 1 spec))) (if (> c 0) (- c 1) 0)))
         (def to (let ((c (cu-nth 3 spec))) (if (= c 0) end (if (> c end) end c))))

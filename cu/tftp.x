@@ -23,15 +23,14 @@
 
 (import cu/cli cu-opts cu-refuse-option cu-usage)
 (import cu/net wget-pm-init! wget-pm-update!)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-nth
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-nth
   cu-ptr-call cu-str->ptr cu-sweep! file-close file-err-text file-open-or-err
   file-open-read file-open-write file-read-run file-stat file-unlink
   file-write file-write-run length map net-close net-die net-recv-from-run
   net-resolve net-send-run net-send-to-run net-sock-addr net-sockaddr
   net-stdin-socket net-udp-bind net-udp-open reverse string-append
   string-concat string=? substring sys-chroot sys-close sys-poll
-  sys-user-group sys-user-id wget-digits wget-div wget-find wget-index
-  wget-last-index wget-lower)
+  sys-user-group sys-user-id wget-digits wget-div wget-index)
 (import cu/session ss-call)
 
 (def %tftp-name "tftp")
@@ -101,7 +100,7 @@
           (let ((next (+ (+ i (byte-len s)) 1)))
             (match
               ((> next (rest run)) ())
-              (name? (go next #f (string=? (wget-lower s) option)))
+              (name? (go next #f (string=? (Str8 downcase s) option)))
               (found s)
               (#t (go next #t #f)))))))))
 
@@ -305,7 +304,7 @@
     (def remote (if (null? r) l r))
     (def local
       (if (null? r) l
-        (if (null? l) (let ((s (wget-last-index r #\/))) (if (null? s) r (substring r (+ s 1) (byte-len r)))) l)))
+        (if (null? l) (let ((s (Str8 last-index-of "/" r))) (if (null? s) r (substring r (+ s 1) (byte-len r)))) l)))
     (if (if (null? remote) #t (null? ops)) (cu-usage "tftp")
       (%tftp-start get? blksize remote (if (string=? local "-") () local)
                    (first ops) (if (null? (rest ops)) 69 (wget-digits (first (rest ops))))))))
@@ -355,19 +354,13 @@
 ; protocol with the roles turned: an RRQ's file goes out as DATA, a WRQ's
 ; comes in.  -l (syslog) is accepted and says nothing.
 
-(def %tftpd-libc ())
-(def %tftpd-c
-  (fn (_ name)
-    (when (null? %tftpd-libc) (set! %tftpd-libc (cu-dlopen () 1)))
-    (cu-dlsym %tftpd-libc name)))
-
 ; the answering socket: bound to OUR address, which the listener may hold too,
 ; and connected to PEER -- xbind's failure the end of the run
 (def %tftpd-socket
   (fn (_ our peer)
     (def fd (net-udp-open (first our) (rest our) #t))
     (when (Err err? fd) (%tftpd-die (string-append "bind: " (file-err-text fd))))
-    (cu-ptr-call (%tftpd-c "connect") fd (cu-str->ptr (net-sockaddr (first peer) (rest peer))) 16)
+    (cu-ptr-call (cu-libc-sym "connect") fd (cu-str->ptr (net-sockaddr (first peer) (rest peer))) 16)
     fd))
 
 (def %tftpd-die (fn (_ msg) (Err raise (lit net) msg ())))
@@ -387,8 +380,8 @@
     (def mode-at (+ 3 (byte-len file)))
     (def mode (if (< mode-at (rest r)) (%tftp-text r mode-at) ()))
     (match
-      ((if (Str8 starts? "." file) #t (not (null? (wget-find file "/.")))) (pair 0 "dot in file name"))
-      ((if (null? mode) #t (not (string=? (wget-lower mode) "octet"))) (pair 0 "mode is not 'octet'"))
+      ((if (Str8 starts? "." file) #t (not (null? (Str8 index-of "/." file)))) (pair 0 "dot in file name"))
+      ((if (null? mode) #t (not (string=? (Str8 downcase mode) "octet"))) (pair 0 "mode is not 'octet'"))
       (#t (%tftpd-check-options r op write-refused? file (+ mode-at (byte-len mode) 1))))))
 
 (def %tftpd-check-options
@@ -409,7 +402,7 @@
           (let ((next (+ (+ i (byte-len s)) 1)))
             (match
               ((> next (rest r)) ())
-              (name? (go next #f (string=? (wget-lower s) option)))
+              (name? (go next #f (string=? (Str8 downcase s) option)))
               (found s)
               (#t (go next #t #f)))))))))
 
@@ -459,9 +452,9 @@
     (def fail? (fn (_ r what)
       (let ((e (ss-call r (lit call) what)))
         (unless (null? e) (%tftpd-die (string-concat (list what ": " (file-err-text e))))))))
-    (fail? (cu-ptr-call (%tftpd-c "initgroups") user gid) "can't set groups")
-    (fail? (cu-ptr-call (%tftpd-c "setgid") gid) "setgid")
-    (fail? (cu-ptr-call (%tftpd-c "setuid") (sys-user-id user)) "setuid")))
+    (fail? (cu-ptr-call (cu-libc-sym "initgroups") user gid) "can't set groups")
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") gid) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") (sys-user-id user)) "setuid")))
 
 ; FILE, a request's name, with each byte below a space as ?
 (def %tftpd-sanitize

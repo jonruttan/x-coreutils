@@ -22,14 +22,14 @@
 
 (import cu/cli cu-families cu-opts cu-usage)
 (import cu/inet inet-set! inet-zeros)
-(import cu/inetd in-c in-call in-dontwait)
+(import cu/inetd in-call in-dontwait)
 (import cu/ping pn-af6 pn-be16 pn-be16! pn-bind-device pn-byte pn-cmsg pn-div
   pn-dotted pn-family pn-fold pn-ms pn-now pn-number pn-resolve pn-setopt
   pn-sol-socket pn-sum)
-(import cu/prims cu-err-label cu-int->str cu-ptr->str cu-ptr-call cu-ptr-ref
-  cu-ptr-set! cu-str->ptr cu-string-type cvt file-write libc-strerror reverse
-  str-make-raw string-append string-concat string=? sys-getpid sys-getuid
-  sys-poll)
+(import cu/prims cu-err-label cu-int->str cu-libc-sym cu-ptr->str cu-ptr-call
+  cu-ptr-ref cu-ptr-set! cu-str->ptr cu-string-type cvt file-write
+  libc-strerror reverse str-make-raw string-append string-concat string=?
+  sys-getpid sys-getuid sys-poll)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-left cu-pad-zero)
 
@@ -69,7 +69,7 @@
 ; xsocket
 (def %tr-socket
   (fn (_ af type proto)
-    (let ((fd (in-call (cu-ptr-call (in-c "socket") af type proto))))
+    (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") af type proto))))
       (if (>= fd 0) fd
         (%tr-errno-die (string-concat (list "socket(AF_" (if (= af pn-af6) "INET6" "INET") ","
                                             (cu-int->str type) "," (cu-int->str proto) ")")) fd)))))
@@ -77,7 +77,7 @@
 ; xbind
 (def %tr-bind
   (fn (_ fd sa)
-    (let ((r (in-call (cu-ptr-call (in-c "bind") fd (cu-str->ptr (first sa)) (rest sa)))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (first sa)) (rest sa)))))
       (when (< r 0) (%tr-errno-die "bind" r)))))
 
 ; --- sending ---------------------------------------------------------------------------
@@ -100,7 +100,7 @@
     (%tr-check (if %tr-v6 (pn-setopt %tr-snd 41 (if os-darwin? 4 16) ttl) (pn-setopt %tr-snd 0 (if os-darwin? 4 2) ttl))
       (string-concat (list "setsockopt(" (if %tr-v6 "UNICAST_HOPS" "TTL") ") " (cu-int->str ttl))))
     (unless %tr-icmp (pn-be16! (cu-str->ptr %tr-dest) 2 (& (+ %tr-port seq) 65535)))
-    (let ((r (in-call (cu-ptr-call (in-c "sendto") %tr-snd p n 0 (cu-str->ptr %tr-dest) %tr-salen))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "sendto") %tr-snd p n 0 (cu-str->ptr %tr-dest) %tr-salen))))
       (match ((< r 0) (%tr-errno-die "sendto" r))
              ((not (= r n)) (%tr-say (string-concat (list "sent " (cu-int->str n) " octets, ret=" (cu-int->str r)))))
              (#t ())))))
@@ -129,7 +129,7 @@
   (fn (_)
     (inet-set! %tr-msg 8 %tr-salen 4)
     (inet-set! %tr-msg 40 64 4)
-    (let ((r (in-call (cu-ptr-call (in-c "recvmsg") %tr-rcv (cu-str->ptr %tr-msg) in-dontwait))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "recvmsg") %tr-rcv (cu-str->ptr %tr-msg) in-dontwait))))
       (do (when (< r 0) (%tr-errno-die "recv" r))
       (let ((end (cu-ptr-ref (cu-str->ptr %tr-msg) 40 4)) (c (cu-str->ptr %tr-control)) (to (cu-str->ptr %tr-to)))
         (if %tr-v6
@@ -252,7 +252,7 @@
 (def %tr-name
   (fn (_)
     (let ((host (str-make-raw 128)) (serv (str-make-raw 16)))
-      (if (= (in-call (cu-ptr-call (in-c "getnameinfo") (cu-str->ptr %tr-from) %tr-salen
+      (if (= (in-call (cu-ptr-call (cu-libc-sym "getnameinfo") (cu-str->ptr %tr-from) %tr-salen
                                    (cu-str->ptr host) 128 (cu-str->ptr serv) 16 (if os-darwin? 8 2))) 0)
         (cu-ptr->str (cu-str->ptr host))
         ()))))
@@ -366,17 +366,17 @@
     (let ((dev (Opts value o "-i"))) (unless (null? dev) (pn-bind-device %tr-snd dev %tr-say)))
     (def source (Opts value o "-s"))
     (if (null? source)
-      (do (%tr-check (in-call (cu-ptr-call (in-c "connect") %tr-snd (cu-str->ptr %tr-dest) %tr-salen))
+      (do (%tr-check (in-call (cu-ptr-call (cu-libc-sym "connect") %tr-snd (cu-str->ptr %tr-dest) %tr-salen))
                      (if %tr-v6 "can't connect to remote host"
                        (string-concat (list "can't connect to remote host (" (pn-dotted %tr-dest) ")"))))
           (let ((me (inet-zeros 128)) (len (inet-zeros 4)))
             (do (inet-set! len 0 128 4)
-                (%tr-check (in-call (cu-ptr-call (in-c "getsockname") %tr-snd (cu-str->ptr me) (cu-str->ptr len))) "getsockname")
+                (%tr-check (in-call (cu-ptr-call (cu-libc-sym "getsockname") %tr-snd (cu-str->ptr me) (cu-str->ptr len))) "getsockname")
                 (%tr-bind %tr-rcv (pair me (cu-ptr-ref (cu-str->ptr len) 0 4))))))
       (let ((src (pn-resolve source fam 0 %tr-die)))
         (do (unless (= (sys-getuid) 0) (%tr-die "you must be root"))
             (unless %tr-v6
-              (when (< (in-call (cu-ptr-call (in-c "setsockopt") %tr-snd 0 (if os-darwin? 9 32) (cu-str->ptr (first src)) (rest src))) 0)
+              (when (< (in-call (cu-ptr-call (cu-libc-sym "setsockopt") %tr-snd 0 (if os-darwin? 9 32) (cu-str->ptr (first src)) (rest src))) 0)
                 (%tr-die "can't set multicast source interface")))
             (%tr-bind %tr-snd src))))
     (set! %tr-to (inet-zeros %tr-salen))
@@ -391,8 +391,8 @@
 
 (def %tr-close
   (fn (_)
-    (do (unless (< %tr-rcv 0) (cu-ptr-call (in-c "close") %tr-rcv))
-        (unless (< %tr-snd 0) (cu-ptr-call (in-c "close") %tr-snd))
+    (do (unless (< %tr-rcv 0) (cu-ptr-call (cu-libc-sym "close") %tr-rcv))
+        (unless (< %tr-snd 0) (cu-ptr-call (cu-libc-sym "close") %tr-snd))
         (set! %tr-rcv -1) (set! %tr-snd -1))))
 
 (def %tr-run

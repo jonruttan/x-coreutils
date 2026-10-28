@@ -26,7 +26,6 @@
 
 (import cu/cli cu-last-given cu-missing-file-operand cu-opts)
 (import cu/fs2 cu-mkdir-p!)
-(import cu/fs3 cu-path-join)
 (import cu/perm cu-basename-of cu-octal->int)
 (import cu/prims append bit-and byte-at byte-len cu-b->s cu-dirname-of
   cu-int->str cu-last cu-lines cu-stat-get cu-sweep! cu-sweep-bytes
@@ -40,6 +39,8 @@
 (import cu/text cu-fold-lines-said cu-fold-said cu-map-swept cu-pad-left
   cu-put-each cu-says)
 (import cu/walk cu-walk-names cu-walk-status)
+
+(import x/type/path Path)
 
 (def %fs-ask
   (fn (_ question)
@@ -271,8 +272,8 @@
                     1)
                 (do (if (file-exists? dst) () (file-mkdir dst))
                     (let ((r (cu-walk-status src
-                               (fn (_ n) (self (cu-path-join src n)
-                                           (cu-path-join dst n) o #f)))))
+                               (fn (_ n) (self (Path join src n)
+                                           (Path join dst n) o #f)))))
                       (do (%cp-preserve! src dst o) r)))))
             ((file-dir? dst)
               (do (file-write 2
@@ -312,7 +313,7 @@
 (def %cp-target
   (fn (_ dst name o)
     (if (Opts on? o "-T") dst
-      (if (file-dir? dst) (cu-path-join dst (cu-basename-of name)) dst))))
+      (if (file-dir? dst) (Path join dst (cu-basename-of name)) dst))))
 
 (def cu-cp
   (fn (_ argv stdin-thunk)
@@ -416,7 +417,7 @@
         ((not (%rm-may-enter? o path names)) 0)
         (#t
           (let ((r (cu-walk-worst names
-                     (fn (_ n) (one (cu-path-join path n) o)) 0)))
+                     (fn (_ n) (one (Path join path n) o)) 0)))
             (match
               ((> r 0) r)
               ((not (%rm-may? o path st)) 0)
@@ -598,7 +599,7 @@
   (fn (_ t into here? o)
     (match
       (here? (cu-basename-of t))
-      ((%ln-dir? into o) (cu-path-join into (cu-basename-of t)))
+      ((%ln-dir? into o) (Path join into (cu-basename-of t)))
       (#t into))))
 
 ; One link, NAME to T: a symbolic one under -s, a hard one otherwise -- which

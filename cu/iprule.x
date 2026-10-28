@@ -18,7 +18,6 @@
 
 (import cu/dump dp-find)
 (import cu/inet inet-int32)
-(import cu/inetd in-c)
 (import cu/ip ip-addr1 ip-attrs ip-cstr ip-die ip-die-usage ip-dump ip-get
   ip-id ip-invarg ip-keyword ip-name ip-names ip-next ip-ntoa ip-num ip-open
   ip-put ip-run ip-say ip-some)
@@ -26,9 +25,9 @@
   ip-r-type ip-rtn-id ip-rtn-name ip-tables)
 (import cu/ipset ip-attr! ip-le ip-pfx-bytes ip-prefix-in ip-req ip-req-bytes
   ip-str-bytes ip-talk ip-unsigned)
-(import cu/prims append byte-len cu-int->str cu-nth cu-ptr-call cu-ptr-ref
-  cu-string-type cvt file-write map string-append string-concat string=?
-  substring)
+(import cu/prims append byte-len cu-int->str cu-libc-sym cu-nth cu-ptr-call
+  cu-ptr-ref cu-string-type cvt file-write map string-append string-concat
+  string=? substring)
 
 (def ip-dsfields (fn (_ f) (ip-names f "dsfield" (list (pair 0 "0")))))
 (def %ip-realms (fn (_ f) (ip-names f "realms" (list (pair 0 "unknown")))))
@@ -119,7 +118,7 @@
       (let ((fd (ip-open f)))
         (do (map (fn (_ r) (file-write 1 (%ip-rule-text f r)))
                  (ip-dump f fd 34 (if (= (ip-get f (lit preferred)) 0) 2 (ip-get f (lit preferred))) 1 %ip-rule-of))
-            (cu-ptr-call (in-c "close") fd)
+            (cu-ptr-call (cu-libc-sym "close") fd)
             0)))))
 
 (def %ip-rule-words
@@ -204,7 +203,7 @@
                     (ip-get s (lit tos)) table 3 0 (ip-get s (lit type))))
     (def fd (ip-open f))
     (def r (ip-talk f fd (ip-req-bytes (ip-get s (lit req)) (append body (ip-le 0 4)) 2) 2))
-    (cu-ptr-call (in-c "close") fd)
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (if (< r 0) 2 0)))
 
 ; do_iprule

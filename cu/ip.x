@@ -30,12 +30,12 @@
 (import cu/ifconfig if-ref if-req)
 (import cu/inet inet-int32 inet-ntop6-bytes inet-pton6! inet-set! inet-words
   inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/prims append byte-at byte-len char->integer cu-err-label
-  cu-int->ptr cu-int->str cu-lines cu-nth cu-ptr-call cu-ptr-ref cu-str->ptr
-  cu-string-type cvt file-or-err file-read-unsized file-write filter length
-  libc-strerror map reverse str-make-raw string-append string-concat string=?
-  substring)
+  cu-int->ptr cu-int->str cu-libc-sym cu-lines cu-nth cu-ptr-call cu-ptr-ref
+  cu-str->ptr cu-string-type cvt file-or-err file-read-unsized file-write
+  filter length libc-strerror map reverse str-make-raw string-append
+  string-concat string=? substring)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-zero)
 
@@ -314,11 +314,11 @@
 ; xrtnl_open: a NETLINK_ROUTE socket, bound
 (def ip-open
   (fn (_ f)
-    (def fd (in-call (cu-ptr-call (in-c "socket") 16 3 0)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 16 3 0)))
     (when (< fd 0) (ip-die f (string-append "socket: " (libc-strerror (Err errno-of fd)))))
     (def sa (inet-zeros 12))
     (inet-set! sa 0 16 2)
-    (let ((r (in-call (cu-ptr-call (in-c "bind") fd (cu-str->ptr sa) 12))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr sa) 12))))
       (if (< r 0) (ip-die f (string-append "bind: " (libc-strerror (Err errno-of r)))) fd))))
 
 ; xrtnl_wilddump_request then xrtnl_dump_filter: the kernel's KIND messages
@@ -331,7 +331,7 @@
     (inet-set! req 6 769 2)
     (inet-set! req 8 seq 4)
     (inet-set! req 16 family 1)
-    (let ((r (in-call (cu-ptr-call (in-c "write") fd (cu-str->ptr req) 20))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "write") fd (cu-str->ptr req) 20))))
       (when (< r 0) (ip-die f (string-append "write error: " (libc-strerror (Err errno-of r))))))
     (ip-dump-read f fd seq of)))
 
@@ -340,7 +340,7 @@
   (fn (_ f fd seq of)
     (def buf (str-make-raw 32768))
     (let go ((acc ()))
-      (let ((n (in-call (cu-ptr-call (in-c "recv") fd (cu-str->ptr buf) 32768 0))))
+      (let ((n (in-call (cu-ptr-call (cu-libc-sym "recv") fd (cu-str->ptr buf) 32768 0))))
         (match
           ((< n 0) (do (ip-say f (string-append "OVERRUN: " (libc-strerror (Err errno-of n)))) (go acc)))
           ((= n 0) (do (ip-say f "EOF on netlink") (ip-die f "dump terminated")))
@@ -391,7 +391,7 @@
 ; xll_name_to_index: if_nametoindex, or the run ended
 (def ip-dev-index
   (fn (_ f name)
-    (let ((i (in-call (cu-ptr-call (in-c "if_nametoindex") name))))
+    (let ((i (in-call (cu-ptr-call (cu-libc-sym "if_nametoindex") name))))
       (if (<= i 0) (ip-die f (string-concat (list "can't find device '" name "'"))) i))))
 
 (def ip-sl (fn (_ f) (if (ip-get f (lit oneline)) "\\" "\n")))
@@ -416,11 +416,11 @@
 ; print_queuelen: SIOCGIFTXQLEN on a stream socket, "qlen N" where it is not 0
 (def %ip-qlen
   (fn (_ f name)
-    (def fd (in-call (cu-ptr-call (in-c "socket") 2 1 0)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 1 0)))
     (if (< fd 0) ""
       (let ((r (if-req name)))
-        (let ((n (in-call (cu-ptr-call (in-c "ioctl") fd 35138 (cu-str->ptr r)))))
-          (cu-ptr-call (in-c "close") fd)
+        (let ((n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35138 (cu-str->ptr r)))))
+          (cu-ptr-call (cu-libc-sym "close") fd)
           (match
             ((< n 0) (do (ip-say f (string-append "ioctl 0x8942 failed: " (libc-strerror (Err errno-of n)))) ""))
             ((= (if-ref r 16 4) 0) "")
@@ -481,7 +481,7 @@
       (#t (do (file-write 1 (%ip-link-text f l)) 0)))))
 
 (def %ip-fnmatch?
-  (fn (_ pattern s) (= (in-call (cu-ptr-call (in-c "fnmatch") pattern s 0)) 0)))
+  (fn (_ pattern s) (= (in-call (cu-ptr-call (cu-libc-sym "fnmatch") pattern s 0)) 0)))
 
 ; --- the addresses ----------------------------------------------------------------
 
@@ -654,7 +654,7 @@
     (def family (ip-get f (lit family)))
     (def links (ip-get f (lit links)))
     (def addrs (if (= family 17) () (ip-dump f (ip-get f (lit fd)) 22 family 2 ip-addr-of)))
-    (cu-ptr-call (in-c "close") (ip-get f (lit fd)))
+    (cu-ptr-call (cu-libc-sym "close") (ip-get f (lit fd)))
     (map (fn (_ l)
            (when (if (if (ip-get f (lit oneline)) (not (= family 17)) #f) #t (= (%ip-print-link f l) 0))
              (unless (= family 17) (%ip-print-addrs f (%ip-l-index l) addrs))))

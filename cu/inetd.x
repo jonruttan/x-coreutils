@@ -28,21 +28,19 @@
 
 (import cu/cli cu-opts)
 (import cu/date cu-date-fmt cu-date-split)
-(import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-err-label cu-int->str
-  cu-nth cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr
-  cu-sweep-lines cu-sweep-tick! file-close file-err-text file-read-all
-  file-unlink file-write filter in-index-of length map net-aton net-die
-  net-resolve net-send-run net-sockaddr reverse str-make-raw string-append
-  string-concat string=? substring sys-close sys-dup2 sys-exit sys-fork
-  sys-getgid sys-getpid sys-getuid sys-group-id sys-poll sys-signal
-  sys-user-group sys-user-id vec-make vec-ref vec-set! wget-digits wget-div
-  wget-index)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym cu-nth
+  cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep-lines
+  cu-sweep-tick! file-close file-err-text file-read-all file-unlink file-write
+  filter length map net-aton net-die net-resolve net-send-run net-sockaddr
+  reverse str-make-raw string-append string-concat string=? substring
+  sys-close sys-dup2 sys-exit sys-fork sys-getgid sys-getpid sys-getuid
+  sys-group-id sys-poll sys-signal sys-user-group sys-user-id vec-make vec-ref
+  vec-set! wget-digits wget-div wget-index)
 (import cu/session hd-daemonize)
 (import cu/signal ts-signal-number)
 
 (def %in-services-file "/etc/services")
 (def %in-pidfile "/var/run/inetd.pid")
-(def %in-libc ())
 (def %in-stderr? #f)
 (def %in-quiet? #f)            ; a builtin's child: nothing said
 (def %in-ident "inetd")
@@ -55,11 +53,6 @@
 (def %in-retry-at ())          ; when the services without a socket are tried again
 (def %in-ring-pos 0)           ; chargen's place for datagrams
 (def %in-sigs ())              ; (CHLD HUP ALRM TERM INT)
-
-(def in-c
-  (fn (_ name)
-    (when (null? %in-libc) (set! %in-libc (cu-dlopen () 1)))
-    (cu-dlsym %in-libc name)))
 
 (def in-call (fn (_ r) (Sys %sign-fold r)))
 
@@ -83,7 +76,7 @@
     (unless %in-quiet?
       (if %in-stderr?
         (file-write 2 (string-concat (list "inetd: " msg "\n")))
-        (cu-ptr-call (in-c "syslog") 3 (in-percent msg))))))
+        (cu-ptr-call (cu-libc-sym "syslog") 3 (in-percent msg))))))
 
 (def %in-die (fn (_ msg) (Err raise (lit net) msg ())))
 
@@ -189,7 +182,7 @@
   (fn (_ lineno tokens)
     (def err (fn (_) (do (%in-say (string-concat (list "parse error on line " (cu-int->str lineno) ", line is ignored"))) ())))
     (def t0 (first tokens))
-    (def colon (in-index-of t0 #\:))
+    (def colon (Str8 last-index-of ":" t0))
     (def host (if (null? colon) %in-default-host (substring t0 0 colon)))
     (def service (if (null? colon) t0 (substring t0 (+ colon 1) (byte-len t0))))
     (if (if (null? colon) #f (if (= (byte-len service) 0) (= (length tokens) 1) #f))
@@ -291,7 +284,6 @@
 (def %in-word-end? (fn (_ text i) (not (%in-byte? text i (fn (_ c) (not (if (%in-space? c) #t (= c #\#))))))))
 
 (def %in-blank-in-line? (fn (_ c) (if (%in-space? c) (not (= c #\newline)) #f)))
-(def %in-digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
 
 ; the first I from FROM whose byte does not answer PRED
 (def %in-skip (fn (self text i pred) (if (%in-byte? text i pred) (self text (+ i 1) pred) i)))
@@ -305,7 +297,7 @@
     (def ls (%in-skip text line-start %in-blank-in-line?))
     (def hash? (let look ((i ls)) (match ((>= i after) #f) ((= (byte-at text i) #\#) #t) (#t (look (+ i 1))))))
     (def pnstr (%in-skip text (%in-skip text ls (fn (_ c) (not (%in-space? c)))) %in-blank-in-line?))
-    (def digits-end (%in-skip text pnstr %in-digit?))
+    (def digits-end (%in-skip text pnstr (fn (_ c) (Char numeric? c))))
     (def port (if (> digits-end pnstr) (in-strtou (substring text pnstr digits-end)) ()))
     (def pe (+ digits-end 1 (byte-len proto)))
     (match
@@ -363,7 +355,7 @@
         (let ((q (if (null? (net-aton host)) (guard (_ ()) (net-resolve host)) host)))
           (if (null? q) () (pair (net-sockaddr q port) 16)))
         (let ((buf (in-zeroed 16)))
-          (if (= (in-call (cu-ptr-call (in-c "inet_pton") (in-af fam) host (cu-str->ptr buf))) 1)
+          (if (= (in-call (cu-ptr-call (cu-libc-sym "inet_pton") (in-af fam) host (cu-str->ptr buf))) 1)
             (in-sockaddr6 buf port) ()))))
     (when (null? a) (%in-say (string-concat (list "bad address '" host "'"))))
     a))
@@ -382,7 +374,7 @@
   (fn (_ fd)
     (let ((one (str-make-raw 4)))
       (do (cu-ptr-set! (cu-str->ptr one) 0 1 4)
-          (cu-ptr-call (in-c "setsockopt") fd (if os-darwin? 65535 1) (if os-darwin? 4 2) (cu-str->ptr one) 4)))))
+          (cu-ptr-call (cu-libc-sym "setsockopt") fd (if os-darwin? 65535 1) (if os-darwin? 4 2) (cu-str->ptr one) 4)))))
 
 ; a datagram socket also takes SO_REUSEPORT on Darwin, where SO_REUSEADDR
 ; alone does not let the socket a nowait child holds share its address
@@ -391,10 +383,10 @@
     (when os-darwin?
       (let ((one (str-make-raw 4)))
         (do (cu-ptr-set! (cu-str->ptr one) 0 1 4)
-            (cu-ptr-call (in-c "setsockopt") fd 65535 512 (cu-str->ptr one) 4))))))
+            (cu-ptr-call (cu-libc-sym "setsockopt") fd 65535 512 (cu-str->ptr one) 4))))))
 
 (def in-bind
-  (fn (_ fd addr) (in-call (cu-ptr-call (in-c "bind") fd (cu-str->ptr (first addr)) (rest addr)))))
+  (fn (_ fd addr) (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (first addr)) (rest addr)))))
 
 (def %in-close!
   (fn (_ s)
@@ -409,7 +401,7 @@
 ; listening; a failure said and tried again in a minute
 (def %in-open!
   (fn (_ s)
-    (def fd (in-call (cu-ptr-call (in-c "socket") (in-af (%in-get s %in-family)) (%in-get s %in-type) 0)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") (in-af (%in-get s %in-family)) (%in-get s %in-type) 0)))
     (if (< fd 0) (%in-say (string-append "socket: " (in-errtext fd)))
       (do (in-reuse! fd)
           (when (%in-dgram? s) (%in-reuse-port! fd))
@@ -419,7 +411,7 @@
               (do (%in-say (string-concat (list (%in-name s) ": bind: " (in-errtext r))))
                   (sys-close fd)
                   (%in-rearm!))
-              (do (when (%in-stream? s) (cu-ptr-call (in-c "listen") fd %in-queue))
+              (do (when (%in-stream? s) (cu-ptr-call (cu-libc-sym "listen") fd %in-queue))
                   (%in-set! s %in-fd fd)
                   (%in-set! s %in-watched #t))))))))
 
@@ -499,15 +491,15 @@
     (def sa (in-zeroed 128))
     (def len (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr len) 0 128 4)
-    (def r (in-call (cu-ptr-call (in-c "recvfrom") fd (cu-str->ptr buf) n in-dontwait
+    (def r (in-call (cu-ptr-call (cu-libc-sym "recvfrom") fd (cu-str->ptr buf) n in-dontwait
                                    (cu-str->ptr sa) (cu-str->ptr len))))
     (if (< r 0) () (list buf r sa (cu-ptr-ref (cu-str->ptr len) 0 4)))))
 
 (def in-sendto
   (fn (_ fd data n from)
-    (cu-ptr-call (in-c "sendto") fd (cu-str->ptr data) n 0 (cu-str->ptr (cu-nth 2 from)) (cu-nth 3 from))))
+    (cu-ptr-call (cu-libc-sym "sendto") fd (cu-str->ptr data) n 0 (cu-str->ptr (cu-nth 2 from)) (cu-nth 3 from))))
 
-(def %in-eat (fn (_ fd) (cu-ptr-call (in-c "recv") fd (cu-str->ptr (str-make-raw 256)) 256 in-dontwait)))
+(def %in-eat (fn (_ fd) (cu-ptr-call (cu-libc-sym "recv") fd (cu-str->ptr (str-make-raw 256)) 256 in-dontwait)))
 
 ; the bytes ' ' through '~', and a chargen line: 72 of them from POS, around
 ; the ring, and CRLF
@@ -583,7 +575,7 @@
       (unless (null? l)
         (do (cu-ptr-set! (cu-str->ptr vec) (* 8 i) (ptr->int (cu-str->ptr (first l))) 8) (go (+ i 1) (rest l)))))
     (def p (string-append prog %in-nul))
-    (in-call (cu-ptr-call (in-c "execvp") (cu-str->ptr p) (cu-str->ptr vec)))))
+    (in-call (cu-ptr-call (cu-libc-sym "execvp") (cu-str->ptr p) (cu-str->ptr vec)))))
 
 ; a child's end: for a datagram service, the datagram that started it eaten
 (def %in-exit1
@@ -595,12 +587,12 @@
 ; the user it runs as, PROG
 (def %in-child
   (fn (_ s ctrl new-udp)
-    (cu-ptr-call (in-c "setsid"))
+    (cu-ptr-call (cu-libc-sym "setsid"))
     (when (>= new-udp 0)
       (do (sys-close new-udp)
           (let ((d (%in-peek ctrl)))
             (if (null? d) (%in-exit1 s ctrl)
-              (cu-ptr-call (in-c "connect") ctrl (cu-str->ptr (cu-nth 2 d)) (cu-nth 3 d))))))
+              (cu-ptr-call (cu-libc-sym "connect") ctrl (cu-str->ptr (cu-nth 2 d)) (cu-nth 3 d))))))
     (def user (%in-get s %in-user))
     (def group (%in-get s %in-group))
     (def uid (sys-user-id user))
@@ -629,7 +621,7 @@
     (def sa (in-zeroed 128))
     (def len (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr len) 0 128 4)
-    (def r (in-call (cu-ptr-call (in-c "recvfrom") fd 0 0 (+ 2 in-dontwait) (cu-str->ptr sa) (cu-str->ptr len))))
+    (def r (in-call (cu-ptr-call (cu-libc-sym "recvfrom") fd 0 0 (+ 2 in-dontwait) (cu-str->ptr sa) (cu-str->ptr len))))
     (if (< r 0) () (list "" 0 sa (cu-ptr-ref (cu-str->ptr len) 0 4)))))
 
 ; another user's identity -- initgroups, setgid, setuid -- or, for this
@@ -638,14 +630,14 @@
   (fn (_ user uid gid)
     (if (not (= uid %in-uid))
       (let ((g (if (null? gid) (sys-user-group user) gid)))
-        (do (cu-ptr-call (in-c "initgroups") user g)
-            (cu-ptr-call (in-c "setgid") g)
-            (cu-ptr-call (in-c "setuid") uid)))
+        (do (cu-ptr-call (cu-libc-sym "initgroups") user g)
+            (cu-ptr-call (cu-libc-sym "setgid") g)
+            (cu-ptr-call (cu-libc-sym "setuid") uid)))
       (unless (null? gid)
         (let ((buf (str-make-raw 4)))
           (do (cu-ptr-set! (cu-str->ptr buf) 0 gid 4)
-              (cu-ptr-call (in-c "setgid") gid)
-              (cu-ptr-call (in-c "setgroups") 1 (cu-str->ptr buf))))))))
+              (cu-ptr-call (cu-libc-sym "setgid") gid)
+              (cu-ptr-call (cu-libc-sym "setgroups") 1 (cu-str->ptr buf))))))))
 
 ; --- a service ready -----------------------------------------------------------------------------
 
@@ -673,12 +665,12 @@
     (def nowait? (= (%in-get s %in-wait) 0))
     (def accepted
       (if (if nowait? (%in-stream? s) #f)
-        (let ((c (in-call (cu-ptr-call (in-c "accept") fd 0 0))))
+        (let ((c (in-call (cu-ptr-call (cu-libc-sym "accept") fd 0 0))))
           (do (when (< c 0) (%in-say (string-concat (list "accept (for " (%in-get s %in-service) "): " (in-errtext c))))) c))
         -1))
     (def new-udp
       (if (if nowait? (if (%in-dgram? s) (not (eq? (%in-get s %in-family) (lit unix))) #f) #f)
-        (let ((u (in-call (cu-ptr-call (in-c "socket") (in-af (%in-get s %in-family)) 2 0))))
+        (let ((u (in-call (cu-ptr-call (cu-libc-sym "socket") (in-af (%in-get s %in-family)) 2 0))))
           (if (< u 0) -2
             (do (in-reuse! u) (%in-reuse-port! u)
                 (if (< (in-bind u (%in-get s %in-addr)) 0) (do (sys-close u) -2) u))))
@@ -720,7 +712,7 @@
 (def %in-reap!
   (fn (self)
     (def st (str-make-raw 4))
-    (def pid (in-call (cu-ptr-call (in-c "waitpid") -1 (cu-str->ptr st) 1)))
+    (def pid (in-call (cu-ptr-call (cu-libc-sym "waitpid") -1 (cu-str->ptr st) 1)))
     (when (> pid 0)
       (do (let ((s (List find (fn (_ s) (= (%in-get s %in-wait) pid)) %in-list))
                 (raw (cu-ptr-ref (cu-str->ptr st) 0 4)))
@@ -795,11 +787,11 @@
     (when (null? %in-conf) (%in-die "non-root must specify config file"))
     (unless (Opts on? o "-f") (hd-daemonize))
     (set! %in-stderr? (Opts on? o "-e"))
-    (unless %in-stderr? (cu-ptr-call (in-c "openlog") %in-ident 9 24))
+    (unless %in-stderr? (cu-ptr-call (cu-libc-sym "openlog") %in-ident 9 24))
     (when (= %in-uid 0)
       (let ((buf (str-make-raw 4)))
         (do (cu-ptr-set! (cu-str->ptr buf) 0 (sys-getgid) 4)
-            (cu-ptr-call (in-c "setgroups") 1 (cu-str->ptr buf)))))
+            (cu-ptr-call (cu-libc-sym "setgroups") 1 (cu-str->ptr buf)))))
     (guard (_ ())
       (let ((fd (File open %in-pidfile (list (lit wronly) (lit creat) (lit trunc)) 438)))
         (do (file-write fd (string-append (cu-int->str (sys-getpid)) "\n")) (file-close fd))))
@@ -818,6 +810,6 @@
           (let ((p (in-servport s "tcp")))
             (if (null? p) (net-die (string-concat (list "bad port '" s "'"))) p)))))))
 
-(provide cu/inetd cu-inetd in-af in-bind in-c in-call in-count in-dontwait
+(provide cu/inetd cu-inetd in-af in-bind in-call in-count in-dontwait
   in-errtext in-exec in-lines in-now in-percent in-recvfrom in-reuse!
   in-sendto in-sockaddr6 in-strtou in-tokens-max in-zeroed tn-port)

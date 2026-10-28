@@ -22,11 +22,11 @@
 (module cu/session)
 
 (import cu/cli cu-opts)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
-  cu-ptr-call cu-stdin-to-command! file-close file-err-text file-exists?
-  file-open-err file-read-all file-write file-write-run length reverse
-  string-append string-concat string=? sys-dup2 sys-exec-or-err sys-exit
-  sys-fork sys-fsync sys-getenv sys-usleep sys-wait)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-ptr-call
+  cu-stdin-to-command! file-close file-err-text file-exists? file-open-err
+  file-read-all file-write file-write-run length reverse string-append
+  string-concat string=? sys-dup2 sys-exec-or-err sys-exit sys-fork sys-fsync
+  sys-getenv sys-usleep sys-wait)
 (import cu/strings cu-range-number)
 (import cu/text cu-pieces)
 
@@ -38,10 +38,9 @@
 
 (def ss-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %ss-c-flock (cu-dlsym lib "flock"))
-    (set! %ss-c-setsid (cu-dlsym lib "setsid"))
-    (set! %ss-c-fdatasync (cu-dlsym lib "fdatasync"))))
+    (set! %ss-c-flock (cu-libc-sym "flock"))
+    (set! %ss-c-setsid (cu-libc-sym "setsid"))
+    (set! %ss-c-fdatasync (cu-libc-sym "fdatasync"))))
 
 ; libc's flock and setsid, once ss-resolve! has run
 (def ss-flock (fn (_ fd how) (cu-ptr-call %ss-c-flock fd how)))

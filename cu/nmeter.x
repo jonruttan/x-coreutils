@@ -215,7 +215,6 @@
   (fn (_ fmt)
     (def n (byte-len fmt))
     (def at (fn (_ i) (byte-at fmt i)))
-    (def digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
     ; the text from I up to the next lone %, %% made one: (TEXT . I)
     (def text
       (fn (self i acc)
@@ -225,7 +224,7 @@
           ((= (at i) #\%) (pair (bytes->str (reverse acc)) i))
           (#t (self (+ i 1) (pair (at i) acc))))))
     (def close (fn (self i) (match ((>= i n) ()) ((= (at i) #\]) i) (#t (self (+ i 1))))))
-    (def digits-end (fn (self i) (if (if (< i n) (digit? (at i)) #f) (self (+ i 1)) i)))
+    (def digits-end (fn (self i) (if (if (< i n) (Char numeric? (at i)) #f) (self (+ i 1)) i)))
     (def go
       (fn (self i label fields cr)
         (def t (text i ()))

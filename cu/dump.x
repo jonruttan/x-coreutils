@@ -136,8 +136,6 @@
 
 ; --- bytes and characters -----------------------------------------------------
 
-(def dp-digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
-
 ; C in the string SET
 (def dp-in?
   (fn (_ c set)
@@ -156,11 +154,11 @@
   (fn (_ s i)
     (def go
       (fn (self j acc)
-        (if (dp-digit? (dp-at s j)) (self (+ j 1) (+ (* acc 10) (- (byte-at s j) #\0))) acc)))
+        (if (Char numeric? (dp-at s j)) (self (+ j 1) (+ (* acc 10) (- (byte-at s j) #\0))) acc)))
     (go i 0)))
 
 (def %dp-digits-end
-  (fn (self s i) (if (dp-digit? (dp-at s i)) (self s (+ i 1)) i)))
+  (fn (self s i) (if (Char numeric? (dp-at s i)) (self s (+ i 1)) i)))
 
 ; --- the escapes of a format ------------------------------------------------------
 
@@ -303,8 +301,8 @@
                 (let ((j (dp-skip-in fmt (+ i 1) %dp-flag-chars)))
                   (let ((dot (= (dp-at fmt j) #\.)))
                     (let ((k (if dot (+ j 1) j)))
-                      (let ((prec2 (if (if dot (dp-digit? (dp-at fmt k)) #f) (%dp-atoi fmt k) prec))
-                            (k2 (if (if dot (dp-digit? (dp-at fmt k)) #f) (%dp-digits-end fmt k) k)))
+                      (let ((prec2 (if (if dot (Char numeric? (dp-at fmt k)) #f) (%dp-atoi fmt k) prec))
+                            (k2 (if (if dot (Char numeric? (dp-at fmt k)) #f) (%dp-digits-end fmt k) k)))
                         (let ((c (dp-at fmt k2)))
                           (match
                             ((= c #\c) (self (+ k2 1) (+ bcnt 1) prec2))
@@ -459,7 +457,7 @@
     (def p1a (dp-skip-in fmt (+ pct 1) (if (> fbcnt 0) %dp-dot-flag-chars %dp-flag-chars)))
     (def dot (if (> fbcnt 0) #f (= (dp-at fmt p1a) #\.)))
     (def p1b (if dot (+ p1a 1) p1a))
-    (def prec? (if dot (dp-digit? (dp-at fmt p1b)) #f))
+    (def prec? (if dot (Char numeric? (dp-at fmt p1b)) #f))
     (def p1 (if prec? (%dp-digits-end fmt p1b) p1b))
     (def c (dp-at fmt p1))
     (match
@@ -907,5 +905,5 @@
 
 (provide cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
   cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
-  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-in? dp-skip-in
-  dp-skip-ws dp-udigits dp-zeros)
+  cu-dump-xxd-eof! dp-at dp-find dp-formats dp-in? dp-skip-in dp-skip-ws
+  dp-udigits dp-zeros)

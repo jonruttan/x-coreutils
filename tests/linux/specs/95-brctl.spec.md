@@ -50,11 +50,11 @@ timers that run on their own written as T.
       (do (def lx-a (lx-run lx-x1 runs)) (def lx-b (lx-run lx-bb1 runs))
           (display (if (string=? lx-a lx-b) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
     (lx-sh "ip2 netns add brn")
-    (def lx-ns (in-call (cu-ptr-call (in-c "open") "/var/run/netns/brn" 0)))
-    (def lx-in (= (in-call (cu-ptr-call (in-c "setns") lx-ns 1073741824)) 0))
-    (def lx-mnt (if lx-in (= (in-call (cu-ptr-call (in-c "unshare") 131072)) 0) #f))
-    (when lx-mnt (in-call (cu-ptr-call (in-c "mount") "none" "/" 0 278528 0)))
-    (def lx-sys (if lx-mnt (= (in-call (cu-ptr-call (in-c "mount") "sysfs" "/sys" "sysfs" 0 0)) 0) #f))
+    (def lx-ns (in-call (cu-ptr-call (cu-libc-sym "open") "/var/run/netns/brn" 0)))
+    (def lx-in (= (in-call (cu-ptr-call (cu-libc-sym "setns") lx-ns 1073741824)) 0))
+    (def lx-mnt (if lx-in (= (in-call (cu-ptr-call (cu-libc-sym "unshare") 131072)) 0) #f))
+    (when lx-mnt (in-call (cu-ptr-call (cu-libc-sym "mount") "none" "/" 0 278528 0)))
+    (def lx-sys (if lx-mnt (= (in-call (cu-ptr-call (cu-libc-sym "mount") "sysfs" "/sys" "sysfs" 0 0)) 0) #f))
     (display (if lx-sys "made" "no namespace")))
 ```
 ---

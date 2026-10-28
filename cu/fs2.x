@@ -26,7 +26,6 @@
 
 (import cu/cli cu-missing-file-operand cu-opts)
 (import cu/date cu-date-moment cu-date-of cu-date-today)
-(import cu/fs3 cu-path-join)
 (import cu/perm cu-basename-of cu-octal->int cu-realpath-of)
 (import cu/prims append byte-at byte-len cu-dirname-of cu-int->str cu-last
   cu-max-status cu-member-s? cu-nth cu-stat-get cu-sweep! cu-sweep-bytes
@@ -40,13 +39,14 @@
   cu-say cu-says cu-with-sources)
 (import cu/text2 cu-oct->str)
 
+(import x/type/path Path)
+
 (def %cu-touch-stamp
   (fn (_ s)
     (def end (byte-len s))
-    (def digit? (fn (_ i) (let ((b (byte-at s i))) (if (>= b 48) (<= b 57) #f))))
     (def digits?
       (fn (_ from to)
-        (let ((go (fn (self i) (if (>= i to) #t (if (digit? i) (self (+ i 1)) #f)))))
+        (let ((go (fn (self i) (if (>= i to) #t (if (Char numeric? (byte-at s i)) (self (+ i 1)) #f)))))
           (if (< from to) (go from) #f))))
     (def num
       (fn (_ from to)
@@ -161,9 +161,6 @@
 
 ; rmdir moved to cu/fs.x, which gives it -p.
 
-; install: -d makes directories (parents included); the copy form
-; accepts and IGNORES -c and -m MODE -- there is no chmod door yet,
-; the recorded divergence
 ; install: -d makes directories; otherwise it copies, with -D creating
 ; the destination's parents, -m the mode, -o/-g the ownership, -p the
 ; timestamps, and -t naming a directory to install into.  -s would
@@ -204,7 +201,7 @@
                       (if (null? ss) st
                         (let ((target
                                 (if (file-dir? dst)
-                                  (cu-path-join dst (cu-base-of (first ss)))
+                                  (Path join dst (cu-base-of (first ss)))
                                   dst)))
                           (do (if (Opts on? o "-D")
                                 (cu-mkdir-p! (cu-dirname-of target)) ())
@@ -265,7 +262,7 @@
             ()))))
     (def template
       (if (null? into) (if (null? ops) "/tmp/tmp.XXXXXX" base)
-        (cu-path-join into (cu-basename-of base))))
+        (Path join into (cu-basename-of base))))
     (def end (byte-len template))
     (def xs
       (let ((go (fn (self i)

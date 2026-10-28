@@ -1421,11 +1421,10 @@
       (fn (_ counts name)
         (display
           (string-append
-            (cu-join-with
+            (Str8 join " "
               (map (fn (_ f)
                      (cu-pad-left (cu-int->str (%cu-wc-count counts f)) width))
-                cols)
-              " ")
+                cols))
             (if (null? name) "\n" (string-concat (list " " name "\n")))))))
     (def each
       (fn (self is)
@@ -1604,10 +1603,9 @@
       (fn (_ la lb)
         (display
           (string-append
-            (cu-join-with
+            (Str8 join sep
               (pair (key la)
-                (append (rest-fields la) (rest-fields lb)))
-              sep)
+                (append (rest-fields la) (rest-fields lb))))
             "\n"))))
     ; runs of equal keys pair cartesianly
     (def take-run
@@ -1643,13 +1641,6 @@
                   (self (rest la) lb)
                   (self la (rest lb)))))))))
     (if failed? 1 (do (go a b) 0))))
-
-(def cu-join-with
-  (fn (self ws sep)
-    (if (null? ws) ""
-      (if (null? (rest ws)) (first ws)
-        (string-append (first ws)
-          (string-append sep (self (rest ws) sep)))))))
 
 ; The suffix is either -s SUFFIX or a second operand; busybox takes both
 ; spellings and they mean the same thing.  -s takes it off every NAME given,
@@ -1749,11 +1740,11 @@
   cu-delim-fields-said cu-dirname cu-each-run-said cu-each-said cu-enough
   cu-fd-chunks cu-file-pieces cu-first-unopened cu-fold-lines-said cu-fold-one
   cu-fold-pieces cu-fold-said cu-fold-stdin cu-gather-said cu-head cu-join
-  cu-join-with cu-map-swept cu-merge cu-msort cu-newlines-from cu-num-prefix
-  cu-pad-left cu-pad-right cu-pad-zero cu-pieces cu-pieces-past
-  cu-print-fields cu-print-fields-to cu-print-lines cu-print-lines-to
-  cu-put-each cu-read-error cu-read-run-said cu-read-said cu-run-from
-  cu-run-join cu-run-nul? cu-run-part cu-run-slice cu-run-text cu-say cu-says
-  cu-says-open cu-says-read cu-sleep-for cu-sleep-us cu-split-byte
-  cu-stdin-pieces cu-str< cu-tail cu-tail-follow cu-tail-round cu-text-from
-  cu-unmarked cu-wc cu-with-sources)
+  cu-map-swept cu-merge cu-msort cu-newlines-from cu-num-prefix cu-pad-left
+  cu-pad-right cu-pad-zero cu-pieces cu-pieces-past cu-print-fields
+  cu-print-fields-to cu-print-lines cu-print-lines-to cu-put-each
+  cu-read-error cu-read-run-said cu-read-said cu-run-from cu-run-join
+  cu-run-nul? cu-run-part cu-run-slice cu-run-text cu-say cu-says cu-says-open
+  cu-says-read cu-sleep-for cu-sleep-us cu-split-byte cu-stdin-pieces cu-str<
+  cu-tail cu-tail-follow cu-tail-round cu-text-from cu-unmarked cu-wc
+  cu-with-sources)

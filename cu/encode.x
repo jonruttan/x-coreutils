@@ -23,8 +23,8 @@
   file-err-text file-open-or-err file-open-write file-stat-full file-write
   file-write-run filter length map reverse set-first! string-append
   string-concat string=? substring sys-umask)
-(import cu/text cu-enough cu-fold-said cu-gather-said cu-join-with
-  cu-num-prefix cu-pad-left cu-pad-zero cu-run-join cu-run-part cu-says)
+(import cu/text cu-enough cu-fold-said cu-gather-said cu-num-prefix
+  cu-pad-left cu-pad-zero cu-run-join cu-run-part cu-says)
 (import cu/text2 cu-oct->str)
 (import cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from)
 
@@ -554,7 +554,7 @@
                 (do (cu-sweep-at k cu-sweep-lines)
                     (self (rest ls) (%cu-onto bs out) (+ n (length bs))
                       (+ k 1))))))))
-    (if b64? (cu-b64-decode-to (cu-join-with body "\n") put #t)
+    (if b64? (cu-b64-decode-to (Str8 join "\n" body) put #t)
       (go (filter (fn (_ l) (> (byte-len l) 0)) body) () 0 0))))
 
 (provide cu/encode cu-od cu-uudecode cu-uuencode)

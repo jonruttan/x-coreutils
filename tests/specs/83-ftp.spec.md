@@ -118,7 +118,7 @@ draws only the lines busybox draws within one.
            (filter (fn (_ f) (not (cu-member-s? f (list "." ".." "small.txt" "big.bin" "empty"))))
                    (file-list-dir (string-append fp "/srv")))))))
   (def fp-dport (fn (self s)
-    (let ((i (wget-find s "(|||")))
+    (let ((i (Str8 index-of "(|||" s)))
       (if (null? i) s
         (let ((j (wget-index s #\| (+ i 4))))
           (string-concat (list (substring s 0 (+ i 4)) "DPORT"

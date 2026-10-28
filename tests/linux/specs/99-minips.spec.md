@@ -41,7 +41,7 @@ while busybox reading it sees qemu's too.
                                   "; sed '/^BusyBox v/{N;d;}' " (lx-f "bx") " > " (lx-f (string-append "be" k)))))))
     ; the namespace's first process: its children, then both sides' runs
     (def lx-first (fn (_)
-      (do (in-call (cu-ptr-call (in-c "mount") "proc" "/proc" "proc" 0 0))
+      (do (in-call (cu-ptr-call (cu-libc-sym "mount") "proc" "/proc" "proc" 0 0))
           (def lx-a (sys-fork))
           (when (= lx-a 0) (sys-exec "/bin/sleep" (list "999")))
           (def lx-b (sys-fork))
@@ -60,8 +60,8 @@ while busybox reading it sees qemu's too.
     (when (= lx-kid 0)
       (guard (e (sys-exit 9))
         (do (sys-exit
-              (if (= (in-call (cu-ptr-call (in-c "unshare") 537001984)) 0)
-                (do (in-call (cu-ptr-call (in-c "mount") "none" "/" 0 278528 0))
+              (if (= (in-call (cu-ptr-call (cu-libc-sym "unshare") 537001984)) 0)
+                (do (in-call (cu-ptr-call (cu-libc-sym "mount") "none" "/" 0 278528 0))
                     (def lx-one (sys-fork))
                     (when (= lx-one 0) (guard (e (sys-exit 9)) (do (lx-first) (sys-exit 0))))
                     (sys-wait lx-one))

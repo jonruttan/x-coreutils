@@ -39,8 +39,8 @@
 (import cu/fs3 cu-dev-major cu-dev-minor cu-perm-string)
 (import cu/gzip gz-ends? gz-sink gz-sink-close! gz-sink-write! gz-sniff
   gz-tar-pieces)
-(import cu/prims append byte-at byte-len cal/ cu-dlopen cu-dlsym cu-err-label
-  cu-int->str cu-lines cu-member-s? cu-mode-file-type cu-ptr-call cu-ptr-set!
+(import cu/prims append byte-at byte-len cal/ cu-err-label cu-int->str
+  cu-libc-sym cu-lines cu-member-s? cu-mode-file-type cu-ptr-call cu-ptr-set!
   cu-stat-get cu-str->ptr cu-sweep-lines cu-sweep-tick! file-chmod file-chown
   file-close file-err-text file-link file-list-dir file-lstat-file-type
   file-lstat-full file-open-err file-readlink file-set-times file-stat-full
@@ -60,12 +60,11 @@
 
 (def tar-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %tar-c-memcpy (cu-dlsym lib "memcpy"))
-    (set! %tar-c-write (cu-dlsym lib "write"))
-    (set! %tar-c-mkdir (cu-dlsym lib "mkdir"))
-    (set! %tar-c-mknod (cu-dlsym lib "mknod"))
-    (set! %tar-c-getuid (cu-dlsym lib "getuid"))))
+    (set! %tar-c-memcpy (cu-libc-sym "memcpy"))
+    (set! %tar-c-write (cu-libc-sym "write"))
+    (set! %tar-c-mkdir (cu-libc-sym "mkdir"))
+    (set! %tar-c-mknod (cu-libc-sym "mknod"))
+    (set! %tar-c-getuid (cu-libc-sym "getuid"))))
 
 ; libc's mkdir and mknod, once tar-resolve! has run
 (def tar-mkdir (fn (_ path mode) (cu-ptr-call %tar-c-mkdir path mode)))

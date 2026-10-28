@@ -27,7 +27,7 @@
   string-concat string=? wget-div wget-err-text)
 (import cu/sysinfo si-now)
 (import cu/tar tar-printable)
-(import cu/text cu-join-with cu-pad-right cu-pad-zero)
+(import cu/text cu-pad-right cu-pad-zero)
 
 (def %dl-file "/var/lib/misc/udhcpd.leases")
 
@@ -81,8 +81,8 @@
 ; one lease's line
 (def %dl-line
   (fn (_ l written curr abs? dec?)
-    (def mac (cu-join-with (map %dl-hex2 (List take 6 (List drop 8 l))) ":"))
-    (def ip (cu-join-with (map cu-int->str (List take 4 (List drop 4 l))) "."))
+    (def mac (Str8 join ":" (map %dl-hex2 (List take 6 (List drop 8 l)))))
+    (def ip (Str8 join "." (map cu-int->str (List take 4 (List drop 4 l)))))
     (def name-bytes (let go ((l (List take 19 (List drop 14 l))) (acc ()))
                       (if (if (null? l) #t (= (first l) 0)) (reverse acc) (go (rest l) (pair (first l) acc)))))
     (def name (tar-printable (bytes->str name-bytes)))

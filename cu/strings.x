@@ -21,7 +21,7 @@
 (module cu/strings)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-ptr-call
+(import cu/prims byte-at byte-len cu-int->str cu-libc-sym cu-ptr-call
   cu-sweep-lines cu-sweep-tick! file-err-op file-err-text file-write reverse
   string-append string-concat string=?)
 (import cu/text cu-fold-one cu-num-prefix cu-pad-left)
@@ -39,9 +39,8 @@
 
 (def %sg-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %sg-c-strspn (cu-dlsym lib "strspn"))
-    (set! %sg-c-strcspn (cu-dlsym lib "strcspn"))))
+    (set! %sg-c-strspn (cu-libc-sym "strspn"))
+    (set! %sg-c-strcspn (cu-libc-sym "strcspn"))))
 
 ; --- busybox's numbers ----------------------------------------------------------
 
