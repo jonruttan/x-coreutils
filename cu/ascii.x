@@ -19,9 +19,11 @@
 
 (import cu/cli cu-opts)
 (import cu/dump dp-udigits)
-(import cu/prims byte-at cu-int->str cu-nth cu-sweep! cu-sweep-steps
-  file-err-text file-write map string-append string-concat vec-build vec-ref)
+(import cu/prims cu-int->str cu-nth file-err-text file-write map string-append
+  string-concat)
 (import cu/text cu-fold-pieces cu-pad-left cu-pad-zero cu-pieces)
+
+(import x/codec/crc32)
 
 (def %ascii-names
   (list "NUL" "SOH" "STX" "ETX" "EOT" "ENQ" "ACK" "BEL" "BS " "HT " "NL " "VT "
@@ -59,27 +61,9 @@
 
 ; --- crc32 --------------------------------------------------------------------
 
-; the table, computed: each byte's CRC under the reflected polynomial
-; 0xEDB88320, the low bit shifted out first
-(def %crc32-entry
-  (fn (self k c)
-    (if (= k 0) c
-      (self (- k 1) (if (= (& c 1) 0) (>> c 1) (^ (>> c 1) 3988292384))))))
-
-(def %crc32-table (vec-build 256 (fn (_ i) (%crc32-entry 8 i))))
-
-; a piece P folded into the CRC so far
+; a piece P folded into the CRC so far, by x/codec/crc32's
 (def %crc32-take
-  (fn (_ p crc)
-    (def text (first p))
-    (def n (rest p))
-    (def go
-      (fn (self i acc)
-        (if (= i n) acc
-          (do (if (= (& i cu-sweep-steps) 0) (cu-sweep! i) ())
-              (self (+ i 1)
-                (^ (vec-ref %crc32-table (& (^ acc (byte-at text i)) 255)) (>> acc 8)))))))
-    (go 0 crc)))
+  (fn (_ p crc) (Crc32 update crc (first p) 0 (rest p))))
 
 ; crc32 [FILE]...: each file's CRC, and its name; with none, standard
 ; input's, unnamed.  A file that will not open is said and passed; one that
@@ -94,7 +78,7 @@
             (do (file-write 2 (string-concat (list "crc32: can't open '" name "': "
                                                    (file-err-text src) "\n")))
                 (lit missing))
-            (let ((r (cu-fold-pieces src %crc32-take 4294967295)))
+            (let ((r (cu-fold-pieces src %crc32-take 0)))
               (do (src (lit close))
                   (if (not (null? (rest r)))
                     (do (file-write 2 (string-concat (list "crc32: " name ": "
@@ -102,7 +86,7 @@
                         (lit fatal))
                     (do (file-write 1
                           (string-concat
-                            (list (cu-pad-zero (dp-udigits (& (^ (first r) 4294967295) 4294967295) 16 #f) 8)
+                            (list (cu-pad-zero (dp-udigits (first r) 16 #f) 8)
                                   (if shown (string-append " " name) "") "\n")))
                         (lit ok)))))))))
     (def each
