@@ -14,6 +14,8 @@ counts the SGR sequences drawn that are not resets.
 
 ```cu
 (def vi-state (fn (_ name) (eval name (module cu/vi))))
+; the user's theme file is not read: every case draws in the default theme
+(Sys setenv "X_THEME" "")
 (def esc (bytes->str (list 27)))
 (def cr (bytes->str (list 13)))
 (def vi-trim
@@ -160,6 +162,85 @@ colours 3
 :
 status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8 syntax
 colours 3
+```
+
+## :set theme
+
+### theme=NAME draws the screen again in that theme
+
+The theme draws keywords bold and nothing else, so after the first draw's
+four runs the screen is drawn again with one; the bold :set line is two more.
+
+```cu
+(Theme register! (Theme make 'spec-mono '((keyword (bold) () ()))))
+(vi-case "f.x" "(def x 1) ; c\n"
+  (list (string-append ":set sy" cr) (string-append ":set theme=spec-mono" cr)
+        (string-append ":set" cr))
+  100)
+```
+---
+```output
+|(def x 1) ; c
+|~
+|~
+|~
+|~
+:JEEE I DJ AAA
+:
+:
+:
+:
+status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8 syntax theme=spec-mono
+colours 7
+```
+
+### a run starts in the user's theme again
+
+:set names the theme only when it is not the default.
+
+```cu
+(vi-case "f.x" "x\n" (list (string-append ":set sy" cr) (string-append ":set" cr)) 100)
+```
+---
+```output
+|x
+|~
+|~
+|~
+|~
+:I
+:
+:
+:
+:
+status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8 syntax
+colours 3
+```
+
+### a theme no one knows, or theme with no name, is a bad option
+
+```cu
+(vi-case "f.x" "x\n" (list (string-append ":set theme=nope" cr)))
+(vi-case "f.x" "x\n" (list (string-append ":set notheme" cr)))
+```
+---
+```output
+|x
+|~
+|~
+|~
+|~
+no cells
+status bad option: theme=nope
+colours 2
+|x
+|~
+|~
+|~
+|~
+no cells
+status bad option: notheme
+colours 2
 ```
 
 ## Colours follow the text

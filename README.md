@@ -326,7 +326,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.40.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.41.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -512,7 +512,7 @@ The applets tested there so far:
     cu/vi-ex.x        vi's search and : commands, over busybox's addresses
     cu/vi-move.x      vi's motions: words, characters, lines, brackets, scrolling
     cu/vi-set.x       vi's options: :set, and what ai et fl ic sm ts do
-    cu/vi-syntax.x    vi's syntax option, x's own: rows in their grammar's colours
+    cu/vi-syntax.x    vi's syntax and theme, x's own: rows in a theme's colours
     cu/vi-undo.x      vi's u and .: the undo stack and the keys . replays
     cu/vi.x           vi: busybox's editor -- its buffer, screen, keys, files
     cu/vmstat.x       vmstat, and the compact numbers and %.2f the counter applets share
