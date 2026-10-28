@@ -130,7 +130,7 @@ The columns between the mode and the name are a machine's facts -- links,
 ids, a clock -- so the line is judged by its ends.
 
 ```cu
-(do (def out (cu-out (list "ls" "-l" "/tmp/x-cu-ls"))) (def ls (cu-lines out)) (display (substring (first ls) 0 6)) (newline) (display (substring (first (rest ls)) 0 10)) (newline) (def link-line (first (filter (fn (_ l) (> (byte-len l) 0)) (filter (fn (_ l) (string=? (cu-last (cu-words-line l)) "b.txt")) (filter (fn (_ l) (= (byte-at l 0) 108)) ls))))) (display (cu-join-with (cu-nthrest (- (length (cu-words-line link-line)) 3) (cu-words-line link-line)) " ")))
+(do (def out (cu-out (list "ls" "-l" "/tmp/x-cu-ls"))) (def ls (cu-lines out)) (display (substring (first ls) 0 6)) (newline) (display (substring (first (rest ls)) 0 10)) (newline) (def link-line (first (filter (fn (_ l) (> (byte-len l) 0)) (filter (fn (_ l) (string=? (cu-last (cu-words-line l)) "b.txt")) (filter (fn (_ l) (= (byte-at l 0) 108)) ls))))) (display (Str8 join " " (cu-nthrest (- (length (cu-words-line link-line)) 3) (cu-words-line link-line)))))
 ```
 ---
 ```output
@@ -610,8 +610,8 @@ for both prints it twice, which is what asking for both means.
 Sorted back, the range is exactly itself.
 
 ```cu
-(display (cu-join-with
-  (cu-msort (cu-shuf-range "1-5") cu-str<) ","))
+(display (Str8 join ","
+  (cu-msort (cu-shuf-range "1-5") cu-str<)))
 ```
 ---
     1,2,3,4,5
@@ -889,7 +889,7 @@ unknown
 ### df counts blocks, or inodes under -i, in the unit -m and -B choose
 
 ```cu
-(do (def row (fn (_ flag) (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" flag "/tmp"))))))))) (display (if (> (cu-num-prefix (row "-k")) (cu-num-prefix (row "-m"))) "k>m" "wrong")) (newline) (display (cu-join-with (cu-words-line (first (cu-lines (cu-out (list "df" "-i" "/tmp"))))) " ")))
+(do (def row (fn (_ flag) (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" flag "/tmp"))))))))) (display (if (> (cu-num-prefix (row "-k")) (cu-num-prefix (row "-m"))) "k>m" "wrong")) (newline) (display (Str8 join " " (cu-words-line (first (cu-lines (cu-out (list "df" "-i" "/tmp"))))))))
 ```
 ---
 ```output

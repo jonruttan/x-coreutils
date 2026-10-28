@@ -23,7 +23,7 @@
 (import cu/cli cu-spec-of)
 (import cu/prims append byte-at byte-len cu-int->str file-write filter length
   string-append string-concat string=? substring)
-(import cu/text cu-join-with cu-msort cu-str<)
+(import cu/text cu-msort cu-str<)
 
 ; busybox spells a long option with its value shown, --ignore=N; the
 ; declaration and the guard know it as --ignore, a flag that takes one.
@@ -86,7 +86,7 @@
       (string-append (cu-int->str (/ (- (* have 100) (% (* have 100) want)) want)) "%"))))
 
 (def %mx-cell
-  (fn (_ xs) (if (null? xs) "" (cu-join-with xs " "))))
+  (fn (_ xs) (if (null? xs) "" (Str8 join " " xs))))
 
 (def %mx-names
   (cu-msort (Applets names)

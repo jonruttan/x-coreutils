@@ -23,14 +23,14 @@
   host-process host-regions reverse string-append string-concat substring)
 (import cu/procps ps-printable ps-resolve!)
 (import cu/strings cu-range-number)
-(import cu/text cu-join-with cu-pad-left cu-pad-zero)
+(import cu/text cu-pad-left cu-pad-zero)
 
 (def %pmap-cmdline
   (fn (_ args)
     (ps-resolve!)
     (def trim
       (fn (self r) (if (if (pair? r) (= (byte-len (first r)) 0) #f) (self (rest r)) r)))
-    (def s (ps-printable (cu-join-with (reverse (trim (reverse args))) " ")))
+    (def s (ps-printable (Str8 join " " (reverse (trim (reverse args))))))
     (if (> (byte-len s) 4095) (substring s 0 4095) s)))
 
 (def %pmap-kib (fn (_ n) (if (null? n) 0 (/ (- n (% n 1024)) 1024))))

@@ -25,8 +25,7 @@
   sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getuid
   sys-group-name sys-nice sys-uname sys-user-group sys-user-groups sys-user-id
   sys-user-name)
-(import cu/text cu-join-with cu-num-prefix cu-pad-left cu-pad-right
-  cu-pad-zero)
+(import cu/text cu-num-prefix cu-pad-left cu-pad-right cu-pad-zero)
 
 (def %cu-user-name
   (fn (_ uid)
@@ -119,7 +118,7 @@
 (def cu-groups
   (fn (_ ops stdin-thunk)
     (def line
-      (fn (_ who) (cu-join-with (map %cu-group-shown (%cu-group-line who)) " ")))
+      (fn (_ who) (Str8 join " " (map %cu-group-shown (%cu-group-line who)))))
     (if (null? ops)
       (do (display (string-append (line (%cu-self)) "\n")) 0)
       (%cu-groups-each ops line 0))))
@@ -185,8 +184,8 @@
       (#t
         (do (display
               (string-append
-                (cu-join-with
-                  (map (if n? %cu-group-shown cu-int->str) (%cu-group-line who)) " ")
+                (Str8 join " "
+                  (map (if n? %cu-group-shown cu-int->str) (%cu-group-line who)))
                 "\n"))
             0)))))
 
@@ -213,9 +212,8 @@
               (if (= eu ru) "" (string-append " euid=" (%cu-id-named eu (sys-user-name eu))))
               (if (= eg rg) "" (string-append " egid=" (%cu-id-named eg (sys-group-name eg))))
               " groups="
-              (cu-join-with
-                (map (fn (_ g) (%cu-id-named g (sys-group-name g))) (%cu-group-list who))
-                ","))))))
+              (Str8 join ","
+                (map (fn (_ g) (%cu-id-named g (sys-group-name g))) (%cu-group-list who))))))))
 
 ; --- uname, arch, nproc -------------------------------------------------------
 
@@ -251,9 +249,8 @@
     ; bare uname is uname -s
     (do (display
           (string-append
-            (cu-join-with
-              (if (null? parts) (list (cu-uname-field u (lit sysname))) parts)
-              " ")
+            (Str8 join " "
+              (if (null? parts) (list (cu-uname-field u (lit sysname))) parts))
             "\n"))
         0)))
 
@@ -374,7 +371,7 @@
       (let ((sessions (if (if (string=? applet "who") (Opts on? o "-a") #f) (host-utmp) (host-users))))
         (if (string=? applet "users")
           (display (string-append
-                     (cu-join-with (map (fn (_ u) (Assoc get (lit user) u)) sessions) " ")
+                     (Str8 join " " (map (fn (_ u) (Assoc get (lit user) u)) sessions))
                      "\n"))
           (do (if (if (string=? applet "w") #t (Opts on? o "-H"))
                 (display "USER\t\tTTY\t\tIDLE\tTIME\t\t HOST\n") ())

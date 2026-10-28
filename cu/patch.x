@@ -20,12 +20,12 @@
 (import cu/cli cu-opts)
 (import cu/dump dp-find)
 (import cu/fs2 cu-mkdir-p!)
-(import cu/prims append bit-xor byte-at byte-len cu-dlopen cu-dlsym
-  cu-err-label cu-int->str cu-ptr->str cu-ptr-call cu-ptr-set! cu-stat-get
-  cu-str->ptr cu-sweep-lines cu-sweep-tick! file-chmod file-close
-  file-err-text file-open-err file-rename file-stat-full file-unlink
-  file-write file-write-run length map reverse str-make-raw string-append
-  string-concat string=? substring vec-build vec-make vec-ref vec-set!)
+(import cu/prims append bit-xor byte-at byte-len cu-err-label cu-int->str
+  cu-libc-sym cu-ptr->str cu-ptr-call cu-ptr-set! cu-stat-get cu-str->ptr
+  cu-sweep-lines cu-sweep-tick! file-chmod file-close file-err-text
+  file-open-err file-rename file-stat-full file-unlink file-write
+  file-write-run length map reverse str-make-raw string-append string-concat
+  string=? substring vec-build vec-make vec-ref vec-set!)
 (import cu/tar tar-last-slash)
 (import cu/text cu-fd-chunks cu-num-prefix cu-pieces cu-run-from cu-run-text)
 
@@ -263,7 +263,7 @@
     (def p (cu-str->ptr buf))
     (do (map (fn (_ i) (cu-ptr-set! p i (byte-at t i) 1)) (List range 0 n))
         (cu-ptr-set! p n 0 1)
-        (let ((fd (Sys %sign-fold (cu-ptr-call (cu-dlsym (cu-dlopen () 1) "mkstemp") p))))
+        (let ((fd (Sys %sign-fold (cu-ptr-call (cu-libc-sym "mkstemp") p))))
           (if (< fd 0) (%pt-die (string-concat (list "can't create '" t "': " (%pt-why (lit mkstemp) t))))
             (pair fd (cu-ptr->str p)))))))
 

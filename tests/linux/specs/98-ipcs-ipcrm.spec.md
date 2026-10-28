@@ -20,7 +20,7 @@ busybox's ipcs.
 (do (def lx-q (fn (_ w) (string-append "'" (Str8 replace "'" "'\\''" w) "'")))
     (def lx-sh (fn (_ cmd) (proc-run (list "/bin/sh" "-c" cmd))))
     (def lx-read (fn (_ f) (file-read-all f)))
-    (def lx-c (fn (_ name args) (in-call (apply cu-ptr-call (pair (in-c name) args)))))
+    (def lx-c (fn (_ name args) (in-call (apply cu-ptr-call (pair (cu-libc-sym name) args)))))
     (def lx-fresh (fn (_) (lx-c "unshare" (list 134217728))))
     (def lx-holders ())
     (def lx-buf (fn (_ n) (let ((b (str-make-raw n))) (do (List map (fn (_ i) (cu-ptr-set! (cu-str->ptr b) i 0 1)) (List range 0 n)) b))))

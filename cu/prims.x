@@ -222,28 +222,37 @@
 (def sys-getcwd (fn (_) (Sys getcwd)))
 (def sys-environ (fn (_) (Sys environ)))
 (def sys-getenv (fn (_ n) (Sys getenv n)))
-; The umask, which chmod needs for a mode with no who.  The call both reads and
-; sets, so reading it means setting it to 0, which answers the old value, and
-; putting that back -- what every chmod does.  There is no umask method on Sys
-; and no number for it in the Darwin syscall table, so it is reached through the
-; FFI the platform's own errno lookup uses (x/type/err.x).  A libc without the
-; symbol answers 0, which masks nothing.
+; libc's NAME as a pointer, through the FFI the platform's own errno lookup
+; uses (x/type/err.x): resolved on the first ask and kept by name, so a symbol
+; is resolved at run and never at load, and the state image holds no address.
+; A libc without the symbol answers nil, kept the same way.
 (def cu-dlsym (prim-ref (lit ffi) (lit dlsym)))
 (def cu-dlopen (prim-ref (lit ffi) (lit dlopen)))
 (def cu-ptr-call (prim-ref (lit ptr) (lit call)))
-(def %cu-umask-cell (list ()))
+(def %cu-libc-syms (list ()))
+(def %cu-libc-hit
+  (fn (self syms name)
+    (match
+      ((null? syms) ())
+      ((string=? (first (first syms)) name) (first syms))
+      (#t (self (rest syms) name)))))
+(def cu-libc-sym
+  (fn (_ name)
+    (let ((hit (%cu-libc-hit (first %cu-libc-syms) name)))
+      (if (null? hit)
+        (let ((p (cu-dlsym (cu-dlopen () 1) name)))
+          (do (set-first! %cu-libc-syms (pair (pair name p) (first %cu-libc-syms)))
+              p))
+        (rest hit)))))
 
-(def %cu-umask-fn
-  (fn (_)
-    (do (if (null? (first %cu-umask-cell))
-          (set-first! %cu-umask-cell
-            (list (cu-dlsym (cu-dlopen () 1) "umask")))
-          ())
-        (first (first %cu-umask-cell)))))
-
+; The umask, which chmod needs for a mode with no who.  The call both reads and
+; sets, so reading it means setting it to 0, which answers the old value, and
+; putting that back -- what every chmod does.  There is no umask method on Sys
+; and no number for it in the Darwin syscall table.  A libc without the symbol
+; answers 0, which masks nothing.
 (def sys-umask
   (fn (_)
-    (let ((f (%cu-umask-fn)))
+    (let ((f (cu-libc-sym "umask")))
       (if (null? f) 0
         (let ((old (cu-ptr-call f 0)))
           (do (cu-ptr-call f old) old))))))
@@ -255,87 +264,65 @@
 (def cu-ptr-word (prim-ref (lit ptr) (lit ref-word)))
 (def cu-ptr->str (prim-ref (lit ptr) (lit ->str)))
 (def cu-int->ptr (prim-ref (lit int) (lit ->ptr)))
-(def %cu-getpwuid-cell (list ()))
-(def %cu-getgrgid-cell (list ()))
 
 (def %cu-id-name
-  (fn (_ cell sym id)
-    (do (if (null? (first cell))
-          (set-first! cell (list (cu-dlsym (cu-dlopen () 1) sym)))
-          ())
-        (let ((f (first (first cell))))
-          (if (null? f) ()
-            (let ((r (cu-ptr-call f id)))
-              (if (= r 0) ()
-                (cu-ptr->str
-                  (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0))))))))))
+  (fn (_ sym id)
+    (let ((f (cu-libc-sym sym)))
+      (if (null? f) ()
+        (let ((r (cu-ptr-call f id)))
+          (if (= r 0) ()
+            (cu-ptr->str
+              (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0)))))))))
 
-(def sys-user-name (fn (_ uid) (%cu-id-name %cu-getpwuid-cell "getpwuid" uid)))
-(def sys-group-name (fn (_ gid) (%cu-id-name %cu-getgrgid-cell "getgrgid" gid)))
+(def sys-user-name (fn (_ uid) (%cu-id-name "getpwuid" uid)))
+(def sys-group-name (fn (_ gid) (%cu-id-name "getgrgid" gid)))
 
 ; And back: the id a name stands for, or nil where the system knows no such
 ; name -- getpwnam's pw_uid and getgrnam's gr_gid, the four bytes after the
 ; struct's two pointers -- and a user's login group, pw_gid, the four after
 ; that, on Darwin and Linux alike.
 (def cu-ptr-ref (prim-ref (lit ptr) (lit ref)))
-(def %cu-getpwnam-cell (list ()))
-(def %cu-getgrnam-cell (list ()))
 
 (def %cu-name-field
-  (fn (_ cell sym name offset)
-    (do (if (null? (first cell))
-          (set-first! cell (list (cu-dlsym (cu-dlopen () 1) sym)))
-          ())
-        (let ((f (first (first cell))))
-          (if (null? f) ()
-            (let ((r (cu-ptr-call f name)))
-              (if (= r 0) () (cu-ptr-ref (cu-int->ptr r) offset 4))))))))
+  (fn (_ sym name offset)
+    (let ((f (cu-libc-sym sym)))
+      (if (null? f) ()
+        (let ((r (cu-ptr-call f name)))
+          (if (= r 0) () (cu-ptr-ref (cu-int->ptr r) offset 4)))))))
 
-(def sys-user-id (fn (_ name) (%cu-name-field %cu-getpwnam-cell "getpwnam" name 16)))
-(def sys-user-group (fn (_ name) (%cu-name-field %cu-getpwnam-cell "getpwnam" name 20)))
-(def sys-group-id (fn (_ name) (%cu-name-field %cu-getgrnam-cell "getgrnam" name 16)))
+(def sys-user-id (fn (_ name) (%cu-name-field "getpwnam" name 16)))
+(def sys-user-group (fn (_ name) (%cu-name-field "getpwnam" name 20)))
+(def sys-group-id (fn (_ name) (%cu-name-field "getgrnam" name 16)))
 
 ; The groups the system lists for the user NAME, whose login group is BASE:
 ; getgrouplist, through the FFI, filling a buffer of four-byte ids and counting
 ; them into a second -- which may count more than the buffer holds, so what is
 ; read stops at the buffer.  Just BASE where there is no getgrouplist.
-(def %cu-getgrouplist-cell (list ()))
-
 (def sys-user-groups
   (fn (_ name base)
-    (do (if (null? (first %cu-getgrouplist-cell))
-          (set-first! %cu-getgrouplist-cell
-            (list (cu-dlsym (cu-dlopen () 1) "getgrouplist")))
-          ())
-        (let ((f (first (first %cu-getgrouplist-cell))))
-          (if (null? f) (list base)
-            (let ((gs (str-make-raw 4096)) (ns (str-make-raw 4)))
-              (do (cu-ptr-set! (cu-str->ptr ns) 0 1024 4)
-                  (cu-ptr-call f name base (cu-str->ptr gs) (cu-str->ptr ns))
-                  (%cu-int32s (cu-str->ptr gs)
-                    (let ((n (cu-ptr-ref (cu-str->ptr ns) 0 4)))
-                      (if (> n 1024) 1024 n))))))))))
+    (let ((f (cu-libc-sym "getgrouplist")))
+      (if (null? f) (list base)
+        (let ((gs (str-make-raw 4096)) (ns (str-make-raw 4)))
+          (do (cu-ptr-set! (cu-str->ptr ns) 0 1024 4)
+              (cu-ptr-call f name base (cu-str->ptr gs) (cu-str->ptr ns))
+              (%cu-int32s (cu-str->ptr gs)
+                (let ((n (cu-ptr-ref (cu-str->ptr ns) 0 4)))
+                  (if (> n 1024) 1024 n)))))))))
 
 ; The process's groups.  Darwin's getgroups stops at NGROUPS_MAX, 16, and a
 ; user in more groups loses the rest; getgroups$DARWIN_EXTSN is the same call
 ; without the limit, and the one the system's id and GNU's read.  Where there
 ; is no such symbol, the platform's getgroups.  A count past 2^31 is a -1.
-(def %cu-getgroups-cell (list ()))
-
 (def sys-getgroups
   (fn (_)
-    (do (if (null? (first %cu-getgroups-cell))
-          (set-first! %cu-getgroups-cell
-            (list (cu-dlsym (cu-dlopen () 1) "getgroups$DARWIN_EXTSN")))
-          ())
-        (let ((f (first (first %cu-getgroups-cell))))
-          (if (null? f) (Sys getgroups)
-            (let ((n (cu-ptr-call f 0 0)))
-              (if (if (< n 1) #t (> n 2147483647)) (Sys getgroups)
-                (let ((gs (str-make-raw (* 4 n))))
-                  (let ((m (cu-ptr-call f n (cu-str->ptr gs))))
-                    (if (if (< m 1) #t (> m n)) (Sys getgroups)
-                      (%cu-int32s (cu-str->ptr gs) m)))))))))))
+    (let ((f (cu-libc-sym "getgroups$DARWIN_EXTSN")))
+      (if (null? f) (Sys getgroups)
+        (let ((n (cu-ptr-call f 0 0)))
+          (if (if (< n 1) #t (> n 2147483647)) (Sys getgroups)
+            (let ((gs (str-make-raw (* 4 n))))
+              (let ((m (cu-ptr-call f n (cu-str->ptr gs))))
+                (if (if (< m 1) #t (> m n)) (Sys getgroups)
+                  (%cu-int32s (cu-str->ptr gs) m))))))))))
 
 ; N four-byte ids from P, in order
 (def %cu-int32s
@@ -734,7 +721,7 @@
 ; failed call, where the platform's own texts word some of them otherwise
 ; (musl's "No such device" for ENODEV, "I/O error" for EIO)
 (def libc-strerror
-  (fn (_ n) (cu-ptr->str (cu-int->ptr (cu-ptr-call (cu-dlsym (cu-dlopen () 1) "strerror") n)))))
+  (fn (_ n) (cu-ptr->str (cu-int->ptr (cu-ptr-call (cu-libc-sym "strerror") n)))))
 
 (def file-err-text
   (fn (_ e) (%cu-after-colon (e msg) 0)))
@@ -777,21 +764,11 @@
 ; method on File and no number for it in the platform's syscall table, so it is
 ; reached through the FFI, as the umask is.  A libc without the symbol answers
 ; nil, which the caller reports rather than changing the target instead.
-(def %cu-lchown-cell (list ()))
-
-(def %cu-lchown-fn
-  (fn (_)
-    (do (if (null? (first %cu-lchown-cell))
-          (set-first! %cu-lchown-cell
-            (list (cu-dlsym (cu-dlopen () 1) "lchown")))
-          ())
-        (first (first %cu-lchown-cell)))))
-
 ; -1 for an id leaves that id alone, as chown's own call does.  Answers 0, or
 ; the io Err the call failed with, or nil where there is no lchown.
 (def file-lchown
   (fn (_ path uid gid)
-    (let ((f (%cu-lchown-fn)))
+    (let ((f (cu-libc-sym "lchown")))
       (if (null? f) ()
         (let ((r (cu-ptr-call f path uid gid)))
           (if (< r 0) (Err from-errno (Err errno-of r) (lit lchown) path) 0))))))
@@ -1018,13 +995,13 @@
 ; may not signal is EPERM to set.
 (def %cu-affinity-call
   (fn (_ name pid buf bytes)
-    (let ((r (Sys %sign-fold (cu-ptr-call (cu-dlsym (cu-dlopen () 1) name) pid bytes (cu-str->ptr buf)))))
+    (let ((r (Sys %sign-fold (cu-ptr-call (cu-libc-sym name) pid bytes (cu-str->ptr buf)))))
       (if (< r 0) (Err errno-of r) 0))))
 
 (def %cu-affinity-pid
   (fn (_ pid)
     (if (= pid 0) 0
-      (let ((r (Sys %sign-fold (cu-ptr-call (cu-dlsym (cu-dlopen () 1) "kill") pid 0))))
+      (let ((r (Sys %sign-fold (cu-ptr-call (cu-libc-sym "kill") pid 0))))
         (if (< r 0) (Err errno-of r) 0)))))
 
 (def sys-affinity
@@ -1050,8 +1027,6 @@
             (def set (List length (List filter on? (List range 0 n))))
             (match ((= set 0) 22) ((= set n) 0) (#t 45))))))))
 
-(def %cu-libc (fn (_ name) (cu-dlsym (cu-dlopen () 1) name)))
-
 ; Namespaces: unshare(2) with the CLONE_NEW* bits FLAGS, and mount(2) with
 ; TYPE nil for none -- 0, or the errno the call failed with.  Darwin has no
 ; namespaces: unsharing none stands there as it does on Linux, and anything
@@ -1059,13 +1034,13 @@
 (def sys-unshare
   (fn (_ flags)
     (if os-darwin? (if (= flags 0) 0 78)
-      (let ((r (Sys %sign-fold (cu-ptr-call (%cu-libc "unshare") flags))))
+      (let ((r (Sys %sign-fold (cu-ptr-call (cu-libc-sym "unshare") flags))))
         (if (< r 0) (Err errno-of r) 0)))))
 
 (def sys-mount
   (fn (_ source target type flags)
     (if os-darwin? 78
-      (let ((r (Sys %sign-fold (cu-ptr-call (%cu-libc "mount") source target (if (null? type) 0 type) flags 0))))
+      (let ((r (Sys %sign-fold (cu-ptr-call (cu-libc-sym "mount") source target (if (null? type) 0 type) flags 0))))
         (if (< r 0) (Err errno-of r) 0)))))
 
 ; TEXT written to PATH, opened for writing alone, as busybox writes /proc's
@@ -1073,11 +1048,11 @@
 ; less than all of it
 (def file-put-or-errno
   (fn (_ path text)
-    (let ((fd (Sys %sign-fold (cu-ptr-call (%cu-libc "open") path 1))))
+    (let ((fd (Sys %sign-fold (cu-ptr-call (cu-libc-sym "open") path 1))))
       (if (< fd 0) (pair (lit open) (Err errno-of fd))
-        (let ((w (Sys %sign-fold (cu-ptr-call (%cu-libc "write") fd text (byte-len text)))))
+        (let ((w (Sys %sign-fold (cu-ptr-call (cu-libc-sym "write") fd text (byte-len text)))))
           (def e (if (< w 0) (Err errno-of w) 0))
-          (cu-ptr-call (%cu-libc "close") fd)
+          (cu-ptr-call (cu-libc-sym "close") fd)
           (match ((< w 0) (pair (lit write) e))
                  ((< w (byte-len text)) (pair (lit short) 0))
                  (#t 0)))))))
@@ -1097,7 +1072,7 @@
         (if (null? ws) (set-word! p (* i 8) 0)
           (do (set-word! p (* i 8) (->int (cu-str->ptr (first ws)))) (self (rest ws) (+ i 1))))))
     (fill argv 0)
-    (Err errno-of (Sys %sign-fold (cu-ptr-call (%cu-libc "execv") path p)))))
+    (Err errno-of (Sys %sign-fold (cu-ptr-call (cu-libc-sym "execv") path p)))))
 
 ; The child PID waited for, as waitpid tells it: (CODE . SIGNAL), SIGNAL 0
 ; where the child exited, CODE its status, else the signal that ended it.
@@ -1105,7 +1080,7 @@
 (def sys-wait-status
   (fn (self pid)
     (def buf (str-make-raw 4))
-    (def r (Sys %sign-fold (cu-ptr-call (%cu-libc "waitpid") pid (cu-str->ptr buf) 0)))
+    (def r (Sys %sign-fold (cu-ptr-call (cu-libc-sym "waitpid") pid (cu-str->ptr buf) 0)))
     (match ((if (< r 0) (= (Err errno-of r) 4) #f) (self pid))
            ((< r 0) (error (Err from-errno (Err errno-of r) (lit waitpid) pid)))
            (#t (let ((raw (cu-ptr-ref (cu-str->ptr buf) 0 4)))
@@ -1255,7 +1230,7 @@
     (def sa (net-sockaddr "0.0.0.0" 0))
     (def len (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr len) 0 16 4)
-    (def r (Sys %sign-fold (cu-ptr-call (cu-dlsym (cu-dlopen () 1) "getsockname")
+    (def r (Sys %sign-fold (cu-ptr-call (cu-libc-sym "getsockname")
                                           fd (cu-str->ptr sa) (cu-str->ptr len))))
     (if (if (< r 0) #t (not (= (byte-at sa (if os-darwin? 1 0)) 2))) () (net-sockaddr-read sa))))
 
@@ -1264,14 +1239,13 @@
 ; address with a socket that holds it, as udpsvd's and tftpd's do
 (def net-udp-open
   (fn (_ quad port reuse?)
-    (def c (fn (_ name) (cu-dlsym (cu-dlopen () 1) name)))
-    (def fd (Sys %sign-fold (cu-ptr-call (c "socket") 2 2 0)))
+    (def fd (Sys %sign-fold (cu-ptr-call (cu-libc-sym "socket") 2 2 0)))
     (when reuse?
       (let ((one (str-make-raw 4)) (sol (if os-darwin? 65535 1)))
         (do (cu-ptr-set! (cu-str->ptr one) 0 1 4)
-            (cu-ptr-call (c "setsockopt") fd sol (if os-darwin? 4 2) (cu-str->ptr one) 4)
-            (when os-darwin? (cu-ptr-call (c "setsockopt") fd sol 512 (cu-str->ptr one) 4)))))
-    (def r (Sys %sign-fold (cu-ptr-call (c "bind") fd (cu-str->ptr (net-sockaddr quad port)) 16)))
+            (cu-ptr-call (cu-libc-sym "setsockopt") fd sol (if os-darwin? 4 2) (cu-str->ptr one) 4)
+            (when os-darwin? (cu-ptr-call (cu-libc-sym "setsockopt") fd sol 512 (cu-str->ptr one) 4)))))
+    (def r (Sys %sign-fold (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (net-sockaddr quad port)) 16)))
     (if (< r 0) (Err from-errno (Err errno-of r) (lit bind) ()) fd)))
 
 ; an inetd service's socket: fd 0 when a caller put it there, else fd 3, where
@@ -1499,40 +1473,9 @@
 (def wget-memv
   (fn (self x l) (if (null? l) #f (if (= (first l) x) #t (self x (rest l))))))
 
-; the index where the text NEEDLE first starts in S, or nil
-(def wget-find
-  (fn (_ s needle)
-    (def n (byte-len needle))
-    (let go ((i 0))
-      (match
-        ((> (+ i n) (byte-len s)) ())
-        ((string=? (substring s i (+ i n)) needle) i)
-        (#t (go (+ i 1)))))))
-
-; the index of the last byte of S equal to C, or nil
-(def wget-last-index
-  (fn (_ s c)
-    (let go ((i (- (byte-len s) 1)))
-      (match
-        ((< i 0) ())
-        ((= (byte-at s i) c) i)
-        (#t (go (- i 1)))))))
-
-; S lowercased, letters only
-(def wget-lower
-  (fn (_ s)
-    (list->string
-      (map (fn (_ c) (if (if (>= c #\A) (<= c #\Z) #f) (integer->char (+ c 32)) c))
-           (let go ((i (- (byte-len s) 1)) (acc ()))
-             (if (< i 0) acc (go (- i 1) (pair (byte-at s i) acc))))))))
-
 ; the message an io Err carries after its call's name: "Connection refused"
 (def wget-err-text
   (fn (_ e) (if (Err err? e) (file-err-text e) "")))
-
-(def in-index-of
-  (fn (_ s c)
-    (let go ((i (- (byte-len s) 1))) (match ((< i 0) ()) ((= (byte-at s i) c) i) (#t (go (- i 1)))))))
 
 ; a fatal error: the message, and the run ends with status 1 -- each applet
 ; catches the label net at its top and prints the message after its name
@@ -1541,46 +1484,45 @@
 
 (provide cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
   byte-len cal/ char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
-  cu-dirname-of cu-dlopen cu-dlsym cu-dot? cu-err-label cu-fd-fields
-  cu-file-read cu-heap-collect cu-hexs cu-int->ptr cu-int->str cu-last
-  cu-lines cu-max-status cu-member-s? cu-mode-file-type cu-nth cu-nthrest
-  cu-piece-bytes cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word
-  cu-rev cu-run-bytes cu-run-list cu-run-of cu-sig-ign cu-sighup cu-sigint
-  cu-sigkill cu-sigterm cu-stat-get cu-stdin! cu-stdin-chunk! cu-stdin-fields!
-  cu-stdin-moved cu-stdin-to-command! cu-str->ptr cu-string-type cu-sweep!
-  cu-sweep-at cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick!
-  cu-sweeps-cell cu-take cu-type-of cu-walk-worst cu-words-line cu/ cu< cu<<
-  cu>> cvt date-now-unix file-chmod file-chown file-close file-copy file-dir?
+  cu-dirname-of cu-dot? cu-err-label cu-fd-fields cu-file-read cu-heap-collect
+  cu-hexs cu-int->ptr cu-int->str cu-last cu-libc-sym cu-lines cu-max-status
+  cu-member-s? cu-mode-file-type cu-nth cu-nthrest cu-piece-bytes cu-ptr->str
+  cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-rev cu-run-bytes
+  cu-run-list cu-run-of cu-sig-ign cu-sighup cu-sigint cu-sigkill cu-sigterm
+  cu-stat-get cu-stdin! cu-stdin-chunk! cu-stdin-fields! cu-stdin-moved
+  cu-stdin-to-command! cu-str->ptr cu-string-type cu-sweep! cu-sweep-at
+  cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick! cu-sweeps-cell
+  cu-take cu-type-of cu-walk-worst cu-words-line cu/ cu< cu<< cu>> cvt
+  date-now-unix file-chmod file-chown file-close file-copy file-dir?
   file-err-op file-err-sym file-err-text file-exists? file-fstat-full
-  file-lchown file-link file-list-dir file-lstat-file-type file-lstat-full file-lstat-wide
-  file-mkdir file-mkfifo file-mounts file-open-append file-open-err
-  file-open-excl file-open-or-err file-open-read file-open-update
-  file-open-write file-open-wronly file-or-err file-put-or-errno file-read-all file-read-fd
-  file-read-run file-read-to-end file-read-unsized file-readlink file-rename
-  file-rmdir file-seek file-set-times file-stat file-stat-full file-stat-wide
-  file-statfs-full file-symlink file-truncate file-unlink file-utimes
-  file-write file-write-all file-write-field file-write-nuls file-write-random
-  file-write-run filter gz-word-bytes host-args host-boot-time host-counters
-  host-cpu host-cpus host-cwd host-disks host-exe host-files host-files-of
-  host-holders host-interfaces host-interrupts host-load-centi host-load-fixed
-  host-maps host-memory host-now host-proc-root host-process host-processes
-  host-regions
+  file-lchown file-link file-list-dir file-lstat-file-type file-lstat-full
+  file-lstat-wide file-mkdir file-mkfifo file-mounts file-open-append
+  file-open-err file-open-excl file-open-or-err file-open-read
+  file-open-update file-open-write file-open-wronly file-or-err
+  file-put-or-errno file-read-all file-read-fd file-read-run file-read-to-end
+  file-read-unsized file-readlink file-rename file-rmdir file-seek
+  file-set-times file-stat file-stat-full file-stat-wide file-statfs-full
+  file-symlink file-truncate file-unlink file-utimes file-write file-write-all
+  file-write-field file-write-nuls file-write-random file-write-run filter
+  gz-word-bytes host-args host-boot-time host-counters host-cpu host-cpus
+  host-cwd host-disks host-exe host-files host-files-of host-holders
+  host-interfaces host-interrupts host-load-centi host-load-fixed host-maps
+  host-memory host-now host-proc-root host-process host-processes host-regions
   host-tasks host-threads host-uptime host-users host-utmp host-wait
   http-close http-head http-open http-read http-status hx-hex-digit hx-strtoul
-  in-index-of integer->char length libc-strerror list->string load-centi
-  ls-human map net-accept net-aton net-base64 net-close net-connect net-die
-  net-listen net-listen-on net-peer net-recv-from-run net-recv-run net-resolve
-  net-send net-send-run net-send-to-run net-shutdown net-sock-addr
-  net-sockaddr net-sockaddr-read net-stdin-socket net-udp-bind net-udp-connect
-  net-udp-open proc-run ps-div re-compile re-search reverse rng-int rng-make
-  set-first! str-make-raw string-append string-concat string=? substring
-  sys-affinity sys-affinity! sys-chroot sys-close sys-cpu-count sys-dup2
-  sys-environ sys-exec sys-exec-or-err sys-execv sys-exit sys-fork sys-fsync
-  sys-getcwd sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups
-  sys-getpid sys-getuid
-  sys-group-id sys-group-name sys-isatty sys-kill sys-mount sys-nice sys-pipe sys-poll
-  sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms sys-umask
-  sys-uname sys-unshare sys-unsetenv sys-user-group sys-user-groups sys-user-id
-  sys-user-name sys-usleep sys-wait sys-wait-status vec-build vec-make vec-ref vec-set!
-  vm-dash-number wget-digits wget-div wget-err-text wget-find wget-index
-  wget-last-index wget-lower wget-memv)
+  integer->char length libc-strerror list->string load-centi ls-human map
+  net-accept net-aton net-base64 net-close net-connect net-die net-listen
+  net-listen-on net-peer net-recv-from-run net-recv-run net-resolve net-send
+  net-send-run net-send-to-run net-shutdown net-sock-addr net-sockaddr
+  net-sockaddr-read net-stdin-socket net-udp-bind net-udp-connect net-udp-open
+  proc-run ps-div re-compile re-search reverse rng-int rng-make set-first!
+  str-make-raw string-append string-concat string=? substring sys-affinity
+  sys-affinity! sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ
+  sys-exec sys-exec-or-err sys-execv sys-exit sys-fork sys-fsync sys-getcwd
+  sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid
+  sys-getuid sys-group-id sys-group-name sys-isatty sys-kill sys-mount
+  sys-nice sys-pipe sys-poll sys-setenv sys-signal sys-signals sys-sleep
+  sys-sync sys-time-ms sys-umask sys-uname sys-unsetenv sys-unshare
+  sys-user-group sys-user-groups sys-user-id sys-user-name sys-usleep sys-wait
+  sys-wait-status vec-build vec-make vec-ref vec-set! vm-dash-number
+  wget-digits wget-div wget-err-text wget-index wget-memv)

@@ -32,9 +32,11 @@
 (import cu/prims byte-at byte-len cu-int->str cu-last cu-lines cu-nth
   file-dir? file-read-all file-write length map reverse set-first!
   string-append string-concat string=? substring vec-make vec-ref vec-set!)
-(import cu/text cu-file-pieces cu-first-unopened cu-join-with cu-num-prefix
-  cu-run-nul? cu-say cu-says cu-text-from cu-with-sources)
+(import cu/text cu-file-pieces cu-first-unopened cu-num-prefix cu-run-nul?
+  cu-say cu-says cu-text-from cu-with-sources)
 (import cu/walk cu-walk-pair)
+
+(import x/type/path Path)
 
 (def %cu-diff-lcs
   (fn (_ av bv n m)
@@ -404,19 +406,13 @@
 ; it at every level, which hides files in directories it was never pointed at;
 ; not followed.
 
-(def %cu-diff-path
-  (fn (_ dir name)
-    (if (string=? dir "/")
-      (string-append "/" name)
-      (string-append dir (string-append "/" name)))))
-
 ; `diff FLAGS A B`, the line the report puts above a body -- the flags as
 ; they were given, which is what the header is FOR: it is the command
 ; that would show this one file.
 (def %cu-diff-header
   (fn (_ flags pa pb)
     (string-append "diff"
-      (string-append (if (null? flags) "" (string-append " " (cu-join-with flags " ")))
+      (string-append (if (null? flags) "" (string-append " " (Str8 join " " flags)))
         (string-append " "
           (string-append pa (string-append " " (string-append pb "\n"))))))))
 
@@ -491,8 +487,8 @@
         (do (set-first! out (pair (first r) (first out))) (rest r))))
     (def one
       (fn (_ n ina inb)
-        (def pa (%cu-diff-path a n))
-        (def pb (%cu-diff-path b n))
+        (def pa (Path join a n))
+        (def pb (Path join b n))
         (match
           ((if ina (not inb) #f)
             (if absent?
@@ -585,8 +581,8 @@
       (let ((d (cu-diff-dir o (%cu-diff-flags argv) pa pb (Opts value o "-S"))))
         (do (display (first d)) (rest d)))
       (%cu-diff-files o argv stdin-thunk
-        (if (file-dir? pa) (%cu-diff-path pa (%cu-diff-tail pb)) pa)
-        (if (file-dir? pb) (%cu-diff-path pb (%cu-diff-tail pa)) pb)))))
+        (if (file-dir? pa) (Path join pa (%cu-diff-tail pb)) pa)
+        (if (file-dir? pb) (Path join pb (%cu-diff-tail pa)) pb)))))
 
 (def %cu-diff-files
   (fn (_ o argv stdin-thunk pa pb)

@@ -15,7 +15,7 @@
 (module cu/perm)
 
 (import cu/cli cu-last-given cu-missing-operand cu-opts)
-(import cu/fs3 cu-mode-octal4 cu-path-join cu-perm-places)
+(import cu/fs3 cu-mode-octal4 cu-perm-places)
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
   byte-len cu-dirname-of cu-int->str cu-max-status cu-member-s? cu-nth
   cu-stat-get cu-walk-worst file-chmod file-chown file-close file-dir?
@@ -26,9 +26,11 @@
   ls-human map reverse string-append string-concat string=? substring
   sys-fsync sys-getcwd sys-group-id sys-group-name sys-sync sys-umask
   sys-user-group sys-user-id sys-user-name)
-(import cu/text cu-byte-in? cu-join-with cu-num-prefix cu-pad-left
-  cu-pad-right cu-print-lines-to cu-split-byte)
+(import cu/text cu-byte-in? cu-num-prefix cu-pad-left cu-pad-right
+  cu-print-lines-to cu-split-byte)
 (import cu/walk cu-walk-names)
+
+(import x/type/path Path)
 
 (def cu-octal->int
   (fn (_ s)
@@ -332,7 +334,7 @@
           (string-concat
             (list "cannot read directory '" dir "': " (file-err-text names))))
         (cu-walk-worst names
-          (fn (_ n) (%cu-chmod-one how spec (cu-path-join dir n) #t umask))
+          (fn (_ n) (%cu-chmod-one how spec (Path join dir n) #t umask))
           0)))))
 
 (def cu-chmod
@@ -718,7 +720,7 @@
           (fn (_ n)
             ; an entry is not named on the command line, which is what -H
             ; asks about
-            (%cu-chown-one how applet ids (cu-path-join dir n) way #f seen))
+            (%cu-chown-one how applet ids (Path join dir n) way #f seen))
           0)))))
 
 ; the first operand is the owner spec; the rest are the paths
@@ -831,7 +833,7 @@
             (if (string=? seg "..")
               (self (rest parts) (if (null? acc) acc (rest acc)) fuel)
               (let ((here (string-append "/"
-                            (cu-join-with (reverse (pair seg acc)) "/"))))
+                            (Str8 join "/" (reverse (pair seg acc))))))
                 (if (eq? (file-lstat-file-type here) (lit link))
                   (self
                     (append (%cu-path-parts (%cu-readlink-from here))
@@ -846,16 +848,16 @@
     (let ((t (file-readlink path)))
       (if (= (byte-len t) 0) t
         (if (= (byte-at t 0) 47) t
-          (cu-path-join (cu-dirname-of path) t))))))
+          (Path join (cu-dirname-of path) t))))))
 
 (def cu-realpath-of
   (fn (_ p)
     (def abs (if (= (byte-len p) 0) (sys-getcwd)
                (if (= (byte-at p 0) 47) p
-                 (cu-path-join (sys-getcwd) p))))
+                 (Path join (sys-getcwd) p))))
     (def r (%cu-realpath-walk (%cu-path-parts abs) () 64))
     (if (null? (first r)) "/"
-      (string-append "/" (cu-join-with (reverse (first r)) "/")))))
+      (string-append "/" (Str8 join "/" (reverse (first r)))))))
 
 (def cu-realpath
   (fn (_ argv stdin-thunk)

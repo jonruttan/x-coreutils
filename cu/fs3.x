@@ -36,6 +36,8 @@
 (import cu/text2 cu-oct->str)
 (import cu/walk cu-walk-names)
 
+(import x/type/path Path)
+
 ; --- the mode, spelled two ways -----------------------------------------------
 
 (def %cu-mode-octal
@@ -309,11 +311,6 @@
   (fn (_ st) (/ (- (cu-stat-get st (lit blocks))
                    (% (cu-stat-get st (lit blocks)) 2)) 2)))
 
-(def cu-path-join
-  (fn (_ dir name)
-    (if (string=? dir "/") (string-append "/" name)
-      (string-append dir (string-append "/" name)))))
-
 ; du: -a prints every file as well as each directory, -d N stops the printing
 ; below a depth and -s is -d 0, -c adds a grand total, and -h and -m choose the
 ; unit (-k, the default, is 1024-byte blocks).  A file named on the command
@@ -474,7 +471,7 @@
     (if (null? names) acc
       (self way dir (rest names) level root
         (+ acc
-          (%cu-du-walk way (cu-path-join dir (first names)) level #f root))))))
+          (%cu-du-walk way (Path join dir (first names)) level #f root))))))
 
 (def %cu-du-emit
   (fn (_ way level n path)
@@ -970,6 +967,6 @@
           127))))
 
 (provide cu/fs3 cu-dd cu-dd-has? cu-dd-records cu-dev-major cu-dev-minor cu-du
-  cu-du-blocks cu-mode-octal4 cu-nohup cu-path-join cu-perm-places
-  cu-perm-string cu-shred cu-stat cu-stat-group cu-stat-user cu-timeout
-  cu-truncate cu-tty cu-unlink cu-usleep)
+  cu-du-blocks cu-mode-octal4 cu-nohup cu-perm-places cu-perm-string cu-shred
+  cu-stat cu-stat-group cu-stat-user cu-timeout cu-truncate cu-tty cu-unlink
+  cu-usleep)

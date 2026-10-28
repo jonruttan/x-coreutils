@@ -27,7 +27,7 @@ its place, and the two sides' output and statuses are compared.
           ; the child's end as the shell reports busybox's: Killed for a
           ; SIGKILL, and 128 and the signal for its status
           (def lx-raw (str-make-raw 4))
-          (in-call (cu-ptr-call (in-c "waitpid") lx-kid (cu-str->ptr lx-raw) 0))
+          (in-call (cu-ptr-call (cu-libc-sym "waitpid") lx-kid (cu-str->ptr lx-raw) 0))
           (def lx-w (cu-ptr-ref (cu-str->ptr lx-raw) 0 4))
           (def lx-sig (% lx-w 128))
           (def lx-st (if (> lx-sig 0) (+ 128 lx-sig) (% (>> lx-w 8) 256)))

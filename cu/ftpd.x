@@ -27,16 +27,16 @@
 (import cu/hash cu-bytes)
 (import cu/httpd hd-crypt-equal? hd-system-password)
 (import cu/nc nc-count)
-(import cu/prims append bit-and byte-at byte-len cu-dlopen cu-dlsym
-  cu-int->str cu-ptr->str cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
-  cu-sweep-lines cu-sweep-tick! file-close file-err-text file-mkdir
-  file-open-read file-open-wronly file-read-run file-rename file-rmdir
-  file-seek file-stat file-unlink file-write file-write-run map net-accept
-  net-close net-connect net-peer net-sock-addr net-stdin-socket reverse
-  str-make-raw string-append string-concat string=? substring sys-chroot
-  sys-close sys-dup2 sys-exit sys-fork sys-getcwd sys-getpid sys-pipe sys-poll
-  sys-signal sys-signals sys-user-group sys-user-id wget-digits wget-div
-  wget-err-text wget-find wget-index wget-last-index wget-memv)
+(import cu/prims append bit-and byte-at byte-len cu-int->str cu-libc-sym
+  cu-ptr->str cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep-lines
+  cu-sweep-tick! file-close file-err-text file-mkdir file-open-read
+  file-open-wronly file-read-run file-rename file-rmdir file-seek file-stat
+  file-unlink file-write file-write-run map net-accept net-close net-connect
+  net-peer net-sock-addr net-stdin-socket reverse str-make-raw string-append
+  string-concat string=? substring sys-chroot sys-close sys-dup2 sys-exit
+  sys-fork sys-getcwd sys-getpid sys-pipe sys-poll sys-signal sys-signals
+  sys-user-group sys-user-id wget-digits wget-div wget-err-text wget-index
+  wget-memv)
 (import cu/session ss-call)
 (import cu/text cu-pad-zero)
 
@@ -53,12 +53,6 @@
 (def %fd-rnfr ())
 (def %fd-local-ip "0.0.0.0")
 (def %fd-in 0)                 ; the control connection: net-stdin-socket's fd
-(def %fd-libc ())
-
-(def %fd-c
-  (fn (_ name)
-    (when (null? %fd-libc) (set! %fd-libc (cu-dlopen () 1)))
-    (cu-dlsym %fd-libc name)))
 
 ; bb_error_msg: said only when -v put stderr in the log mode
 (def %fd-say
@@ -118,7 +112,7 @@
 ; with 421, and the end of input with nothing read ends it with 0
 (def %fd-getline
   (fn (self)
-    (def crlf (wget-find %fd-inbuf "\r\n"))
+    (def crlf (Str8 index-of "\r\n" %fd-inbuf))
     (match
       ((not (null? crlf)) (%fd-take (+ crlf 2)))
       ((>= (byte-len %fd-inbuf) 8192) (%fd-take 8192))
@@ -254,9 +248,9 @@
   (fn (_)
     (%fd-cleanup)
     (def raw %fd-arg)
-    (def c2 (if (null? raw) () (wget-last-index raw #\,)))
+    (def c2 (if (null? raw) () (Str8 last-index-of "," raw)))
     (def lo (if (null? c2) () (wget-digits (substring raw (+ c2 1) (byte-len raw)))))
-    (def c1 (if (null? lo) () (wget-last-index (substring raw 0 c2) #\,)))
+    (def c1 (if (null? lo) () (Str8 last-index-of "," (substring raw 0 c2))))
     (def hi (if (null? c1) () (wget-digits (substring raw (+ c1 1) c2))))
     (if (if (null? hi) #t (if (> lo 255) #t (> hi 255)))
       (%fd-err 500)
@@ -378,7 +372,7 @@
     (let go ((i 0) (bs (cu-bytes "uniq.XXXXXX" 0 11)))
       (unless (null? bs) (do (cu-ptr-set! (cu-str->ptr t) i (first bs) 1) (go (+ i 1) (rest bs)))))
     (cu-ptr-set! (cu-str->ptr t) 11 0 1)
-    (def fd (Sys %sign-fold (cu-ptr-call (%fd-c "mkstemp") (cu-str->ptr t))))
+    (def fd (Sys %sign-fold (cu-ptr-call (cu-libc-sym "mkstemp") (cu-str->ptr t))))
     (pair fd (cu-ptr->str (cu-str->ptr t)))))
 
 ; handle_upload_common: STOR, APPE (append?) and STOU (unique?)
@@ -511,9 +505,9 @@
     (def fail? (fn (_ r what)
       (let ((e (ss-call r (lit call) what)))
         (unless (null? e) (%fd-die (string-concat (list what ": " (file-err-text e))))))))
-    (fail? (cu-ptr-call (%fd-c "initgroups") user gid) "can't set groups")
-    (fail? (cu-ptr-call (%fd-c "setgid") gid) "setgid")
-    (fail? (cu-ptr-call (%fd-c "setuid") uid) "setuid")))
+    (fail? (cu-ptr-call (cu-libc-sym "initgroups") user gid) "can't set groups")
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") gid) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") uid) "setuid")))
 
 ; --- the applet -------------------------------------------------------------------
 

@@ -17,7 +17,7 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
   cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
-  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-skip-ws dp-zeros)
+  cu-dump-xxd-eof! dp-at dp-find dp-formats dp-skip-ws dp-zeros)
 (import cu/prims byte-at byte-len cu-int->str cu-lines cu-nth file-err-text
   file-exists? file-read-all file-write file-write-run hx-hex-digit hx-strtoul
   length map reverse string-append string-concat string=? substring vec-build
@@ -158,7 +158,7 @@
         (if (>= i (byte-len name)) (bytes->str (reverse acc))
           (self (+ i 1) (pair (if (alnum? (byte-at name i)) (byte-at name i) #\_) acc)))))
     (string-append
-      (if (if (> (byte-len name) 0) (dp-digit? (byte-at name 0)) #f) "__" "")
+      (if (if (> (byte-len name) 0) (Char numeric? (byte-at name 0)) #f) "__" "")
       (go 0 ()))))
 
 ; -o: busybox's xstrtoll, base 0, a leading - allowed

@@ -34,7 +34,7 @@ bundle's ls to the widest entry.
         (do (set! fd-ctl (string-append fd-ctl s)) (self c ms))))))
   (def fd-epsv-port (fn (_ c)
     (let wait ((n 0))
-      (let ((i (wget-find fd-ctl "(|||")))
+      (let ((i (Str8 index-of "(|||" fd-ctl)))
         (if (if (null? i) (< n 20) #f)
           (do (fd-drain c 100) (wait (+ n 1)))
           (if (null? i) () (let ((s (substring fd-ctl (+ i 4) (byte-len fd-ctl))))

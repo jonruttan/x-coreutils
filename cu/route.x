@@ -21,11 +21,11 @@
 (import cu/inet inet-dec inet-dotted inet-hex inet-hex8 inet-int32 inet-ioctl
   inet-left inet-ntop6 inet-pton6! inet-resolve inet-rresolve inet-set!
   inet-sin! inet-socket inet-swap inet-words inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/prims byte-at byte-len char->integer cu-err-label cu-int->str
-  cu-lines cu-ptr-call cu-ptr-ref cu-ptr-set! cu-str->ptr file-or-err
-  file-read-unsized file-write length libc-strerror map string-append
-  string-concat string=? substring)
+  cu-libc-sym cu-lines cu-ptr-call cu-ptr-ref cu-ptr-set! cu-str->ptr
+  file-or-err file-read-unsized file-write length libc-strerror map
+  string-append string-concat string=? substring)
 (import cu/strings cu-range-number)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-left)
@@ -231,7 +231,7 @@
             (unless (null? dev)
               (let ((ifr (inet-zeros 40)))
                 (do (map (fn (_ k) (inet-set! ifr k (char->integer (byte-at dev k)) 1)) (List range 0 (if (> (byte-len dev) 15) 15 (byte-len dev))))
-                    (let ((r (in-call (cu-ptr-call (in-c "ioctl") fd 35123 (cu-str->ptr ifr)))))
+                    (let ((r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35123 (cu-str->ptr ifr)))))
                       (when (< r 0) (%rt-die (string-concat (list "ioctl 0x8933 failed: " (libc-strerror (Err errno-of r)))))))
                     (inet-set! rt 76 (cu-ptr-ref (cu-str->ptr ifr) 16 4) 4))))
             (inet-ioctl fd (if add? 35083 35084) rt %rt-die)

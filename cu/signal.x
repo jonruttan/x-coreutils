@@ -11,9 +11,8 @@
 
 (module cu/signal)
 
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-ptr-call
-  gz-word-bytes hx-strtoul length reverse set-first! string=? substring
-  sys-signals)
+(import cu/prims append byte-at byte-len cu-libc-sym cu-ptr-call gz-word-bytes
+  hx-strtoul length reverse set-first! string=? substring sys-signals)
 
 (def %pg-alnum?
   (fn (_ c)
@@ -60,13 +59,12 @@
 (def pg-rt
   (fn (_)
     (do (if (null? (first %pg-rt-cell))
-          (let ((lib (cu-dlopen () 1)))
-            (let ((lo (cu-dlsym lib "__libc_current_sigrtmin"))
-                  (hi (cu-dlsym lib "__libc_current_sigrtmax")))
-              (set-first! %pg-rt-cell
-                (list (if (if (null? lo) #t (null? hi)) ()
-                        (pair (Sys %sign-fold (cu-ptr-call lo))
-                              (Sys %sign-fold (cu-ptr-call hi))))))))
+          (let ((lo (cu-libc-sym "__libc_current_sigrtmin"))
+                (hi (cu-libc-sym "__libc_current_sigrtmax")))
+            (set-first! %pg-rt-cell
+              (list (if (if (null? lo) #t (null? hi)) ()
+                      (pair (Sys %sign-fold (cu-ptr-call lo))
+                            (Sys %sign-fold (cu-ptr-call hi)))))))
           ())
         (first (first %pg-rt-cell)))))
 

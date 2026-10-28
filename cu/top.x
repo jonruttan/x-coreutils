@@ -36,7 +36,7 @@
   sys-poll sys-user-name sys-usleep)
 (import cu/procps ps-args ps-four ps-sorted ps-stat)
 (import cu/strings cu-range-number)
-(import cu/text cu-join-with cu-msort cu-pad-left cu-pad-right cu-pad-zero)
+(import cu/text cu-msort cu-pad-left cu-pad-right cu-pad-zero)
 (import cu/vi vi-key-down vi-key-end vi-key-home vi-key-page-down
   vi-key-page-up vi-key-up vi-sequences)
 
@@ -405,7 +405,7 @@
                              (cu-pad-zero (cu-int->str (>> (* (& b 2047) 100) 11)) 2)))))
     (def get (fn (_ k) (Assoc get k t)))
     (string-concat
-      (list "Load average: " (cu-join-with (map avg loads) " ")
+      (list "Load average: " (Str8 join " " (map avg loads))
             (if (null? (get (lit running))) ""
               (string-concat (list " " (cu-int->str (get (lit running))) "/" (cu-int->str (get (lit total)))
                                    " " (cu-int->str (get (lit last-pid))))))))))

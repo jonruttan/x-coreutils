@@ -26,10 +26,10 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/date cu-date-fmt cu-date-split)
 (import cu/dump dp-udigits)
-(import cu/prims append bit-and bit-or bit-shl bit-shr byte-at byte-len cal/ cu* cu+ cu- cu-dlopen
-  cu-dlsym cu-err-label cu-int->str cu-ptr-call cu-ptr-ref cu-str->ptr file-write
-  hx-hex-digit libc-strerror reverse str-make-raw string-append string-concat substring
-  sys-group-name sys-user-name)
+(import cu/prims append bit-and bit-or bit-shl bit-shr byte-at byte-len cal/
+  cu* cu+ cu- cu-err-label cu-int->str cu-libc-sym cu-ptr-call cu-ptr-ref
+  cu-str->ptr file-write hx-hex-digit libc-strerror reverse str-make-raw
+  string-append string-concat substring sys-group-name sys-user-name)
 (import cu/text cu-pad-left cu-pad-right cu-pad-zero)
 
 ; --- the calls ----------------------------------------------------------------
@@ -37,7 +37,7 @@
 ; libc's NAME called with ARGS, its int answer signed
 (def %sv-libc
   (fn (_ name args)
-    (Sys %sign-fold (apply cu-ptr-call (pair (cu-dlsym (cu-dlopen () 1) name) args)))))
+    (Sys %sign-fold (apply cu-ptr-call (pair (cu-libc-sym name) args)))))
 
 ; Linux's six calls are system calls; Darwin's are libc's, semctl as the
 ; __semctl it passes its variadic union to, which takes the union itself

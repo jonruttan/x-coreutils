@@ -41,8 +41,8 @@ and the interfaces it leaves.
       (do (def lx-a (lx-run lx-x1 runs)) (def lx-b (lx-run lx-bb1 runs))
           (display (if (string=? lx-a lx-b) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
     (lx-sh "ip2 netns add tun")
-    (def lx-ns (in-call (cu-ptr-call (in-c "open") "/var/run/netns/tun" 0)))
-    (display (if (= (in-call (cu-ptr-call (in-c "setns") lx-ns 1073741824)) 0) "made" "no namespace")))
+    (def lx-ns (in-call (cu-ptr-call (cu-libc-sym "open") "/var/run/netns/tun" 0)))
+    (display (if (= (in-call (cu-ptr-call (cu-libc-sym "setns") lx-ns 1073741824)) 0) "made" "no namespace")))
 ```
 ---
     made

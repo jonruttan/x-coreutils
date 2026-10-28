@@ -24,12 +24,12 @@
 (import cu/dump dp-find)
 (import cu/inet inet-aton inet-dotted inet-hex inet-host-addr inet-left
   inet-ntop6 inet-pton6! inet-set! inet-sin! inet-socket inet-words inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/prims append byte-at byte-len cal/ char->integer cu-err-label
-  cu-int->ptr cu-int->str cu-lines cu-ptr->str cu-ptr-call cu-ptr-ref
-  cu-ptr-set! cu-str->ptr cu-string-type cvt file-or-err file-read-unsized
-  file-write filter length libc-strerror map reverse set-first! string-append
-  string-concat string=? substring)
+  cu-int->ptr cu-int->str cu-libc-sym cu-lines cu-ptr->str cu-ptr-call
+  cu-ptr-ref cu-ptr-set! cu-str->ptr cu-string-type cvt file-or-err
+  file-read-unsized file-write filter length libc-strerror map reverse
+  set-first! string-append string-concat string=? substring)
 (import cu/strings cu-range-number)
 (import cu/sysctl sy-trim)
 (import cu/telnetd td-ptr->int)
@@ -55,8 +55,8 @@
 (def %if-ioctl
   (fn (_ req r)
     (let ((fd (inet-socket 2 %if-die)))
-      (let ((n (in-call (cu-ptr-call (in-c "ioctl") fd req (cu-str->ptr r)))))
-        (do (cu-ptr-call (in-c "close") fd) n)))))
+      (let ((n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr r)))))
+        (do (cu-ptr-call (cu-libc-sym "close") fd) n)))))
 
 ; an IPv4 address at AT of R, as the u32 the kernel holds
 (def %if-sin (fn (_ r at) (if-ref r (+ at 4) 4)))
@@ -331,13 +331,13 @@
     (def idx (if-req iface))
     (def fd (inet-socket 10 %if-die))
     (def r6 (inet-zeros 24))
-    (let ((n (in-call (cu-ptr-call (in-c "ioctl") fd 35123 (cu-str->ptr idx)))))
-      (when (< n 0) (do (cu-ptr-call (in-c "close") fd) (%if-die (string-append "ioctl 0x8933 failed: " (libc-strerror (Err errno-of n)))))))
+    (let ((n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35123 (cu-str->ptr idx)))))
+      (when (< n 0) (do (cu-ptr-call (cu-libc-sym "close") fd) (%if-die (string-append "ioctl 0x8933 failed: " (libc-strerror (Err errno-of n)))))))
     (map (fn (_ k) (inet-set! r6 k (cu-ptr-ref (cu-str->ptr bytes) k 1) 1)) (List range 0 16))
     (inet-set! r6 16 plen 4)
     (inet-set! r6 20 (if-ref idx 16 4) 4)
-    (let ((n (in-call (cu-ptr-call (in-c "ioctl") fd (List ref 4 op) (cu-str->ptr r6)))))
-      (do (cu-ptr-call (in-c "close") fd)
+    (let ((n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd (List ref 4 op) (cu-str->ptr r6)))))
+      (do (cu-ptr-call (cu-libc-sym "close") fd)
           (when (< n 0) (%if-die (string-concat (list "SIOC" (List ref 6 op) ": " (libc-strerror (Err errno-of n))))))))))
 
 ; strtoul with base 0: decimal, 0x hex or 0 octal, its digits as far as they go

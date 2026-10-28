@@ -49,7 +49,7 @@ standard output.
 ### users: the names on one line, a space between
 
 ```cu
-(let ((r (run (list "users")))) (list (str=? (first r) (string-append (cu-join-with (map (fn (_ u) (Assoc get (lit user) u)) (host-users)) " ") "\n")) (first (rest (rest r)))))
+(let ((r (run (list "users")))) (list (str=? (first r) (string-append (Str8 join " " (map (fn (_ u) (Assoc get (lit user) u)) (host-users))) "\n")) (first (rest (rest r)))))
 ```
 ---
     (#t 0)

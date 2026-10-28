@@ -30,11 +30,11 @@
   date-now-unix file-close file-err-op file-err-text file-exists?
   file-open-excl file-open-or-err file-open-write file-open-wronly
   file-read-all file-seek file-stat file-truncate file-write file-write-run
-  http-close http-head http-open http-read http-status in-index-of
-  integer->char list->string map net-base64 net-close net-connect net-die
-  net-recv-run net-resolve net-send reverse string-append string-concat
-  string=? substring sys-getenv sys-isatty wget-digits wget-div wget-err-text
-  wget-find wget-index wget-last-index wget-lower wget-memv)
+  http-close http-head http-open http-read http-status integer->char
+  list->string map net-base64 net-close net-connect net-die net-recv-run
+  net-resolve net-send reverse string-append string-concat string=? substring
+  sys-getenv sys-isatty wget-digits wget-div wget-err-text wget-index
+  wget-memv)
 (import cu/text cu-pad-left cu-pad-right cu-pad-zero)
 
 ; a head line as busybox prints and reads it: cut at the first control byte
@@ -96,7 +96,7 @@
 ; before the host's last @, percent-decoded, or nil.
 (def %wget-url
   (fn (_ url)
-    (def sep (wget-find url "://"))
+    (def sep (Str8 index-of "://" url))
     (def scheme (if (null? sep) "http" (substring url 0 sep)))
     (def tail (if (null? sep) url (substring url (+ sep 3) (byte-len url))))
     (def cut
@@ -107,7 +107,7 @@
           (#t (go (+ i 1))))))
     (def hostpart (if (null? cut) tail (substring tail 0 cut)))
     (def path (if (null? cut) "" (substring tail (+ cut 1) (byte-len tail))))
-    (def at (wget-last-index hostpart #\@))
+    (def at (Str8 last-index-of "@" hostpart))
     (if (cu-member-s? scheme (list "http" "https" "ftp"))
       (list scheme
             (if (null? at) hostpart (substring hostpart (+ at 1) (byte-len hostpart)))
@@ -125,7 +125,7 @@
 (def wget-name-port
   (fn (_ t)
     (def host (%wget-host t))
-    (def colon (wget-last-index host #\:))
+    (def colon (Str8 last-index-of ":" host))
     (if (null? colon)
       (pair host (match ((string=? (%wget-scheme t) "https") 443)
                         ((string=? (%wget-scheme t) "ftp") 21)
@@ -137,7 +137,7 @@
 ; when there is none or it is a lone /
 (def wget-last-part
   (fn (_ p)
-    (def slash (wget-last-index p #\/))
+    (def slash (Str8 last-index-of "/" p))
     (match
       ((null? slash) p)
       ((if (= slash 0) (= (byte-len p) 1) #f) p)
@@ -187,7 +187,7 @@
 ; the connected socket, or the run ended (label net) as busybox ends it
 (def cu-dial
   (fn (_ spec default)
-    (def colon (in-index-of spec #\:))
+    (def colon (Str8 last-index-of ":" spec))
     (def host (cu-dial-host spec))
     (def port (if (null? colon) default (tn-port (substring spec (+ colon 1) (byte-len spec)))))
     (def ip (let ((q (guard (_ ()) (net-resolve host))))
@@ -200,7 +200,7 @@
 ; the HOST of HOST[:PORT]
 (def cu-dial-host
   (fn (_ spec)
-    (let ((colon (in-index-of spec #\:)))
+    (let ((colon (Str8 last-index-of ":" spec)))
       (if (null? colon) spec (substring spec 0 colon)))))
 
 ; the call an io Err came from, or nil for an Err that names none
@@ -361,7 +361,7 @@
 (def %wget-has-header?
   (fn (_ hs name)
     (if (null? hs) #f
-      (if (string=? (wget-lower (first (first hs))) name) #t
+      (if (string=? (Str8 downcase (first (first hs))) name) #t
         (%wget-has-header? (rest hs) name)))))
 
 ; the request's headers after Host and Connection, which Http adds: busybox's
@@ -531,7 +531,7 @@
         (if (if (< i (byte-len line)) (%wget-name-byte? (byte-at line i)) #f)
           (go (+ i 1)) i)))
     (when (if (>= name-end (byte-len line)) #t (not (= (byte-at line name-end) #\:)))
-      (wget-die (string-concat (list "bad header line: " (wget-lower (substring line 0 name-end))
+      (wget-die (string-concat (list "bad header line: " (Str8 downcase (substring line 0 name-end))
                                       (substring line name-end (byte-len line))))))
     (def v0
       (let go ((i (+ name-end 1)))
@@ -542,7 +542,7 @@
       (let go ((j (byte-len line)))
         (if (if (> j v0) (wget-memv (byte-at line (- j 1)) (list #\space #\tab)) #f)
           (go (- j 1)) j)))
-    (pair (wget-lower (substring line 0 name-end)) (substring line v0 v1))))
+    (pair (Str8 downcase (substring line 0 name-end)) (substring line v0 v1))))
 
 ; download one url to its file, or check it with --spider
 (def %wget-one
@@ -666,11 +666,11 @@
                               (list "content-length " (rest kv) " is garbage"))))
                         (self s status (rest ls) n chunked?))))
                   ((string=? (first kv) "transfer-encoding")
-                    (if (string=? (wget-lower (rest kv)) "chunked")
+                    (if (string=? (Str8 downcase (rest kv)) "chunked")
                       (self s status (rest ls) clen #t)
                       (do (http-close s)
                           (wget-die (string-concat
-                            (list "transfer encoding '" (wget-lower (rest kv))
+                            (list "transfer encoding '" (Str8 downcase (rest kv))
                                   "' is not supported"))))))
                   ((if (string=? (first kv) "location") (>= status 300) #f)
                     (list (lit location) (rest kv)))
@@ -808,7 +808,7 @@
     (def len (+ (first (rest st)) (byte-len text)))
     (def success? (first (rest (rest st))))
     (def redir (first (rest (rest (rest st)))))
-    (def low (wget-lower (whois-trim text)))
+    (def low (Str8 downcase (whois-trim text)))
     (match
       ((not success?)
         (list texts len
@@ -869,21 +869,21 @@
 (def ftp-data-port
   (fn (_ l)
     (if (= (byte-at l 2) #\7)
-      (let ((close (wget-last-index l #\))))
+      (let ((close (Str8 last-index-of ")" l)))
         (let ((s (if (null? close)
-                   (let ((cr (wget-last-index l #\return))) (if (null? cr) l (substring l 0 cr)))
+                   (let ((cr (Str8 last-index-of "\r" l))) (if (null? cr) l (substring l 0 cr)))
                    (substring l 0 close))))
-          (let ((c2 (wget-last-index s #\,)))
+          (let ((c2 (Str8 last-index-of "," s)))
             (if (null? c2) ()
-              (let ((c1 (wget-last-index (substring s 0 c2) #\,)))
+              (let ((c1 (Str8 last-index-of "," (substring s 0 c2))))
                 (if (null? c1) ()
                   (let ((hi (wget-digits (substring s (+ c1 1) c2)))
                         (lo (wget-digits (substring s (+ c2 1) (byte-len s)))))
                     (if (if (null? hi) #t (null? lo)) ()
                       (if (if (> hi 255) #t (> lo 255)) () (+ (* hi 256) lo))))))))))
-      (let ((b2 (wget-last-index l #\|)))
+      (let ((b2 (Str8 last-index-of "|" l)))
         (if (null? b2) ()
-          (let ((b1 (wget-last-index (substring l 0 b2) #\|)))
+          (let ((b1 (Str8 last-index-of "|" (substring l 0 b2))))
             (if (null? b1) ()
               (let ((p (wget-digits (substring l (+ b1 1) b2))))
                 (if (null? p) () (if (> p 65535) () p))))))))))

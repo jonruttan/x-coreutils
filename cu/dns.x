@@ -28,8 +28,7 @@
   file-write file-write-run filter integer->char length list->string map
   net-close net-die net-resolve net-udp-connect reverse set-first!
   string-append string-concat string=? substring sys-poll sys-time-ms
-  sys-uname vec-build vec-ref wget-digits wget-div wget-find wget-index
-  wget-last-index wget-memv)
+  sys-uname vec-build vec-ref wget-digits wget-div wget-index wget-memv)
 
 (def %ns-port 53)
 (def %ns-retry 2)
@@ -168,7 +167,7 @@
 ; S's eight 16-bit groups when it reads as an IPv6 address, or nil
 (def %ns-ipv6
   (fn (_ s)
-    (def dc (wget-find s "::"))
+    (def dc (Str8 index-of "::" s))
     (def group (fn (_ g)
       (if (if (> (byte-len g) 0) (<= (byte-len g) 4) #f)
         (let go ((i 0) (v 0))
@@ -258,7 +257,7 @@
               (go (rest ls) servers search has-search)
               (let ((key (first words))
                     (arg (whois-trim (substring (first ls)
-                            (+ (wget-find (first ls) (first words)) (byte-len (first words)))
+                            (+ (Str8 index-of (first words) (first ls)) (byte-len (first words)))
                             (byte-len (first ls))))))
                 (match
                   ((string=? key "nameserver") (go (rest ls) (pair (first (rest words)) servers) search has-search))
@@ -275,7 +274,7 @@
 ; a server's (NAME IP PORT): NAME's own ":PORT" overrides -port
 (def %ns-server
   (fn (_ name)
-    (def colon (wget-last-index name #\:))
+    (def colon (Str8 last-index-of ":" name))
     (def port (if (null? colon) () (wget-digits (substring name (+ colon 1) (byte-len name)))))
     (def host (if (null? port) name (substring name 0 colon)))
     (def ip (guard (_ ()) (net-resolve host)))

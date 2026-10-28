@@ -494,8 +494,7 @@
         (substring text pos (if (< nl 0) (byte-len text) nl))))))
 
 (def %dc-space? (fn (_ c) (if (= c #\space) #t (if (>= c 9) (<= c 13) #f))))
-(def %dc-digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
-(def %dc-numch? (fn (_ c) (if (%dc-digit? c) #t (if (>= c #\A) (<= c #\F) #f))))
+(def %dc-numch? (fn (_ c) (if (Char numeric? c) #t (if (>= c #\A) (<= c #\F) #f))))
 
 ; the characters dc reads as commands on their own
 (def %dc-ops "%(*+-/:;<=>?GIKLNOPQRSXZ^_acdefiklnopqrsvxz{|~")
@@ -520,7 +519,7 @@
           (list (lit name)
                 (let go ((acc ()))
                   (let ((c (%dcl-peek src 0)))
-                    (if (if (if (>= c #\a) (<= c #\z) #f) #t (if (%dc-digit? c) #t (= c #\_)))
+                    (if (if (if (>= c #\a) (<= c #\z) #f) #t (if (Char numeric? c) #t (= c #\_)))
                       (do (%dcl-skip! src 1) (go (pair c acc)))
                       (bytes->str (reverse acc)))))))
       (list (lit name) (bytes->str (list (%dcl-take! src)))))))
@@ -543,7 +542,7 @@
           (if (if (= c2 #\=) #t (if (= c2 #\<) #t (= c2 #\>)))
             (do (%dcl-skip! src 1) (list (lit ch) (bytes->str (list c c2))))
             (%dc-bad-char c))))
-      ((= c #\.) (if (%dc-digit? (%dcl-peek src 0)) (%dcl-number src c) (%dc-bad-char c)))
+      ((= c #\.) (if (Char numeric? (%dcl-peek src 0)) (%dcl-number src c) (%dc-bad-char c)))
       ((%dc-numch? c) (%dcl-number src c))
       ((= c #\[) (%dcl-string src))
       ((if (> c 0) (>= (dp-find %dc-ops 0 c) 0) #f) (list (lit ch) (bytes->str (list c))))

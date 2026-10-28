@@ -20,8 +20,8 @@ address, so the same frames mean the same picks.
     (def lx-sh (fn (_ cmd) (proc-run (list "/bin/sh" "-c" cmd))))
     (def lx-read (fn (_ f) (file-read-all f)))
     (lx-sh "ip2 netns add zc")
-    (def lx-ns (in-call (cu-ptr-call (in-c "open") "/var/run/netns/zc" 0)))
-    (def lx-in (= (in-call (cu-ptr-call (in-c "setns") lx-ns 1073741824)) 0))
+    (def lx-ns (in-call (cu-ptr-call (cu-libc-sym "open") "/var/run/netns/zc" 0)))
+    (def lx-in (= (in-call (cu-ptr-call (cu-libc-sym "setns") lx-ns 1073741824)) 0))
     (lx-sh (Str8 join "\n" (list
       "[ \"$(readlink /proc/self/ns/net)\" != \"$(readlink /proc/1/ns/net)\" ] || exit 1"
       "ip2 link add zc0 address 02:00:00:00:0a:01 type veth peer name zc1 address 02:00:00:00:0a:02"
@@ -29,11 +29,11 @@ address, so the same frames mean the same picks.
       "printf '#!/bin/sh\\necho \"$1 $interface $ip\" >> /tmp/zc-log\\n' > /tmp/zc.sh"
       "printf '#!/bin/sh\\nexit 3\\n' > /tmp/zc3.sh"
       "chmod +x /tmp/zc.sh /tmp/zc3.sh")))
-    (def lx-cap (in-call (cu-ptr-call (in-c "socket") 17 3 1544)))
+    (def lx-cap (in-call (cu-ptr-call (cu-libc-sym "socket") 17 3 1544)))
     (def lx-sll (inet-zeros 20))
     (inet-set! lx-sll 0 17 2) (inet-set! lx-sll 2 8 1) (inet-set! lx-sll 3 6 1)
-    (inet-set! lx-sll 4 (cu-ptr-call (in-c "if_nametoindex") "zc1") 4)
-    (def lx-bound (= (in-call (cu-ptr-call (in-c "bind") lx-cap (cu-str->ptr lx-sll) 20)) 0))
+    (inet-set! lx-sll 4 (cu-ptr-call (cu-libc-sym "if_nametoindex") "zc1") 4)
+    (def lx-bound (= (in-call (cu-ptr-call (cu-libc-sym "bind") lx-cap (cu-str->ptr lx-sll) 20)) 0))
     (def lx-buf (inet-zeros 2048))
     (def lx-hex (fn (_ n)
       (Str8 join " " (map (fn (_ k) (let ((b (& (byte-at lx-buf k) 255)))
@@ -42,7 +42,7 @@ address, so the same frames mean the same picks.
                           (List range 0 n)))))
     (def lx-drain (fn (_)
       (let go ((acc ""))
-        (let ((r (in-call (cu-ptr-call (in-c "recv") lx-cap (cu-str->ptr lx-buf) 2048 64))))
+        (let ((r (in-call (cu-ptr-call (cu-libc-sym "recv") lx-cap (cu-str->ptr lx-buf) 2048 64))))
           (if (< r 0) acc (go (string-concat (list acc "frame " (lx-hex r) "\n"))))))))
     (def lx-x1 (fn (_ argv)
       (do (sys-dup2 1 9) (sys-dup2 2 8)

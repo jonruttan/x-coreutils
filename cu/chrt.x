@@ -18,10 +18,10 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-set! inet-zeros)
-(import cu/inetd in-c in-call)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr-call
-  cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-err-text file-write
-  hx-strtoul libc-strerror string-append string-concat string=?
+(import cu/inetd in-call)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
+  cu-ptr-call cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-err-text
+  file-write hx-strtoul libc-strerror string-append string-concat string=?
   sys-exec-or-err sys-exit)
 
 (def %ch-die
@@ -55,7 +55,7 @@
 (def %ch-bound
   (fn (_ which pol)
     (def name (if (eq? which (lit min)) "sched_get_priority_min" "sched_get_priority_max"))
-    (if os-darwin? (in-call (cu-ptr-call (in-c name) pol))
+    (if os-darwin? (in-call (cu-ptr-call (cu-libc-sym name) pol))
       (first (%ch-call (if (eq? which (lit min)) (lit sched_get_priority_min) (lit sched_get_priority_max))
                        pol () ())))))
 

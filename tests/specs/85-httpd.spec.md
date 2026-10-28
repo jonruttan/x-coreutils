@@ -2060,7 +2060,7 @@ REMOTE_ADDR=127.0.0.1
   (sys-usleep 200000)
   (sys-kill hd-pid 9) (sys-wait hd-pid)
   (Sys chdir hd-home)
-  (def hd-log (string-concat (map (fn (_ l) (let ((c (wget-find l "]:")))
+  (def hd-log (string-concat (map (fn (_ l) (let ((c (Str8 index-of "]:" l)))
                                               (string-concat (list (substring l 0 (+ c 2)) "PORT"
                                                                    (substring l (wget-index l #\: (+ c 2)) (byte-len l)) "\n"))))
                                   (hd-lines (file-read-all "/tmp/x-cu-hd/log")))))

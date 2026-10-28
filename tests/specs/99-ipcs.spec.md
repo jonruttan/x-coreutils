@@ -39,7 +39,7 @@ itself in the Linux leg.
               "same() { if [ \"$1\" = \"$2\" ]; then echo same; else printf 'ours:\\n%s\\noracle:\\n%s\\n' \"$1\" \"$2\"; fi; }"
               "line() { grep \"^$1\" \"$OUT\"; }"
               "")))
-    (def ic-c (fn (_ name args) (Sys %sign-fold (apply cu-ptr-call (pair (cu-dlsym (cu-dlopen () 1) name) args)))))
+    (def ic-c (fn (_ name args) (Sys %sign-fold (apply cu-ptr-call (pair (cu-libc-sym name) args)))))
     (def ic-zeros (fn (_ n) (let ((b (str-make-raw n))) (do (List map (fn (_ i) (cu-ptr-set! (cu-str->ptr b) i 0 1)) (List range 0 n)) b))))
     (def ic-gone (fn (_)
       (do (List map (fn (_ k) (let ((id (ic-c "shmget" (list k 0 0)))) (when (>= id 0) (ic-c "shmctl" (list id 0 0)))))

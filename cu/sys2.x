@@ -16,9 +16,8 @@
   file-write filter map proc-run reverse string-append string-concat string=?
   substring sys-environ sys-exec-or-err sys-exit sys-fork sys-getenv
   sys-setenv sys-unsetenv sys-wait)
-(import cu/text cu-delim-fields-said cu-join-with cu-num-prefix
-  cu-print-fields cu-print-lines cu-read-said cu-says cu-sleep-for cu-sleep-us
-  cu-split-byte)
+(import cu/text cu-delim-fields-said cu-num-prefix cu-print-fields
+  cu-print-lines cu-read-said cu-says cu-sleep-for cu-sleep-us cu-split-byte)
 
 (def cu-true (fn (_ argv stdin-thunk) 0))
 (def cu-false (fn (_ argv stdin-thunk) 1))
@@ -251,7 +250,7 @@
 ; Taking zero would not shorten the line, it would loop forever.
 (def %cu-xargs-batch
   (fn (_ cmd ws n maxs)
-    (def base (byte-len (cu-join-with cmd " ")))
+    (def base (byte-len (Str8 join " " cmd)))
     (def go
       (fn (self l k len acc)
         (if (null? l)
@@ -279,7 +278,7 @@
       (let ((argv (map (fn (_ a) (%cu-xargs-subst a repl (first ws))) cmd)))
         (do
           (if trace?
-            (file-write 2 (string-append (cu-join-with argv " ") "\n"))
+            (file-write 2 (string-append (Str8 join " " argv) "\n"))
             ())
           (let ((st2 (proc-run argv)))
             (self cmd repl (rest ws) trace?
@@ -318,7 +317,7 @@
         (zero? (first zread))
         (failed? ())
         (#t (let ((text (if (null? src) (stdin-thunk) input)))
-              (cu-words-line (cu-join-with (cu-lines text) " "))))))
+              (cu-words-line (Str8 join " " (cu-lines text)))))))
     (def words (if (null? eof) words0 (%cu-xargs-until words0 eof)))
     (def run!
       (fn (_ ws)
@@ -327,7 +326,7 @@
           ; command's own output and nothing else.
           (if trace?
             (file-write 2
-              (string-append (cu-join-with (append cmd ws) " ") "\n"))
+              (string-append (Str8 join " " (append cmd ws)) "\n"))
             ())
           (proc-run (append cmd ws)))))
     (match
@@ -336,7 +335,7 @@
       ((not (null? repl)) (%cu-xargs-each cmd repl words trace? 0))
       ((if (Opts on? o "-x")
               (if (> maxs 0)
-                (> (+ (byte-len (cu-join-with cmd " "))
+                (> (+ (byte-len (Str8 join " " cmd))
                       (+ 1 (byte-len (first words)))) maxs)
                 #f)
               #f)

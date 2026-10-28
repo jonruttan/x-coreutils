@@ -43,17 +43,16 @@
 (import cu/date cu-date-fmt cu-date-split)
 (import cu/nc nc-count)
 (import cu/net wget-last-part)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
-  cu-lines cu-member-s? cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
-  cu-sweep! date-now-unix file-close file-dir? file-err-text file-exists?
-  file-open-read file-read-all file-read-run file-seek file-stat file-write
-  file-write-run map net-accept net-close net-connect net-listen net-listen-on
-  net-peer net-resolve net-shutdown net-stdin-socket reverse set-first!
-  str-make-raw string-append string-concat string=? substring sys-dup2
-  sys-exec-or-err sys-exit sys-fork sys-getcwd sys-group-id sys-kill sys-pipe
-  sys-setenv sys-signal sys-user-group sys-user-id sys-user-name sys-wait
-  wget-digits wget-div wget-err-text wget-find wget-index wget-last-index
-  wget-lower wget-memv)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-lines
+  cu-member-s? cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep!
+  date-now-unix file-close file-dir? file-err-text file-exists? file-open-read
+  file-read-all file-read-run file-seek file-stat file-write file-write-run
+  map net-accept net-close net-connect net-listen net-listen-on net-peer
+  net-resolve net-shutdown net-stdin-socket reverse set-first! str-make-raw
+  string-append string-concat string=? substring sys-dup2 sys-exec-or-err
+  sys-exit sys-fork sys-getcwd sys-group-id sys-kill sys-pipe sys-setenv
+  sys-signal sys-user-group sys-user-id sys-user-name sys-wait wget-digits
+  wget-div wget-err-text wget-index wget-memv)
 (import cu/session hd-daemonize ss-call)
 (import cu/test t-permitted?)
 (import cu/text3 cu-b64-decode-to)
@@ -122,7 +121,7 @@
 (def %hd-prefix-ci?
   (fn (_ s p)
     (if (< (byte-len s) (byte-len p)) #f
-      (string=? (wget-lower (substring s 0 (byte-len p))) (wget-lower p)))))
+      (string=? (Str8 downcase (substring s 0 (byte-len p))) (Str8 downcase p)))))
 
 (def %hd-skip-blanks
   (fn (_ s i)
@@ -262,7 +261,7 @@
 
 (def %hd-mime-of
   (fn (_ url)
-    (def dot (wget-last-index url #\.))
+    (def dot (Str8 last-index-of "." url))
     (if (null? dot) ()
       (let ((suffix (substring url dot (byte-len url))))
         (let ((user (let go ((ms %hd-mime))
@@ -271,7 +270,7 @@
                              (#t (go (rest ms))))))
               (builtin (let go ((ts %hd-mime-table))
                          (if (null? ts) ()
-                           (let ((at (wget-find (first (first ts)) suffix)))
+                           (let ((at (Str8 index-of suffix (first (first ts)))))
                              (if (null? at) (go (rest ts))
                                (let ((end (+ at (byte-len suffix))) (line (first (first ts))))
                                  (if (if (= end (byte-len line)) #t (= (byte-at line end) #\.))
@@ -297,7 +296,7 @@
     (when (< fd 0) (if headers? (%hd-fail 404) (%hd-finish)))
     (when %hd-gzip (set! %hd-range-start -1))
     (set! %hd-etag (string-concat (list "\"" (%hd-hex %hd-last-mod) "-" (%hd-hex %hd-file-size) "\"")))
-    (when (if (null? %hd-if-none-match) #f (not (null? (wget-find %hd-if-none-match %hd-etag))))
+    (when (if (null? %hd-if-none-match) #f (not (null? (Str8 index-of %hd-etag %hd-if-none-match))))
       (%hd-fail 304))
     (set! %hd-mime-found (%hd-mime-of url))
     (unless headers? (set! %hd-range-start -1))
@@ -365,7 +364,7 @@
         ((if at-slash (= c #\/) #f) (go (+ t 1) out))
         ((if at-slash (if (= c #\.) (if (= c1 #\.) (if (= c2 #\/) #t (= c2 0)) #f) #f) #f)
           (if (= (byte-len out) 1) ()
-            (let ((cut (wget-last-index (substring out 0 (- (byte-len out) 1)) #\/)))
+            (let ((cut (Str8 last-index-of "/" (substring out 0 (- (byte-len out) 1)))))
               (go (+ t 2) (substring out 0 (+ cut 1))))))
         ((if at-slash (if (= c #\.) (if (= c1 #\/) #t (= c1 0)) #f) #f) (go (+ t 1) out))
         ((= c 0) out)
@@ -685,7 +684,7 @@
 ; interp when a *.ext: line names TARGET's suffix, its interpreter kept
 (def %hd-interp-for
   (fn (_ target)
-    (def dot (wget-last-index target #\.))
+    (def dot (Str8 last-index-of "." target))
     (def hit (if (null? dot) ()
                (let ((suffix (substring target dot (byte-len target))))
                  (let go ((ss %hd-scripts))
@@ -710,7 +709,7 @@
               ((%hd-prefix-ci? h "Authorization:") (%hd-authorization! h url cgi?))
               ((%hd-prefix-ci? h "Range:") (%hd-range! (%hd-after-header h "Range:")))
               ((%hd-prefix-ci? h "Accept-Encoding:")
-                (unless (null? (wget-find h "gzip")) (set! %hd-accept-gzip #t)))
+                (unless (null? (Str8 index-of "gzip" h)) (set! %hd-accept-gzip #t)))
               ((%hd-prefix-ci? h "If-None-Match:")
                 (set! %hd-if-none-match (%hd-after-header h "If-None-Match:")))
               (cgi? (%hd-cgi-header! h))
@@ -798,7 +797,7 @@
     (def hp (first (rest pe)))
     (def slash (wget-index hp #\/ 0))
     (def host-port (substring hp 0 slash))
-    (def colon (wget-last-index host-port #\:))
+    (def colon (Str8 last-index-of ":" host-port))
     (def host (if (null? colon) host-port (substring host-port 0 colon)))
     (def port (if (null? colon) 80 (wget-digits (substring host-port (+ colon 1) (byte-len host-port)))))
     (def ip (if (null? port) () (guard (_ ()) (net-resolve host))))
@@ -892,7 +891,7 @@
 (def %hd-remote-env
   (fn (_)
     (def p (if (null? %hd-rmt) "" %hd-rmt))
-    (def colon (wget-last-index p #\:))
+    (def colon (Str8 last-index-of ":" p))
     (def cut (if (if (null? colon) #f (null? (wget-index p #\] colon))) colon ()))
     (if (null? cut) (list (pair "REMOTE_ADDR" p))
       (list (pair "REMOTE_ADDR" (substring p 0 cut))
@@ -1121,7 +1120,7 @@
 
 (def %hd-listen-on
   (fn (_ v)
-    (def colon (wget-last-index v #\:))
+    (def colon (Str8 last-index-of ":" v))
     (def host (if (null? colon) v (substring v 0 colon)))
     (def pv (if (null? colon) () (substring v (+ colon 1) (byte-len v))))
     (def port (if (null? pv) 80 (wget-digits pv)))
@@ -1170,14 +1169,13 @@
 ; setuid -- each failure the end of the run, named as busybox names it
 (def %hd-drop!
   (fn (_ ug)
-    (def lib (cu-dlopen () 1))
     (def fail? (fn (_ r sym)
       (let ((e (ss-call r (lit call) sym)))
         (unless (null? e) (%hd-die (string-concat (list sym ": " (file-err-text e))))))))
     (def buf (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr buf) 0 (rest ug) 4)
-    (fail? (cu-ptr-call (cu-dlsym lib "setgroups") 1 (cu-str->ptr buf)) "setgroups")
-    (fail? (cu-ptr-call (cu-dlsym lib "setgid") (rest ug)) "setgid")
-    (fail? (cu-ptr-call (cu-dlsym lib "setuid") (first ug)) "setuid")))
+    (fail? (cu-ptr-call (cu-libc-sym "setgroups") 1 (cu-str->ptr buf)) "setgroups")
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") (rest ug)) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") (first ug)) "setuid")))
 
 (provide cu/httpd cu-httpd hd-crypt-equal? hd-system-password hd-ugid)

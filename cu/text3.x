@@ -30,7 +30,7 @@
   vec-build vec-ref vec-set!)
 (import cu/text cu-delim-fields-said cu-enough cu-file-pieces
   cu-fold-lines-said cu-fold-pieces cu-fold-said cu-fold-stdin cu-gather-said
-  cu-join-with cu-map-swept cu-newlines-from cu-num-prefix cu-print-fields
+  cu-map-swept cu-newlines-from cu-num-prefix cu-print-fields
   cu-print-fields-to cu-print-lines cu-print-lines-to cu-read-error
   cu-run-join cu-run-part cu-say cu-says)
 
@@ -39,7 +39,7 @@
     (def buf
       (%cu-yes-copies
         (string-append
-          (if (null? argv) "y" (cu-join-with argv " "))
+          (if (null? argv) "y" (Str8 join " " argv))
           "\n")))
     (def go
       (fn (self i)
@@ -135,7 +135,7 @@
         (if (null? ws) st
           (self (rest ws) (if (%cu-factor-line (first ws) h?) st 1)))))
     (if (null? (Opts operands o))
-      (each (cu-words-line (cu-join-with (cu-lines (stdin-thunk)) " ")) 0)
+      (each (cu-words-line (Str8 join " " (cu-lines (stdin-thunk)))) 0)
       (each (Opts operands o) 0))))
 
 ; --- expand / unexpand --------------------------------------------------------

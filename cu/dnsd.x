@@ -104,13 +104,11 @@
 
 ; --- the lookup --------------------------------------------------------------------
 
-(def %dn-lower (fn (_ b) (if (if (>= b 65) (<= b 90) #f) (+ b 32) b)))
-
 (def %dn-same?
   (fn (self a b)
     (match ((null? a) (null? b))
            ((null? b) #f)
-           ((= (%dn-lower (first a)) (%dn-lower (first b))) (self (rest a) (rest b)))
+           ((= (Char downcase (first a)) (Char downcase (first b))) (self (rest a) (rest b)))
            (#t #f))))
 
 (def %dn-prefix?

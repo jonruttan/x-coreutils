@@ -59,8 +59,6 @@
       ((= c 35) #t)  ; #
       (#t #f))))
 
-(def %cu-fl-digit? (fn (_ c) (if (>= c 48) (<= c 57) #f)))
-
 ; --- the rules ---------------------------------------------------------------
 ;
 ; The escape rules are listed longest-match first, and the two-byte escape
@@ -161,7 +159,7 @@
   (fn (_ tok i end)
     (def go
       (fn (self k acc got)
-        (if (if (< k end) (%cu-fl-digit? (byte-at tok k)) #f)
+        (if (if (< k end) (Char numeric? (byte-at tok k)) #f)
           (self (+ k 1) (+ (* acc 10) (- (byte-at tok k) 48)) #t)
           (pair (if got acc (- 0 1)) k))))
     (go i 0 #f)))

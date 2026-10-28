@@ -32,9 +32,9 @@
 (module cu/vi)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-err-label
-  cu-heap-collect cu-ptr-call cu-stat-get cu-stdin-to-command! cu-string-type
-  cvt file-close file-err-sym file-err-text file-exists? file-open-or-err
+(import cu/prims append byte-at byte-len cu-err-label cu-heap-collect
+  cu-libc-sym cu-ptr-call cu-stat-get cu-stdin-to-command! cu-string-type cvt
+  file-close file-err-sym file-err-text file-exists? file-open-or-err
   file-open-read file-read-all file-stat-full file-truncate file-unlink
   file-write filter length map reverse set-first! str-make-raw string-append
   string-concat string=? sys-getenv sys-getuid sys-kill)
@@ -82,19 +82,18 @@
 
 (def %vi-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %vi-c-memchr (cu-dlsym lib "memchr"))
-    (set! %vi-c-memmove (cu-dlsym lib "memmove"))
-    (set! %vi-c-memcpy (cu-dlsym lib "memcpy"))
-    (set! %vi-c-strcspn (cu-dlsym lib "strcspn"))
-    (set! %vi-c-poll (cu-dlsym lib "poll"))
-    (set! %vi-c-read (cu-dlsym lib "read"))
-    (set! %vi-c-write (cu-dlsym lib "write"))
-    (set! %vi-c-access (cu-dlsym lib "access"))
-    (set! %vi-c-memmem (cu-dlsym lib "memmem"))
-    (set! %vi-c-strcasestr (cu-dlsym lib "strcasestr"))
-    (set! %vi-c-system (cu-dlsym lib "system"))
-    (set! %vi-c-memset (cu-dlsym lib "memset"))))
+    (set! %vi-c-memchr (cu-libc-sym "memchr"))
+    (set! %vi-c-memmove (cu-libc-sym "memmove"))
+    (set! %vi-c-memcpy (cu-libc-sym "memcpy"))
+    (set! %vi-c-strcspn (cu-libc-sym "strcspn"))
+    (set! %vi-c-poll (cu-libc-sym "poll"))
+    (set! %vi-c-read (cu-libc-sym "read"))
+    (set! %vi-c-write (cu-libc-sym "write"))
+    (set! %vi-c-access (cu-libc-sym "access"))
+    (set! %vi-c-memmem (cu-libc-sym "memmem"))
+    (set! %vi-c-strcasestr (cu-libc-sym "strcasestr"))
+    (set! %vi-c-system (cu-libc-sym "system"))
+    (set! %vi-c-memset (cu-libc-sym "memset"))))
 
 ; --- the terminal's words ---------------------------------------------------
 

@@ -27,13 +27,13 @@
 (import cu/dump dp-find)
 (import cu/ifconfig if-ref if-req)
 (import cu/inet inet-int32 inet-set! inet-words inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/ip ip-bytes ip-cstr ip-die ip-get ip-id ip-invarg ip-keyword
   ip-name ip-next ip-num ip-run ip-say ip-sl)
 (import cu/iprule ip-addr32 ip-dsfields)
 (import cu/ipset ip-buf ip-le ip-str-bytes ip-unsigned)
-(import cu/prims append byte-len cu-err-label cu-int->str cu-lines cu-nth
-  cu-ptr->str cu-ptr-call cu-str->ptr cu-string-type cvt file-or-err
+(import cu/prims append byte-len cu-err-label cu-int->str cu-libc-sym cu-lines
+  cu-nth cu-ptr->str cu-ptr-call cu-str->ptr cu-string-type cvt file-or-err
   file-read-unsized file-write length libc-strerror map reverse string-append
   string-concat string=? substring)
 (import cu/telnetd td-ptr->int)
@@ -70,7 +70,7 @@
 ; an AF_INET datagram socket, or the run ended as xsocket ends it
 (def %ip-t-socket
   (fn (_ f)
-    (let ((fd (in-call (cu-ptr-call (in-c "socket") 2 2 0))))
+    (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 2 0))))
       (if (< fd 0) (ip-die f (string-append "socket: " (libc-strerror (Err errno-of fd)))) fd))))
 
 ; REQ on an ifreq naming DEV whose data points at the parameters P: (R . P'),
@@ -82,8 +82,8 @@
     (def r (if-req dev))
     (inet-set! r 16 (td-ptr->int (cu-str->ptr buf)) 8)
     (def fd (%ip-t-socket f))
-    (def n (in-call (cu-ptr-call (in-c "ioctl") fd req (cu-str->ptr r))))
-    (cu-ptr-call (in-c "close") fd)
+    (def n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr r))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (when (< n 0)
       (let ((msg (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n))))))
         (if die? (ip-die f msg) (ip-say f msg))))
@@ -93,8 +93,8 @@
 (def %ip-t-ifreq
   (fn (_ f req r)
     (def fd (%ip-t-socket f))
-    (def n (in-call (cu-ptr-call (in-c "ioctl") fd req (cu-str->ptr r))))
-    (cu-ptr-call (in-c "close") fd)
+    (def n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr r))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (if (< n 0) (do (ip-say f (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n))))) ())
       r)))
 
@@ -103,8 +103,8 @@
   (fn (_ f dev)
     (def fd (%ip-t-socket f))
     (def r (if-req dev))
-    (def n (in-call (cu-ptr-call (in-c "ioctl") fd 35123 (cu-str->ptr r))))
-    (cu-ptr-call (in-c "close") fd)
+    (def n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35123 (cu-str->ptr r))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (if (< n 0) (ip-die f (string-append "ioctl 0x8933 failed: " (libc-strerror (Err errno-of n)))) (inet-int32 (if-ref r 16 4)))))
 
 ; do_ioctl_get_ifname: the name of link IDX, or nil

@@ -73,18 +73,16 @@
       (string-append "cap_" (cu-int->str n)))))
 
 ; A and B the same but for case, as strcasecmp compares them
-(def %sp-lower (fn (_ c) (if (if (>= c 65) (<= c 90) #f) (+ c 32) c)))
 (def %sp-same-case?
   (fn (_ a b)
     (if (= (byte-len a) (byte-len b))
       (let loop ((i 0))
         (match
           ((= i (byte-len a)) #t)
-          ((= (%sp-lower (byte-at a i)) (%sp-lower (byte-at b i))) (loop (+ i 1)))
+          ((= (Char downcase (byte-at a i)) (Char downcase (byte-at b i))) (loop (+ i 1)))
           (#t #f)))
       #f)))
 
-(def %sp-digit? (fn (_ c) (if (>= c 48) (<= c 57) #f)))
 (def %sp-space? (fn (_ c) (match ((= c 32) #t) ((if (>= c 9) (<= c 13) #f) #t) (#t #f))))
 
 ; sscanf's "cap_%u" on S: the number, or nil when S does not match; a
@@ -96,7 +94,7 @@
     (def sign (if (< at n) (byte-at s at) 0))
     (def from (if (if (= sign #\-) #t (= sign #\+)) (+ at 1) at))
     (def v (let digits ((k from) (acc ()))
-             (if (if (< k n) (%sp-digit? (byte-at s k)) #f)
+             (if (if (< k n) (Char numeric? (byte-at s k)) #f)
                (digits (+ k 1) (+ (* 10 (if (null? acc) 0 acc)) (- (byte-at s k) 48)))
                acc)))
     (match

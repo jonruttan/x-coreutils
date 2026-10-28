@@ -19,11 +19,12 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-dotted inet-hex inet-ioctl inet-resolve inet-rresolve
   inet-set! inet-sin! inet-socket inet-words inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/prims byte-at byte-len char->integer cu-err-label cu-int->ptr
-  cu-int->str cu-lines cu-ptr->str cu-ptr-call cu-ptr-ref cu-str->ptr
-  file-or-err file-read-unsized file-write filter length libc-strerror map
-  reverse set-first! string-append string-concat string=? substring)
+  cu-int->str cu-libc-sym cu-lines cu-ptr->str cu-ptr-call cu-ptr-ref
+  cu-str->ptr file-or-err file-read-unsized file-write filter length
+  libc-strerror map reverse set-first! string-append string-concat string=?
+  substring)
 
 (def %ar-say (fn (_ msg) (file-write 2 (string-append "arp: " msg "\n"))))
 (def %ar-die (fn (_ msg) (do (%ar-say msg) (Err raise (lit arp) msg ()))))
@@ -46,8 +47,8 @@
 ; herror's words for the lookup that just failed: the C library's
 (def %ar-herror
   (fn (_ name)
-    (let ((err (cu-ptr-ref (cu-int->ptr (cu-ptr-call (in-c "__h_errno_location"))) 0 4)))
-      (%ar-die (string-concat (list name ": " (cu-ptr->str (cu-int->ptr (cu-ptr-call (in-c "hstrerror") err)))))))))
+    (let ((err (cu-ptr-ref (cu-int->ptr (cu-ptr-call (cu-libc-sym "__h_errno_location"))) 0 4)))
+      (%ar-die (string-concat (list name ": " (cu-ptr->str (cu-int->ptr (cu-ptr-call (cu-libc-sym "hstrerror") err)))))))))
 
 ; INET_input: NAME's address, the run ended with herror's words where it has none
 (def %ar-input
@@ -178,8 +179,8 @@
     (def ifr (inet-zeros 40))
     (map (fn (_ k) (inet-set! ifr k (char->integer (byte-at ifname k)) 1)) (List range 0 (if (> (byte-len ifname) 15) 15 (byte-len ifname))))
     (def fd (inet-socket 2 %ar-die))
-    (def r (in-call (cu-ptr-call (in-c "ioctl") fd 35111 (cu-str->ptr ifr))))
-    (cu-ptr-call (in-c "close") fd)
+    (def r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35111 (cu-str->ptr ifr))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (when (< r 0) (%ar-die (string-concat (list "can't get HW-Address for '" ifname "': " (libc-strerror (Err errno-of r))))))
     (when (if (null? hw) #f (not (= (cu-ptr-ref (cu-str->ptr ifr) 16 2) (List ref 1 hw)))) (%ar-die "protocol type mismatch"))
     (map (fn (_ k) (inet-set! req (+ 16 k) (cu-ptr-ref (cu-str->ptr ifr) (+ 16 k) 1) 1)) (List range 0 16))))
@@ -204,8 +205,8 @@
     (def try (fn (_ flags)
                (do (inet-set! req 32 flags 4)
                    (let ((fd (inet-socket 2 %ar-die)))
-                     (let ((r (in-call (cu-ptr-call (in-c "ioctl") fd 35155 (cu-str->ptr req)))))
-                       (do (cu-ptr-call (in-c "close") fd)
+                     (let ((r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35155 (cu-str->ptr req)))))
+                       (do (cu-ptr-call (cu-libc-sym "close") fd)
                            (if (< r 0) (Err errno-of r) 0)))))))
     (def none (fn (_) (do (file-write 1 (string-concat (list "No ARP entry for " host "\n"))) 255)))
     (def flags (first (rest kind)))

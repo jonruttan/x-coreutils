@@ -24,8 +24,7 @@
 (module cu/ls)
 
 (import cu/cli cu-opts)
-(import cu/fs3 cu-dev-major cu-dev-minor cu-du-blocks cu-path-join
-  cu-perm-string)
+(import cu/fs3 cu-dev-major cu-dev-minor cu-du-blocks cu-perm-string)
 (import cu/prims append bit-and byte-at byte-len cu-dot? cu-int->str
   cu-member-s? cu-nth cu-stat-get date-now-unix file-list-dir file-lstat-full
   file-readlink file-stat-full file-write filter length ls-human map reverse
@@ -34,6 +33,8 @@
 (import cu/text cu-msort cu-num-prefix cu-pad-left cu-pad-right cu-pad-zero
   cu-str<)
 (import cu/text3 cu-list->vec cu-spaces)
+
+(import x/type/path Path)
 
 (def %ls-flag? (fn (_ o f) (Opts on? o f)))
 
@@ -77,7 +78,7 @@
                   (if (cu-dot? n) a?
                     (if (%ls-hidden? n) (if a? #t A?) #t)))
           listed)))
-    (map (fn (_ n) (%ls-entry n (cu-path-join dir n) follow?)) names)))
+    (map (fn (_ n) (%ls-entry n (Path join dir n) follow?)) names)))
 
 ; --- order --------------------------------------------------------------------
 
@@ -96,13 +97,12 @@
     (go (- end 1))))
 
 ; version order: a run of digits compares as a number, the rest as bytes
-(def %ls-digit? (fn (_ b) (if (>= b 48) (<= b 57) #f)))
 (def %ls-num-run
   (fn (_ s i)
     (def end (byte-len s))
     (def go (fn (self j acc)
               (if (>= j end) (pair acc j)
-                (if (%ls-digit? (byte-at s j))
+                (if (Char numeric? (byte-at s j))
                   (self (+ j 1) (+ (* acc 10) (- (byte-at s j) 48)))
                   (pair acc j)))))
     (go i 0)))
@@ -116,7 +116,7 @@
           (if (>= j lb) #f
             (let ((ca (byte-at a i)) (cb (byte-at b j)))
               (match
-                ((if (%ls-digit? ca) (%ls-digit? cb) #f)
+                ((if (Char numeric? ca) (Char numeric? cb) #f)
                   (let ((ra (%ls-num-run a i)) (rb (%ls-num-run b j)))
                     (if (< (first ra) (first rb)) #t
                       (if (> (first ra) (first rb)) #f

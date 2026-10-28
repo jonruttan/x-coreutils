@@ -24,12 +24,12 @@
 
 (import cu/cli cu-usage)
 (import cu/inet inet-set! inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/ping pn-div pn-number)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr-call
-  cu-ptr-ref cu-str->ptr cu-string-type cvt file-list-dir file-read-unsized
-  file-write length libc-strerror map reverse string-append string-concat
-  string=? substring)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
+  cu-ptr-call cu-ptr-ref cu-str->ptr cu-string-type cvt file-list-dir
+  file-read-unsized file-write length libc-strerror map reverse string-append
+  string-concat string=? substring)
 (import cu/text cu-pad-left cu-pad-zero)
 
 (def %br-root "/sys/class/net/")
@@ -118,19 +118,19 @@
 (def %br-fdb
   (fn (_ name)
     (def path (string-append (%br-16 name) "/brforward"))
-    (def fd (in-call (cu-ptr-call (in-c "open") (string-append %br-root path) 0)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "open") (string-append %br-root path) 0)))
     (when (< fd 0) (%br-die (string-concat (list "bridge " name " does not exist"))))
     (def buf (inet-zeros 16))
     (def entries
       (let go ((acc ()))
-        (let ((n (in-call (cu-ptr-call (in-c "read") fd (cu-str->ptr buf) 16))))
+        (let ((n (in-call (cu-ptr-call (cu-libc-sym "read") fd (cu-str->ptr buf) 16))))
           (match ((= n 0) acc)
                  ((not (= n 16))
-                   (do (cu-ptr-call (in-c "close") fd)
+                   (do (cu-ptr-call (cu-libc-sym "close") fd)
                        (%br-die (string-concat (list "can't read bridge " name " forward db"
                                                      (if (< n 0) (string-append ": " (libc-strerror (Err errno-of n))) ""))))))
                  (#t (go (pair (List map (fn (_ i) (& (cu-ptr-ref (cu-str->ptr buf) i 1) 255)) (List range 0 16)) acc)))))))
-    (cu-ptr-call (in-c "close") fd)
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (def mac< (fn (_ a b) (let go ((i 0)) (match ((= i 6) #f) ((< (List ref i a) (List ref i b)) #t)
                                                   ((> (List ref i a) (List ref i b)) #f) (#t (go (+ i 1)))))))
     (List sort mac< (reverse entries))))
@@ -211,11 +211,11 @@
 (def %br-write
   (fn (_ name leaf val)
     (def path (string-concat (list (%br-16 name) "/" leaf)))
-    (def fd (in-call (cu-ptr-call (in-c "open") (string-append %br-root path) 1)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "open") (string-append %br-root path) 1)))
     (when (< fd 0) (%br-die (string-concat (list "can't open '" path "': " (libc-strerror (Err errno-of fd))))))
     (def s (string-append (cu-int->str val) "\n"))
-    (def r (in-call (cu-ptr-call (in-c "write") fd s (byte-len s))))
-    (cu-ptr-call (in-c "close") fd)
+    (def r (in-call (cu-ptr-call (cu-libc-sym "write") fd s (byte-len s))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (when (< r 0) (%br-die (string-concat (list name ": " (libc-strerror (Err errno-of r))))))
     0))
 
@@ -278,7 +278,7 @@
 
 (def %br-socket
   (fn (_)
-    (let ((fd (in-call (cu-ptr-call (in-c "socket") 2 1 0))))
+    (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 1 0))))
       (if (< fd 0) (%br-die (string-append "socket(AF_INET,1,0): " (libc-strerror (Err errno-of fd)))) fd))))
 
 ; NAME in a zeroed buffer, IFNAMSIZ bytes of it
@@ -291,15 +291,15 @@
 (def %br-ioctl
   (fn (_ req arg br)
     (def fd (%br-socket))
-    (def r (in-call (cu-ptr-call (in-c "ioctl") fd req (cu-str->ptr arg))))
-    (cu-ptr-call (in-c "close") fd)
+    (def r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr arg))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (when (< r 0) (%br-die (string-concat (list "bridge " br ": " (libc-strerror (Err errno-of r))))))
     0))
 
 ; addif and delif: IFACE's index in an ifreq naming BR
 (def %br-if
   (fn (_ req br iface)
-    (def index (cu-ptr-call (in-c "if_nametoindex") iface))
+    (def index (cu-ptr-call (cu-libc-sym "if_nametoindex") iface))
     (when (= index 0) (%br-die (string-concat (list "iface " iface ": " (libc-strerror (Err errno-of (- 0 1)))))))
     (def ifr (%br-name-buf br 40))
     (inet-set! ifr 16 index 4)

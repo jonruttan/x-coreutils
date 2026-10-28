@@ -22,11 +22,11 @@
 (module cu/time)
 
 (import cu/cli cu-opts)
-(import cu/prims append byte-at byte-len cal/ cu-dlopen cu-dlsym cu-int->str
-  cu-nth cu-ptr-call cu-stdin-to-command! file-close file-err-text
-  file-open-or-err file-write reverse str-make-raw string-append string-concat
-  string=? sys-exec-or-err sys-exit sys-fork sys-getenv sys-signal)
-(import cu/text cu-join-with cu-pad-zero)
+(import cu/prims append byte-at byte-len cal/ cu-int->str cu-libc-sym cu-nth
+  cu-ptr-call cu-stdin-to-command! file-close file-err-text file-open-or-err
+  file-write reverse str-make-raw string-append string-concat string=?
+  sys-exec-or-err sys-exit sys-fork sys-getenv sys-signal)
+(import cu/text cu-pad-zero)
 
 (def %tm-str->ptr (prim-ref (lit str) (lit ->ptr)))
 (def %tm-ptr->int (prim-ref (lit ptr) (lit ->int)))
@@ -35,9 +35,8 @@
 
 (def %tm-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %tm-c-wait4 (cu-dlsym lib "wait4"))
-    (set! %tm-c-getpagesize (cu-dlsym lib "getpagesize"))))
+    (set! %tm-c-wait4 (cu-libc-sym "wait4"))
+    (set! %tm-c-getpagesize (cu-libc-sym "getpagesize"))))
 
 ; the K bytes of S from I, a little-endian number
 (def %tm-le
@@ -120,7 +119,7 @@
     (def ticks (let ((t (cal/ vv 10))) (if (= t 0) 1 t)))
     (def n (fn (_ f) (cu-int->str (%tm-ru ru f))))
     (match
-      ((= c #\C) (cu-join-with (cu-nth 3 run) " "))
+      ((= c #\C) (Str8 join " " (cu-nth 3 run)))
       ((= c #\D) (cu-int->str (cal/ (+ (%tm-ru ru (lit idrss)) (%tm-ru ru (lit isrss))) ticks)))
       ((= c #\E)
         (let ((sec (cal/ elapsed 1000)))

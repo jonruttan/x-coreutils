@@ -15,10 +15,10 @@
 (module cu/ipcalc)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims bit-and bit-or bit-xor byte-at byte-len cu-dlopen cu-dlsym
-  cu-int->ptr cu-int->str cu-nth cu-ptr->str cu-ptr-call cu-ptr-set!
+(import cu/prims bit-and bit-or bit-xor byte-at byte-len cu-int->ptr
+  cu-int->str cu-libc-sym cu-nth cu-ptr->str cu-ptr-call cu-ptr-set!
   cu-ptr-word cu-str->ptr file-write length net-aton str-make-raw
-  string-append string-concat substring wget-div wget-index wget-lower)
+  string-append string-concat substring wget-div wget-index)
 (import cu/sha256 cu-m32)
 
 (def %ic-silent #f)
@@ -67,7 +67,7 @@
 ; gethostbyaddr's name for IP, lower case, or nil
 (def %ic-host-name
   (fn (_ ip)
-    (def f (cu-dlsym (cu-dlopen () 1) "gethostbyaddr"))
+    (def f (cu-libc-sym "gethostbyaddr"))
     (def buf (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr buf) 0 (% (wget-div ip 16777216) 256) 1)
     (cu-ptr-set! (cu-str->ptr buf) 1 (% (wget-div ip 65536) 256) 1)
@@ -75,7 +75,7 @@
     (cu-ptr-set! (cu-str->ptr buf) 3 (% ip 256) 1)
     (def r (if (null? f) 0 (cu-ptr-call f (cu-str->ptr buf) 4 2)))
     (if (= r 0) ()
-      (wget-lower (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0)))))))
+      (Str8 downcase (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0)))))))
 
 (def cu-ipcalc
   (fn (_ argv stdin-thunk)
