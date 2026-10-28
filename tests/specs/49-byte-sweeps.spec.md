@@ -17,7 +17,9 @@ ever grows past it is stopped, and the child's status says so.  Each bound
 sits about half again above what the tool holds at its fullest on the release
 lang.xon declares, and under what an unswept walk leaves over the same input:
 the walks whose bytes cost the least run on 15,997 bytes, the dearer ones on
-3,995.  tr's runs are counted in a child that counts the writes it makes.
+3,995.  sum's fullest is x/codec/sum building its compiled engine, which on a
+cold X_ASM_CACHE_DIR is 2.6M objects for sum and 2.5M for sum -s.  tr's runs
+are counted in a child that counts the writes it makes.
 
 ## the fixtures
 
@@ -38,7 +40,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 ### wc, sum and sum -s on 15,997 bytes
 
 ```cu
-(display (list (under? (list "wc") in16k 3700000) (under? (list "sum") in16k 2900000) (under? (list "sum" "-s") in16k 2000000)))
+(display (list (under? (list "wc") in16k 3700000) (under? (list "sum") in16k 3900000) (under? (list "sum" "-s") in16k 3700000)))
 ```
 ---
     (#t #t #t)
