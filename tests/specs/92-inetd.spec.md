@@ -34,7 +34,7 @@ shown as LPORT, @Q's as QPORT.
   (def in-prep (fn (_ args conf script req port)
     (sys-setenv "IN_ARGS" args) (sys-setenv "IN_CONF" conf) (sys-setenv "IN_SCRIPT" script)
     (sys-setenv "IN_REQ" req) (sys-setenv "IN_PORT" (cu-int->str port))
-    (proc-run (list "/bin/sh" "-c" (string-concat (list
+    (proc-run (list "/bin/sh" "-c" (%str-concat (list
       "d=/tmp/x-cu-inetd; p=$IN_PORT; u=$(id -un); rm -f $d/got $d/log; "
       "sub() { sed -e \"s/@P/$p/g\" -e \"s/@Q/$((p+50))/g\" -e \"s/@U/$u/g\" -e \"s#@C#$d/conf#g\"; }; "
       "for s in echo discard chargen daytime time myserv; do printf '%s %s/tcp\\n%s %s/udp\\n' $s $p $s $p; done > $d/services; "
@@ -109,12 +109,12 @@ shown as LPORT, @Q's as QPORT.
   (def in-digits? (fn (_ s) (if (> (byte-len s) 1) (not (null? (wget-digits (substring s 1 (byte-len s))))) #f)))
   (def in-exchange (fn (_ kind port pid req)
     (match ((string=? kind "t") (string-append "===\n" (in-tcp (in-conn port) req ())))
-           ((string=? kind "t2") (string-concat (list "===\n" (in-tcp (in-conn port) req ()) "===\n" (in-tcp (in-conn port) req ()))))
-           ((string=? kind "tl") (string-concat (list "===\n" (cu-int->str (in-tcp-count (in-conn port) req)) "\n")))
+           ((string=? kind "t2") (%str-concat (list "===\n" (in-tcp (in-conn port) req ()) "===\n" (in-tcp (in-conn port) req ()))))
+           ((string=? kind "tl") (%str-concat (list "===\n" (cu-int->str (in-tcp-count (in-conn port) req)) "\n")))
            ((string=? kind "t6") (string-append "===\n" (in-tcp (in-conn6 port) req ())))
-           ((in-digits? kind) (string-concat (list "===\n" (in-tcp (in-conn port) req (wget-digits (substring kind 1 (byte-len kind)))) "\n")))
+           ((in-digits? kind) (%str-concat (list "===\n" (in-tcp (in-conn port) req (wget-digits (substring kind 1 (byte-len kind)))) "\n")))
            ((string=? kind "u") (string-append "===\n" (in-udp port req)))
-           ((string=? kind "ul") (string-concat (list "===\n" (cu-int->str (in-udp-count port req)) "\n")))
+           ((string=? kind "ul") (%str-concat (list "===\n" (cu-int->str (in-udp-count port req)) "\n")))
            ((string=? kind "h")
              (let ((before (in-tcp (in-conn port) "hi\n" ())))
                (do (file-write-all (in-f "conf") (file-read-all (in-f "conf2")))
@@ -132,9 +132,9 @@ shown as LPORT, @Q's as QPORT.
     (sys-usleep 400000)
     (sys-kill pid 15)
     (def st (sys-wait pid))
-    (def got (if (file-exists? (in-f "got")) (string-concat (list "--- got\n" (file-read-all (in-f "got")) "\n")) ""))
+    (def got (if (file-exists? (in-f "got")) (%str-concat (list "--- got\n" (file-read-all (in-f "got")) "\n")) ""))
     (let ((fd (file-open-write (in-f "raw"))))
-      (do (file-write fd (string-concat (list out "[status " (cu-int->str st) "]\n" (file-read-all (in-f "log")) got)))
+      (do (file-write fd (%str-concat (list out "[status " (cu-int->str st) "]\n" (file-read-all (in-f "log")) got)))
           (file-close fd)))
     (proc-run (list "/bin/sh" "-c" "q=$((IN_PORT+50)); sed -E -e \"s/(^|[^0-9])$IN_PORT([^0-9]|\\$)/\\1LPORT\\2/g\" -e \"s/(^|[^0-9])$q([^0-9]|\\$)/\\1QPORT\\2/g\" -e 's/Address already in use/Address in use/' /tmp/x-cu-inetd/raw > /tmp/x-cu-inetd/norm"))
     (display (file-read-all (in-f "norm")))))

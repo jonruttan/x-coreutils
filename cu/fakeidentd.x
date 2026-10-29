@@ -22,8 +22,8 @@
   in-sockaddr6)
 (import cu/prims append byte-at byte-len cu-libc-sym cu-nth cu-ptr-call
   cu-sig-ign cu-str->ptr cu-sweep-lines cu-sweep-tick! file-write filter map
-  net-aton net-sockaddr net-stdin-socket str-make-raw string-append
-  string-concat substring sys-close sys-poll sys-signal)
+  net-aton net-sockaddr net-stdin-socket str-make-raw string-append substring
+  sys-close sys-poll sys-signal)
 (import cu/session hd-daemonize)
 
 (def %fi-limit 59)
@@ -35,7 +35,7 @@
   (fn (_ msg)
     (if %fi-syslog?
       (cu-ptr-call (cu-libc-sym "syslog") 3 (in-percent msg))
-      (file-write 2 (string-concat (list "fakeidentd: " msg "\n"))))))
+      (file-write 2 (%str-concat (list "fakeidentd: " msg "\n"))))))
 
 (def %fi-die (fn (_ msg) (Err raise (lit net) msg ())))
 
@@ -51,7 +51,7 @@
              (#t (go (+ i 1)))))))
 
 (def %fi-answer
-  (fn (_ line) (string-concat (list line " : USERID : UNIX : " %fi-user "\r\n"))))
+  (fn (_ line) (%str-concat (list line " : USERID : UNIX : " %fi-user "\r\n"))))
 
 ; -i: the query read from stdin as it comes, the answer on stdout
 (def %fi-inetd
@@ -77,7 +77,7 @@
     (def sa
       (if (null? addr)
         (in-sockaddr6 () 113)
-        (if (null? (net-aton addr)) (%fi-die (string-concat (list "bad address '" addr "'")))
+        (if (null? (net-aton addr)) (%fi-die (%str-concat (list "bad address '" addr "'")))
           (pair (net-sockaddr addr 113) 16))))
     (def af (if (= (rest sa) 16) 2 (in-af (lit inet6))))
     (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") af 1 0)))

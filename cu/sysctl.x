@@ -21,8 +21,7 @@
 (import cu/prims byte-at byte-len cu-lines cu-sweep-lines cu-sweep-tick!
   file-close file-dir? file-err-sym file-err-text file-exists? file-list-dir
   file-open-err file-open-read file-open-write file-or-err file-read-all
-  file-read-to-end file-write map reverse string-append string-concat string=?
-  substring)
+  file-read-to-end file-write map reverse string-append string=? substring)
 
 (def %sy-root "/proc/sys/")
 
@@ -100,7 +99,7 @@
                   (do (unless (Opts on? o "-e") (%sy-say (string-append "error: '" out "' is an unknown key"))) #f))
                 ; a key only written, as net.ipv6.route.flush, is passed over when read
                 ((if (eq? (file-err-sym e) (lit eacces)) (not writing) #f) #t)
-                (#t (do (%sy-say (string-concat (list "error " (if writing "sett" "read") "ing key '" out "': " (file-err-text e)))) #f))))
+                (#t (do (%sy-say (%str-concat (list "error " (if writing "sett" "read") "ing key '" out "': " (file-err-text e)))) #f))))
             (if writing
               (let ((value (substring setting (+ eq 1) (byte-len setting))))
                 (do (file-write fd value) (file-close fd)
@@ -110,7 +109,7 @@
               (let ((text (file-read-to-end fd path)))
                 (do (file-close fd)
                     (if (Err err? text)
-                      (do (%sy-say (string-concat (list "error reading key '" out "': " (file-err-text text)))) #f)
+                      (do (%sy-say (%str-concat (list "error reading key '" out "': " (file-err-text text)))) #f)
                       (do (%sy-lines text (if keys? (string-append out " = ") ""))
                           #t)))))))))))
 
@@ -142,7 +141,7 @@
   (fn (_ o file)
     (let ((text (file-or-err (fn (_) (file-read-all file)))))
       (if (Err err? text)
-        (do (%sy-say (string-concat (list file ": " (file-err-text text)))) #f)
+        (do (%sy-say (%str-concat (list file ": " (file-err-text text)))) #f)
         (do (map (fn (_ line)
                    (let ((t (sy-trim line)))
                      (unless (if (= (byte-len t) 0) #t (if (= (byte-at t 0) #\#) #t (= (byte-at t 0) #\;)))

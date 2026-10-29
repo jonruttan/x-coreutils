@@ -25,11 +25,11 @@ directory: a DIR is a chroot, which only root may make.
     (let ((t (file-read-all (td-f "words")))) (if (= (byte-len t) 0) () (filter (fn (_ l) (> (byte-len l) 0)) (Str8 split "\n" t))))))
   (def td-hex (fn (_ run)
     (def h "0123456789abcdef")
-    (string-concat
+    (%str-concat
       (let go ((i (- (rest run) 1)) (acc ()))
         (if (< i 0) acc
           (let ((b (& (byte-at (first run) i) 255)))
-            (go (- i 1) (pair (string-concat (list (substring h (wget-div b 16) (+ (wget-div b 16) 1))
+            (go (- i 1) (pair (%str-concat (list (substring h (wget-div b 16) (+ (wget-div b 16) 1))
                                                    (substring h (% b 16) (+ (% b 16) 1))
                                                    (if (null? acc) "" " ")))
                               acc))))))))
@@ -45,7 +45,7 @@ directory: a DIR is a chroot, which only root may make.
       (if (null? (sys-poll (list (pair s (list (lit in)))) 1000)) (reverse acc)
         (go (pair (td-hex (first (net-recv-from-run s 1024))) acc)))))
     (net-close s)
-    (string-concat (list (string-concat (let j ((xs got)) (if (null? xs) () (pair (first xs) (if (null? (rest xs)) () (pair " " (j (rest xs)))))))) "\nclient status 0\n"))))
+    (%str-concat (list (%str-concat (let j ((xs got)) (if (null? xs) () (pair (first xs) (if (null? (rest xs)) () (pair " " (j (rest xs)))))))) "\nclient status 0\n"))))
   (def td-client (fn (_ port words)
     (Sys chdir "/tmp/x-cu-td/cli")
     (sys-dup2 1 9) (sys-dup2 2 8)
@@ -55,7 +55,7 @@ directory: a DIR is a chroot, which only root may make.
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close out)
     (Sys chdir "/")
     (td-sh "tr '\\r' '\\n' < /tmp/x-cu-td/cout | grep -v -e '% |' -e '^ *$' > /tmp/x-cu-td/cout2")
-    (string-append (file-read-all (td-f "cout2")) (string-concat (list "client status " (cu-int->str st) "\n")))))
+    (string-append (file-read-all (td-f "cout2")) (%str-concat (list "client status " (cu-int->str st) "\n")))))
   (def td-run (fn (_ args pre client)
     (sys-setenv "TD_PRE" pre)
     (td-sh "rm -rf /tmp/x-cu-td; mkdir -p /tmp/x-cu-td/srv /tmp/x-cu-td/cli; cd /tmp/x-cu-td/srv && sh -c \"$TD_PRE\" >/dev/null 2>&1; printf 'client\\n' > /tmp/x-cu-td/cli/c.txt")
@@ -763,7 +763,7 @@ before it reads an option, -u's user too.
 ### the fixture: a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (def nf (fn (_ n) (string-append "/tmp/x-cu-td/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
+(do (def nf (fn (_ n) (string-append "/tmp/x-cu-td/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (%str-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
 ```
 ---
     made

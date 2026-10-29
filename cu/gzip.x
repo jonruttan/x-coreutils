@@ -29,7 +29,7 @@
   cu-int->ptr cu-ptr-set! cu-stat-get cu-str->ptr cu-sweep-tick! file-close
   file-err-text file-open-err file-open-wronly file-set-times file-stat-full
   file-unlink file-write filter gz-word-bytes length reverse str-make-raw
-  string-append string-concat string=? substring vec-build vec-ref vec-set!)
+  string-append string=? substring vec-build vec-ref vec-set!)
 (import cu/text cu-pieces)
 
 (import x/codec/deflate)
@@ -43,9 +43,9 @@
 
 ; the run ends: MSG said under the applet's NAME, and the status 1
 (def %gz-die
-  (fn (_ name msg) (Err raise (lit gzip) (string-concat (list name ": " msg)) ())))
+  (fn (_ name msg) (Err raise (lit gzip) (%str-concat (list name ": " msg)) ())))
 
-(def %gz-say (fn (_ name msg) (file-write 2 (string-concat (list name ": " msg "\n")))))
+(def %gz-say (fn (_ name msg) (file-write 2 (%str-concat (list name ": " msg "\n")))))
 
 ; N bytes of BUF written to FD
 (def %gz-write!
@@ -393,11 +393,11 @@
     (def st (if stdin? () (file-stat-full file)))
     (match
       ((if (not stdin?) (null? st) #f)
-        (do (%gz-say name (string-concat (list file ": " (%gz-why (lit stat) file)))) 1))
+        (do (%gz-say name (%str-concat (list file ": " (%gz-why (lit stat) file)))) 1))
       (#t
         (let ((src (cu-pieces file stdin-thunk)))
           (if (Err err? src)
-            (do (%gz-say name (string-concat (list file ": " (file-err-text src)))) 1)
+            (do (%gz-say name (%str-concat (list file ": " (file-err-text src)))) 1)
             (%gz-to t file stdin? st (%gz-checked t src))))))))
 
 (def %gz-why
@@ -444,7 +444,7 @@
     (let ((fd (File open new (list (lit wronly) (lit creat) (lit excl)) mode)))
       (if (< fd 0)
         (do (%gz-close-src src)
-            (%gz-say name (string-concat (list "can't open '" new "': " (file-err-text (file-open-err fd new)))))
+            (%gz-say name (%str-concat (list "can't open '" new "': " (file-err-text (file-open-err fd new)))))
             1)
         (let ((mtime (list 0)))
           ; an error gzip does not say itself still takes the new file away

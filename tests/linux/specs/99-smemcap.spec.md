@@ -36,25 +36,25 @@ first process's directory and cmdline.
                 (def st (cu-run (list "smemcap") ""))
                 (Host proc-root "/proc")
                 (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
-                (string-concat (list "stderr:\n" (file-read-all (lx-nf "ours.err")) "status " (cu-int->str st) "\n")))))))
+                (%str-concat (list "stderr:\n" (file-read-all (lx-nf "ours.err")) "status " (cu-int->str st) "\n")))))))
     ; busybox's, chrooted into R or on the kernel's /proc: the archive in bb.tar
     (def lx-bb (fn (_ cmd)
-      (do (lx-sh (string-concat (list cmd " > /tmp/x-cu-smc/bb.tar 2> /tmp/x-cu-smc/bb.raw; echo $? > /tmp/x-cu-smc/bb.st; sed '/^BusyBox v/{N;d;}' /tmp/x-cu-smc/bb.raw > /tmp/x-cu-smc/bb.err")))
-          (string-concat (list "stderr:\n" (file-read-all (lx-nf "bb.err")) "status " (file-read-all (lx-nf "bb.st")))))))
+      (do (lx-sh (%str-concat (list cmd " > /tmp/x-cu-smc/bb.tar 2> /tmp/x-cu-smc/bb.raw; echo $? > /tmp/x-cu-smc/bb.st; sed '/^BusyBox v/{N;d;}' /tmp/x-cu-smc/bb.raw > /tmp/x-cu-smc/bb.err")))
+          (%str-concat (list "stderr:\n" (file-read-all (lx-nf "bb.err")) "status " (file-read-all (lx-nf "bb.st")))))))
     (def lx-same? (fn (_) (= (lx-sh "cmp -s /tmp/x-cu-smc/ours.tar /tmp/x-cu-smc/bb.tar") 0)))
     ; the tree D both ways, the archives' bytes and the runs' words compared
     (def lx-tree (fn (_ d)
       (do (def lx-a (Str8 replace (lx-nf d) "/proc" (lx-ours (lx-nf d))))
-          (def lx-b (lx-bb (string-concat (list "chroot /tmp/x-cu-smc/r" d " /busybox-extra smemcap"))))
+          (def lx-b (lx-bb (%str-concat (list "chroot /tmp/x-cu-smc/r" d " /busybox-extra smemcap"))))
           (display (if (if (string=? lx-a lx-b) (lx-same?) #f) "same\n"
-                     (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b
+                     (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b
                                           (if (lx-same?) "" "the archives differ\n"))))))))
     ; what holds still in an archive of the kernel's /proc, F ours.tar or
     ; bb.tar: the members named, their modes and owners, in order; version's
     ; and the first process's cmdline's bytes.  A /proc file's time is when its inode
     ; was made, which may be either run's.
     (def lx-still (fn (_ f)
-      (do (lx-sh (string-concat (list "cd /tmp/x-cu-smc && { busybox tar tvf " f " | awk '$NF ~ /^(meminfo|version|1|1\\/smaps|1\\/cmdline|1\\/stat)$/ { print $1, $2, $NF }'; busybox tar xOf " f " version 1/cmdline | od -c; } > " f ".still")))
+      (do (lx-sh (%str-concat (list "cd /tmp/x-cu-smc && { busybox tar tvf " f " | awk '$NF ~ /^(meminfo|version|1|1\\/smaps|1\\/cmdline|1\\/stat)$/ { print $1, $2, $NF }'; busybox tar xOf " f " version 1/cmdline | od -c; } > " f ".still")))
           (file-read-all (lx-nf (string-append f ".still"))))))
     (display (if (file-exists? (lx-nf "rnone/busybox-extra")) "made" "fixture incomplete")))
 ```
@@ -99,9 +99,9 @@ same
 
 ```cu
 (do (def lx-a (lx-ours "/proc")) (def lx-b (lx-bb "/usr/local/bin/busybox-extra smemcap"))
-    (display (if (string=? lx-a lx-b) "" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b))))
+    (display (if (string=? lx-a lx-b) "" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b))))
     (def lx-sa (lx-still "ours.tar")) (def lx-sb (lx-still "bb.tar"))
-    (display (if (if (string=? lx-sa lx-sb) (> (byte-len lx-sa) 0) #f) "same\n" (string-concat (list "ours:\n" lx-sa "busybox:\n" lx-sb)))))
+    (display (if (if (string=? lx-sa lx-sb) (> (byte-len lx-sa) 0) #f) "same\n" (%str-concat (list "ours:\n" lx-sa "busybox:\n" lx-sb)))))
 ```
 ---
     same

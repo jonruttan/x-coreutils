@@ -31,14 +31,14 @@ its place, and the two sides' output and statuses are compared.
           (def lx-w (cu-ptr-ref (cu-str->ptr lx-raw) 0 4))
           (def lx-sig (% lx-w 128))
           (def lx-st (if (> lx-sig 0) (+ 128 lx-sig) (% (>> lx-w 8) 256)))
-          (string-concat (list (lx-read "/tmp/lx-ns-xo") "stderr:\n" (lx-read "/tmp/lx-ns-xe")
+          (%str-concat (list (lx-read "/tmp/lx-ns-xo") "stderr:\n" (lx-read "/tmp/lx-ns-xe")
                                (if (= lx-sig 9) "Killed\n" "") "status " (cu-int->str lx-st) "\n")))))
     (def lx-bb1 (fn (_ argv)
-      (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " < /dev/null > /tmp/lx-ns-bo 2> /tmp/lx-ns-bx; echo $? > /tmp/lx-ns-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-ns-bx > /tmp/lx-ns-be")))
-          (string-concat (list (lx-read "/tmp/lx-ns-bo") "stderr:\n" (lx-read "/tmp/lx-ns-be") "status " (lx-read "/tmp/lx-ns-bs"))))))
+      (do (lx-sh (%str-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " < /dev/null > /tmp/lx-ns-bo 2> /tmp/lx-ns-bx; echo $? > /tmp/lx-ns-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-ns-bx > /tmp/lx-ns-be")))
+          (%str-concat (list (lx-read "/tmp/lx-ns-bo") "stderr:\n" (lx-read "/tmp/lx-ns-be") "status " (lx-read "/tmp/lx-ns-bs"))))))
     ; the three processes, their pids in /tmp/lx-ns-{a,q,u}
     (def lx-make (fn (_)
-      (lx-sh (string-concat (list
+      (lx-sh (%str-concat (list
         "rm -f /tmp/lx-ns-a /tmp/lx-ns-p /tmp/lx-ns-q /tmp/lx-ns-u; "
         "/bin/busybox unshare -u -i -n -m sh -c 'hostname lx-inner; echo 1234 > /proc/sys/kernel/msgmax; "
         "mount -t tmpfs none /mnt && touch /mnt/lx-inner; cd /usr; echo $$ > /tmp/lx-ns-a; exec sleep 999' > /dev/null 2>&1 & "
@@ -56,12 +56,12 @@ its place, and the two sides' output and statuses are compared.
           (def lx-ids (list (pair "A" (lx-word "/tmp/lx-ns-a")) (pair "Q" (lx-word "/tmp/lx-ns-q"))
                             (pair "U" (lx-word "/tmp/lx-ns-u"))))
           (def lx-at (fn (_ w) (let ((e (List find (fn (_ e) (string=? (first e) w)) lx-ids))) (if (null? e) w (rest e)))))
-          (def lx-out (string-concat (map (fn (_ argv) (one (map lx-at argv))) runs)))
+          (def lx-out (%str-concat (map (fn (_ argv) (one (map lx-at argv))) runs)))
           (lx-end)
           lx-out)))
     (def lx-case (fn (_ runs)
       (do (def lx-a (lx-run lx-x1 runs)) (def lx-b (lx-run lx-bb1 runs))
-          (display (if (string=? lx-a lx-b) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
+          (display (if (string=? lx-a lx-b) "same\n" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
     (display "made"))
 ```
 ---

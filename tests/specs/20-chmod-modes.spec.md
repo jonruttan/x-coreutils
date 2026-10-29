@@ -10,7 +10,7 @@ starting mode.
 ### a scratch directory, and readers that set a mode and show what came of it
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-md && mkdir -p /tmp/x-cu-md")) (def shown (fn (_ p st) (do (display (cu-oct->str (bit-and (cu-stat-get (file-stat-full p) (lit mode)) 4095))) (display " status ") (display st) (newline)))) (def mf (fn (_ start mode) (do (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -f /tmp/x-cu-md/f && : > /tmp/x-cu-md/f && chmod " start " /tmp/x-cu-md/f")))) (shown "/tmp/x-cu-md/f" (cu-run (list "chmod" mode "/tmp/x-cu-md/f") ""))))) (def md (fn (_ start mode) (do (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -rf /tmp/x-cu-md/d && mkdir /tmp/x-cu-md/d && chmod " start " /tmp/x-cu-md/d")))) (shown "/tmp/x-cu-md/d" (cu-run (list "chmod" mode "/tmp/x-cu-md/d") ""))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-md && mkdir -p /tmp/x-cu-md")) (def shown (fn (_ p st) (do (display (cu-oct->str (bit-and (cu-stat-get (file-stat-full p) (lit mode)) 4095))) (display " status ") (display st) (newline)))) (def mf (fn (_ start mode) (do (proc-run (list "/bin/sh" "-c" (%str-concat (list "rm -f /tmp/x-cu-md/f && : > /tmp/x-cu-md/f && chmod " start " /tmp/x-cu-md/f")))) (shown "/tmp/x-cu-md/f" (cu-run (list "chmod" mode "/tmp/x-cu-md/f") ""))))) (def md (fn (_ start mode) (do (proc-run (list "/bin/sh" "-c" (%str-concat (list "rm -rf /tmp/x-cu-md/d && mkdir /tmp/x-cu-md/d && chmod " start " /tmp/x-cu-md/d")))) (shown "/tmp/x-cu-md/d" (cu-run (list "chmod" mode "/tmp/x-cu-md/d") ""))))) (display "made"))
 ```
 ---
     made

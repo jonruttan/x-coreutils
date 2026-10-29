@@ -72,7 +72,7 @@
 
 (def %vi-options-shown
   (fn (_)
-    (string-concat
+    (%str-concat
       (list (%vi-no %vi-ai) "autoindent " (%vi-no %vi-et) "expandtab "
             (%vi-no %vi-fl) "flash " (%vi-no %vi-ic) "ignorecase "
             (%vi-no %vi-sm) "showmatch tabstop=" (%vi-num->str %vi-tabstop)
@@ -260,8 +260,8 @@
       ((vi< n 1) "")
       ((vi< 32 n) (string-append (self b 32) (self b (vi- n 32))))
       (#t (vi-bsub (if (= b #\tab) %vi-tab-run %vi-space-run) 0 n)))))
-(def %vi-tab-run (string-concat (List map (fn (_ i) (bytes->str (list 9))) (List range 0 32))))
-(def %vi-space-run (string-concat (List map (fn (_ i) " ") (List range 0 32))))
+(def %vi-tab-run (%str-concat (List map (fn (_ i) (bytes->str (list 9))) (List range 0 32))))
+(def %vi-space-run (%str-concat (List map (fn (_ i) " ") (List range 0 32))))
 
 ; Tab with expandtab: spaces to the next tab stop, each recorded on its own
 ; as busybox puts them in one at a time

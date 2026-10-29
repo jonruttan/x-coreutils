@@ -20,16 +20,16 @@
 (import cu/inetd in-call)
 (import cu/prims bit-and bit-or bit-shl bit-xor byte-at byte-len cu-err-label
   cu-int->str cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-err-sym
-  file-err-text file-write libc-strerror string-append string-concat string=? substring
+  file-err-text file-write libc-strerror string-append string=? substring
   sys-exec-or-err sys-exit sys-getegid sys-geteuid sys-getgid sys-getgroups
   sys-getuid)
 
 (def %sp-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "setpriv: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "setpriv: " msg "\n")))
         (Err raise (lit setpriv) msg ()))))
 
-(def %sp-warn (fn (_ msg) (file-write 2 (string-concat (list "setpriv: " msg "\n")))))
+(def %sp-warn (fn (_ msg) (file-write 2 (%str-concat (list "setpriv: " msg "\n")))))
 
 (def %sp-usage (fn (_) (Err raise (lit setpriv-usage) "usage" ())))
 
@@ -52,7 +52,7 @@
     (%sp-call %sp-prctl-door (fn (_ door) (door a0 a1 a2 0 0)))))
 
 ; perror's words: WHAT, then why the call failed
-(def %sp-why (fn (_ what r) (string-concat (list what ": " (libc-strerror (rest r))))))
+(def %sp-why (fn (_ what r) (%str-concat (list what ": " (libc-strerror (rest r))))))
 
 ; the capabilities by number, as busybox names them; numbers up to the
 ; last the kernel headers know, CAP_CHECKPOINT_RESTORE, are valid
@@ -111,7 +111,7 @@
                (match ((null? ns) ()) ((%sp-same-case? (first ns) name) k) (#t (find (rest ns) (+ k 1)))))
              n))
     (if (if (null? i) #t (> i %sp-last-cap))
-      (%sp-die (string-concat (list "unknown capability '" name "'")))
+      (%sp-die (%str-concat (list "unknown capability '" name "'")))
       i)))
 
 ; a +CAP or -CAP word's capability number
@@ -119,7 +119,7 @@
   (fn (_ word)
     (def c (if (> (byte-len word) 0) (byte-at word 0) 0))
     (unless (if (= c #\+) #t (= c #\-))
-      (%sp-die (string-concat (list "invalid capability '" word "'"))))
+      (%sp-die (%str-concat (list "invalid capability '" word "'"))))
     (%sp-cap-number (substring word 1 (byte-len word)))))
 
 ; strtok's words of S between commas, the empty ones dropped
@@ -173,7 +173,7 @@
 (def %sp-cap-line
   (fn (_ title has?)
     (def held (List filter has? (List range 0 (+ %sp-last-cap 1))))
-    (string-concat (list title ": "
+    (%str-concat (list title ": "
                          (if (null? held) "[none]" (Str8 join "," (map %sp-cap-name held)))
                          "\n"))))
 
@@ -188,7 +188,7 @@
     (def groups (sys-getgroups))
     (def nnp (%sp-prctl 39 0 0))
     (when (< (first nnp) 0) (%sp-die (%sp-why "prctl: GET_NO_NEW_PRIVS" nnp)))
-    (file-write 1 (string-concat
+    (file-write 1 (%str-concat
                     (list "uid: " (cu-int->str (sys-getuid)) "\neuid: " (cu-int->str (sys-geteuid))
                           "\ngid: " (cu-int->str (sys-getgid)) "\negid: " (cu-int->str (sys-getegid))
                           "\nSupplementary groups: "
@@ -208,7 +208,7 @@
   (fn (_ prog)
     (do (cu-stdin-to-command!)
         (let ((e (sys-exec-or-err (first prog) (rest prog))))
-          (do (file-write 2 (string-concat (list "setpriv: can't execute '" (first prog) "': " (file-err-text e) "\n")))
+          (do (file-write 2 (%str-concat (list "setpriv: can't execute '" (first prog) "': " (file-err-text e) "\n")))
               (sys-exit (if (eq? (file-err-sym e) (lit enoent)) 127 126)))))))
 
 (def %sp-main

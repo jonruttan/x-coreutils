@@ -28,9 +28,9 @@
 (import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-nth
   cu-ptr-call cu-ptr-ref cu-sig-ign cu-str->ptr file-close file-err-text
   file-open-or-err file-open-read file-read-run file-write length map reverse
-  set-first! string-append string-concat string=? substring sys-close sys-dup2
-  sys-exit sys-fork sys-getpid sys-pipe sys-setenv sys-signal sys-time-ms
-  sys-wait wget-index)
+  set-first! string-append string=? substring sys-close sys-dup2 sys-exit
+  sys-fork sys-getpid sys-pipe sys-setenv sys-signal sys-time-ms sys-wait
+  wget-index)
 (import cu/telnet tn-run)
 
 (def %mm-charset "us-ascii")
@@ -57,14 +57,14 @@
 (def mm-b64
   (fn (_ bytes)
     (let go ((l bytes) (acc ()))
-      (if (null? l) (string-concat (reverse acc))
+      (if (null? l) (%str-concat (reverse acc))
         (let ((b0 (first l))
               (b1 (if (null? (rest l)) () (first (rest l))))
               (b2 (if (if (null? (rest l)) #t (null? (rest (rest l)))) () (first (rest (rest l))))))
           (def n (+ (* b0 65536) (* (if (null? b1) 0 b1) 256) (if (null? b2) 0 b2)))
           (def c (fn (_ shift) (%mm-b64-char (% (/ (- n (% n shift)) shift) 64))))
           (go (if (null? b2) () (rest (rest (rest l))))
-              (pair (string-concat (list (c 262144) (c 4096) (if (null? b1) "=" (c 64)) (if (null? b2) "=" (%mm-b64-char (% n 64)))))
+              (pair (%str-concat (list (c 262144) (c 4096) (if (null? b1) "=" (c 64)) (if (null? b2) "=" (%mm-b64-char (% n 64)))))
                     acc)))))))
 
 ; the value of base64 character T, 64 for a padding =, or nil
@@ -119,16 +119,16 @@
     (set-first! mm-in ())
     (map (fn (_ h) (say (string-append h "\n"))) (Opts values o "-a"))
     (def r (fn (_) (in-call (cu-ptr-call (cu-libc-sym "random")))))
-    (def boundary (string-concat (list (cu-int->str (r)) "-" (cu-int->str (r)) "-" (cu-int->str (r)))))
-    (say (string-concat (list "Mime-Version: 1.0\nContent-Type: multipart/mixed; boundary=\"" boundary "\"\n")))
+    (def boundary (%str-concat (list (cu-int->str (r)) "-" (cu-int->str (r)) "-" (cu-int->str (r)))))
+    (say (%str-concat (list "Mime-Version: 1.0\nContent-Type: multipart/mixed; boundary=\"" boundary "\"\n")))
     (let go ((fs files))
-      (if (null? fs) (do (say (string-concat (list "\n--" boundary "--\n\n"))) 0)
-        (do (say (string-concat (list "\n--" boundary "\nContent-Type: " type "; charset=" charset
+      (if (null? fs) (do (say (%str-concat (list "\n--" boundary "--\n\n"))) 0)
+        (do (say (%str-concat (list "\n--" boundary "\nContent-Type: " type "; charset=" charset
                                       "\nContent-Disposition: inline; filename=\"" (%mm-last-component (first fs))
                                       "\"\nContent-Transfer-Encoding: base64\n")))
             (let ((err (%mm-put-file (%mm-strip (first fs)) say)))
               (if (null? err) (go (rest fs))
-                (do (file-write 2 (string-concat (list "makemime: can't open '" (%mm-strip (first fs)) "': " err "\n")))
+                (do (file-write 2 (%str-concat (list "makemime: can't open '" (%mm-strip (first fs)) "': " err "\n")))
                     1))))))))
 
 ; a file's bytes, 57 at a time, each piece a base64 line after a newline: nil,
@@ -171,7 +171,7 @@
           (set-first! mm-in ())
           (sys-signal 13 0)
           (guard (e (if (eq? (Err label e) (lit net))
-                      (do (file-write 2 (string-concat (list "reformime: " (e msg) "\n"))) 1)
+                      (do (file-write 2 (%str-concat (list "reformime: " (e msg) "\n"))) 1)
                       (error e)))
             (%mm-parse ""
               (if (Opts on? o "-X") (Opts operands o) ())
@@ -236,7 +236,7 @@
             (let ((type (%mm-token tokens "Content-Type:" "text/plain")))
               (if (if (>= (byte-len type) 10) (mm-ci= (substring type 0 10) "multipart/") #f)
                 (do (unless (mm-ci= (substring type 10 (byte-len type)) "mixed")
-                      (%mm-die (string-concat (list "no support of content type '" type "'"))))
+                      (%mm-die (%str-concat (list "no support of content type '" type "'"))))
                     (let ((b (%mm-token tokens "boundary" ())))
                       (when (null? b) (%mm-die "not found: 'boundary'"))
                       (self b prog prefix))
@@ -253,7 +253,7 @@
     (def encoding (%mm-token tokens "Content-Transfer-Encoding:" "7bit"))
     (def named (%mm-token tokens "filename" ()))
     (def filename (if (null? named)
-                    (string-concat (list (cu-int->str (* 1000 (sys-time-ms))) "." (cu-int->str (sys-getpid))))
+                    (%str-concat (list (cu-int->str (* 1000 (sys-time-ms))) "." (cu-int->str (sys-getpid))))
                     (%mm-last-component named)))
     (def sink (if (null? prog) (%mm-file-sink (string-append prefix filename))
                 (%mm-prog-sink prog type charset encoding filename)))
@@ -262,7 +262,7 @@
         ((mm-ci= encoding "base64") (do (%mm-read-base64 (first sink)) ()))
         ((if (mm-ci= encoding "7bit") #f (not (mm-ci= encoding "8bit")))
           (do ((rest sink) #f)
-              (%mm-die (string-concat (list "encoding '" encoding "' not supported")))))
+              (%mm-die (%str-concat (list "encoding '" encoding "' not supported")))))
         (#t (let go ()
               (let ((line (mm-gets)))
                 (match ((null? line) ())
@@ -284,7 +284,7 @@
 (def %mm-file-sink
   (fn (_ name)
     (def fd (file-open-or-err (fn (_ p) (File open p (list (lit wronly) (lit creat) (lit trunc)) 438)) name))
-    (when (Err err? fd) (%mm-die (string-concat (list "can't open '" name "': " (file-err-text fd)))))
+    (when (Err err? fd) (%mm-die (%str-concat (list "can't open '" name "': " (file-err-text fd)))))
     (pair fd (fn (_ ok?) (do (file-close fd) 0)))))
 
 ; -X: PROG ARGS on a pipe, its environment set; CLOSE waits for it and answers
@@ -304,7 +304,7 @@
           (sys-setenv "FILENAME" filename)
           (sys-signal 13 0)
           (let ((r (in-exec (first prog) prog)))
-            (do (file-write 2 (string-concat (list "reformime: can't execute '" (first prog) "': " (in-errtext r) "\n")))
+            (do (file-write 2 (%str-concat (list "reformime: can't execute '" (first prog) "': " (in-errtext r) "\n")))
                 (sys-exit 127)))))
     (sys-close (first p))
     (sys-signal 13 cu-sig-ign)

@@ -24,7 +24,7 @@
 (import cu/ntpd nt-imin)
 (import cu/prims cu-hexs cu-int->str cu-ptr-ref cu-str->ptr file-open-or-err
   file-open-read file-read-run file-write length map reverse string-append
-  string-concat string=? wget-div wget-err-text)
+  string=? wget-div wget-err-text)
 (import cu/sysinfo si-now)
 (import cu/tar tar-printable)
 (import cu/text cu-pad-right cu-pad-zero)
@@ -61,12 +61,12 @@
                     %dl-file (rest (Assoc entry (lit values) o)))))
         (let ((fd (file-open-or-err file-open-read file)))
           (if (Err err? fd)
-            (do (file-write 2 (string-concat (list "dumpleases: can't open '" file "': " (wget-err-text fd) "\n"))) 1)
+            (do (file-write 2 (%str-concat (list "dumpleases: can't open '" file "': " (wget-err-text fd) "\n"))) 1)
             (%dl-show fd (%dl-on? o "-a" "--absolute") (%dl-on? o "-d" "--decimal"))))))))
 
 (def %dl-show
   (fn (_ fd abs? dec?)
-    (file-write 1 (string-concat (list "Mac Address       IP Address      Host Name           Expires " (if abs? "at" "in") "\n")))
+    (file-write 1 (%str-concat (list "Mac Address       IP Address      Host Name           Expires " (if abs? "at" "in") "\n")))
     (def head (%dl-read fd 8))
     (if (< (length head) 8)
       (do (file-write 2 "dumpleases: short read\n") 1)
@@ -87,7 +87,7 @@
                       (if (if (null? l) #t (= (first l) 0)) (reverse acc) (go (rest l) (pair (first l) acc)))))
     (def name (tar-printable (bytes->str name-bytes)))
     (def ends (+ (%dl-be (List take 4 l)) written))
-    (string-concat
+    (%str-concat
       (list mac " " (cu-pad-right ip 16) (cu-pad-right name 19) " "
             (match ((<= ends curr) "expired")
                    (dec? (cu-int->str (if abs? ends (- ends curr))))
@@ -101,6 +101,6 @@
     (def d (wget-div s 86400))
     (def r (% s 86400))
     (string-append (if (> d 0) (string-append (cu-int->str d) " days ") "")
-                   (string-concat (list (%dl-2 (wget-div r 3600)) ":" (%dl-2 (wget-div (% r 3600) 60)) ":" (%dl-2 (% r 60)))))))
+                   (%str-concat (list (%dl-2 (wget-div r 3600)) ":" (%dl-2 (wget-div (% r 3600) 60)) ":" (%dl-2 (% r 60)))))))
 
 (provide cu/dumpleases cu-dumpleases)

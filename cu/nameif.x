@@ -28,13 +28,13 @@
 (import cu/prims byte-at byte-len cu-err-label cu-int->ptr cu-int->str
   cu-libc-sym cu-lines cu-ptr->str cu-ptr-call cu-str->ptr file-err-text
   file-read-all file-read-unsized file-write filter libc-strerror map reverse
-  string-append string-concat string=? substring)
+  string-append string=? substring)
 (import cu/telnetd td-ptr->int)
 
 (def %ni-syslog? #f)
 (def %ni-say
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "nameif: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "nameif: " msg "\n")))
         (when %ni-syslog? (cu-ptr-call (cu-libc-sym "syslog") 3 (in-percent msg))))))
 (def %ni-die (fn (_ msg) (do (%ni-say msg) (Err raise (lit nameif) msg ()))))
 
@@ -83,7 +83,7 @@
 ; and PHY -1
 (def %ni-entry
   (fn (_ ifname selector)
-    (when (>= (byte-len ifname) 16) (%ni-die (string-concat (list "interface name '" ifname "' too long"))))
+    (when (>= (byte-len ifname) 16) (%ni-die (%str-concat (list "interface name '" ifname "' too long"))))
     (def n (byte-len selector))
     (let go ((i 0) (mac ()) (bus ()) (driver ()) (found 0))
       (let ((s (%ni-span selector i %ni-space?)))
@@ -105,7 +105,7 @@
 (def %ni-file
   (fn (_ fname)
     (def text (guard (e (if (eq? (cu-err-label e) (lit io))
-                          (do (%ni-say (string-concat (list fname ": " (file-err-text e)))) ())
+                          (do (%ni-say (%str-concat (list fname ": " (file-err-text e)))) ())
                           (error e)))
                 (file-read-all fname)))
     (let go ((lines (if (null? text) () (in-lines text))) (acc ()))
@@ -113,7 +113,7 @@
         (let ((t (in-tokens-max (rest (first lines)) 2)))
           (match ((null? t) (go (rest lines) acc))
                  ((null? (rest t))
-                   (do (%ni-say (string-concat (list "bad line " (cu-int->str (first (first lines))) ": 1 tokens found, 2 needed")))
+                   (do (%ni-say (%str-concat (list "bad line " (cu-int->str (first (first lines))) ": 1 tokens found, 2 needed")))
                        (go (rest lines) acc)))
                  (#t (go (rest lines) (pair (%ni-entry (first t) (first (rest t))) acc)))))))))
 
@@ -156,7 +156,7 @@
 (def %ni-devs
   (fn (_)
     (def text (guard (e (if (eq? (cu-err-label e) (lit io))
-                          (%ni-die (string-concat (list "can't open '/proc/net/dev': " (file-err-text e))))
+                          (%ni-die (%str-concat (list "can't open '/proc/net/dev': " (file-err-text e))))
                           (error e)))
                 (file-read-unsized "/proc/net/dev")))
     (List map (fn (_ line)
@@ -176,7 +176,7 @@
                     (do (List map (fn (_ i) (inet-set! ifr (+ 16 i) (byte-at (first e) i) 1)) (List range 0 (byte-len (first e))))
                         (let ((r (%ni-ioctl fd 35107 ifr)))
                           (when (< r 0)
-                            (%ni-die (string-concat (list "can't change ifname " (first dev) " to " (first e) ": "
+                            (%ni-die (%str-concat (list "can't change ifname " (first dev) " to " (first e) ": "
                                                           (libc-strerror (Err errno-of r))))))))))
                 (%ni-rename fd (rest devs) (List filter (fn (_ x) (not (eq? x e))) entries)))))))))
 

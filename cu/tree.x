@@ -21,8 +21,7 @@
 (module cu/tree)
 
 (import cu/prims byte-at byte-len cu-int->str cu-sweep-lines cu-sweep-tick!
-  file-list-dir file-lstat-file-type file-readlink file-write string-append
-  string-concat)
+  file-list-dir file-lstat-file-type file-readlink file-write string-append)
 (import cu/text cu-msort cu-str<)
 
 (def %tree-utf8 (fn (_ bs) (bytes->str bs)))
@@ -37,7 +36,7 @@
 (def %tree-at
   (fn (_ here name)
     (if (if (> (byte-len name) 0) (= (byte-at name 0) #\/) #f) name
-      (string-concat (list here "/" name)))))
+      (%str-concat (list here "/" name)))))
 
 ; The directory NAME, from HERE, under PREFIX: its name, then its entries.
 ; COUNTS is (DIRS FILES) in a cell list.  Answers the place the walk is in
@@ -72,7 +71,7 @@
     (do (file-write 1 line)
         (match
           ((eq? type (lit link))
-            (do (file-write 1 (string-concat (list d " -> " (file-readlink full) "\n")))
+            (do (file-write 1 (%str-concat (list d " -> " (file-readlink full) "\n")))
                 (%set-first! (rest counts) (+ (first (rest counts)) 1))))
           ((eq? type (lit dir))
             (do (walk counts path d under)
@@ -90,7 +89,7 @@
           (self (rest names) (%tree-print counts here (first names) "")))))
     (do (go (if (null? argv) (list ".") argv) ".")
         (file-write 1
-          (string-concat
+          (%str-concat
             (list "\n" (cu-int->str (first counts)) " directories, "
                   (cu-int->str (first (rest counts))) " files\n")))
         0)))

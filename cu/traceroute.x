@@ -28,15 +28,15 @@
   pn-sol-socket pn-sum)
 (import cu/prims cu-err-label cu-int->str cu-libc-sym cu-ptr->str cu-ptr-call
   cu-ptr-ref cu-ptr-set! cu-str->ptr cu-string-type cvt file-write
-  libc-strerror reverse str-make-raw string-append string-concat string=?
-  sys-getpid sys-getuid sys-poll)
+  libc-strerror reverse str-make-raw string-append string=? sys-getpid
+  sys-getuid sys-poll)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-left cu-pad-zero)
 
 (def %tr-applet "traceroute")
-(def %tr-say (fn (_ msg) (file-write 2 (string-concat (list %tr-applet ": " msg "\n")))))
+(def %tr-say (fn (_ msg) (file-write 2 (%str-concat (list %tr-applet ": " msg "\n")))))
 (def %tr-die (fn (_ msg) (do (%tr-say msg) (Err raise (lit traceroute) msg ()))))
-(def %tr-errno-die (fn (_ what r) (%tr-die (string-concat (list what ": " (libc-strerror (Err errno-of r)))))))
+(def %tr-errno-die (fn (_ what r) (%tr-die (%str-concat (list what ": " (libc-strerror (Err errno-of r)))))))
 (def %tr-check (fn (_ r what) (when (< r 0) (%tr-errno-die what r))))
 (def %tr-out (fn (_ s) (file-write 1 s)))
 
@@ -71,7 +71,7 @@
   (fn (_ af type proto)
     (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") af type proto))))
       (if (>= fd 0) fd
-        (%tr-errno-die (string-concat (list "socket(AF_" (if (= af pn-af6) "INET6" "INET") ","
+        (%tr-errno-die (%str-concat (list "socket(AF_" (if (= af pn-af6) "INET6" "INET") ","
                                             (cu-int->str type) "," (cu-int->str proto) ")")) fd)))))
 
 ; xbind
@@ -98,11 +98,11 @@
           (cu-ptr-set! p 2 0 2)
           (let ((sum (pn-fold (pn-sum p 0 n)))) (pn-be16! p 2 (if (= sum 0) 65535 sum)))))
     (%tr-check (if %tr-v6 (pn-setopt %tr-snd 41 (if os-darwin? 4 16) ttl) (pn-setopt %tr-snd 0 (if os-darwin? 4 2) ttl))
-      (string-concat (list "setsockopt(" (if %tr-v6 "UNICAST_HOPS" "TTL") ") " (cu-int->str ttl))))
+      (%str-concat (list "setsockopt(" (if %tr-v6 "UNICAST_HOPS" "TTL") ") " (cu-int->str ttl))))
     (unless %tr-icmp (pn-be16! (cu-str->ptr %tr-dest) 2 (& (+ %tr-port seq) 65535)))
     (let ((r (in-call (cu-ptr-call (cu-libc-sym "sendto") %tr-snd p n 0 (cu-str->ptr %tr-dest) %tr-salen))))
       (match ((< r 0) (%tr-errno-die "sendto" r))
-             ((not (= r n)) (%tr-say (string-concat (list "sent " (cu-int->str n) " octets, ret=" (cu-int->str r)))))
+             ((not (= r n)) (%tr-say (%str-concat (list "sent " (cu-int->str n) " octets, ret=" (cu-int->str r)))))
              (#t ())))))
 
 ; --- receiving -------------------------------------------------------------------------
@@ -164,14 +164,14 @@
   (fn (_ at len)
     (def p (cu-str->ptr %tr-rbuf))
     (when %tr-verbose
-      (%tr-out (string-concat
+      (%tr-out (%str-concat
         (list "\n" (cu-int->str len) " bytes from " (pn-dotted %tr-from) " to " (pn-dotted %tr-to)
               ": icmp type " (cu-int->str (pn-byte p at)) " (" (%tr-type-name (pn-byte p at)) ") code "
               (cu-int->str (pn-byte p (+ at 1))) "\n"
               (Str8 join "" (let go ((i 0) (acc ()))
                               (if (>= i len) (List reverse acc)
                                 (go (+ i 1)
-                                    (pair (string-concat
+                                    (pair (%str-concat
                                             (list (if (= (& i 15) 0) (string-append (if (= i 0) "" "\n") (string-append (%tr-hex i 4) ":")) "")
                                                   " " (%tr-hex (pn-byte p (+ at i)) 2)))
                                           acc)))))
@@ -181,7 +181,7 @@
 (def %tr-short
   (fn (_ len)
     (do (when %tr-verbose
-          (%tr-out (string-concat (list "packet too short (" (cu-int->str len) " bytes) from " (pn-dotted %tr-from) "\n"))))
+          (%tr-out (%str-concat (list "packet too short (" (cu-int->str len) " bytes) from " (pn-dotted %tr-from) "\n"))))
         0)))
 
 ; packet4_ok: the reply of LEN bytes to probe SEQ as -1 for time exceeded,
@@ -237,13 +237,13 @@
   (fn (_ len numeric)
     (def ina (pn-dotted %tr-from))
     (%tr-out
-      (string-concat
+      (%str-concat
         (list
           (if numeric (string-append "  " ina)
             (let ((n (if (if %tr-v6 #t (not (= (cu-ptr-ref (cu-str->ptr %tr-from) 4 4) 0))) (%tr-name) ())))
-              (string-concat (list "  " (if (null? n) ina n) " (" ina ")"))))
+              (%str-concat (list "  " (if (null? n) ina n) " (" ina ")"))))
           (if %tr-verbose
-            (string-concat (list " " (cu-int->str (if %tr-v6 len (- len (* 4 (& (pn-byte (cu-str->ptr %tr-rbuf) 0) 15)))))
+            (%str-concat (list " " (cu-int->str (if %tr-v6 len (- len (* 4 (& (pn-byte (cu-str->ptr %tr-rbuf) 0) 15)))))
                                  " bytes to " (pn-dotted %tr-to)))
             ""))))))
 
@@ -274,7 +274,7 @@
            ((if (= code 6) #t (= code 7)) (pair " !U" (lit unreachable)))
            ((= code 8) (pair " !I" (lit unreachable)))
            ((if (= code 11) #t (= code 12)) (pair " !T" (lit unreachable)))
-           (#t (pair (string-concat (list " !<" (cu-int->str code) ">")) (lit unreachable))))))
+           (#t (pair (%str-concat (list " !<" (cu-int->str code) ">")) (lit unreachable))))))
 
 ; wait_for_reply and packet_ok over LEFT milliseconds from T: (CODE LEN T)
 ; for the reply to SEQ, the clock read as it came, or nil at the wait's end
@@ -302,7 +302,7 @@
                       (do (%tr-out "  *") (probe (+ k 1) (+ seq 1) last unreachable there))
                       (let ((from (pn-dotted %tr-from)) (code (first got)))
                         (do (when (if (= k 0) #t (not (string=? from last))) (%tr-print (List ref 1 got) numeric))
-                            (%tr-out (string-concat (list "  " (pn-ms (- (List ref 2 got) t1)) " ms")))
+                            (%tr-out (%str-concat (list "  " (pn-ms (- (List ref 2 got) t1)) " ms")))
                             (if (= code -1) (probe (+ k 1) (+ seq 1) from unreachable there)
                               (let ((m (%tr-mark (- code 1))))
                                 (do (%tr-out (first m))
@@ -353,7 +353,7 @@
     (let ((t (Opts value o "-t")))
       (unless (null? t)
         (let ((tos (pn-number t 0 255 %tr-die)))
-          (%tr-check (pn-setopt %tr-snd 0 (if os-darwin? 3 1) tos) (string-concat (list "setsockopt(TOS," (cu-int->str tos) ")"))))))
+          (%tr-check (pn-setopt %tr-snd 0 (if os-darwin? 3 1) tos) (%str-concat (list "setsockopt(TOS," (cu-int->str tos) ")"))))))
     (when (if os-darwin? (Opts on? o "-F") #f) (pn-setopt %tr-snd 0 28 1))
     (when (Opts on? o "-r") (pn-setopt %tr-snd pn-sol-socket (if os-darwin? 16 5) 1))
     (set! %tr-ident (& (sys-getpid) 65535))
@@ -368,7 +368,7 @@
     (if (null? source)
       (do (%tr-check (in-call (cu-ptr-call (cu-libc-sym "connect") %tr-snd (cu-str->ptr %tr-dest) %tr-salen))
                      (if %tr-v6 "can't connect to remote host"
-                       (string-concat (list "can't connect to remote host (" (pn-dotted %tr-dest) ")"))))
+                       (%str-concat (list "can't connect to remote host (" (pn-dotted %tr-dest) ")"))))
           (let ((me (inet-zeros 128)) (len (inet-zeros 4)))
             (do (inet-set! len 0 128 4)
                 (%tr-check (in-call (cu-ptr-call (cu-libc-sym "getsockname") %tr-snd (cu-str->ptr me) (cu-str->ptr len))) "getsockname")
@@ -383,7 +383,7 @@
     (inet-set! %tr-to (if os-darwin? 1 0) fam (if os-darwin? 1 2))
     (when os-darwin? (inet-set! %tr-to 0 %tr-salen 1))
     (%tr-buffers!)
-    (%tr-out (string-concat (list "traceroute to " (first ops) " (" (pn-dotted %tr-dest) ")"
+    (%tr-out (%str-concat (list "traceroute to " (first ops) " (" (pn-dotted %tr-dest) ")"
                                   (if (null? source) "" (string-append " from " source))
                                   ", " (cu-int->str hops) " hops max, " (cu-int->str %tr-packlen) " byte packets\n")))
     (%tr-trace start hops probes secs pause (Opts on? o "-n"))

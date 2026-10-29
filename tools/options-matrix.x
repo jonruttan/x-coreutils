@@ -22,7 +22,7 @@
 
 (import cu/cli cu-spec-of)
 (import cu/prims append byte-at byte-len cu-int->str file-write filter length
-  string-append string-concat string=? substring)
+  string-append string=? substring)
 (import cu/text cu-msort cu-str<)
 
 ; busybox spells a long option with its value shown, --ignore=N; the
@@ -110,14 +110,14 @@
                  (if (eq? e (lit none)) () e)))
     (def ours (%mx-uniq (append declared extra)))
     (if (eq? bb (lit none))
-      (do (display (string-concat
+      (do (display (%str-concat
                      (list "| `" name "` | _not a busybox applet_ | "
                            (%mx-cell ours) " | | - |\n")))
           (pair 0 0))
       (let ((missing (%mx-minus bb ours)))
         (def have (- (length bb) (length missing)))
         (do (display
-              (string-concat
+              (%str-concat
                 (list "| `" name "` | " (%mx-cell bb) " | " (%mx-cell ours)
                       " | " (%mx-cell missing) " | "
                       (%mx-pct have (length bb)) " |\n")))
@@ -142,7 +142,7 @@
     ; the total goes to stderr, not the page: every applet's PR moves it,
     ; and a line every PR changes is a conflict between any two of them
     (file-write 2
-      (string-concat
+      (%str-concat
         (list "Total: " (cu-int->str (first totals)) " of "
               (cu-int->str (rest totals)) " busybox options accepted ("
               (%mx-pct (first totals) (rest totals)) ").\n")))))

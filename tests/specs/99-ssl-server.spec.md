@@ -22,7 +22,7 @@ and timeout are the TLS engines' build, which a session pays once.
 ```cu
 (do (import x/sys/socket)
   (def ss-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
-  (ss-sh (string-concat (list
+  (ss-sh (%str-concat (list
     "d=/tmp/x-cu-ssls; rm -rf $d; mkdir -p $d && cd $d"
     " && openssl req -x509 -newkey rsa:2048 -nodes -keyout rsa.key -out rsa.crt -days 1 -subj /CN=localhost >/dev/null 2>&1"
     " && cat rsa.key rsa.crt > rsa.pem")))
@@ -42,7 +42,7 @@ and timeout are the TLS engines' build, which a session pays once.
     (sys-setenv "SS_PORT" (cu-int->str port))
     (ss-sh "cd /tmp/x-cu-ssls && printf 'hello\\n' | openssl s_client -quiet -tls1_3 -connect 127.0.0.1:$SS_PORT > out 2>/dev/null")
     (def st (sys-wait pid))
-    (ss-sh (string-concat (list
+    (ss-sh (%str-concat (list
       "cd /tmp/x-cu-ssls && { cat out; echo \"[status " (cu-int->str st) "]\"; cat err; } > report")))
     (display (file-read-all "/tmp/x-cu-ssls/report"))))
   (display "made"))

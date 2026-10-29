@@ -13,8 +13,7 @@
 (module cu/hash)
 
 (import cu/cli cu-opts)
-(import cu/prims bit-and byte-at cu-as-run cu-int->str length string-append
-  string-concat)
+(import cu/prims bit-and byte-at cu-as-run cu-int->str length string-append)
 (import cu/sha256 cu-sum-applet)
 (import cu/text cu-each-run-said cu-pad-left cu-pad-zero cu-read-run-said
   cu-says-open)
@@ -128,7 +127,7 @@
       (fn (_ name text)
         (def n (rest text))
         (display
-          (string-concat
+          (%str-concat
             (list
               (if sysv?
                 (string-append (cu-int->str (cu-sum-sysv text)) " "

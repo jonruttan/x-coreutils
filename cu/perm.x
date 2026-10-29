@@ -23,9 +23,9 @@
   file-lstat-file-type file-lstat-wide file-mkfifo file-mounts file-open-err
   file-open-read file-open-wronly file-or-err file-readlink file-stat
   file-stat-full file-stat-wide file-statfs-full file-write filter length
-  ls-human map reverse string-append string-concat string=? substring
-  sys-fsync sys-getcwd sys-group-id sys-group-name sys-sync sys-umask
-  sys-user-group sys-user-id sys-user-name)
+  ls-human map reverse string-append string=? substring sys-fsync sys-getcwd
+  sys-group-id sys-group-name sys-sync sys-umask sys-user-group sys-user-id
+  sys-user-name)
 (import cu/text cu-byte-in? cu-num-prefix cu-pad-left cu-pad-right
   cu-print-lines-to cu-split-byte)
 (import cu/walk cu-walk-names)
@@ -243,12 +243,12 @@
 ; a mode as the reports show it: 0644 (rw-r--r--)
 (def %cu-chmod-shown
   (fn (_ mode)
-    (string-concat (list (cu-mode-octal4 mode) " (" (cu-perm-places mode) ")"))))
+    (%str-concat (list (cu-mode-octal4 mode) " (" (cu-perm-places mode) ")"))))
 
 (def %cu-report-complain
   (fn (_ how applet line)
     (if (rest how) ()
-      (file-write 2 (string-concat (list applet ": " line "\n"))))))
+      (file-write 2 (%str-concat (list applet ": " line "\n"))))))
 
 ; a path chmod could not reach: the complaint, and under -v a report saying so.
 ; Answers the failing status.
@@ -256,7 +256,7 @@
   (fn (_ how path line)
     (do (%cu-report-complain how "chmod" line)
         (if (eq? (first how) (lit all))
-          (display (string-concat (list "'" path "' could not be accessed\n")))
+          (display (%str-concat (list "'" path "' could not be accessed\n")))
           ())
         1)))
 
@@ -266,8 +266,8 @@
     (if (if (eq? (file-err-sym e) (lit enoent))
           (eq? (file-lstat-file-type path) (lit link))
           #f)
-      (string-concat (list "cannot operate on dangling symlink '" path "'"))
-      (string-concat (list "cannot access '" path "': " (file-err-text e))))))
+      (%str-concat (list "cannot operate on dangling symlink '" path "'"))
+      (%str-concat (list "cannot access '" path "': " (file-err-text e))))))
 
 ; Did the mode change?  A system may drop a setuid, setgid or sticky bit without
 ; failing the call, so a mode that asks for one is read back rather than trusted.
@@ -277,7 +277,7 @@
       (let ((st (file-or-err (fn (_) (file-stat path)))))
         (if (Err err? st)
           (do (%cu-report-complain how "chmod"
-                (string-concat
+                (%str-concat
                   (list "getting new attributes of '" path "': " (file-err-text st))))
               #f)
           (not (= old (bit-and (cu-stat-get st (lit mode)) 4095))))))))
@@ -289,16 +289,16 @@
       (let ((changed? (if failed? #f (%cu-chmod-changed? how path old new))))
         (match
           (changed?
-            (display (string-concat
+            (display (%str-concat
                        (list "mode of '" path "' changed from " (%cu-chmod-shown old)
                              " to " (%cu-chmod-shown new) "\n"))))
           ((not (eq? (first how) (lit all))) ())
           (failed?
-            (display (string-concat
+            (display (%str-concat
                        (list "failed to change mode of '" path "' from "
                              (%cu-chmod-shown old) " to " (%cu-chmod-shown new) "\n"))))
           (#t
-            (display (string-concat
+            (display (%str-concat
                        (list "mode of '" path "' retained as " (%cu-chmod-shown new)
                              "\n")))))))))
 
@@ -317,7 +317,7 @@
             (let ((r (file-or-err (fn (_) (file-chmod path new)))))
               (do (if (Err err? r)
                     (%cu-report-complain how "chmod"
-                      (string-concat
+                      (%str-concat
                         (list "changing permissions of '" path "': " (file-err-text r))))
                     ())
                   (%cu-chmod-report how path old new (Err err? r))
@@ -331,7 +331,7 @@
     (let ((names (file-or-err (fn (_) (cu-walk-names dir)))))
       (if (Err err? names)
         (%cu-chmod-unreached how dir
-          (string-concat
+          (%str-concat
             (list "cannot read directory '" dir "': " (file-err-text names))))
         (cu-walk-worst names
           (fn (_ n) (%cu-chmod-one how spec (Path join dir n) #t umask))
@@ -345,7 +345,7 @@
       ((< (length ops) 2) (cu-missing-operand "chmod" ops))
       ((not (cu-mode-valid? (first ops)))
         (do (file-write 2
-              (string-concat
+              (%str-concat
                 (list "chmod: invalid mode: '" (first ops) "'\n")))
             1))
       (#t
@@ -431,9 +431,9 @@
         (#t (let ((gid (sys-user-group (rest uh))))
               (if (null? gid) () (pair gid (sys-group-name gid)))))))
     (match
-      ((null? uh) (string-concat (list "invalid user: '" spec "'")))
-      ((if login? (null? (rest uh)) #f) (string-concat (list "invalid spec: '" spec "'")))
-      ((null? gh) (string-concat (list "invalid group: '" spec "'")))
+      ((null? uh) (%str-concat (list "invalid user: '" spec "'")))
+      ((if login? (null? (rest uh)) #f) (%str-concat (list "invalid spec: '" spec "'")))
+      ((null? gh) (%str-concat (list "invalid group: '" spec "'")))
       (#t (%cu-chown-ids (first uh) (first gh) (rest uh) (rest gh) #t)))))
 
 (def %cu-chown-spec
@@ -446,7 +446,7 @@
             (let ((split (%cu-chown-split spec dot)))
               (do (if (pair? split)
                     (file-write 2
-                      (string-concat
+                      (%str-concat
                         (list "chown: warning: '.' should be ':': '" spec "'\n")))
                     ())
                   (if (pair? split) split whole)))))))))
@@ -454,7 +454,7 @@
 (def %cu-chgrp-spec
   (fn (_ spec)
     (let ((gh (%cu-chown-half spec sys-group-id)))
-      (if (null? gh) (string-concat (list "invalid group: '" spec "'"))
+      (if (null? gh) (%str-concat (list "invalid group: '" spec "'"))
         (%cu-chown-ids (- 0 1) (first gh) () (rest gh) #f)))))
 
 ; -c reports each path whose ids changed and -v every path, as chmod's do,
@@ -476,7 +476,7 @@
 ; an owner and a group as a report joins them, or whichever one there is
 (def %cu-chown-join
   (fn (_ u g)
-    (match ((null? u) g) ((null? g) u) (#t (string-concat (list u ":" g))))))
+    (match ((null? u) g) ((null? g) u) (#t (%str-concat (list u ":" g))))))
 
 ; the ids asked for, as a report shows them
 (def %cu-chown-asked
@@ -526,7 +526,7 @@
     (if (eq? (first how) (lit all))
       (let ((new (%cu-chown-asked ids)))
         (display
-          (string-concat
+          (%str-concat
             (if (null? new) (list "failed to change " (%cu-chown-what ids) " of '" path "'\n")
               (list "failed to change " (%cu-chown-what ids) " of '" path
                     "' to " new "\n")))))
@@ -544,19 +544,19 @@
         (match
           ((if failed? #f changed?)
             (display
-              (string-concat
+              (%str-concat
                 (list "changed " what " of '" path "' from " old " to " new "\n"))))
           ((not all?) ())
           (failed?
             (display
-              (string-concat
+              (%str-concat
                 (if (null? new) (list "failed to change " what " of '" path "'\n")
                   (list "failed to change " what " of '" path "' from " old
                         " to " new "\n")))))
-          ((null? new) (display (string-concat (list what " of '" path "' retained\n"))))
+          ((null? new) (display (%str-concat (list what " of '" path "' retained\n"))))
           (#t
             (display
-              (string-concat (list what " of '" path "' retained as " old "\n")))))))))
+              (%str-concat (list what " of '" path "' retained as " old "\n")))))))))
 
 ; How a run treats what it walks: (RECURSE? LINKS -h?), LINKS one of none,
 ; args and all, from the last of -P, -H and -L given.  It rides every path of
@@ -611,7 +611,7 @@
     (let ((lst (file-or-err (fn (_) (file-lstat-wide path)))))
       (if (Err err? lst)
         (%cu-chown-unreached how applet ids path
-          (string-concat
+          (%str-concat
             (list "cannot access '" path "': " (file-err-text lst))))
         (%cu-chown-read how applet ids path way top? seen lst)))))
 
@@ -636,7 +636,7 @@
 (def %cu-chown-dangling
   (fn (_ how applet ids path lst err)
     (do (%cu-report-complain how applet
-          (string-concat
+          (%str-concat
             (list "cannot dereference '" path "': " (file-err-text err))))
         (%cu-chown-report how ids path (%cu-chown-had ids lst) #t #f)
         1)))
@@ -685,7 +685,7 @@
                  (fn (_) (file-chown path (first ids) (cu-nth 1 ids)))))))
       (do (if (Err err? r)
             (%cu-report-complain how applet
-              (string-concat
+              (%str-concat
                 (list "changing " (%cu-chown-changing ids) " of '" path "': "
                       (file-err-text r))))
             ())
@@ -712,7 +712,7 @@
     (let ((names (file-or-err (fn (_) (cu-walk-names dir)))))
       (if (Err err? names)
         (do (%cu-report-complain how applet
-              (string-concat
+              (%str-concat
                 (list "cannot read directory '" dir "': "
                       (file-err-text names))))
             (lit unreadable))
@@ -751,7 +751,7 @@
 (def %cu-chown-run
   (fn (_ ids paths o applet)
     (if (pair? ids) (%cu-chown-with ids paths o applet)
-      (do (file-write 2 (string-concat (list applet ": " ids "\n"))) 1))))
+      (do (file-write 2 (%str-concat (list applet ": " ids "\n"))) 1))))
 
 ; --- ln, link, readlink, realpath ---------------------------------------------
 
@@ -776,17 +776,17 @@
       ((null? argv) (do (file-write 2 "link: missing operand\n") 1))
       ((null? (rest argv))
         (do (file-write 2
-              (string-concat (list "link: missing operand after '" (first argv) "'\n")))
+              (%str-concat (list "link: missing operand after '" (first argv) "'\n")))
             1))
       ((pair? (rest (rest argv)))
         (do (file-write 2
-              (string-concat (list "link: extra operand '" (cu-nth 2 argv) "'\n")))
+              (%str-concat (list "link: extra operand '" (cu-nth 2 argv) "'\n")))
             1))
       (#t
         (let ((r (file-or-err (fn (_) (file-link (first argv) (cu-nth 1 argv))))))
           (if (not (Err err? r)) 0
             (do (file-write 2
-                  (string-concat
+                  (%str-concat
                     (list "link: cannot create link '" (cu-nth 1 argv) "' to '"
                           (first argv) "': " (file-err-text r) "\n")))
                 1)))))))
@@ -801,7 +801,7 @@
     (def complain
       (fn (_ p why)
         (do (if (Opts on? o "-v")
-              (file-write 2 (string-concat (list "readlink: " p ": " why "\n")))
+              (file-write 2 (%str-concat (list "readlink: " p ": " why "\n")))
               ())
             1)))
     (def ops (Opts operands o))
@@ -867,7 +867,7 @@
                   (if (null? ps) st
                     (if (not (file-exists? (first ps)))
                       (do (file-write 2
-                            (string-concat
+                            (%str-concat
                               (list "realpath: " (first ps)
                                     ": No such file or directory\n")))
                           (self (rest ps) 1))
@@ -1043,7 +1043,7 @@
       (fn (_ cells)
         (def go
           (fn (self c acc)
-            (if (>= c n) (string-concat (reverse acc))
+            (if (>= c n) (%str-concat (reverse acc))
               (let ((cell (cu-nth c cells)) (w (cu-nth c ws)))
                 (self (+ c 1)
                   (pair (if (= c (- n 1)) cell
@@ -1053,7 +1053,7 @@
                             " "))
                         acc))))))
         (string-append (go 0 ()) "\n")))
-    (string-concat (map line (pair header rows)))))
+    (%str-concat (map line (pair header rows)))))
 
 ; The mount a path sits on, from the (MOUNT DUP? DEV) rows: the listed
 ; one on the path's device -- the way df names /tmp on an APFS Data
@@ -1138,7 +1138,7 @@
           (%cu-df-listed o marked))))
     (def cols (%cu-df-columns o))
     (do (cu-print-lines-to 2
-          (map (fn (_ p) (string-concat (list "df: " p ": No such file or directory")))
+          (map (fn (_ p) (%str-concat (list "df: " p ": No such file or directory")))
             missing))
         ; no table when nothing asked for could be found
         (if (if (pair? ops) (null? rows) #f) ()
@@ -1166,7 +1166,7 @@
 
 (def %cu-sync-refused
   (fn (_ why)
-    (do (file-write 2 (string-concat (list "sync: " why "\n"))) 1)))
+    (do (file-write 2 (%str-concat (list "sync: " why "\n"))) 1)))
 
 ; One file's data to disk: opened to read -- as a directory is too -- or,
 ; where it may not be read, to write, and fsync'd.  One that opens neither
@@ -1179,7 +1179,7 @@
           (let ((wfd (file-open-wronly path)))
             (if (>= wfd 0) (%cu-sync-fd wfd)
               (do (file-write 2
-                    (string-concat
+                    (%str-concat
                       (list "sync: error opening '" path "': "
                             (file-err-text why) "\n")))
                   1))))))))

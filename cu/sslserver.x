@@ -19,7 +19,7 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/prims cu-sig-ign cu-stdin-to-command! file-read-all file-write
-  string-concat sys-signal wget-err-text)
+  sys-signal wget-err-text)
 (import cu/sslclient sc-copy sc-run-prog)
 
 (import x/net/tls13)
@@ -35,13 +35,13 @@
                        (#t (error e))))
         (%ss-main (Opts value o "-f") ops)))))
 
-(def %ss-say (fn (_ msg) (file-write 2 (string-concat (list "ssl_server: " msg "\n")))))
+(def %ss-say (fn (_ msg) (file-write 2 (%str-concat (list "ssl_server: " msg "\n")))))
 
 (def %ss-main
   (fn (_ pem argv)
     (cu-stdin-to-command!)
     (sys-signal 13 cu-sig-ign)
-    (def text (guard (e (Err raise (lit io) (string-concat (list "can't read '" pem "': " (wget-err-text e))) ()))
+    (def text (guard (e (Err raise (lit io) (%str-concat (list "can't read '" pem "': " (wget-err-text e))) ()))
                 (file-read-all pem)))
     (def session (Tls13 accept 0 1 (list (pair (lit pem) text))))
     (def prog (sc-run-prog %ss-say argv))

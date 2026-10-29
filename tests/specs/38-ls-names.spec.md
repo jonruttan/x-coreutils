@@ -98,7 +98,7 @@ Darwin's ls shows a device number in hex, so there its stat says the two
 halves; elsewhere ls says them as `MAJOR, MINOR`.
 
 ```cu
-(let ((ws (cu-words-line (first (cu-lines (file-read-all (do (proc-run (list "/bin/sh" "-c" (if os-darwin? "stat -f '%Hr %Lr' /dev/null > /tmp/x-cu-lsn/.dn" "/bin/ls -l /dev/null | awk '{print $5, $6}' | tr -d , > /tmp/x-cu-lsn/.dn"))) "/tmp/x-cu-lsn/.dn"))))))) (display (Str8 includes? (string-concat (list (cu-pad-left (first ws) 4) ", " (cu-pad-left (cu-nth 1 ws) 3) " ")) (first (cap (list "ls" "-l" "/dev/null"))))))
+(let ((ws (cu-words-line (first (cu-lines (file-read-all (do (proc-run (list "/bin/sh" "-c" (if os-darwin? "stat -f '%Hr %Lr' /dev/null > /tmp/x-cu-lsn/.dn" "/bin/ls -l /dev/null | awk '{print $5, $6}' | tr -d , > /tmp/x-cu-lsn/.dn"))) "/tmp/x-cu-lsn/.dn"))))))) (display (Str8 includes? (%str-concat (list (cu-pad-left (first ws) 4) ", " (cu-pad-left (cu-nth 1 ws) 3) " ")) (first (cap (list "ls" "-l" "/dev/null"))))))
 ```
 ---
     #t
@@ -116,7 +116,7 @@ halves; elsewhere ls says them as `MAJOR, MINOR`.
 ### a name is left-aligned in 8, whatever the others in the listing
 
 ```cu
-(let ((ls (cap (list "ls" "-l" "/etc/hosts" (ln "f"))))) (display (list (Str8 includes? (string-concat (list " " (padr (said ".ho") 8) " " (padr (said ".hg") 8) " ")) (first ls)) (Str8 includes? (string-concat (list " " (padr (said ".fo") 8) " " (padr (said ".fg") 8) " ")) (first (rest ls))))))
+(let ((ls (cap (list "ls" "-l" "/etc/hosts" (ln "f"))))) (display (list (Str8 includes? (%str-concat (list " " (padr (said ".ho") 8) " " (padr (said ".hg") 8) " ")) (first ls)) (Str8 includes? (%str-concat (list " " (padr (said ".fo") 8) " " (padr (said ".fg") 8) " ")) (first (rest ls))))))
 ```
 ---
     (#t #t)
@@ -126,7 +126,7 @@ halves; elsewhere ls says them as `MAJOR, MINOR`.
 ### -n shows the ids, left-aligned in 8
 
 ```cu
-(let ((ls (cap (list "ls" "-ln" "/etc/hosts" (ln "f"))))) (display (list (Str8 includes? (string-concat (list " " (padr (said ".hu") 8) " " (padr (said ".hi") 8) " ")) (first ls)) (Str8 includes? (string-concat (list " " (padr (said ".fu") 8) " " (padr (said ".fi") 8) " ")) (first (rest ls))))))
+(let ((ls (cap (list "ls" "-ln" "/etc/hosts" (ln "f"))))) (display (list (Str8 includes? (%str-concat (list " " (padr (said ".hu") 8) " " (padr (said ".hi") 8) " ")) (first ls)) (Str8 includes? (%str-concat (list " " (padr (said ".fu") 8) " " (padr (said ".fi") 8) " ")) (first (rest ls))))))
 ```
 ---
     (#t #t)

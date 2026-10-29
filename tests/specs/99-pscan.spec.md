@@ -26,7 +26,7 @@ output for the same case, in alpine 3.20: stdout, the status, then stderr.
           (sys-exit (guard (e (do (file-write 2 "uncaught\n") 99)) (cu-run (pair "pscan" args) "")))))
     (def st (sys-wait pid))
     (List for-each (fn (_ l) (Socket close l)) ls)
-    (display (string-concat (list (file-read-all "/tmp/x-cu-pscan.so") "[status " (cu-int->str st) "]\n"
+    (display (%str-concat (list (file-read-all "/tmp/x-cu-pscan.so") "[status " (cu-int->str st) "]\n"
                                   (file-read-all "/tmp/x-cu-pscan.se"))))))
   (display "made"))
 ```

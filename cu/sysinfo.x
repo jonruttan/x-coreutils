@@ -26,8 +26,8 @@
   cu-libc-sym cu-lines cu-nth cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set!
   cu-ptr-word cu-stat-get cu-str->ptr cu-words-line file-close file-err-text
   file-lstat-full file-open-err file-open-read file-stat-full file-write
-  filter length map reverse str-make-raw string-append string-concat string=?
-  substring sys-isatty sys-user-id)
+  filter length map reverse str-make-raw string-append string=? substring
+  sys-isatty sys-user-id)
 (import cu/strings cu-range-number)
 (import cu/tar tar-makedev)
 (import cu/text cu-fold-lines-said cu-num-prefix cu-pad-zero cu-says)
@@ -49,7 +49,7 @@
     (let ((p (cu-ptr-call (cu-libc-sym (if os-darwin? "__error" "__errno_location")))))
       (cu-ptr-set! (cu-int->ptr p) 0 0 4))))
 
-(def %si-say (fn (_ applet msg) (file-write 2 (string-concat (list applet ": " msg "\n")))))
+(def %si-say (fn (_ applet msg) (file-write 2 (%str-concat (list applet ": " msg "\n")))))
 
 ; the reason the last failed call left in errno
 (def %si-why
@@ -144,7 +144,7 @@
   (fn (_ applet file)
     (let ((fd (file-open-read file)))
       (if (< fd 0)
-        (do (%si-say applet (string-concat (list "can't open '" file "': "
+        (do (%si-say applet (%str-concat (list "can't open '" file "': "
                                                   (file-err-text (file-open-err fd file)))))
             1)
         (do (file-close fd)
@@ -197,7 +197,7 @@
         ((null? st) (%si-mp-say q (string-append arg ": " (%si-why (lit stat) arg))))
         ((eq? (cu-stat-get st (lit file-type)) (lit block))
           (let ((dev (cu-stat-get st (lit rdev))))
-            (do (file-write 1 (string-concat (list (cu-int->str (cu-dev-major dev)) ":"
+            (do (file-write 1 (%str-concat (list (cu-int->str (cu-dev-major dev)) ":"
                                                   (cu-int->str (cu-dev-minor dev)) "\n")))
                 0)))
         (#t (%si-mp-say q (string-append arg ": not a block device")))))))
@@ -212,7 +212,7 @@
         (#t
           (let ((up (file-stat-full (string-append arg "/.."))))
             (if (null? up)
-              (%si-mp-say q (string-concat (list arg "/..: " (%si-why (lit stat) arg))))
+              (%si-mp-say q (%str-concat (list arg "/..: " (%si-why (lit stat) arg))))
               (%si-mp-report q d n arg st up))))))))
 
 (def %si-mp-report
@@ -221,11 +221,11 @@
     (def not-mnt
       (if (= dev (cu-stat-get up (lit dev)))
         (not (= (cu-stat-get st (lit ino)) (cu-stat-get up (lit ino)))) #f))
-    (do (if d (file-write 1 (string-concat (list (cu-int->str (cu-dev-major dev)) ":"
+    (do (if d (file-write 1 (%str-concat (list (cu-int->str (cu-dev-major dev)) ":"
                                                 (cu-int->str (cu-dev-minor dev)) "\n"))) ())
-        (if n (file-write 1 (string-concat (list "UNKNOWN " arg "\n"))) ())
+        (if n (file-write 1 (%str-concat (list "UNKNOWN " arg "\n"))) ())
         (if (if q #t (if d #t n)) ()
-          (file-write 1 (string-concat (list arg " is " (if not-mnt "not " "") "a mountpoint\n"))))
+          (file-write 1 (%str-concat (list arg " is " (if not-mnt "not " "") "a mountpoint\n"))))
         (if not-mnt 1 0))))
 
 ; --- mknod -----------------------------------------------------------------------
@@ -316,7 +316,7 @@
         (#t (pair (substring (first argv) 2 (byte-len (first argv))) (rest argv)))))
     (if (null? words) (cu-usage "renice")
       (let ((adj (%si-int (first words))))
-        (if (null? adj) (do (%si-say "renice" (string-concat (list "invalid number '" (%si-unsigned (first words)) "'"))) 1)
+        (if (null? adj) (do (%si-say "renice" (%str-concat (list "invalid number '" (%si-unsigned (first words)) "'"))) 1)
           (%si-renice-each rel adj (rest words) 0 0))))))
 
 (def %si-prefix?
@@ -365,7 +365,7 @@
       (if (= which 2)
         (let ((u (sys-user-id w))) (if (null? u) (do (%si-say "renice" (string-append "unknown user " w)) ()) u))
         (if (si-digits? w) (cu-num-prefix w)
-          (do (%si-say "renice" (string-concat (list "invalid number '" w "'"))) ()))))
+          (do (%si-say "renice" (%str-concat (list "invalid number '" w "'"))) ()))))
     (if (null? who) 1
       (let ((prio (if rel (%si-getprio which who) 0)))
         (match

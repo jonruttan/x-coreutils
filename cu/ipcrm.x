@@ -18,10 +18,10 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/ipcs sv-ctl sv-die sv-eidrm sv-get sv-ipc-rmid sv-strtoul sv-u>)
-(import cu/prims bit-and byte-at byte-len cu-err-label file-write libc-strerror
-  string-concat string=?)
+(import cu/prims bit-and byte-at byte-len cu-err-label file-write
+  libc-strerror string=?)
 
-(def %ir-say (fn (_ msg) (file-write 2 (string-concat (list "ipcrm: " msg "\n")))))
+(def %ir-say (fn (_ msg) (file-write 2 (%str-concat (list "ipcrm: " msg "\n")))))
 
 (def %ir-kind
   (fn (_ c) (match ((= c #\q) (lit msg)) ((= c #\m) (lit shm)) (#t (lit sem)))))
@@ -33,10 +33,10 @@
       (fn (_ errors w)
         (let ((id (if (if (> (byte-len w) 0) (%ir-alnum? (byte-at w 0)) #f) (sv-strtoul w 10) ())))
           (if (if (null? id) #t (sv-u> id 2147483647))
-            (do (%ir-say (string-concat (list "invalid id: " w))) (+ errors 1))
+            (do (%ir-say (%str-concat (list "invalid id: " w))) (+ errors 1))
             (let ((got (sv-ctl kind id sv-ipc-rmid 0)))
               (if (= (first got) 0) errors
-                (do (%ir-say (string-concat (list "can't remove id " w ": " (libc-strerror (rest got)))))
+                (do (%ir-say (%str-concat (list "can't remove id " w ": " (libc-strerror (rest got)))))
                     (+ errors 1)))))))
       0 ids)))
 
@@ -59,7 +59,7 @@
 (def %ir-number
   (fn (_ s base)
     (let ((v (sv-strtoul s base)))
-      (if (null? v) (sv-die "ipcrm" (string-concat (list "invalid number '" s "'"))) v))))
+      (if (null? v) (sv-die "ipcrm" (%str-concat (list "invalid number '" s "'"))) v))))
 
 ; one option, C and its word W: 1 when it failed
 (def %ir-one
@@ -72,12 +72,12 @@
           (if (= (bit-and key 4294967295) 0) ()
             (sv-get kind key)))))
     (match
-      ((null? id) (do (%ir-say (string-concat (list "illegal key (" w ")"))) 1))
+      ((null? id) (do (%ir-say (%str-concat (list "illegal key (" w ")"))) 1))
       ((if key? (< (first id) 0) #f)
-        (do (%ir-say (string-concat (list (%ir-why (rest id) #f) " key (" w ")"))) 1))
+        (do (%ir-say (%str-concat (list (%ir-why (rest id) #f) " key (" w ")"))) 1))
       (#t (let ((got (sv-ctl kind (first id) sv-ipc-rmid 0)))
             (if (= (first got) 0) 0
-              (do (%ir-say (string-concat (list (%ir-why (rest got) #t) (if key? " key (" " id (") w ")")))
+              (do (%ir-say (%str-concat (list (%ir-why (rest got) #t) (if key? " key (" " id (") w ")")))
                   1)))))))
 
 (def %ir-main

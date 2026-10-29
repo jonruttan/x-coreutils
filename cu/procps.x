@@ -29,8 +29,8 @@
   date-now-unix file-err-text file-write filter host-args host-boot-time
   host-cwd host-exe host-files host-load-centi host-memory host-process
   host-processes host-users length map ps-div re-compile re-search reverse
-  set-first! str-make-raw string-append string-concat substring sys-getpid
-  sys-group-name sys-isatty sys-kill sys-signals sys-user-name vm-dash-number)
+  set-first! str-make-raw string-append substring sys-getpid sys-group-name
+  sys-isatty sys-kill sys-signals sys-user-name vm-dash-number)
 (import cu/signal pg-rt pg-signal-word pg-signum pg-strto)
 (import cu/strings cu-range-number)
 (import cu/text cu-pad-left cu-pad-right cu-pad-zero)
@@ -54,7 +54,7 @@
   (fn (_ boot)
     (def d (Date local boot))
     (def two (fn (_ k) (cu-pad-zero (cu-int->str (Assoc get k d)) 2)))
-    (string-concat
+    (%str-concat
       (list (cu-pad-zero (cu-int->str (Assoc get (lit year) d)) 4)
             "-" (two (lit month)) "-" (two (lit day))
             " " (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second)) "\n"))))
@@ -70,14 +70,14 @@
     (def hours (% (ps-div minutes 60) 24))
     (def load (fn (_ c) (string-append (cu-int->str (ps-div c 100))
                           (string-append "." (two (% c 100))))))
-    (string-concat
+    (%str-concat
       (list " " (two (Assoc get (lit hour) d)) ":" (two (Assoc get (lit minute) d))
             ":" (two (Assoc get (lit second) d)) " up "
             (if (= days 0) ""
-              (string-concat (list (cu-int->str days) " day" (if (= days 1) "" "s") ", ")))
+              (%str-concat (list (cu-int->str days) " day" (if (= days 1) "" "s") ", ")))
             (if (= hours 0)
               (string-append (cu-int->str (% minutes 60)) " min")
-              (string-concat (list (cu-pad-left (cu-int->str hours) 2) ":"
+              (%str-concat (list (cu-pad-left (cu-int->str hours) 2) ":"
                                    (two (% minutes 60)))))
             ",  " (cu-int->str users) " users"
             ",  load average: " (load (first loads))
@@ -112,7 +112,7 @@
           (self (ps-div v 1024) (ps-div (+ (* (% v 1024) 10) 512) 1024) (+ u 1))
           (if (= u 0) (cu-int->str v)
             (let ((v2 (if (>= frac 10) (+ v 1) v)) (f2 (if (>= frac 10) 0 frac)))
-              (string-concat (list (cu-int->str v2) "." (cu-int->str f2)
+              (%str-concat (list (cu-int->str v2) "." (cu-int->str f2)
                                    (substring "KMGTPEZY" (- u 1) u))))))))
     (match
       ((= n 0) "0")
@@ -131,14 +131,14 @@
     (def free (get (lit free)))
     (def total (get (lit total)))
     (def used (- total (+ cached free)))
-    (string-concat
+    (%str-concat
       (list "       " (cu-pad-left "total" 12) (cu-pad-left "used" 12)
             (cu-pad-left "free" 12) (cu-pad-left "shared" 12)
             (cu-pad-left "buff/cache" 12) (cu-pad-left "available" 12) "\n"
             "Mem:   " (col total) (col used) (col free)
             (col (get (lit shared))) (col cached) (col (get (lit available))) "\n"
             (if seen ""
-              (string-concat (list "-/+ buffers/cache: " (col used) (col (+ cached free)) "\n")))
+              (%str-concat (list "-/+ buffers/cache: " (col used) (col (+ cached free)) "\n")))
             "Swap:  " (col (get (lit swap-total)))
             (col (- (get (lit swap-total)) (get (lit swap-free))))
             (col (get (lit swap-free))) "\n"))))
@@ -171,7 +171,7 @@
     (def specs (Opts values o "-o"))
     (def cols (ps-parse-o (if (null? specs) (list "pid,user,time,args") specs)))
     (if (str? cols)
-      (do (file-write 2 (string-concat (list name ": " cols "\n"))) 1)
+      (do (file-write 2 (%str-concat (list name ": " cols "\n"))) 1)
       (do (display (ps-table cols (ps-sorted (host-processes)) (date-now-unix)
                      (if (sys-isatty 1)
                        (let ((w (- (first (Term window 0)) 1)))
@@ -207,7 +207,7 @@
   (fn (_ specs)
     (def bad
       (fn (_ name)
-        (string-concat (list "bad -o argument '" name "', supported arguments: "
+        (%str-concat (list "bad -o argument '" name "', supported arguments: "
                              (Str8 join "," (map first %ps-columns))))))
     (def one
       (fn (self s acc)
@@ -245,9 +245,9 @@
     (def d (ps-div h 24))
     (def s
       (match
-        ((< m 60) (string-concat (list (left m) ":" (two (% tt 60)))))
-        ((< h 24) (string-concat (list (left h) "h" (two (% m 60)))))
-        ((< d 100) (string-concat (list (left d) "d" (two (% h 24)))))
+        ((< m 60) (%str-concat (list (left m) ":" (two (% tt 60)))))
+        ((< h 24) (%str-concat (list (left h) "h" (two (% m 60)))))
+        ((< d 100) (%str-concat (list (left d) "d" (two (% h 24)))))
         (#t (string-append (cu-pad-left (cu-int->str d) 4) "d"))))
     (if (> (byte-len s) width) (substring s 0 width) s)))
 
@@ -264,15 +264,15 @@
         (def a (lead (ps-div u 100) #t))
         (def b (lead (% (ps-div u 10) 10) (str=? a " ")))
         (def c (lead (% u 10) (str=? b " ")))
-        (string-concat (list a b c (digit v))))
+        (%str-concat (list a b c (digit v))))
       (let ((r (up (ps-div (* n 10) 1024) 1)))
         (def u (ps-div (first r) 10))
         (def v (% (first r) 10))
         (def unit (substring scale (rest r) (+ (rest r) 1)))
         (if (>= u 10)
           (let ((a (lead (ps-div u 100) #t)))
-            (string-concat (list a (lead (% (ps-div u 10) 10) (str=? a " ")) (digit (% u 10)) unit)))
-          (string-concat (list (digit u) "." (digit v) unit)))))))
+            (%str-concat (list a (lead (% (ps-div u 10) 10) (str=? a " ")) (digit (% u 10)) unit)))
+          (%str-concat (list (digit u) "." (digit v) unit)))))))
 
 ; libc's strcspn and strrchr, for the scans of a command line: a loop in x
 ; costs hundreds of objects a byte, and ps reads every process's line
@@ -293,7 +293,7 @@
 (def ps-args
   (fn (_ args comm)
     (ps-resolve!)
-    (if (null? args) (string-concat (list "[" comm "]"))
+    (if (null? args) (%str-concat (list "[" comm "]"))
       (let ((line (ps-printable (Str8 join " " args)))
             ; argv[0] up to its first space, past a leading -, after its last /
             (argv0 (let ((a (first args)))
@@ -305,7 +305,7 @@
                     (substring word (+ (- slash (%ps-addr word)) 1) (byte-len word))))
         (def m (byte-len comm))
         (if (if (<= m (byte-len base)) (str=? (substring base 0 m) comm) #f) line
-          (string-concat (list "{" comm "} " line)))))))
+          (%str-concat (list "{" comm "} " line)))))))
 
 ; S with each control byte as ?; S itself when it holds none, as most lines do
 (def ps-printable
@@ -343,7 +343,7 @@
           (%ps-time (ps-div (+ (get (lit utime)) (get (lit stime))) 1000000000) width)))
       ((str=? name "tty")
         (if (null? (get (lit tty-major))) "?"
-          (cut (string-concat (list (cu-int->str (get (lit tty-major))) ","
+          (cut (%str-concat (list (cu-int->str (get (lit tty-major))) ","
                                     (cu-int->str (get (lit tty-minor))))))))
       ((str=? name "vsz") (kb (lit vsz)))
       ((str=? name "rss") (kb (lit rss)))
@@ -360,7 +360,7 @@
     (if (null? st) ""
       (let ((w (if (if (null? vsz) #f (if (= vsz 0) (not (str=? st "Z")) #f)) "W" "")))
         (def n (match ((null? nice) "") ((< nice 0) "<") ((> nice 0) "N") (#t "")))
-        (cu-pad-right (string-concat (list st w n)) 3)))))
+        (cu-pad-right (%str-concat (list st w n)) 3)))))
 
 ; The table: the header when a column has one, then a row a process -- each
 ; column but the last padded to its width and a space, each line cut to WIDTH
@@ -390,7 +390,7 @@
       (fn (_ cells)
         (def go
           (fn (self cs ws acc)
-            (if (null? (rest cs)) (string-concat (reverse (pair (first cs) acc)))
+            (if (null? (rest cs)) (%str-concat (reverse (pair (first cs) acc)))
               (let ((gap (- (+ (first ws) 1) (byte-len (first cs)))))
                 (self (rest cs) (rest ws)
                   (pair (str-make-raw (if (< gap 1) 1 gap)) (pair (first cs) acc)))))))
@@ -412,7 +412,7 @@
         (if (null? ps) (reverse acc)
           (do (if (= (% k 32) 31) (cu-heap-collect) ())
               (self (rest ps) (+ k 1) (pair (row (first ps)) acc))))))
-    (string-concat
+    (%str-concat
       (pair (if header? (line (map (fn (_ c) (first (rest c))) shown)) "")
             (rows procs 0 ())))))
 
@@ -505,7 +505,7 @@
 (def %pg-print-signames
   (fn (_)
     (def rt (pg-rt))
-    (def line (fn (_ n name) (display (string-concat (list (cu-pad-left (cu-int->str n) 2) ") " name "\n")))))
+    (def line (fn (_ n name) (display (%str-concat (list (cu-pad-left (cu-int->str n) 2) ") " name "\n")))))
     (do (map (fn (_ e) (line (rest e) (first e))) (sys-signals))
         (if (null? rt) ()
           (do (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))
@@ -527,7 +527,7 @@
 ; empty word names none.
 
 (def %kl-say
-  (fn (_ s) (do (file-write 2 (string-concat (list "kill: " s "\n"))) 1)))
+  (fn (_ s) (do (file-write 2 (%str-concat (list "kill: " s "\n"))) 1)))
 
 (def cu-kill
   (fn (_ argv stdin-thunk)
@@ -546,7 +546,7 @@
 (def %kl-signalled
   (fn (_ name pids)
     (let ((n (pg-signum name)))
-      (if (null? n) (%kl-say (string-concat (list "bad signal name '" name "'")))
+      (if (null? n) (%kl-say (%str-concat (list "bad signal name '" name "'")))
         (%kl-pids pids n)))))
 
 ; kill -l WORD... and killall's: a number's name -- its low 7 bits, as a
@@ -559,7 +559,7 @@
         (def digit (if (> (byte-len w) 0) (if (>= (byte-at w 0) #\0) (<= (byte-at w 0) #\9) #f) #f))
         (def r (pg-strto w 0 0 4294967295))
         (def n (if digit (if (= (rest r) (byte-len w)) (first r) ()) (pg-signum w)))
-        (if (null? n) (say (string-concat (list "unknown signal '" w "'")))
+        (if (null? n) (say (%str-concat (list "unknown signal '" w "'")))
           (do (display (string-append (if digit (%pg-signame (& n 127)) (cu-int->str n)) "\n"))
               (self say (rest words))))))))
 
@@ -581,11 +581,11 @@
     (match
       ((>= i len) 0)
       ((if (null? pid) #t (if (< end len) (not (= (byte-at w end) #\space)) #f))
-        (%kl-say (string-concat (list "invalid number '" (substring w j len) "'"))))
+        (%kl-say (%str-concat (list "invalid number '" (substring w j len) "'"))))
       ; errno is read straight after the refusal
       (#t (let ((err (if (< (sys-kill pid signo) 0) (Err from-errno (Err errno-of (- 0 1)) (lit kill) ()) ())))
             (+ (if (null? err) 0
-                 (%kl-say (string-concat (list "can't kill pid " (cu-int->str pid) ": " (file-err-text err)))))
+                 (%kl-say (%str-concat (list "can't kill pid " (cu-int->str pid) ": " (file-err-text err)))))
                (self w end signo)))))))
 
 (def %pg-run (fn (_ applet argv) (%pg-run-with applet argv cu-sigterm)))
@@ -630,7 +630,7 @@
           (display (string-append (cu-int->str pid)
                      (if (if (on "-l") #t (on "-a")) (string-append " " shown "\n") "\n")))
           (do (sys-kill pid signo)
-              (if (on "-e") (display (string-concat (list shown " killed (pid " (cu-int->str pid) ")\n"))) ())))))
+              (if (on "-e") (display (%str-concat (list shown " killed (pid " (cu-int->str pid) ")\n"))) ())))))
     (def found (list ()))
     (def stop (list #f))
     (%pg-each (ps-sorted (host-processes))
@@ -691,7 +691,7 @@
     (match
       ((not (null? name)) name)
       ((null? id) kind)
-      (#t (string-concat (list kind ":[" (cu-int->str id) "]"))))))
+      (#t (%str-concat (list kind ":[" (cu-int->str id) "]"))))))
 
 (def cu-lsof
   (fn (_ argv stdin-thunk)
@@ -701,11 +701,11 @@
         (def pid (Assoc get (lit pid) p))
         (def fs (if (= pid me) () (host-files pid)))
         (if (null? fs) ()
-          (let ((head (string-concat (list (cu-int->str pid) "\t"
+          (let ((head (%str-concat (list (cu-int->str pid) "\t"
                                            (let ((e (host-exe pid))) (if (null? e) "(null)" e)) "\t"))))
             ((fn (self l)
                (if (null? l) ()
-                 (do (display (string-concat (list head (cu-int->str (Assoc get (lit fd) (first l))) "\t"
+                 (do (display (%str-concat (list head (cu-int->str (Assoc get (lit fd) (first l))) "\t"
                                                    (lsof-target (first l)) "\n")))
                      ; a process can hold thousands of descriptors
                      (cu-sweep-tick! cu-sweep-lines)
@@ -736,8 +736,8 @@
         (def s (if (Str8 starts? "/proc/" arg) (substring arg 6 (byte-len arg)) arg))
         (def pid (%pw-pid s))
         (if (null? pid)
-          (do (file-write 2 (string-concat (list "pwdx: invalid process id: '" s "'\n"))) 1)
-          (do (display (string-concat (list arg ": " (%pw-cwd pid) "\n")))
+          (do (file-write 2 (%str-concat (list "pwdx: invalid process id: '" s "'\n"))) 1)
+          (do (display (%str-concat (list arg ": " (%pw-cwd pid) "\n")))
               (self (rest ops))))))))
 
 ; S as busybox's bb_strtou reads it: decimal digits only, at least one, up to
@@ -789,7 +789,7 @@
       (#t (%ka-signal argv #f)))))
 
 (def %ka-say
-  (fn (_ s) (do (file-write 2 (string-concat (list "killall: " s "\n"))) 1)))
+  (fn (_ s) (do (file-write 2 (%str-concat (list "killall: " s "\n"))) 1)))
 
 ; ARGV's first word is --, -s SIG with a word after it, or -SIG; the names
 ; follow it
@@ -802,7 +802,7 @@
     (def names (if by-s (rest (rest argv)) (rest argv)))
     (match
       ((str=? w "-") (%ka-kill names cu-sigterm quiet))
-      ((null? signo) (%ka-say (string-concat (list "bad signal name '" word "'"))))
+      ((null? signo) (%ka-say (%str-concat (list "bad signal name '" word "'"))))
       (#t (%ka-kill names signo quiet)))))
 
 ; SIGNO to every process each of NAMES names, this one aside; a name with no
@@ -823,7 +823,7 @@
           (let ((r (sys-kill pid signo)))
             (if (< r 0)
               (do (if quiet ()
-                    (%ka-say (string-concat (list "can't kill pid " (cu-int->str pid) ": "
+                    (%ka-say (%str-concat (list "can't kill pid " (cu-int->str pid) ": "
                                (file-err-text (Err from-errno (Err errno-of r) (lit kill) ()))))))
                   1)
               0)))))

@@ -12,7 +12,7 @@ A `|` marks the end of each line written to standard output.
 ### a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-kill && mkdir -p /tmp/x-cu-kill")) (def nf (fn (_ n) (string-append "/tmp/x-cu-kill/" n))) (def capture (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def run (fn (_ argv) (let ((r (capture argv))) (display (string-concat (list (Str8 replace "\n" "|\n" (first r)) "stderr:\n" (first (rest r)) "status " (cu-int->str (first (rest (rest r)))) "\n")))))) (def kill (fn (_ . words) (run (pair "kill" words)))) (def same (fn (_ a b) (if (null? a) (null? b) (if (null? b) #f (= a b))))) (def child (fn (_) (let ((kid (sys-fork))) (if (= kid 0) (do (sys-exec "/bin/sleep" (list "30.4343")) (sys-exit 127)) kid)))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-kill && mkdir -p /tmp/x-cu-kill")) (def nf (fn (_ n) (string-append "/tmp/x-cu-kill/" n))) (def capture (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (list (file-read-all (nf ".out")) (file-read-all (nf ".err")) st)))))) (def run (fn (_ argv) (let ((r (capture argv))) (display (%str-concat (list (Str8 replace "\n" "|\n" (first r)) "stderr:\n" (first (rest r)) "status " (cu-int->str (first (rest (rest r)))) "\n")))))) (def kill (fn (_ . words) (run (pair "kill" words)))) (def same (fn (_ a b) (if (null? a) (null? b) (if (null? b) #f (= a b))))) (def child (fn (_) (let ((kid (sys-fork))) (if (= kid 0) (do (sys-exec "/bin/sleep" (list "30.4343")) (sys-exit 127)) kid)))) (display "made"))
 ```
 ---
     made
@@ -147,7 +147,7 @@ status 1
 ### alone, it lists the kernel's signals, then libc's RTMIN and RTMAX where it has them
 
 ```cu
-(let ((r (capture (list "kill" "-l"))) (rt (pg-rt)) (line (fn (_ n name) (string-concat (list (cu-pad-left (cu-int->str n) 2) ") " name "\n"))))) (list (str=? (first r) (string-concat (append (map (fn (_ e) (line (rest e) (first e))) (sys-signals)) (if (null? rt) () (list (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))))) (str=? (first r) (first (capture (list "pkill" "-l")))) (first (rest r)) (first (rest (rest r))) (= (length (sys-signals)) 31) (if (null? rt) os-darwin? (if (< (first rt) (rest rt)) (= (rest rt) 64) #f))))
+(let ((r (capture (list "kill" "-l"))) (rt (pg-rt)) (line (fn (_ n name) (%str-concat (list (cu-pad-left (cu-int->str n) 2) ") " name "\n"))))) (list (str=? (first r) (%str-concat (append (map (fn (_ e) (line (rest e) (first e))) (sys-signals)) (if (null? rt) () (list (line (first rt) "RTMIN") (line (rest rt) "RTMAX")))))) (str=? (first r) (first (capture (list "pkill" "-l")))) (first (rest r)) (first (rest (rest r))) (= (length (sys-signals)) 31) (if (null? rt) os-darwin? (if (< (first rt) (rest rt)) (= (rest rt) 64) #f))))
 ```
 ---
     (#t #t "" 0 #t #t)
@@ -327,7 +327,7 @@ status 0
 ### TERM by default, -SIG, -s SIG and -- signal this spec's children; -0 only asks
 
 ```cu
-(let ((a (child)) (b (child)) (c (child)) (d (child))) (def as (fn (_ pid) (cu-int->str pid))) (def r0 (capture (list "kill" "-0" (as a)))) (def r1 (capture (list "kill" "--" (as a)))) (def r2 (capture (list "kill" "-INT" (as b)))) (def r3 (capture (list "kill" "-s" "hup" (string-concat (list (as c) " " (as d)))))) (list r0 (sys-wait a) r1 (sys-wait b) r2 (sys-wait c) (sys-wait d) r3))
+(let ((a (child)) (b (child)) (c (child)) (d (child))) (def as (fn (_ pid) (cu-int->str pid))) (def r0 (capture (list "kill" "-0" (as a)))) (def r1 (capture (list "kill" "--" (as a)))) (def r2 (capture (list "kill" "-INT" (as b)))) (def r3 (capture (list "kill" "-s" "hup" (%str-concat (list (as c) " " (as d)))))) (list r0 (sys-wait a) r1 (sys-wait b) r2 (sys-wait c) (sys-wait d) r3))
 ```
 ---
     (("" "" 0) 143 ("" "" 0) 130 ("" "" 0) 129 129 ("" "" 0))

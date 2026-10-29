@@ -18,7 +18,7 @@
 (import cu/prims bit-and bit-or bit-xor byte-at byte-len cu-int->ptr
   cu-int->str cu-libc-sym cu-nth cu-ptr->str cu-ptr-call cu-ptr-set!
   cu-ptr-word cu-str->ptr file-write length net-aton str-make-raw
-  string-append string-concat substring wget-div wget-index)
+  string-append substring wget-div wget-index)
 (import cu/sha256 cu-m32)
 
 (def %ic-silent #f)
@@ -36,7 +36,7 @@
 
 (def %ic-ntoa
   (fn (_ v)
-    (string-concat
+    (%str-concat
       (list (cu-int->str (% (wget-div v 16777216) 256)) "."
             (cu-int->str (% (wget-div v 65536) 256)) "."
             (cu-int->str (% (wget-div v 256) 256)) "."
@@ -60,8 +60,8 @@
   (fn (_ s)
     (let ((r (%ic-digits s)))
       (match
-        ((if (null? (first r)) #t (< (rest r) (byte-len s))) (%ic-die (string-concat (list "invalid number '" s "'"))))
-        ((> (first r) 32) (%ic-die (string-concat (list "number " s " is not in 0..32 range"))))
+        ((if (null? (first r)) #t (< (rest r) (byte-len s))) (%ic-die (%str-concat (list "invalid number '" s "'"))))
+        ((> (first r) 32) (%ic-die (%str-concat (list "number " s " is not in 0..32 range"))))
         (#t (first r))))))
 
 ; gethostbyaddr's name for IP, lower case, or nil
@@ -90,7 +90,7 @@
          (if (not any?) #t (= (length ops) 2)) #f)
         (cu-usage "ipcalc"))
       (#t (guard (e (if (eq? (Err label e) (lit net))
-                      (do (unless %ic-silent (file-write 2 (string-concat (list "ipcalc: " (e msg) "\n")))) 1)
+                      (do (unless %ic-silent (file-write 2 (%str-concat (list "ipcalc: " (e msg) "\n")))) 1)
                       (error e)))
             (%ic-run on? ops))))))
 
@@ -110,15 +110,15 @@
             (let ((m (%ic-aton (first (rest ops)))))
               (if (null? m) (%ic-die (string-append "bad netmask: " (first (rest ops)))) m)))))
     (def net (bit-and ip mask))
-    (when (on? "-m" "--netmask") (file-write 1 (string-concat (list "NETMASK=" (%ic-ntoa mask) "\n"))))
+    (when (on? "-m" "--netmask") (file-write 1 (%str-concat (list "NETMASK=" (%ic-ntoa mask) "\n"))))
     (when (on? "-b" "--broadcast")
-      (file-write 1 (string-concat (list "BROADCAST=" (%ic-ntoa (bit-or net (bit-xor mask cu-m32))) "\n"))))
-    (when (on? "-n" "--network") (file-write 1 (string-concat (list "NETWORK=" (%ic-ntoa net) "\n"))))
-    (when (on? "-p" "--prefix") (file-write 1 (string-concat (list "PREFIX=" (cu-int->str (%ic-popcount mask)) "\n"))))
+      (file-write 1 (%str-concat (list "BROADCAST=" (%ic-ntoa (bit-or net (bit-xor mask cu-m32))) "\n"))))
+    (when (on? "-n" "--network") (file-write 1 (%str-concat (list "NETWORK=" (%ic-ntoa net) "\n"))))
+    (when (on? "-p" "--prefix") (file-write 1 (%str-concat (list "PREFIX=" (cu-int->str (%ic-popcount mask)) "\n"))))
     (when (on? "-h" "--hostname")
       (let ((h (%ic-host-name ip)))
-        (if (null? h) (%ic-die (string-concat (list "can't find hostname for " ipstr ": Unknown host")))
-          (file-write 1 (string-concat (list "HOSTNAME=" h "\n"))))))
+        (if (null? h) (%ic-die (%str-concat (list "can't find hostname for " ipstr ": Unknown host")))
+          (file-write 1 (%str-concat (list "HOSTNAME=" h "\n"))))))
     0))
 
 ; the decimal digits S starts with: (N . END), N nil when there are none

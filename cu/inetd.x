@@ -32,10 +32,10 @@
   cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep-lines
   cu-sweep-tick! file-close file-err-text file-read-all file-unlink file-write
   filter length map net-aton net-die net-resolve net-send-run net-sockaddr
-  reverse str-make-raw string-append string-concat string=? substring
-  sys-close sys-dup2 sys-exit sys-fork sys-getgid sys-getpid sys-getuid
-  sys-group-id sys-poll sys-signal sys-user-group sys-user-id vec-make vec-ref
-  vec-set! wget-digits wget-div wget-index)
+  reverse str-make-raw string-append string=? substring sys-close sys-dup2
+  sys-exit sys-fork sys-getgid sys-getpid sys-getuid sys-group-id sys-poll
+  sys-signal sys-user-group sys-user-id vec-make vec-ref vec-set! wget-digits
+  wget-div wget-index)
 (import cu/session hd-daemonize)
 (import cu/signal ts-signal-number)
 
@@ -67,7 +67,7 @@
 (def in-percent
   (fn (_ msg)
     (let go ((i 0) (from 0) (acc ()))
-      (match ((>= i (byte-len msg)) (string-concat (reverse (pair (substring msg from i) acc))))
+      (match ((>= i (byte-len msg)) (%str-concat (reverse (pair (substring msg from i) acc))))
              ((= (byte-at msg i) #\%) (go (+ i 1) (+ i 1) (pair "%%" (pair (substring msg from i) acc))))
              (#t (go (+ i 1) from acc))))))
 
@@ -75,7 +75,7 @@
   (fn (_ msg)
     (unless %in-quiet?
       (if %in-stderr?
-        (file-write 2 (string-concat (list "inetd: " msg "\n")))
+        (file-write 2 (%str-concat (list "inetd: " msg "\n")))
         (cu-ptr-call (cu-libc-sym "syslog") 3 (in-percent msg))))))
 
 (def %in-die (fn (_ msg) (Err raise (lit net) msg ())))
@@ -84,7 +84,7 @@
 (def in-count
   (fn (_ s)
     (let ((n (wget-digits s)))
-      (if (null? n) (%in-die (string-concat (list "invalid number '" s "'"))) n))))
+      (if (null? n) (%in-die (%str-concat (list "invalid number '" s "'"))) n))))
 
 ; bb_strtou: S as a whole decimal number, or nil
 (def in-strtou
@@ -123,7 +123,7 @@
 (def %in-dgram? (fn (_ s) (= (%in-get s %in-type) 2)))
 
 (def %in-name
-  (fn (_ s) (string-concat (list (%in-get s %in-service) "/" (%in-get s %in-proto)))))
+  (fn (_ s) (%str-concat (list (%in-get s %in-service) "/" (%in-get s %in-proto)))))
 
 ; --- the config file -----------------------------------------------------------------
 
@@ -180,7 +180,7 @@
 ; sets the host the lines after it default to.
 (def %in-parse
   (fn (_ lineno tokens)
-    (def err (fn (_) (do (%in-say (string-concat (list "parse error on line " (cu-int->str lineno) ", line is ignored"))) ())))
+    (def err (fn (_) (do (%in-say (%str-concat (list "parse error on line " (cu-int->str lineno) ", line is ignored"))) ())))
     (def t0 (first tokens))
     (def colon (Str8 last-index-of ":" t0))
     (def host (if (null? colon) %in-default-host (substring t0 0 colon)))
@@ -357,7 +357,7 @@
         (let ((buf (in-zeroed 16)))
           (if (= (in-call (cu-ptr-call (cu-libc-sym "inet_pton") (in-af fam) host (cu-str->ptr buf))) 1)
             (in-sockaddr6 buf port) ()))))
-    (when (null? a) (%in-say (string-concat (list "bad address '" host "'"))))
+    (when (null? a) (%in-say (%str-concat (list "bad address '" host "'"))))
     a))
 
 (def %in-same-bytes?
@@ -408,7 +408,7 @@
           (when (eq? (%in-get s %in-family) (lit unix)) (guard (_ ()) (file-unlink (%in-get s %in-service))))
           (let ((r (in-bind fd (%in-get s %in-addr))))
             (if (< r 0)
-              (do (%in-say (string-concat (list (%in-name s) ": bind: " (in-errtext r))))
+              (do (%in-say (%str-concat (list (%in-name s) ": bind: " (in-errtext r))))
                   (sys-close fd)
                   (%in-rearm!))
               (do (when (%in-stream? s) (cu-ptr-call (cu-libc-sym "listen") fd %in-queue))
@@ -429,7 +429,7 @@
   (fn (_)
     (set! %in-default-host "*")
     (def text (guard (e (if (eq? (cu-err-label e) (lit io))
-                          (do (%in-say (string-concat (list %in-conf ": " (file-err-text e)))) ())
+                          (do (%in-say (%str-concat (list %in-conf ": " (file-err-text e)))) ())
                           (error e)))
                 (file-read-all %in-conf)))
     (unless (null? text)
@@ -477,7 +477,7 @@
             (if (eq? fam (lit inet)) (pair (net-sockaddr "0.0.0.0" port) 16) (in-sockaddr6 () port)))
           (#t (let ((a (%in-host-addr (%in-get s %in-host) port fam)))
                 (when (null? a)
-                  (%in-say (string-concat (list (%in-name s) ": unknown host '" (%in-get s %in-host) "'"))))
+                  (%in-say (%str-concat (list (%in-name s) ": unknown host '" (%in-get s %in-host) "'"))))
                 a)))))))
 
 ; --- the builtins ---------------------------------------------------------------------------
@@ -612,7 +612,7 @@
     (sys-signal 13 0)
     (map (fn (_ n) (sys-signal n 0)) %in-sigs)
     (def r (in-exec (%in-get s %in-program) (%in-get s %in-argv)))
-    (%in-say (string-concat (list "can't execute '" (%in-get s %in-program) "': " (in-errtext r))))
+    (%in-say (%str-concat (list "can't execute '" (%in-get s %in-program) "': " (in-errtext r))))
     (%in-exit1 s 0)))
 
 ; the waiting datagram's sender, left in the queue: (DATA COUNT SOCKADDR LEN)
@@ -666,7 +666,7 @@
     (def accepted
       (if (if nowait? (%in-stream? s) #f)
         (let ((c (in-call (cu-ptr-call (cu-libc-sym "accept") fd 0 0))))
-          (do (when (< c 0) (%in-say (string-concat (list "accept (for " (%in-get s %in-service) "): " (in-errtext c))))) c))
+          (do (when (< c 0) (%in-say (%str-concat (list "accept (for " (%in-get s %in-service) "): " (in-errtext c))))) c))
         -1))
     (def new-udp
       (if (if nowait? (if (%in-dgram? s) (not (eq? (%in-get s %in-family) (lit unix))) #f) #f)
@@ -718,10 +718,10 @@
                 (raw (cu-ptr-ref (cu-str->ptr st) 0 4)))
             (unless (null? s)
               (do (match ((if (= (% raw 128) 0) (> (% (wget-div raw 256) 256) 0) #f)
-                           (%in-say (string-concat (list (%in-get s %in-program) ": exit status "
+                           (%in-say (%str-concat (list (%in-get s %in-program) ": exit status "
                                                          (cu-int->str (% (wget-div raw 256) 256))))))
                          ((if (> (% raw 128) 0) (not (= (% raw 128) 127)) #f)
-                           (%in-say (string-concat (list (%in-get s %in-program) ": exit signal "
+                           (%in-say (%str-concat (list (%in-get s %in-program) ": exit signal "
                                                          (cu-int->str (% raw 128))))))
                          (#t ()))
                   (%in-set! s %in-wait 1)
@@ -773,7 +773,7 @@
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "inetd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
-                (do (file-write 2 (string-concat (list "inetd: " (e msg) "\n"))) 1)
+                (do (file-write 2 (%str-concat (list "inetd: " (e msg) "\n"))) 1)
                 (error e)))
       (%in-main o))))
 
@@ -808,7 +808,7 @@
       (let ((n (in-strtou s)))
         (if (if (null? n) #f (<= n 65535)) n
           (let ((p (in-servport s "tcp")))
-            (if (null? p) (net-die (string-concat (list "bad port '" s "'"))) p)))))))
+            (if (null? p) (net-die (%str-concat (list "bad port '" s "'"))) p)))))))
 
 (provide cu/inetd cu-inetd in-af in-bind in-call in-count in-dontwait
   in-errtext in-exec in-lines in-now in-percent in-recvfrom in-reuse!

@@ -18,7 +18,7 @@ of each line written to standard output.
             (do (sys-dup2 oo 1) (sys-dup2 ee 2)
                 (def st (cu-run argv ""))
                 (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
-                (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (pn-f "out"))) "stderr:\n"
+                (display (%str-concat (list (Str8 replace "\n" "|\n" (file-read-all (pn-f "out"))) "stderr:\n"
                                               (file-read-all (pn-f "err")) "status " (cu-int->str st) "\n")))
                 ())))))
     (display "made"))

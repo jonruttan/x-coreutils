@@ -27,7 +27,7 @@ cat -v, the host's name shown as HOST.
   (def sm-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
   (def sm-prep (fn (_ args input port)
     (sys-setenv "SM_ARGS" args) (sys-setenv "SM_IN" input) (sys-setenv "SM_PORT" (cu-int->str port))
-    (sm-sh (string-concat (list
+    (sm-sh (%str-concat (list
       "d=/tmp/x-cu-smtp; rm -f $d/out $d/err $d/got $d/argv; printf '%b' \"$SM_IN\" > $d/in; : > $d/got; "
       "eval \"set -- $(printf ' %s ' \"$SM_ARGS\" | sed -e \"s/ P / $SM_PORT /g\" -e \"s/:P /:$SM_PORT /g\" -e \"s/ P'/ $SM_PORT'/g\" -e \"s/ P 2>/ $SM_PORT 2>/g\")\"; "
       "for a; do printf '%s\\n' \"$a\"; done > $d/argv")))
@@ -87,7 +87,7 @@ cat -v, the host's name shown as HOST.
           (sys-exit (cu-run (pair "sendmail" argv) in))))
     (unless none? (do (sm-serve l flags) (Socket close l)))
     (def st (sys-wait pid))
-    (sm-sh (string-concat (list
+    (sm-sh (%str-concat (list
       "d=/tmp/x-cu-smtp; h=$(uname -n); { LC_ALL=C cat -v $d/out; echo \"[status " (cu-int->str st) "]\"; "
       "sed -e \"s/$h/HOST/g\" -e \"s/:$SM_PORT/:PORT/g\" $d/err; "
       (if none? "" "echo '--- server got'; LC_ALL=C cat -v $d/got | sed \"s/$h/HOST/g\"; ")

@@ -29,8 +29,8 @@
 (import cu/prims append byte-at byte-len cu-ptr-ref cu-ptr-set! cu-sig-ign
   cu-stdin-to-command! cu-str->ptr cu-sweep-lines cu-sweep-tick! file-read-run
   file-write filter length net-connect net-die net-resolve net-send-run
-  reverse str-make-raw string-concat sys-getenv sys-isatty sys-kill sys-poll
-  sys-signal wget-err-text)
+  reverse str-make-raw sys-getenv sys-isatty sys-kill sys-poll sys-signal
+  wget-err-text)
 (import cu/signal ts-signal-number)
 
 (def %tn-iac 255)
@@ -75,7 +75,7 @@
 (def %tn-exit
   (fn (_ n)
     (%tn-cook!)
-    (file-write 1 (string-concat (reverse %tn-later)))
+    (file-write 1 (%str-concat (reverse %tn-later)))
     (set! %tn-later ())
     n))
 
@@ -175,7 +175,7 @@
 ; --- from the server ---------------------------------------------------------------
 
 (def %tn-banner
-  (fn (_ mode key) (%tn-printf (string-concat (list "\r\nEntering " mode " mode\r\nEscape character is '^" key "'.\r\n")))))
+  (fn (_ mode key) (%tn-printf (%str-concat (list "\r\nEntering " mode " mode\r\nEscape character is '^" key "'.\r\n")))))
 
 ; one option verb's effect
 (def %tn-option!
@@ -318,7 +318,7 @@
     (def ops (Opts operands o))
     (if (if (null? ops) #t (> (length ops) 2)) (cu-usage "telnet")
       (guard (e (if (eq? (Err label e) (lit net))
-                  (do (file-write 2 (string-concat (list "telnet: " (e msg) "\n"))) 1)
+                  (do (file-write 2 (%str-concat (list "telnet: " (e msg) "\n"))) 1)
                   (error e)))
         (%tn-main o (first ops) (if (null? (rest ops)) () (first (rest ops))))))))
 
@@ -329,14 +329,14 @@
                       (if (null? l) (if (Opts on? o "-a") (sys-getenv "USER") ()) l)))
     (def port (tn-port port-arg))
     (def ip (let ((q (guard (_ ()) (net-resolve host))))
-              (if (null? q) (net-die (string-concat (list "bad address '" host "'"))) q)))
+              (if (null? q) (net-die (%str-concat (list "bad address '" host "'"))) q)))
     (set! %tn-net (guard (e (if (eq? (Err label e) (lit io))
-                              (net-die (string-concat (list "can't connect to remote host (" ip "): " (wget-err-text e))))
+                              (net-die (%str-concat (list "can't connect to remote host (" ip "): " (wget-err-text e))))
                               (error e)))
                     (net-connect ip port)))
     (cu-stdin-to-command!)
     (set! %tn-tty-out? (sys-isatty 1))
-    (file-write 1 (string-concat (list "Connected to " host "\n")))
+    (file-write 1 (%str-concat (list "Connected to " host "\n")))
     (sys-signal 13 cu-sig-ign)
     (Sys catch-signal %tn-sigint)
     (%tn-loop #f)))

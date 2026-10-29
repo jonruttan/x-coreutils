@@ -24,8 +24,8 @@
 (import cu/prims byte-at byte-len cu-int->str cu-sweep! file-close
   file-err-text file-exists? file-open-append file-open-or-err file-open-read
   file-open-write file-read-run file-stat file-write file-write-run length
-  net-close net-die net-recv-run net-resolve string-append string-concat
-  string=? substring wget-digits wget-memv)
+  net-close net-die net-recv-run net-resolve string-append string=? substring
+  wget-digits wget-memv)
 
 ; a run's bytes to FD, all of them
 (def %ftp-pump-out
@@ -43,10 +43,10 @@
 (def %ftpgp-cmd
   (fn (_ s1 s2)
     (when (> %ftp-verbose 0)
-      (file-write 2 (string-concat (list %ftp-applet ": cmd " (if (null? s1) "(null)" s1) " "
+      (file-write 2 (%str-concat (list %ftp-applet ": cmd " (if (null? s1) "(null)" s1) " "
                                          (if (null? s2) "(null)" s2) "\n"))))
     (unless (null? s1)
-      (ftp-send (if (null? s2) s1 (string-concat (list s1 " " s2)))))
+      (ftp-send (if (null? s2) s1 (%str-concat (list s1 " " s2)))))
     (let go ()
       (let ((l (ftp-line)))
         (if (null? l)
@@ -64,7 +64,7 @@
       (let go ((i 0))
         (if (if (< i (byte-len l)) (if (>= (byte-at l i) 32) (< (byte-at l i) 127) #f) #f)
           (go (+ i 1)) i)))
-    (net-die (string-concat
+    (net-die (%str-concat
       (list "unexpected server response" (if (null? msg) "" (string-append " to " msg))
             ": " (substring l 0 end))))))
 
@@ -110,7 +110,7 @@
       (if to-stdout? 1
         (let ((fd (file-open-or-err (if resumed? file-open-append file-open-write) local)))
           (if (Err err? fd)
-            (net-die (string-concat (list "can't open '" local "': " (file-err-text fd))))
+            (net-die (%str-concat (list "can't open '" local "': " (file-err-text fd))))
             fd))))
     (let go ()
       (let ((r (net-recv-run data 65536)))
@@ -127,7 +127,7 @@
       (if (string=? local "-") ()
         (let ((fd (file-open-or-err file-open-read local)))
           (if (Err err? fd)
-            (net-die (string-concat (list "can't open '" local "': " (file-err-text fd))))
+            (net-die (%str-concat (list "can't open '" local "': " (file-err-text fd))))
             fd))))
     (unless (wget-memv (%ftpgp-cmd "STOR" remote) (list 125 150)) (%ftpgp-die "STOR"))
     (if (null? in)
@@ -150,7 +150,7 @@
     (if (null? v) dflt
       (let ((n (wget-digits v)))
         (if (if (null? n) #t (> n 65535))
-          (net-die (string-concat (list "bad port '" v "'")))
+          (net-die (%str-concat (list "bad port '" v "'")))
           n)))))
 
 ; ftpget HOST [LOCAL] REMOTE and ftpput HOST [REMOTE] LOCAL
@@ -162,7 +162,7 @@
       (do (set! %ftp-applet applet)
           (set! %ftp-verbose (if (if (Opts on? o "-v") #t (Opts on? o "--verbose")) 1 0))
           (guard (e (if (eq? (Err label e) (lit net))
-                      (do (file-write 2 (string-concat (list applet ": " (e msg) "\n"))) 1)
+                      (do (file-write 2 (%str-concat (list applet ": " (e msg) "\n"))) 1)
                       (error e)))
             (%ftpgp-run applet o ops stdin-thunk))))))
 
@@ -178,10 +178,10 @@
     (def a2 (if (null? (rest (rest ops))) a1 (first (rest (rest ops)))))
     (def port (%ftp-port (%ftp-opt o "-P" "--port" ()) 21))
     (def ip (guard (_ ()) (net-resolve host)))
-    (when (null? ip) (net-die (string-concat (list "bad address '" host "'"))))
+    (when (null? ip) (net-die (%str-concat (list "bad address '" host "'"))))
     (set! %ftp-ip ip)
     (when (> %ftp-verbose 0)
-      (file-write 1 (string-concat (list "Connecting to " host " (" ip ":" (cu-int->str port) ")\n"))))
+      (file-write 1 (%str-concat (list "Connecting to " host " (" ip ":" (cu-int->str port) ")\n"))))
     (ftp-open! (ftp-connect ip port))
     (def st
       (do (%ftpgp-login (%ftp-opt o "-u" "--username" "anonymous")

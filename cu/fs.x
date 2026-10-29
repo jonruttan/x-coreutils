@@ -34,7 +34,7 @@
   file-lstat-full file-lstat-wide file-mkdir file-or-err file-read-fd
   file-readlink file-rename file-rmdir file-stat-wide file-symlink file-unlink
   file-utimes file-write file-write-run length reverse set-first!
-  string-append string-concat string=? sys-isatty)
+  string-append string=? sys-isatty)
 (import cu/sys2 cu-drop-last)
 (import cu/text cu-fold-lines-said cu-fold-said cu-map-swept cu-pad-left
   cu-put-each cu-says)
@@ -55,7 +55,7 @@
   (fn (_ o path what)
     (if (not (Opts on? o "-i")) #t
       (if (not (file-exists? path)) #t
-        (%fs-ask (string-concat (list what ": overwrite '" path "'? ")))))))
+        (%fs-ask (%str-concat (list what ": overwrite '" path "'? ")))))))
 
 ; -u: only when the source is newer than the target
 (def %fs-newer?
@@ -104,7 +104,7 @@
         (fn (_ s from to)
           (def go
             (fn (self i acc)
-              (if (>= i to) (string-concat (reverse acc))
+              (if (>= i to) (%str-concat (reverse acc))
                 (let ((b (byte-at s i)))
                   (do (if (= (& i cu-sweep-bytes) 0) (cu-sweep! i) ())
                     (self (+ i 1)
@@ -141,7 +141,7 @@
             (if (if b? (= (byte-len (first xs)) 0) #f)
               (self (rest xs) n (pair "\n" acc))
               (self (rest xs) (+ n 1)
-                (pair (string-concat
+                (pair (%str-concat
                         (list (cu-pad-left (cu-int->str n) 6) "\t"
                               (first xs) "\n"))
                   acc)))))))
@@ -244,7 +244,7 @@
   (fn (_ r what src dst)
     (if (not (Err err? r)) 0
       (do (file-write 2
-            (string-concat
+            (%str-concat
               (list "cp: cannot create " what " '" dst "' to '" src "': "
                     (file-err-text r) "\n")))
           1))))
@@ -259,7 +259,7 @@
                           (file-lstat-wide src))))))
       (if (Err err? st)
         (do (file-write 2
-              (string-concat
+              (%str-concat
                 (list "cp: cannot stat '" src "': " (file-err-text st) "\n")))
             1)
         (let ((file-type (cu-stat-get st (lit file-type))))
@@ -267,7 +267,7 @@
             ((eq? file-type (lit dir))
               (if (not (%cp-recursive? o))
                 (do (file-write 2
-                      (string-concat
+                      (%str-concat
                         (list "cp: omitting directory '" src "'\n")))
                     1)
                 (do (if (file-exists? dst) () (file-mkdir dst))
@@ -277,7 +277,7 @@
                       (do (%cp-preserve! src dst o) r)))))
             ((file-dir? dst)
               (do (file-write 2
-                    (string-concat
+                    (%str-concat
                       (list "cp: cannot overwrite directory '" dst
                             "' with non-directory\n")))
                   1))
@@ -324,7 +324,7 @@
       (let ((dst (cu-last ops)) (srcs (cu-drop-last ops)))
         (if (if (> (length srcs) 1) (not (file-dir? dst)) #f)
           (do (file-write 2
-                (string-concat
+                (%str-concat
                   (list "cp: target '" dst "' is not a directory\n")))
               1)
           (let ((go (fn (self ss st)
@@ -352,7 +352,7 @@
         ((null? told) (%mv-move src dst))
         ((string=? told "-n") 0)
         ((string=? told "-i")
-          (if (%fs-ask (string-concat (list "mv: overwrite '" dst "'? ")))
+          (if (%fs-ask (%str-concat (list "mv: overwrite '" dst "'? ")))
             (%mv-move src dst)
             1))
         (#t (%mv-move src dst))))))
@@ -432,7 +432,7 @@
   (fn (_ o path st)
     (if (not (%rm-told? o "-i")) #t
       (%fs-ask
-        (string-concat
+        (%str-concat
           (list "rm: remove " (%rm-file-type-words st) " '" path "'? "))))))
 
 ; and whether to go into a directory that holds anything
@@ -440,7 +440,7 @@
   (fn (_ o path names)
     (if (if (%rm-told? o "-i") (not (null? names)) #f)
       (%fs-ask
-        (string-concat (list "rm: descend into directory '" path "'? ")))
+        (%str-concat (list "rm: descend into directory '" path "'? ")))
       #t)))
 
 ; what rm calls a path, in the file-type words the coreutils share
@@ -463,14 +463,14 @@
   (fn (_ path o r said)
     (if (Err err? r) (%rm-cannot path (file-err-text r))
       (do (if (Opts on? o "-v")
-            (display (string-concat (list said path "'\n")))
+            (display (%str-concat (list said path "'\n")))
             ())
           0))))
 
 (def %rm-cannot
   (fn (_ path why)
     (do (file-write 2
-          (string-concat (list "rm: cannot remove '" path "': " why "\n")))
+          (%str-concat (list "rm: cannot remove '" path "': " why "\n")))
         1)))
 
 (def cu-rm
@@ -504,7 +504,7 @@
                 (self (rest os) st)))
           ((file-exists? (first os))
             (do (file-write 2
-                  (string-concat
+                  (%str-concat
                     (list "mkdir: cannot create directory '" (first os)
                           "': File exists\n")))
                 (self (rest os) 1)))
@@ -536,7 +536,7 @@
             (do (if p? (%rmdir-parents! (first os)) ())
                 (self (rest os) st))
             (do (file-write 2
-                  (string-concat
+                  (%str-concat
                     (list "rmdir: failed to remove '" (first os) "'\n")))
                 (self (rest os) 1))))))
     (go (Opts operands o) 0)))
@@ -580,12 +580,12 @@
         (match
           ((not (Err err? st))
             (%ln-target into (if t? " is not a directory" ": Not a directory")))
-          (t? (string-concat
+          (t? (%str-concat
                 (list "ln: failed to access '" into "': " (file-err-text st))))
           (#t (%ln-target into (string-append ": " (file-err-text st)))))))))
 
 (def %ln-target
-  (fn (_ into why) (string-concat (list "ln: target '" into "'" why))))
+  (fn (_ into why) (%str-concat (list "ln: target '" into "'" why))))
 
 ; Whether a NAME is a directory to make the links in.  -n takes a link to a
 ; directory as the link it is, so it names a file rather than the directory
@@ -621,7 +621,7 @@
                         (if (Opts on? o "-s") "symbolic link" "hard link")
                         " '" name "': " (file-err-text r)))
                 (do (if (Opts on? o "-v")
-                      (display (string-concat (list "'" name "' -> '" t "'\n")))
+                      (display (%str-concat (list "'" name "' -> '" t "'\n")))
                       ())
                     0))))))))
 
@@ -639,6 +639,6 @@
 
 (def %ln-fails
   (fn (_ line)
-    (do (file-write 2 (string-concat (append line (list "\n")))) 1)))
+    (do (file-write 2 (%str-concat (append line (list "\n")))) 1)))
 
 (provide cu/fs cat-ranges cu-cat cu-cp cu-ln cu-mkdir cu-mv cu-rm cu-rmdir)

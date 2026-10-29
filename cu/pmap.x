@@ -20,7 +20,7 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/prims byte-len cu-heap-collect cu-hexs cu-int->str host-args
-  host-process host-regions reverse string-append string-concat substring)
+  host-process host-regions reverse string-append substring)
 (import cu/procps ps-printable ps-resolve!)
 (import cu/strings cu-range-number)
 (import cu/text cu-pad-left cu-pad-zero)
@@ -51,10 +51,10 @@
   (fn (_ r size x)
     (def get (fn (_ k) (Assoc get k r)))
     (def name (get (lit name)))
-    (string-concat
+    (%str-concat
       (list (%pmap-address (get (lit start))) " "
             (if x
-              (string-concat
+              (%str-concat
                 (list (%pmap-col size 7) " " (%pmap-col (%pmap-kib (get (lit pss))) 7) " "
                       (%pmap-col (%pmap-kib (get (lit private-dirty))) 7) " "
                       (%pmap-col (%pmap-kib (get (lit swap))) 7) " "))
@@ -65,7 +65,7 @@
 (def %pmap-report
   (fn (_ pid x quiet)
     (if (null? (host-process pid)) 42
-      (do (display (string-concat (list (cu-int->str pid) ": " (%pmap-cmdline (host-args pid)) "\n")))
+      (do (display (%str-concat (list (cu-int->str pid) ": " (%pmap-cmdline (host-args pid)) "\n")))
           (if (if x (not quiet) #f)
             (display "Address\t\t  Kbytes     PSS   Dirty    Swap  Mode  Mapping\n") ())
           (let ((rs (host-regions pid)))
@@ -85,13 +85,13 @@
               (let ((t (go rs 0 0 0 0 0)))
                 (match
                   (quiet ())
-                  (x (display (string-concat
+                  (x (display (%str-concat
                                 (list "----------------  ------  ------  ------  ------\n"
                                       "total kB " (%pmap-col (first t) 15) " "
                                       (%pmap-col (first (rest t)) 7) " "
                                       (%pmap-col (first (rest (rest t))) 7) " "
                                       (%pmap-col (first (rest (rest (rest t)))) 7) "\n"))))
-                  (#t (display (string-concat (list " total " (%pmap-col (first t) 17) "K\n")))))
+                  (#t (display (%str-concat (list " total " (%pmap-col (first t) 17) "K\n")))))
                 0)))))))
 
 (def cu-pmap

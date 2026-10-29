@@ -30,8 +30,7 @@
 (import cu/cli cu-opts)
 (import cu/dump dp-find dp-in? dp-skip-in)
 (import cu/prims append byte-at byte-len cu-member-s? cu-nth file-write filter
-  map reverse string-append string-concat string=? substring sys-getenv
-  vec-build vec-ref)
+  map reverse string-append string=? substring sys-getenv vec-build vec-ref)
 (import cu/tsort ts-space?)
 
 (def %go-quote
@@ -39,13 +38,13 @@
     (def n (byte-len arg))
     (def go
       (fn (self i acc)
-        (if (>= i n) (string-concat (reverse (pair "'" acc)))
+        (if (>= i n) (%str-concat (reverse (pair "'" acc)))
           (let ((c (byte-at arg i)))
             (self (+ i 1)
               (pair (match
                       ((if tcsh (= c #\newline) #f) "\\n")
                       ((if (= c #\') #t (if tcsh (if (= c #\!) #t (ts-space? c)) #f))
-                        (string-concat (list "'\\" (bytes->str (list c)) "'")))
+                        (%str-concat (list "'\\" (bytes->str (list c)) "'")))
                       (#t (bytes->str (list c))))
                     acc))))))
     (go 0 (list "'"))))
@@ -76,7 +75,7 @@
 (def %go-say
   (fn (_ g msg what)
     (if (%go-say? g)
-      (file-write 2 (string-concat (list (%go-name g) msg what "\n")))
+      (file-write 2 (%str-concat (list (%go-name g) msg what "\n")))
       ())))
 
 ; C's place in the short options: (TAKES . OPTIONAL?), or nil where it is
@@ -161,14 +160,14 @@
               ((if eq (= has 0) #f)
                 (do (if (%go-colon g) () (%go-say g ": option does not take an argument: " name))
                     (list () 1 more)))
-              (eq (list (list (string-concat (list " --" name " " (%go-norm g (substring token (+ at 1) (byte-len token))))))
+              (eq (list (list (%str-concat (list " --" name " " (%go-norm g (substring token (+ at 1) (byte-len token))))))
                         0 more))
               ((= has 1)
                 (if (null? more)
                   (do (if (%go-colon g) () (%go-say g ": option requires an argument: " name))
                       (list () 1 more))
-                  (list (list (string-concat (list " --" name " " (%go-norm g (first more))))) 0 (rest more))))
-              ((= has 2) (list (list (string-concat (list " --" name " ''"))) 0 more))
+                  (list (list (%str-concat (list " --" name " " (%go-norm g (first more))))) 0 (rest more))))
+              ((= has 2) (list (list (%str-concat (list " --" name " ''"))) 0 more))
               (#t (list (list (string-append " --" name)) 0 more))))))
       ((= dashes 2)
         (do (if (%go-colon g) ()
@@ -332,7 +331,7 @@
     (let ((r (%go-parse g params)))
       (do (if quiet ()
             (file-write 1
-              (string-concat
+              (%str-concat
                 (append (reverse (first r))
                   (pair " --"
                     (append (map (fn (_ a) (string-append " " (%go-norm g a))) (cu-nth 2 r))
@@ -371,7 +370,7 @@
         (go (append (Opts values o "-l") (Opts values o "--longoptions")) ())))
     (def optstr (val "-o" "--options"))
     (do (if (if (null? shell) #f (not (cu-member-s? shell (list "bash" "sh" "tcsh" "csh"))))
-          (file-write 2 (string-concat (list "getopt: unknown shell '" shell "', assuming bash\n")))
+          (file-write 2 (%str-concat (list "getopt: unknown shell '" shell "', assuming bash\n")))
           ())
         (match
           ((eq? longs (lit empty)) (do (file-write 2 "getopt: empty long option specified\n") 1))

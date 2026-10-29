@@ -18,7 +18,7 @@
 (import cu/hash cu-bytes cu-crypt64)
 (import cu/prims bit-and byte-at byte-len char->integer file-close
   file-open-read file-read-run file-write length map reverse str-make-raw
-  string-append string-concat string=? substring sys-dup2)
+  string-append string=? substring sys-dup2)
 (import cu/strings cu-range-number)
 (import cu/text cu-stdin-pieces)
 
@@ -95,7 +95,7 @@
     (let ((fd (file-open-read "/dev/urandom")))
       (let ((r (file-read-run fd n)))
         (do (file-close fd)
-            (string-concat
+            (%str-concat
               (map (fn (_ b) (let ((v (bit-and b 63))) (substring cu-crypt64 v (+ v 1))))
                    (cu-bytes (first r) 0 (rest r)))))))))
 

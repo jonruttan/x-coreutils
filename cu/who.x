@@ -20,11 +20,10 @@
 (import cu/perm cu-chown-number)
 (import cu/prims append byte-at byte-len cu-int->str cu-max-status cu-nth
   cu-stat-get cu-stdin-to-command! date-now-unix file-stat-full file-write
-  filter host-users host-utmp length map ps-div reverse string-append
-  string-concat string=? substring sys-chroot sys-cpu-count sys-exec
-  sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getuid
-  sys-group-name sys-nice sys-uname sys-user-group sys-user-groups sys-user-id
-  sys-user-name)
+  filter host-users host-utmp length map ps-div reverse string-append string=?
+  substring sys-chroot sys-cpu-count sys-exec sys-getegid sys-getenv
+  sys-geteuid sys-getgid sys-getgroups sys-getuid sys-group-name sys-nice
+  sys-uname sys-user-group sys-user-groups sys-user-id sys-user-name)
 (import cu/text cu-num-prefix cu-pad-left cu-pad-right cu-pad-zero)
 
 (def %cu-user-name
@@ -110,7 +109,7 @@
 (def %cu-id-named
   (fn (_ id name)
     (if (null? name) (cu-int->str id)
-      (string-concat (list (cu-int->str id) "(" name ")")))))
+      (%str-concat (list (cu-int->str id) "(" name ")")))))
 
 ; groups [USER]...: the groups of the calling process, by name, or of each USER
 ; after its name and a colon.  A USER is a name -- groups reads no uid -- and
@@ -130,9 +129,9 @@
         (self (rest ops) line
           (if (null? who)
             (do (file-write 2
-                  (string-concat (list "groups: '" (first ops) "': no such user\n")))
+                  (%str-concat (list "groups: '" (first ops) "': no such user\n")))
                 1)
-            (do (display (string-concat (list (first ops) " : " (line who) "\n")))
+            (do (display (%str-concat (list (first ops) " : " (line who) "\n")))
                 st)))))))
 
 ; id [USER]...: the full line by default, or one field under -u -g -G, with -n
@@ -167,7 +166,7 @@
           (cu-max-status st
             (if (null? who)
               (do (file-write 2
-                    (string-concat (list "id: '" (first ops) "': no such user\n")))
+                    (%str-concat (list "id: '" (first ops) "': no such user\n")))
                   1)
               (%cu-id-print who field n? r?))))))))
 
@@ -195,7 +194,7 @@
       (do (display (string-append (if (null? name) (cu-int->str id) name) "\n"))
           (if (if n? (null? name) #f)
             (do (file-write 2
-                  (string-concat
+                  (%str-concat
                     (list "id: cannot find name for " label " ID " (cu-int->str id) "\n")))
                 1)
             0)))))
@@ -206,7 +205,7 @@
   (fn (_ who)
     (let ((ru (cu-nth 1 who)) (eu (cu-nth 2 who)) (rg (cu-nth 3 who))
           (eg (cu-nth 4 who)))
-      (string-concat
+      (%str-concat
         (list "uid=" (%cu-id-named ru (sys-user-name ru))
               " gid=" (%cu-id-named rg (sys-group-name rg))
               (if (= eu ru) "" (string-append " euid=" (%cu-id-named eu (sys-user-name eu))))
@@ -345,7 +344,7 @@
       (do (file-write 2 "chroot: missing operand\n") 1)
       (if (< (sys-chroot (first argv)) 0)
         (do (file-write 2
-              (string-concat
+              (%str-concat
                 (list "chroot: cannot change root to '" (first argv)
                       "': Operation not permitted\n")))
             1)
@@ -383,7 +382,7 @@
   (fn (_ u)
     (def tty (Assoc get (lit tty) u))
     (def host (Assoc get (lit host) u))
-    (string-concat
+    (%str-concat
       (list (cu-pad-right (Assoc get (lit user) u) 15) " "
             (cu-pad-right tty 15) " "
             (cu-pad-right (%wh-idle tty) 7) " "
@@ -400,7 +399,7 @@
     (if (null? st) "?"
       (let ((t (- (date-now-unix) (cu-stat-get st (lit atime)))))
         (if (if (>= t 0) (< t 86400) #f)
-          (string-concat (list (cu-pad-zero (cu-int->str (ps-div t 3600)) 2) ":"
+          (%str-concat (list (cu-pad-zero (cu-int->str (ps-div t 3600)) 2) ":"
                                (cu-pad-zero (cu-int->str (ps-div (% t 3600) 60)) 2)))
           "old")))))
 
@@ -411,7 +410,7 @@
   (fn (_ t)
     (def d (Date local t))
     (def two (fn (_ k) (cu-pad-zero (cu-int->str (Assoc get k d)) 2)))
-    (string-concat
+    (%str-concat
       (list (cu-nth (- (Assoc get (lit month) d) 1) cu-date-mon-abbr)
             (cu-pad-left (cu-int->str (Assoc get (lit day) d)) 3) " "
             (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second))))))

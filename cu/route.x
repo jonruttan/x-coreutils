@@ -25,7 +25,7 @@
 (import cu/prims byte-at byte-len char->integer cu-err-label cu-int->str
   cu-libc-sym cu-lines cu-ptr-call cu-ptr-ref cu-ptr-set! cu-str->ptr
   file-or-err file-read-unsized file-write length libc-strerror map
-  string-append string-concat string=? substring)
+  string-append string=? substring)
 (import cu/strings cu-range-number)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-left)
@@ -44,7 +44,7 @@
 
 (def %rt-flags
   (fn (_ flags)
-    (string-concat (map (fn (_ fc) (if (= (& flags (first fc)) 0) "" (rest fc))) %rt-flagchars))))
+    (%str-concat (map (fn (_ fc) (if (= (& flags (first fc)) 0) "" (rest fc))) %rt-flagchars))))
 
 ; bb_displayroutes: the IPv4 table, -e's columns where EXTRA?
 (def rt-show4
@@ -61,7 +61,7 @@
                    (unless (= (& fl 1) 0)
                      (let ((letters (%rt-flags (& fl 63))))
                        (file-write 1
-                         (string-concat
+                         (%str-concat
                            (list (inet-left (inet-rresolve d m numeric? "default" #f) 15 15) " "
                                  (inet-left (inet-rresolve g m numeric? "*" #t) 15 15) " "
                                  (inet-left (inet-dotted m) 16)
@@ -69,10 +69,10 @@
                                              (string-append "!" (substring letters 1 (byte-len letters))))
                                            6)
                                  (if extra?
-                                   (string-concat
+                                   (%str-concat
                                      (list (cu-pad-left (List ref 8 w) 5) " " (inet-left (List ref 9 w) 5) " "
                                            (cu-pad-left (List ref 10 w) 6)))
-                                   (string-concat
+                                   (%str-concat
                                      (list (inet-left (cu-int->str (inet-dec (List ref 6 w))) 6) " "
                                            (inet-left (cu-int->str (inet-dec (List ref 4 w))) 2) " "
                                            (cu-pad-left (cu-int->str (inet-dec (List ref 5 w))) 7))))
@@ -84,15 +84,15 @@
 (def %rt-show6
   (fn (_)
     (def text (file-or-err (fn (_) (file-read-unsized "/proc/net/ipv6_route"))))
-    (file-write 1 (string-concat (list "Kernel IPv6 routing table\n" (inet-left "Destination" 44) (inet-left "Next Hop" 40)
+    (file-write 1 (%str-concat (list "Kernel IPv6 routing table\n" (inet-left "Destination" 44) (inet-left "Next Hop" 40)
                                        "Flags Metric Ref    Use Iface\n")))
     (unless (Err err? text)
       (map (fn (_ line)
              (let ((w (inet-words line)))
                (when (= (length w) 10)
                  (file-write 1
-                   (string-concat
-                     (list (inet-left (string-concat (list (inet-ntop6 (List ref 0 w)) "/" (cu-int->str (inet-hex (List ref 1 w))))) 43) " "
+                   (%str-concat
+                     (list (inet-left (%str-concat (list (inet-ntop6 (List ref 0 w)) "/" (cu-int->str (inet-hex (List ref 1 w))))) 43) " "
                            (inet-left (inet-ntop6 (List ref 4 w)) 39) " "
                            (inet-left (%rt-flags (& (inet-hex (List ref 8 w)) 19202567)) 5) " "
                            (inet-left (cu-int->str (inet-int32 (inet-hex (List ref 5 w)))) 6) " "
@@ -184,7 +184,7 @@
       ((eq? code (lit gw))
         (do (unless (= (& flags 2) 0) (%rt-usage))
             (let ((r (%rt-resolve! arg)))
-              (do (unless (= (first r) 0) (%rt-die (string-concat (list "gateway " arg " is a NETWORK"))))
+              (do (unless (= (first r) 0) (%rt-die (%str-concat (list "gateway " arg " is a NETWORK"))))
                   (inet-sin! rt 24 (rest r))
                   (next (| flags 2) m nm dev)))))
       ((eq? code (lit mss)) (do (inet-set! rt 96 (%rt-number arg 64 32768) 8) (next (| flags 64) m nm dev)))
@@ -201,7 +201,7 @@
     (do (unless (null? m)
           (let ((mask (^ (inet-swap m) 4294967295)))
             (do (when (if (= (& flags 4) 0) #f (not (= mask 4294967295)))
-                  (%rt-die (string-concat (list "netmask " (inet-hex8 mask) " and host route conflict"))))
+                  (%rt-die (%str-concat (list "netmask " (inet-hex8 mask) " and host route conflict"))))
                 (unless (= (& mask (+ mask 1)) 0) (%rt-die (string-append "bogus netmask " (if (null? nm) "(null)" nm))))
                 (unless (= (& dst (^ m 4294967295)) 0) (%rt-die "netmask and route address conflict")))))
         (when (if add? (not (= (& flags 4) 0)) #f) (inet-sin! rt 40 4294967295))
@@ -232,7 +232,7 @@
               (let ((ifr (inet-zeros 40)))
                 (do (map (fn (_ k) (inet-set! ifr k (char->integer (byte-at dev k)) 1)) (List range 0 (if (> (byte-len dev) 15) 15 (byte-len dev))))
                     (let ((r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35123 (cu-str->ptr ifr)))))
-                      (when (< r 0) (%rt-die (string-concat (list "ioctl 0x8933 failed: " (libc-strerror (Err errno-of r)))))))
+                      (when (< r 0) (%rt-die (%str-concat (list "ioctl 0x8933 failed: " (libc-strerror (Err errno-of r)))))))
                     (inet-set! rt 76 (cu-ptr-ref (cu-str->ptr ifr) 16 4) 4))))
             (inet-ioctl fd (if add? 35083 35084) rt %rt-die)
             0)

@@ -37,7 +37,7 @@
   file-close file-err-sym file-err-text file-exists? file-open-or-err
   file-open-read file-read-all file-stat-full file-truncate file-unlink
   file-write filter length map reverse set-first! str-make-raw string-append
-  string-concat string=? sys-getenv sys-getuid sys-kill)
+  string=? sys-getenv sys-getuid sys-kill)
 
 (import x/repl/term)
 
@@ -431,7 +431,7 @@
 (def %vi-flush!
   (fn (_)
     (if (null? %vi-out) ()
-      (do (%vi-sink (string-concat (reverse %vi-out)))
+      (do (%vi-sink (%str-concat (reverse %vi-out)))
           (set! %vi-out ())))))
 
 (def %vi-place-cursor
@@ -506,7 +506,7 @@
 (def %vi-shown
   (fn (_ src lim)
     (def pieces (%vi-shown-from src 0 lim ()))
-    (if (null? (rest pieces)) (first pieces) (string-concat (reverse pieces)))))
+    (if (null? (rest pieces)) (first pieces) (%str-concat (reverse pieces)))))
 
 (def %vi-shown-from
   (fn (self a co lim acc)
@@ -836,7 +836,7 @@
 (def %vi-literal
   (fn (_ s)
     (if (= (byte-len s) 0) "(NULL)"
-      (string-concat (reverse (%vi-literal-from s 0 ()))))))
+      (%str-concat (reverse (%vi-literal-from s 0 ()))))))
 
 (def %vi-literal-from
   (fn (self s i acc)
@@ -1264,7 +1264,7 @@
 (def %vi-yank-status!
   (fn (_ op s cnt)
     (%vi-status-line!
-      (string-concat
+      (%str-concat
         (list op " " (%vi-num->str (%vi* (%vi-newlines-of s) cnt)) " lines ("
               (%vi-num->str (%vi* (byte-len s) cnt)) " chars) from ["
               (bytes->str (list (%vi-what-reg))) "]")))))
@@ -1843,7 +1843,7 @@
 (def %vi-show-help
   (fn (_)
     (%vi-sink
-      (string-concat
+      (%str-concat
         (list "These features are available:"
               "\n\tPattern searches with / and ?"
               "\n\tLast command repeat with ."

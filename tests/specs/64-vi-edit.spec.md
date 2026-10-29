@@ -31,7 +31,7 @@ types the bursts, and shows what came of them.
         (pair (lit left) (string-append (bytes->str (list 27)) "[D"))))
 (def vi-b
   (fn (_ . parts)
-    (string-concat
+    (%str-concat
       (List map (fn (_ p) (if (symbol? p) (Assoc get p vi-keys) p)) parts))))
 (def vi-byte
   (fn (_ b)
@@ -40,7 +40,7 @@ types the bursts, and shows what came of them.
       (bytes->str (list 92 (vi+ 48 (vi/ b 64)) (vi+ 48 (vi% (vi/ b 8) 8)) (vi+ 48 (vi% b 8)))))))
 (def vi-shown
   (fn (_ s)
-    (string-concat
+    (%str-concat
       (List map (fn (_ i) (vi-byte (& (byte-at s i) 255))) (List range 0 (byte-len s))))))
 (def vi-trim
   (fn (self s)
@@ -64,12 +64,12 @@ types the bursts, and shows what came of them.
     (def st (vi-typed (list target) bursts rows cols))
     (def f (if (file-exists? "/tmp/x-cu-ve/f") (vi-shown (file-read-all "/tmp/x-cu-ve/f")) "no file\n"))
     (display
-      (string-concat
+      (%str-concat
         (list "exit " (cu-int->str st) "\n"
               (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) #\newline) #t) f
                 (string-append f " (no newline)\n"))
               "--\n"
-              (string-concat (List map (fn (_ r) (string-append "|" (vi-trim r) "\n")) (vi-state (lit %vi-screen))))
+              (%str-concat (List map (fn (_ r) (string-append "|" (vi-trim r) "\n")) (vi-state (lit %vi-screen))))
               "status " (vi-trim (vi-state (lit %vi-bottom))) "\n"
               "cursor " (cu-int->str (vi-state (lit %vi-crow))) " " (cu-int->str (vi-state (lit %vi-ccol)))
               " bells " (cu-int->str (vi-bells (vi-state (lit %vi-drawn)) 0)) "\n")))))

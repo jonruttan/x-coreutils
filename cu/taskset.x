@@ -21,14 +21,15 @@
 
 (import cu/cli cu-opts cu-refuse-option cu-usage)
 (import cu/inet inet-set! inet-zeros)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-stdin-to-command!
-  file-err-text file-list-dir file-write libc-strerror map string-append
-  string-concat substring sys-affinity sys-affinity! sys-exec-or-err sys-exit)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str
+  cu-stdin-to-command! file-err-text file-list-dir file-write libc-strerror
+  map string-append substring sys-affinity sys-affinity! sys-exec-or-err
+  sys-exit)
 (import cu/strings cu-range-number)
 
 (def %tk-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "taskset: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "taskset: " msg "\n")))
         (Err raise (lit taskset) msg ()))))
 
 (def %tk-uint-max 4294967295)
@@ -41,7 +42,7 @@
     (def e (sys-affinity pid buf bytes))
     (match ((= e 0) (pair buf bytes))
            ((if (= e 22) (< bytes 1073741824) #f) (self pid (* bytes 2)))
-           (#t (%tk-die (string-concat (list "can't get pid " (cu-int->str pid) "'s affinity: " (libc-strerror e))))))))
+           (#t (%tk-die (%str-concat (list "can't get pid " (cu-int->str pid) "'s affinity: " (libc-strerror e))))))))
 
 ; a byte's two hex digits
 (def %tk-hex2
@@ -54,7 +55,7 @@
 (def %tk-mask-hex
   (fn (_ buf bytes)
     (def digits
-      (string-concat
+      (%str-concat
         (map (fn (_ i) (%tk-hex2 (& (byte-at buf (+ (* (>> i 3) 8) (- 7 (& i 7)))) 255)))
              (List range 0 bytes))))
     (def end (byte-len digits))
@@ -71,7 +72,7 @@
 
 (def %tk-run-text
   (fn (_ c last)
-    (if (= last c) (cu-int->str c) (string-concat (list (cu-int->str c) "-" (cu-int->str last))))))
+    (if (= last c) (cu-int->str c) (%str-concat (list (cu-int->str c) "-" (cu-int->str last))))))
 
 ; print_cpulist: the runs of CPUs in the mask, N or N-M, joined by commas
 (def %tk-mask-list
@@ -129,7 +130,7 @@
                  ((= hi %tk-uint-max) #t)
                  ((= stride 0) #t)
                  (#t (> (- stride 1) 1073741823)))
-      (%tk-die (string-concat (list "bad affinity '" s "'"))))
+      (%tk-die (%str-concat (list "bad affinity '" s "'"))))
     (def put
       (fn (self c)
         (when (if (<= c hi) (< c (* bytes 8)) #f)
@@ -154,7 +155,7 @@
       (fn (self j bit)
         (when (>= j from)
           (let ((v (%tk-nibble (byte-at s j))))
-            (do (when (null? v) (%tk-die (string-concat (list "bad affinity '" (substring s from end) "'"))))
+            (do (when (null? v) (%tk-die (%str-concat (list "bad affinity '" (substring s from end) "'"))))
                 (when (< bit (* bytes 8)) (%tk-or! buf (>> bit 3) (<< v (& bit 7))))
                 (self (- j 1) (+ bit 4)))))))
     (go (- end 1) 0)))
@@ -163,7 +164,7 @@
 (def %tk-show
   (fn (_ o pid m when)
     (file-write 1
-      (string-concat
+      (%str-concat
         (if (Opts on? o "-c")
           (list "pid " (cu-int->str pid) "'s " when " affinity list: " (%tk-mask-list (first m) (rest m)) "\n")
           (list "pid " (cu-int->str pid) "'s " when " affinity mask: " (%tk-mask-hex (first m) (rest m)) "\n"))))))
@@ -175,7 +176,7 @@
     (if (Opts on? o "-c") (%tk-list! buf bytes aff 0) (%tk-hex! buf bytes aff))
     (def e (sys-affinity! pid buf bytes))
     (unless (= e 0)
-      (%tk-die (string-concat (list "can't set pid " (cu-int->str pid) "'s affinity: " (libc-strerror e)))))))
+      (%tk-die (%str-concat (list "can't set pid " (cu-int->str pid) "'s affinity: " (libc-strerror e)))))))
 
 ; process_pid_str: PID's affinity, PID 0 this process's; shown with -p,
 ; then AFF, when given, set, and with -p shown again
@@ -198,7 +199,7 @@
 ; the directory's order, or nil with no such directory
 (def %tk-tasks
   (fn (_ pid-word)
-    (def names (guard (e ()) (file-list-dir (string-concat (list "/proc/" pid-word "/task")))))
+    (def names (guard (e ()) (file-list-dir (%str-concat (list "/proc/" pid-word "/task")))))
     (List filter (fn (_ n) (if (> (byte-len n) 0) (%tk-digit? (byte-at n 0)) #f)) (List reverse names))))
 
 ; PROG run in place of this process, as BB_EXECVP_or_die runs it
@@ -206,7 +207,7 @@
   (fn (_ prog)
     (cu-stdin-to-command!)
     (def err (sys-exec-or-err (first prog) (rest prog)))
-    (file-write 2 (string-concat (list "taskset: can't execute '" (first prog) "': " (file-err-text err) "\n")))
+    (file-write 2 (%str-concat (list "taskset: can't execute '" (first prog) "': " (file-err-text err) "\n")))
     (sys-exit (if (string=? (file-err-text err) "No such file or directory") 127 126))))
 
 ; -p: AFF and PID, or PID alone; the rest is ignored

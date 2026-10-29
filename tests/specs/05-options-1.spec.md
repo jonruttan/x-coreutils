@@ -907,7 +907,7 @@ so it holds on any machine: the `-h` field must be what `ls-human` makes
 of the `-k` count scaled to bytes.
 
 ```cu
-(do (def kb (cu-num-prefix (cu-out (list "du" "-k" "-s" "/tmp/x-cu-fm")))) (display (if (string=? (cu-out (list "du" "-h" "-s" "/tmp/x-cu-fm")) (string-concat (list (ls-human (* 1024 kb)) "\t/tmp/x-cu-fm\n"))) "du-h-scaled" "du-h-wrong")) (newline) (def hsize (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" "-h" "/tmp")))))))) (def kb (cu-num-prefix (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" "-k" "/tmp"))))))))) (display (if (string=? hsize (ls-human (* 1024 kb))) "df-h-scaled" "df-h-wrong")))
+(do (def kb (cu-num-prefix (cu-out (list "du" "-k" "-s" "/tmp/x-cu-fm")))) (display (if (string=? (cu-out (list "du" "-h" "-s" "/tmp/x-cu-fm")) (%str-concat (list (ls-human (* 1024 kb)) "\t/tmp/x-cu-fm\n"))) "du-h-scaled" "du-h-wrong")) (newline) (def hsize (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" "-h" "/tmp")))))))) (def kb (cu-num-prefix (cu-nth 1 (cu-words-line (first (rest (cu-lines (cu-out (list "df" "-k" "/tmp"))))))))) (display (if (string=? hsize (ls-human (* 1024 kb))) "df-h-scaled" "df-h-wrong")))
 ```
 ---
 ```output

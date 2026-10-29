@@ -13,9 +13,9 @@
 (import cu/cli cu-missing-operand cu-opts)
 (import cu/prims append byte-at byte-len cu-lines cu-member-s?
   cu-stdin-to-command! cu-words-line file-err-sym file-err-text file-exists?
-  file-write filter map proc-run reverse string-append string-concat string=?
-  substring sys-environ sys-exec-or-err sys-exit sys-fork sys-getenv
-  sys-setenv sys-unsetenv sys-wait)
+  file-write filter map proc-run reverse string-append string=? substring
+  sys-environ sys-exec-or-err sys-exit sys-fork sys-getenv sys-setenv
+  sys-unsetenv sys-wait)
 (import cu/text cu-delim-fields-said cu-num-prefix cu-print-fields
   cu-print-lines cu-read-said cu-says cu-sleep-for cu-sleep-us cu-split-byte)
 
@@ -115,7 +115,7 @@
               (cu-stdin-to-command!)
               (let ((e (sys-exec-or-err (first cmd) (rest cmd))))
                 (do (file-write 2
-                      (string-concat
+                      (%str-concat
                         (list "env: '" (first cmd) "': " (file-err-text e) "\n")))
                     (sys-exit (if (eq? (file-err-sym e) (lit enoent)) 127 126))))))
         (sys-exit 125))))
@@ -176,7 +176,7 @@
     (match
       ((null? argv) (cu-missing-operand "sleep" argv))
       ((not (null? b))
-        (do (file-write 2 (string-concat (list "sleep: invalid number '" b "'\n"))) 1))
+        (do (file-write 2 (%str-concat (list "sleep: invalid number '" b "'\n"))) 1))
       (#t (do (cu-sleep-for (total us 0)) 0)))))
 
 ; date: ISO-8601 UTC by default (a recorded divergence from the locale

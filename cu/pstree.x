@@ -21,15 +21,15 @@
 (module cu/pstree)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims append byte-at byte-len cal/ cu-err-label cu-heap-collect cu-int->str cu-sweep-lines
-  cu-sweep-tick! file-write host-processes host-threads length reverse
-  string-append string-concat substring sys-getenv sys-user-id)
+(import cu/prims append byte-at byte-len cal/ cu-err-label cu-heap-collect
+  cu-int->str cu-sweep-lines cu-sweep-tick! file-write host-processes
+  host-threads length reverse string-append substring sys-getenv sys-user-id)
 (import cu/procps ps-sorted)
 (import cu/vi vi-dim)
 
 (def %pst-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "pstree: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "pstree: " msg "\n")))
         (Err raise (lit pstree) msg ()))))
 
 ; a node: (PID PPID UID COMM CHILDREN-CELL)
@@ -73,7 +73,7 @@
                   (List reject (fn (_ t) (= (Assoc get (lit pid) t) pid)) ts)))
     (List map (fn (_ t)
                 (%pst-node (Assoc get (lit pid) t) pid (Assoc get (lit uid) t)
-                  (string-concat (list "{" (%pst-cut (Assoc get (lit comm) t) 16) "}"))))
+                  (%str-concat (list "{" (%pst-cut (Assoc get (lit comm) t) 16) "}"))))
               others)))
 
 (def %pst-cut (fn (_ s n) (if (> (byte-len s) n) (substring s 0 n) s)))
@@ -173,12 +173,12 @@
 
 (def %pst-newline
   (fn (_)
-    (file-write 1 (string-concat (reverse (pair "\n" %pst-pieces))))
+    (file-write 1 (%str-concat (reverse (pair "\n" %pst-pieces))))
     (set! %pst-col 0)
     (set! %pst-pieces ())
     (cu-sweep-tick! cu-sweep-lines)))
 
-(def %pst-spaces (fn (_ n) (string-concat (List map (fn (_ i) " ") (List range 0 n)))))
+(def %pst-spaces (fn (_ n) (%str-concat (List map (fn (_ i) " ") (List range 0 n)))))
 
 ; out_args: a backslash doubled, a byte outside the printable ASCII as \OOO;
 ; answers the bytes written
@@ -190,12 +190,12 @@
         (match
           ((= b 92) "\\\\")
           ((if (>= b 32) (< b 127) #f) (substring s i (+ i 1)))
-          (#t (string-concat (list "\\" (cu-int->str (cal/ b 64)) (cu-int->str (& (cal/ b 8) 7)) (cu-int->str (& b 7))))))))
+          (#t (%str-concat (list "\\" (cu-int->str (cal/ b 64)) (cu-int->str (& (cal/ b 8) 7)) (cu-int->str (& b 7))))))))
     (def pieces
       (let go ((i 0) (acc ()))
         (if (>= i n) (reverse acc)
           (go (+ i 1) (pair (piece i (+ 0 (byte-at s i))) acc)))))
-    (def out (string-concat pieces))
+    (def out (%str-concat pieces))
     (%pst-out out)
     (byte-len out)))
 
@@ -242,12 +242,12 @@
     (def add (if (> rep 1) (let ((s (string-append (cu-int->str rep) "*["))) (do (%pst-out s) (byte-len s))) 0))
     (def name-len (+ (%pst-out-args (%pst-comm node))
                      (if %pst-pids?
-                       (let ((s (string-concat (list "(" (cu-int->str (%pst-pid node)) ")"))))
+                       (let ((s (%str-concat (list "(" (cu-int->str (%pst-pid node)) ")"))))
                          (do (%pst-out s) (byte-len s)))
                        0)))
     (def kids (%pst-children node))
     (when (null? kids)
-      (%pst-out (string-concat (List map (fn (_ i) "]") (List range 0 closing))))
+      (%pst-out (%str-concat (List map (fn (_ i) "]") (List range 0 closing))))
       (%pst-newline))
     (def here (pair (+ name-len add) (not last)))
     (if (>= %pst-col %pst-width) (%pst-newline)
@@ -276,10 +276,10 @@
     (def n (byte-len s))
     (def digits (let go ((i 0)) (if (if (< i n) (if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f) #f) (go (+ i 1)) i)))
     (def zeros (let go ((i 0)) (if (if (< i (- n 1)) (= (byte-at s i) #\0) #f) (go (+ i 1)) i)))
-    (when (if (< digits n) #t (> (- n zeros) 10)) (%pst-die (string-concat (list "invalid number '" s "'"))))
+    (when (if (< digits n) #t (> (- n zeros) 10)) (%pst-die (%str-concat (list "invalid number '" s "'"))))
     (def v (List fold (fn (_ a i) (+ (* a 10) (- (byte-at s i) #\0))) 0 (List range zeros n)))
-    (when (> v 4294967295) (%pst-die (string-concat (list "invalid number '" s "'"))))
-    (when (> v 2147483647) (%pst-die (string-concat (list "number " s " is not in 0..2147483647 range"))))
+    (when (> v 4294967295) (%pst-die (%str-concat (list "invalid number '" s "'"))))
+    (when (> v 2147483647) (%pst-die (%str-concat (list "number " s " is not in 0..2147483647 range"))))
     v))
 
 (def %pst-main

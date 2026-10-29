@@ -42,8 +42,8 @@
 
 (import cu/fs2 cu-base-of)
 (import cu/prims byte-at byte-len cu-b->s cu-stat-get file-lstat-full
-  file-write file-write-field map proc-run reverse string-append string-concat
-  string=? substring)
+  file-write file-write-field map proc-run reverse string-append string=?
+  substring)
 (import cu/text cu-num-prefix)
 (import cu/walk cu-walk-names)
 

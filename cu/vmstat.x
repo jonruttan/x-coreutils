@@ -21,8 +21,8 @@
 
 (import cu/cli cu-opts cu-refuse-option)
 (import cu/prims byte-at byte-len cu-int->str file-write filter host-counters
-  host-cpu host-memory host-wait map ps-div reverse string-append
-  string-concat substring vm-dash-number)
+  host-cpu host-memory host-wait map ps-div reverse string-append substring
+  vm-dash-number)
 (import cu/strings cu-range-number)
 (import cu/text cu-pad-left cu-pad-zero)
 
@@ -58,16 +58,16 @@
         (def a (%vm-lead (ps-div u 1000) #t))
         (def b (%vm-lead (% (ps-div u 100) 10) (str=? a " ")))
         (def c (%vm-lead (% (ps-div u 10) 10) (str=? b " ")))
-        (string-concat (list a b c (%vm-lead (% u 10) (str=? c " ")) (%vm-digit (% n 10)))))
+        (%str-concat (list a b c (%vm-lead (% u 10) (str=? c " ")) (%vm-digit (% n 10)))))
       (let ((r (%vm-scale-down n 100000)))
         (def u (ps-div (first r) 10))
         (def unit (substring scale (rest r) (+ (rest r) 1)))
         (if (>= u 100)
           (let ((a (%vm-lead (ps-div u 1000) #t)))
             (def b (%vm-lead (% (ps-div u 100) 10) (str=? a " ")))
-            (string-concat (list a b (%vm-lead (% (ps-div u 10) 10) (str=? b " ")) (%vm-digit (% u 10)) unit)))
+            (%str-concat (list a b (%vm-lead (% (ps-div u 10) 10) (str=? b " ")) (%vm-digit (% u 10)) unit)))
           (let ((a (%vm-lead (ps-div u 10) #t)))
-            (string-concat (list a (%vm-lead (% u 10) (str=? a " ")) "." (%vm-digit (% (first r) 10)) unit))))))))
+            (%str-concat (list a (%vm-lead (% u 10) (str=? a " ")) "." (%vm-digit (% (first r) 10)) unit))))))))
 
 ; smart_ulltoa4: N in four characters, "1234" up to 9999, then "9.2M" or
 ; " 27M" with SCALE's letter
@@ -77,14 +77,14 @@
       (let ((u (ps-div n 10)))
         (def a (%vm-lead (ps-div u 100) #t))
         (def b (%vm-lead (% (ps-div u 10) 10) (str=? a " ")))
-        (string-concat (list a b (%vm-lead (% u 10) (str=? b " ")) (%vm-digit (% n 10)))))
+        (%str-concat (list a b (%vm-lead (% u 10) (str=? b " ")) (%vm-digit (% n 10)))))
       (let ((r (%vm-scale-down n 10000)))
         (def u (ps-div (first r) 10))
         (def unit (substring scale (rest r) (+ (rest r) 1)))
         (if (>= u 10)
           (let ((a (%vm-lead (ps-div u 100) #t)))
-            (string-concat (list a (%vm-lead (% (ps-div u 10) 10) (str=? a " ")) (%vm-digit (% u 10)) unit)))
-          (string-concat (list (%vm-digit u) "." (%vm-digit (% (first r) 10)) unit)))))))
+            (%str-concat (list a (%vm-lead (% (ps-div u 10) 10) (str=? a " ")) (%vm-digit (% u 10)) unit)))
+          (%str-concat (list (%vm-digit u) "." (%vm-digit (% (first r) 10)) unit)))))))
 
 ; S with its leading spaces gone, as skip_whitespace leaves it
 (def %vm-trim-left
@@ -120,7 +120,7 @@
     (def int-part (cu-int->str (ps-div q scale)))
     (string-append (if (< bits 0) "-" "")
       (if (= prec 0) int-part
-        (string-concat (list int-part "." (cu-pad-zero (cu-int->str (% q scale)) prec)))))))
+        (%str-concat (list int-part "." (cu-pad-zero (cu-int->str (% q scale)) prec)))))))
 
 ; A divided by B times K, as C computes (double)A / B * K
 (def vm-rate (fn (_ a b k) (Float * (Float / (Float from a) (Float from b)) (Float from k))))
@@ -212,7 +212,7 @@
           (vm-right (cu-int->str v) width))))
     (def go
       (fn (self cols vs overrun acc)
-        (if (null? cols) (string-concat (reverse (pair "\n" acc)))
+        (if (null? cols) (%str-concat (reverse (pair "\n" acc)))
           (let ((s (field (first cols) (value (first cols) (first vs)) overrun)))
             (self (rest cols) (rest vs) (+ overrun (- (byte-len s) (first (first cols))))
               (pair s (if (null? acc) acc (pair " " acc))))))))

@@ -22,7 +22,7 @@
 (import cu/prims byte-at byte-len cu-ptr-set! cu-stat-get cu-str->ptr
   cu-sweep-lines cu-sweep-tick! file-close file-fstat-full file-list-dir
   file-open-read file-read-run file-write file-write-run filter host-proc-root
-  libc-strerror map reverse string-concat sys-getcwd)
+  libc-strerror map reverse sys-getcwd)
 (import cu/tar tc-block tc-put! tc-write-header!)
 
 ; the header for NAME: MODE, UID, GID, SIZE and MTIME as sprintf's %o puts them
@@ -79,7 +79,7 @@
 (def %smc-process!
   (fn (_ name zeros)
     (do (%smc-header! name 365 0 0 0 0 #\5)
-        (map (fn (_ f) (%smc-file! (string-concat (list name "/" f)) zeros))
+        (map (fn (_ f) (%smc-file! (%str-concat (list name "/" f)) zeros))
              (list "smaps" "cmdline" "stat")))))
 
 (def %smc-digit? (fn (_ s) (if (> (byte-len s) 0) (if (>= (byte-at s 0) #\0) (<= (byte-at s 0) #\9) #f) #f)))
@@ -90,7 +90,7 @@
     (def home (sys-getcwd))
     (def r (Sys chdir root))
     (if (< r 0)
-      (do (file-write 2 (string-concat (list "smemcap: can't change directory to '" root "': "
+      (do (file-write 2 (%str-concat (list "smemcap: can't change directory to '" root "': "
                                              (libc-strerror (Err errno-of r)) "\n")))
           1)
       (let ((zeros (tc-block)))

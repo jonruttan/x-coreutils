@@ -26,13 +26,13 @@
   cu-nthrest cu-sweep-lines cu-sweep-tick! cu-take file-close file-err-text
   file-open-or-err file-open-read file-read-all file-write length map net-aton
   net-recv-from-run net-send-to-run net-udp-open reverse string-append
-  string-concat substring wget-digits wget-div wget-index wget-memv)
+  substring wget-digits wget-div wget-index wget-memv)
 (import cu/session hd-daemonize)
 
 (def %dn-verbose? #f)
 (def %dn-quiet? #f)            ; -d: what busybox sends to syslog is not said
 (def %dn-say
-  (fn (_ msg) (unless %dn-quiet? (file-write 2 (string-concat (list "dnsd: " msg "\n"))))))
+  (fn (_ msg) (unless %dn-quiet? (file-write 2 (%str-concat (list "dnsd: " msg "\n"))))))
 
 (def %dn-die (fn (_ msg) (Err raise (lit net) msg ())))
 
@@ -71,7 +71,7 @@
   (fn (_ path)
     (def fd (file-open-or-err file-open-read path))
     (if (Err err? fd)
-      (do (%dn-say (string-concat (list path ": " (file-err-text fd)))) ())
+      (do (%dn-say (%str-concat (list path ": " (file-err-text fd)))) ())
       (let ((text (file-read-all path)))
         (do (file-close fd)
             (let go ((lines (%dn-lines text)) (no 1) (acc ()))
@@ -84,13 +84,13 @@
     (match
       ((null? ts) acc)
       ((null? (rest ts))
-        (do (%dn-say (string-concat (list "bad line " (cu-int->str no) ": 1 tokens found, 2 needed"))) acc))
+        (do (%dn-say (%str-concat (list "bad line " (cu-int->str no) ": 1 tokens found, 2 needed"))) acc))
       (#t (let ((ip (net-aton (first (rest ts)))))
             (if (null? ip)
-              (do (%dn-say (string-concat (list "error at line " (cu-int->str no) ", skipping"))) acc)
-              (do (when %dn-verbose? (%dn-say (string-concat (list "name:" (first ts) ", ip:" (first (rest ts))))))
+              (do (%dn-say (%str-concat (list "error at line " (cu-int->str no) ", skipping"))) acc)
+              (do (when %dn-verbose? (%dn-say (%str-concat (list "name:" (first ts) ", ip:" (first (rest ts))))))
                   (pair (list (%dn-undot (string-append "." (first ts))) ip
-                              (%dn-undot (string-concat (list "." (cu-int->str (cu-nth 3 ip)) "." (cu-int->str (cu-nth 2 ip))
+                              (%dn-undot (%str-concat (list "." (cu-int->str (cu-nth 3 ip)) "." (cu-int->str (cu-nth 2 ip))
                                                               "." (cu-int->str (cu-nth 1 ip)) "." (cu-int->str (first ip))))))
                         acc))))))))
 
@@ -173,7 +173,7 @@
     (def err (match ((not (null? refused)) refused) ((= flags 33795) "name is not found") (#t ())))
     (when (if %dn-verbose? (null? err) #f) (%dn-say "returning positive reply"))
     (when (if %dn-verbose? (not (null? err)) #f)
-      (%dn-say (string-concat (list err ", " (if %dn-quiet-s? "dropping query" "sending error reply")))))
+      (%dn-say (%str-concat (list err ", " (if %dn-quiet-s? "dropping query" "sending error reply")))))
     (if (if (not (null? err)) %dn-quiet-s? #f) ()
       (append (cu-take bs 2)
               (%dn-u16 (bit-or (%dn-word bs 2) flags))
@@ -196,9 +196,9 @@
 (def %dn-range
   (fn (_ s lo hi)
     (def n (wget-digits s))
-    (match ((null? n) (%dn-die (string-concat (list "invalid number '" s "'"))))
+    (match ((null? n) (%dn-die (%str-concat (list "invalid number '" s "'"))))
            ((if (< n lo) #t (> n hi))
-             (%dn-die (string-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range"))))
+             (%dn-die (%str-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range"))))
            (#t n))))
 
 (def %dn-bind
@@ -210,7 +210,7 @@
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "dnsd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
-                (do (file-write 2 (string-concat (list "dnsd: " (e msg) "\n"))) 1)
+                (do (file-write 2 (%str-concat (list "dnsd: " (e msg) "\n"))) 1)
                 (error e)))
       (%dn-main o))))
 
@@ -223,9 +223,9 @@
     (when (Opts on? o "-d") (do (hd-daemonize) (set! %dn-quiet? #t)))
     (def entries (%dn-conf (let ((c (Opts value o "-c"))) (if (null? c) "/etc/dnsd.conf" c))))
     (def addr (let ((i (Opts value o "-i"))) (if (null? i) "0.0.0.0" i)))
-    (when (null? (%dn-dotted addr)) (%dn-die (string-concat (list "bad address '" addr "'"))))
+    (when (null? (%dn-dotted addr)) (%dn-die (%str-concat (list "bad address '" addr "'"))))
     (def fd (%dn-bind addr port))
-    (%dn-say (string-concat (list "accepting UDP packets on " addr ":" (cu-int->str port))))
+    (%dn-say (%str-concat (list "accepting UDP packets on " addr ":" (cu-int->str port))))
     (%dn-serve fd entries ttl)))
 
 ; xdotted2sockaddr: a numeric address, four dotted parts, each 0..255
@@ -242,7 +242,7 @@
     (let ((got (net-recv-from-run fd 513)))
       (let ((n (rest (first got))))
         (if (if (< n 12) #t (> n 512))
-          (%dn-say (string-concat (list "packet size " (cu-int->str n) ", ignored")))
+          (%dn-say (%str-concat (list "packet size " (cu-int->str n) ", ignored")))
           (do (when %dn-verbose? (%dn-say "got UDP packet"))
               (let ((reply (%dn-process entries ttl (cu-bytes (first (first got)) 0 n))))
                 (unless (null? reply)

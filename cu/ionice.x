@@ -17,14 +17,14 @@
 (module cu/ionice)
 
 (import cu/cli cu-opts)
-(import cu/prims bit-and bit-or bit-shl bit-shr cu-err-label cu-int->str cu-nth
-  cu-stdin-to-command! file-err-sym file-err-text file-write libc-strerror
-  string-append string-concat sys-exec-or-err sys-exit)
+(import cu/prims bit-and bit-or bit-shl bit-shr cu-err-label cu-int->str
+  cu-nth cu-stdin-to-command! file-err-sym file-err-text file-write
+  libc-strerror string-append sys-exec-or-err sys-exit)
 (import cu/strings cu-range-number)
 
 (def %ion-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "ionice: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "ionice: " msg "\n")))
         (Err raise (lit ionice) msg ()))))
 
 ; the system call NAME, or nil where the platform has none
@@ -38,7 +38,7 @@
   (fn (_ door op call)
     (if (null? door) (pair (string-append op ": Function not implemented") -1)
       (let ((r (call door)))
-        (pair (if (< r 0) (string-concat (list op ": " (libc-strerror (Err errno-of r)))) ()) r)))))
+        (pair (if (< r 0) (%str-concat (list op ": " (libc-strerror (Err errno-of r)))) ()) r)))))
 
 ; S as getopt32's + reads a number, xatoi_positive, the run ending if not one
 (def %ion-number
@@ -60,14 +60,14 @@
     (def ioclass (bit-and (bit-shr (rest got) 13) 3))
     (file-write 1 (string-append (cu-nth ioclass %ion-classes)
                                  (if (= ioclass 3) "\n"
-                                   (string-concat (list ": prio " (cu-int->str (bit-and (rest got) 255)) "\n")))))))
+                                   (%str-concat (list ": prio " (cu-int->str (bit-and (rest got) 255)) "\n")))))))
 
 ; PROG run in place of this process, with busybox's statuses if it cannot be
 (def %ion-exec
   (fn (_ prog)
     (do (cu-stdin-to-command!)
         (let ((e (sys-exec-or-err (first prog) (rest prog))))
-          (do (file-write 2 (string-concat (list "ionice: can't execute '" (first prog) "': " (file-err-text e) "\n")))
+          (do (file-write 2 (%str-concat (list "ionice: can't execute '" (first prog) "': " (file-err-text e) "\n")))
               (sys-exit (if (eq? (file-err-sym e) (lit enoent)) 127 126)))))))
 
 (def %ion-main

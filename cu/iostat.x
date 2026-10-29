@@ -26,8 +26,8 @@
 (import cu/date cu-date-fmt cu-date-split)
 (import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-nth
   file-write filter host-cpu host-cpus host-disks host-now host-uptime
-  host-wait length map ps-div reverse string-append string-concat substring
-  sys-uname vm-dash-number)
+  host-wait length map ps-div reverse string-append substring sys-uname
+  vm-dash-number)
 (import cu/strings cu-range-number)
 (import cu/text cu-pad-right)
 (import cu/vmstat vm-fixed vm-get vm-rate vm-right vm-ticks)
@@ -41,7 +41,7 @@
   (fn (_ secs cpus tabbed)
     (def u (sys-uname))
     (def get (fn (_ k) (Assoc get k u)))
-    (string-concat
+    (%str-concat
       (list (get (lit sysname)) " " (get (lit release)) " (" (get (lit nodename)) ")"
             (if tabbed " \t" "\t") (%io-date secs) (if tabbed " \t_" "\t_") (get (lit machine))
             "_\t(" (cu-int->str cpus) " CPU)\n"))))
@@ -82,14 +82,14 @@
     (def pc (fn (_ a b) (vm-right (vm-fixed (vm-rate (- b a) itv 100) 2) 7)))
     (def at (fn (_ v i) (cu-nth i v)))
     (def sys (fn (_ v) (+ (+ (at v 2) (at v 6)) (at v 5))))
-    (string-concat
+    (%str-concat
       (list "avg-cpu:  %user   %nice %system %iowait  %steal   %idle\n        "
             (pc (at p 0) (at c 0)) " " (pc (at p 1) (at c 1)) " " (pc (sys p) (sys c)) " "
             (pc (at p 4) (at c 4)) " " (pc (at p 7) (at c 7)) " " (pc (at p 3) (at c 3)) "\n"))))
 
 (def %io-dev-header
   (fn (_ unit)
-    (string-concat
+    (%str-concat
       (list "Device:" (vm-right "tps" 15) (vm-right unit 6) "_read/s" (vm-right unit 6) "_wrtn/s"
             (vm-right unit 6) "_read" (vm-right unit 6) "_wrtn\n"))))
 
@@ -99,7 +99,7 @@
   (fn (_ p c itv div)
     (def at (fn (_ v i) (cu-nth i v)))
     (def rate (fn (_ a b) (Float / (vm-rate (- b a) itv 100) (Float from div))))
-    (string-concat
+    (%str-concat
       (list (cu-pad-right (first c) 13) " "
             (vm-right (vm-fixed (vm-rate (- (+ (at c 1) (at c 3)) (+ (at p 1) (at p 3))) itv 100) 2) 8) " "
             (vm-right (vm-fixed (rate (at p 2) (at c 2)) 2) 12) " "
@@ -118,7 +118,7 @@
     (def put (fn (_ name v ps) (pair (pair name v) (filter (fn (_ e) (not (str=? (first e) name))) ps))))
     (def go
       (fn (self ds prevs acc)
-        (if (null? ds) (pair (string-concat (reverse acc)) prevs)
+        (if (null? ds) (pair (%str-concat (reverse acc)) prevs)
           (let ((c (%io-disk (first ds))))
             (def name (first c))
             (def seen (Assoc find name prevs))
@@ -190,7 +190,7 @@
         (def c (%io-cpu))
         (def up (if smp (host-uptime) 0))
         (def itv (let ((d (- (cu-nth 9 c) (cu-nth 9 prev)))) (if (= d 0) 1 d)))
-        (if stamp (file-write 1 (string-concat (list (%io-date now) " " (io-time now) "\n"))))
+        (if stamp (file-write 1 (%str-concat (list (%io-date now) " " (io-time now) "\n"))))
         (if cpu (file-write 1 (string-append (%io-cpu-report prev c itv) (if dev "\n" ""))))
         (def r
           (if dev

@@ -27,9 +27,9 @@
 (import cu/prims append byte-at byte-len cu-int->ptr cu-int->str cu-libc-sym
   cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-word cu-sig-ign cu-str->ptr
   file-read-run file-write map reverse set-first! str-make-raw string-append
-  string-concat substring sys-close sys-dup2 sys-exit sys-fork sys-getenv
-  sys-getuid sys-pipe sys-poll sys-signal sys-sleep sys-uname sys-user-name
-  wget-div wget-index wget-memv)
+  substring sys-close sys-dup2 sys-exit sys-fork sys-getenv sys-getuid
+  sys-pipe sys-poll sys-signal sys-sleep sys-uname sys-user-name wget-div
+  wget-index wget-memv)
 (import cu/telnet tn-str-bytes)
 (import cu/telnetd td-ptr->int)
 (import cu/who cu-uname-field)
@@ -44,7 +44,7 @@
 ; popmaildir records and clears its helper with this
 (def sm-helper-pid! (fn (_ pid) (set! %sm-helper pid)))
 
-(def %sm-say (fn (_ msg) (file-write 2 (string-concat (list "sendmail: " msg "\n")))))
+(def %sm-say (fn (_ msg) (file-write 2 (%str-concat (list "sendmail: " msg "\n")))))
 (def %sm-die (fn (_ msg) (Err raise (lit net) msg ())))
 
 ; --- the server's side ------------------------------------------------------------
@@ -72,7 +72,7 @@
 ; send_r_n
 (def %sm-send
   (fn (_ s)
-    (when (> %sm-verbose 0) (%sm-say (string-concat (list "send:'" s "'"))))
+    (when (> %sm-verbose 0) (%sm-say (%str-concat (list "send:'" s "'"))))
     (guard (_ ()) (file-write %sm-wr (string-append s "\r\n")))))
 
 (def sm-atoi
@@ -89,7 +89,7 @@
     (def answer
       (let go ()
         (let ((a (%sm-getline)))
-          (do (when (if (null? a) #f (> %sm-verbose 0)) (%sm-say (string-concat (list "recv:'" (%sm-cr-cut a) "'"))))
+          (do (when (if (null? a) #f (> %sm-verbose 0)) (%sm-say (%str-concat (list "recv:'" (%sm-cr-cut a) "'"))))
               (if (if (null? a) #f (if (> (byte-len a) 3) (= (byte-at a 3) #\-) #f)) (go) a)))))
     (def n (if (null? answer) () (sm-atoi answer)))
     (if (if (null? n) #f (if (= code -1) #t (= n code))) n
@@ -105,7 +105,7 @@
           (let ((raw (cu-ptr-ref (cu-str->ptr st) 0 4)))
             (match ((> (% raw 128) 0) (%sm-die (string-append "helper killed by signal " (cu-int->str (% raw 128)))))
                    ((> (% (wget-div raw 256) 256) 0)
-                     (%sm-die (string-concat (list "helper exited (" (cu-int->str (% (wget-div raw 256) 256)) ")"))))
+                     (%sm-die (%str-concat (list "helper exited (" (cu-int->str (% (wget-div raw 256) 256)) ")"))))
                    (#t ()))))))))
 
 ; --- addresses ------------------------------------------------------------------
@@ -127,7 +127,7 @@
   (fn (_ s)
     (def t (%sm-trim s))
     (if (List all? %sm-safe? (tn-str-bytes t)) t
-      (do (%sm-say (string-concat (list "bad address '" t "'"))) ""))))
+      (do (%sm-say (%str-concat (list "bad address '" t "'"))) ""))))
 
 ; angle_address: the address inside a trailing <...>, else all of S
 (def %sm-angle
@@ -140,8 +140,8 @@
 (def %sm-rcpt
   (fn (_ s)
     (unless (= (byte-len s) 0)
-      (unless (= (%sm-check (string-concat (list "RCPT TO:<" s ">")) -1) 250)
-        (%sm-say (string-concat (list "Bad recipient: <" s ">")))))))
+      (unless (= (%sm-check (%str-concat (list "RCPT TO:<" s ">")) -1) 250)
+        (%sm-say (%str-concat (list "Bad recipient: <" s ">")))))))
 
 ; rcptto_list: each address of a comma-separated LIST, commas in quotes kept
 (def %sm-rcpt-list
@@ -169,7 +169,7 @@
           (do (%sm-rcpt t)
               (go (rest l) #f
                   (if has-to? hs
-                    (append hs (list (string-concat (list (if first? "To: " " ") t (if (null? (rest l)) "" ",")))))))))))))
+                    (append hs (list (%str-concat (list (if first? "To: " " ") t (if (null? (rest l)) "" ",")))))))))))))
 
 ; DATA and what follows: #f when DATA was refused
 (def %sm-data!
@@ -234,7 +234,7 @@
           (sys-dup2 (first to) 0) (sys-dup2 (rest from) 1)
           (sys-close (first to)) (sys-close (rest from)) (sys-close 3)
           (let ((r (in-exec "sh" (list "sh" "-c" cmd))))
-            (do (%sm-say (string-concat (list "can't execute 'sh': " (in-errtext r)))) (sys-exit 127)))))
+            (do (%sm-say (%str-concat (list "can't execute 'sh': " (in-errtext r)))) (sys-exit 127)))))
     (sys-close (first to))
     (sys-close (rest from))
     (set! %sm-helper pid)
@@ -287,8 +287,8 @@
     (when auth? (%sm-auth! user pass plain?))
     (def from (let ((f (Opts value o "-f")))
                 (if (not (null? f)) f
-                  (string-concat (list (if (null? user) (sys-user-name (sys-getuid)) user) "@" (%sm-canonical host))))))
-    (%sm-check (string-concat (list "MAIL FROM:<" from ">")) 250)
+                  (%str-concat (list (if (null? user) (sys-user-name (sys-getuid)) user) "@" (%sm-canonical host))))))
+    (%sm-check (%str-concat (list "MAIL FROM:<" from ">")) 250)
     (%sm-message (Opts operands o) (Opts on? o "-t"))
     0))
 
@@ -296,7 +296,7 @@
 (def %sm-canonical
   (fn (_ host)
     (def h (cu-ptr-call (cu-libc-sym "gethostbyname") host))
-    (if (= (td-ptr->int h) 0) (%sm-die (string-concat (list "bad address '" host "'")))
+    (if (= (td-ptr->int h) 0) (%sm-die (%str-concat (list "bad address '" host "'")))
       (cu-ptr->str (cu-int->ptr (cu-ptr-word h 0))))))
 
 ; AUTH LOGIN or PLAIN; without -au and -ap, the user and password are fd 4's

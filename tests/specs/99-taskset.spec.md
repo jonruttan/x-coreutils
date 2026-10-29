@@ -27,8 +27,8 @@ through the kernel is tested in the Linux leg, against busybox.
           (def mask (tk-ones tk-n ""))
           (display (Str8 replace (string-append "affinity list: 0-" (cu-int->str (- tk-n 1))) "affinity list: 0-N"
                      (Str8 replace (string-append "affinity mask: " mask "\n") "affinity mask: ALL\n"
-                       (Str8 replace (string-concat (list "pid " tk-pid "'s")) "pid PID's"
-                         (string-concat (list (file-read-all (tk-f "out")) "stderr:\n"
+                       (Str8 replace (%str-concat (list "pid " tk-pid "'s")) "pid PID's"
+                         (%str-concat (list (file-read-all (tk-f "out")) "stderr:\n"
                                               (file-read-all (tk-f "err")) "status " (cu-int->str st) "\n"))))))
           ())))
     (display "made"))

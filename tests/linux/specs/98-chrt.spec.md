@@ -28,14 +28,14 @@ compared too.  A PROG shows the policy it was started with.
             (do (sys-dup2 lx-o 1) (sys-dup2 lx-e 2) (sys-exit (cu-run (lx-words argv) ""))))
           (file-close lx-o) (file-close lx-e)
           (def lx-st (sys-wait lx-child))
-          (string-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n" (lx-after))))))
+          (%str-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n" (lx-after))))))
     (def lx-bb1 (fn (_ argv)
       (do (lx-reset)
-          (lx-sh (string-concat (list "/usr/local/bin/busybox-extra " (Str8 join " " (map lx-q (lx-words argv))) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be")))
-          (string-concat (list (lx-read "/tmp/lx-bo") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs") (lx-after))))))
+          (lx-sh (%str-concat (list "/usr/local/bin/busybox-extra " (Str8 join " " (map lx-q (lx-words argv))) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be")))
+          (%str-concat (list (lx-read "/tmp/lx-bo") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs") (lx-after))))))
     (def lx-case (fn (_ argv)
       (do (def lx-a (lx-x1 argv)) (def lx-b (lx-bb1 argv))
-          (display (if (string=? lx-a lx-b) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
+          (display (if (string=? lx-a lx-b) "same\n" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
     (display (if (> (byte-len lx-pid) 0) "made" "no sleeper")))
 ```
 ---

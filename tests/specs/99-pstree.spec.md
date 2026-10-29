@@ -20,7 +20,7 @@ the Linux leg.
             (do (sys-dup2 oo 1) (sys-dup2 ee 2)
                 (def st (cu-run argv ""))
                 (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
-                (display (string-concat (list (file-read-all (pt-f "out")) "stderr:\n"
+                (display (%str-concat (list (file-read-all (pt-f "out")) "stderr:\n"
                                               (file-read-all (pt-f "err")) "status " (cu-int->str st) "\n")))
                 ())))))
     (def pt-pids (fn (_ ps ppid)
@@ -30,7 +30,7 @@ the Linux leg.
     (def pt-comm (fn (_ ps pid) (Assoc get (lit comm) (List find (fn (_ p) (= (Assoc get (lit pid) p) pid)) ps))))
     ; the tree from TOP as names: its own, then each child's, a slash and its children's
     (def pt-shape (fn (_ ps top)
-      (pair (pt-comm ps top) (map (fn (_ k) (string-concat (pair (pt-comm ps k) (pair "/" (map (fn (_ g) (pt-comm ps g)) (pt-pids ps k))))))
+      (pair (pt-comm ps top) (map (fn (_ k) (%str-concat (pair (pt-comm ps k) (pair "/" (map (fn (_ g) (pt-comm ps g)) (pt-pids ps k))))))
            (pt-pids ps top)))))
     (def pt-wait (fn (self top want n)
       (cu-heap-collect)
@@ -51,7 +51,7 @@ the Linux leg.
           (sys-wait top)
           ())))
     (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-pst.d; mkdir /tmp/x-cu-pst.d && cp /bin/sleep '/tmp/x-cu-pst.d/s\tl' && cp /bin/sleep '/tmp/x-cu-pst.d/s\\l'"))
-    (def pt-a (pt-start (string-concat (list
+    (def pt-a (pt-start (%str-concat (list
                 "/bin/sleep 600 & /bin/sleep 600 & "
                 "/bin/sh -c '/bin/sleep 600 & exec /bin/sleep 600' & "
                 "/bin/sh -c '/bin/sleep 600 & exec /bin/sleep 600' & "
@@ -84,12 +84,12 @@ status 0
 (do (def pa (cu-int->str pt-a))
     (def ps (host-processes))
     (def gs (pt-pids ps pt-a))
-    (def pid (fn (_ p) (string-concat (list "(" (cu-int->str p) ")"))))
-    (def pad (string-concat (map (fn (_ i) " ") (List range 0 (+ (byte-len pa) 8)))))
+    (def pid (fn (_ p) (%str-concat (list "(" (cu-int->str p) ")"))))
+    (def pad (%str-concat (map (fn (_ i) " ") (List range 0 (+ (byte-len pa) 8)))))
     (sys-dup2 1 9) (def oo (file-open-write (pt-f "p"))) (sys-dup2 oo 1)
     (def st (cu-run (list "pstree" "-p" pa) ""))
     (sys-dup2 9 1) (file-close oo)
-    (def want (string-concat (list
+    (def want (%str-concat (list
       "sleep" (pid pt-a) "-+-sleep" (pid (List ref 0 gs)) "\n"
       pad "|-sleep" (pid (List ref 1 gs)) "\n"
       pad "|-sleep" (pid (List ref 2 gs)) "---sleep" (pid (first (pt-pids ps (List ref 2 gs)))) "\n"

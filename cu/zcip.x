@@ -35,8 +35,8 @@
 (import cu/ping pn-byte pn-now)
 (import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
   cu-ptr-call cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-close
-  file-write libc-strerror string-append string-concat string=? sys-dup2
-  sys-getenv sys-pipe sys-poll sys-setenv)
+  file-write libc-strerror string-append string=? sys-dup2 sys-getenv sys-pipe
+  sys-poll sys-setenv)
 
 ; --- saying ----------------------------------------------------------------------------
 
@@ -46,14 +46,14 @@
 
 (def %zc-log
   (fn (_ level msg)
-    (do (when %zc-stdio (file-write 2 (string-concat (list "zcip: " msg "\n"))))
+    (do (when %zc-stdio (file-write 2 (%str-concat (list "zcip: " msg "\n"))))
         (when %zc-syslog (cu-ptr-call (cu-libc-sym "syslog") level (in-percent msg))))))
 (def %zc-say (fn (_ msg) (%zc-log 3 msg)))
 (def %zc-info (fn (_ msg) (%zc-log 6 msg)))
 (def %zc-status 0)
 (def %zc-end (fn (_ status) (do (set! %zc-status status) (Err raise (lit zcip) "end" ()))))
 (def %zc-die (fn (_ msg) (do (%zc-say msg) (%zc-end 1))))
-(def %zc-errno-die (fn (_ what r) (%zc-die (string-concat (list what ": " (libc-strerror (Err errno-of r)))))))
+(def %zc-errno-die (fn (_ what r) (%zc-die (%str-concat (list what ": " (libc-strerror (Err errno-of r)))))))
 
 ; --- musl's rand -----------------------------------------------------------------------
 
@@ -167,7 +167,7 @@
 (def %zc-run
   (fn (_ word host)
     (def addr (if (= host 0) "" (%zc-dotted host)))
-    (%zc-info (string-concat (list word " " %zc-iface (if (= host 0) "" (string-append " " addr)))))
+    (%zc-info (%str-concat (list word " " %zc-iface (if (= host 0) "" (string-append " " addr)))))
     (def fds (sys-pipe))
     (cu-ptr-call (cu-libc-sym "fcntl") (rest fds) 2 1)
     (def pid (Sys fork))
@@ -189,10 +189,10 @@
     (def status (Sys wait pid))
     (match ((= got 4)
             (let ((err (cu-ptr-ref (cu-str->ptr b) 0 4)))
-              (do (%zc-say (string-concat (list word " " %zc-iface ": " (libc-strerror err))))
+              (do (%zc-say (%str-concat (list word " " %zc-iface ": " (libc-strerror err))))
                   (- 0 err))))
            ((= status 0) 0)
-           (#t (do (%zc-say (string-concat (list "script " %zc-script " " word " failed, exitcode="
+           (#t (do (%zc-say (%str-concat (list "script " %zc-script " " word " failed, exitcode="
                                                  (cu-int->str (& status 255)))))
                    status)))))
 
@@ -288,7 +288,7 @@
                       (let ((r (in-call (cu-ptr-call (cu-libc-sym "read") %zc-fd (cu-str->ptr %zc-buf) 42))))
                         (if (< r 0) (%zc-errno-die "read error" r) (%zc-packet)))))
                  ((List find (fn (_ e) (eq? e (lit err))) ready)
-                  (do (%zc-say (string-concat (list "iface " %zc-iface " is down")))
+                  (do (%zc-say (%str-concat (list "iface " %zc-iface " is down")))
                       (when (>= %zc-state %zc-monitor) (%zc-run "deconfig" %zc-chosen))
                       (%zc-end 1)))
                  (#t ()))))

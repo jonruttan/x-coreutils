@@ -54,7 +54,7 @@ owner and group, their ids, the user's name, and the name of root's group.
 ### the default block shows each id in five columns and its name in eight
 
 ```cu
-(display (string=? (cu-nth 3 (cu-lines (cap (list "stat" (nm "f"))))) (string-concat (list "Access: (0644/-rw-r--r--)  Uid: (" (pad (said ".uid") 5) "/" (pad (said ".owner") 8) ")   Gid: (" (pad (said ".gid") 5) "/" (pad (said ".group") 8) ")"))))
+(display (string=? (cu-nth 3 (cu-lines (cap (list "stat" (nm "f"))))) (%str-concat (list "Access: (0644/-rw-r--r--)  Uid: (" (pad (said ".uid") 5) "/" (pad (said ".owner") 8) ")   Gid: (" (pad (said ".gid") 5) "/" (pad (said ".group") 8) ")"))))
 ```
 ---
     #t
