@@ -227,6 +227,16 @@
 (import cu/tree cu-tree)
 (import cu/tsort cu-tsort ts-space?)
 (import cu/tunctl cu-tunctl)
+(import cu/udhcp ud-ack ud-add-option! ud-add-simple! ud-arpping ud-be32
+  ud-be32! ud-byte ud-bytes ud-catch! ud-chaddr ud-ciaddr ud-decline ud-die
+  ud-discover ud-dotted ud-end ud-error ud-file ud-find-option ud-flags
+  ud-get-option ud-get-option32 ud-giaddr ud-hex2 ud-hlen ud-info ud-inform
+  ud-listen ud-log1 ud-log2 ud-logging! ud-mac-text ud-nak ud-now ud-offer
+  ud-op ud-packet ud-perror ud-put! ud-read-interface ud-recv-kernel
+  ud-release ud-request ud-same? ud-send-kernel ud-send-raw ud-set! ud-siaddr
+  ud-sname ud-status ud-str-bytes ud-str2nip ud-str2optset ud-strtou ud-taken
+  ud-xid ud-yiaddr ud-zeros)
+(import cu/udhcpd cu-udhcpd)
 (import cu/unshare cu-unshare)
 (import cu/unzip cu-unzip)
 (import cu/vconfig cu-vconfig)

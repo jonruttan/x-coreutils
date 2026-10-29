@@ -201,6 +201,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tty` | -s | -s |  | 100% |
 | `ttysize` |  |  |  | - |
 | `tunctl` | -f -t -d -u -g -b | -b -f -t -d -u -g |  | 100% |
+| `udhcpd` | -f -S -I -v -a | -f -S -v -I -a |  | 100% |
 | `udpsvd` | -h -E -v -c -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -m -n -r -s -p -v -i -o |  | 100% |
 | `unexpand` | -f -a -t | -a -f -t |  | 100% |

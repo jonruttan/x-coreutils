@@ -2586,6 +2586,20 @@
               (Opts text "exits only on I/O errors (link down etc)"))
             (%cu-hidden-flags (list "-f" "-q" "-v"))
             (%cu-hidden-args (list "-r" "-l"))))))
+    (pair "udhcpd"
+      (list
+        (Opts declare "udhcpd" "[-fS] [-I ADDR] [-a MSEC] [CONFFILE]"
+          "DHCP server"
+          (append
+            (list
+              (Opts text "\t-f\tRun in foreground")
+              (Opts text "\t-S\tLog to syslog too")
+              (Opts text "\t-I ADDR\tLocal address")
+              (Opts text "\t-a MSEC\tTimeout for ARP ping (default 2000)")
+              (Opts text "Signals:")
+              (Opts text "\tUSR1\tUpdate lease file"))
+            (%cu-hidden-flags (list "-f" "-S" "-v"))
+            (%cu-hidden-args (list "-I" "-a"))))))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list
