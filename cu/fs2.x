@@ -26,27 +26,27 @@
 
 (import cu/cli cu-missing-file-operand cu-opts)
 (import cu/date cu-date-moment cu-date-of cu-date-today)
-(import cu/fs3 cu-path-join)
 (import cu/perm cu-basename-of cu-octal->int cu-realpath-of)
 (import cu/prims append byte-at byte-len cu-dirname-of cu-int->str cu-last
   cu-max-status cu-member-s? cu-nth cu-stat-get cu-sweep! cu-sweep-bytes
   date-now-unix file-chmod file-chown file-close file-copy file-dir?
   file-exists? file-mkdir file-open-excl file-set-times file-stat-full
   file-utimes file-write file-write-all filter integer->char length
-  list->string map rng-int rng-make string-append string-concat string=?
-  substring sys-getcwd sys-getenv)
+  list->string map rng-int rng-make string-append string=? substring
+  sys-getcwd sys-getenv)
 (import cu/sys2 cu-drop-last)
 (import cu/text cu-first-unopened cu-num-prefix cu-pad-left cu-pieces-past
   cu-say cu-says cu-with-sources)
 (import cu/text2 cu-oct->str)
 
+(import x/type/path Path)
+
 (def %cu-touch-stamp
   (fn (_ s)
     (def end (byte-len s))
-    (def digit? (fn (_ i) (let ((b (byte-at s i))) (if (>= b 48) (<= b 57) #f))))
     (def digits?
       (fn (_ from to)
-        (let ((go (fn (self i) (if (>= i to) #t (if (digit? i) (self (+ i 1)) #f)))))
+        (let ((go (fn (self i) (if (>= i to) #t (if (Char numeric? (byte-at s i)) (self (+ i 1)) #f)))))
           (if (< from to) (go from) #f))))
     (def num
       (fn (_ from to)
@@ -92,14 +92,14 @@
         ((if (null? tspec) #f (if (null? dspec) (not (null? rfile)) #t))
           "touch: cannot specify times from more than one source\n")
         ((if (null? rfile) #f (null? ref-st))
-          (string-concat
+          (%str-concat
             (list "touch: failed to get attributes of '" rfile "': "
                   (if (file-exists? rfile) "Permission denied" "No such file or directory")
                   "\n")))
         ((if (null? dspec) #f (null? dsecs))
-          (string-concat (list "touch: invalid date format '" dspec "'\n")))
+          (%str-concat (list "touch: invalid date format '" dspec "'\n")))
         ((if (null? tspec) #f (null? tsecs))
-          (string-concat (list "touch: invalid date format '" tspec "'\n")))
+          (%str-concat (list "touch: invalid date format '" tspec "'\n")))
         (#t ())))
     ; (ATIME . MTIME), or nil for the clock
     (def times
@@ -113,7 +113,7 @@
       (fn (_ path)
         (if (null? times) (do (file-utimes path) 0)
           (if (< (file-set-times path (first times) (rest times)) 0)
-            (do (file-write 2 (string-concat (list "touch: setting times of '" path "' failed\n")))
+            (do (file-write 2 (%str-concat (list "touch: setting times of '" path "' failed\n")))
                 1)
             0))))
     (def go
@@ -161,9 +161,6 @@
 
 ; rmdir moved to cu/fs.x, which gives it -p.
 
-; install: -d makes directories (parents included); the copy form
-; accepts and IGNORES -c and -m MODE -- there is no chmod door yet,
-; the recorded divergence
 ; install: -d makes directories; otherwise it copies, with -D creating
 ; the destination's parents, -m the mode, -o/-g the ownership, -p the
 ; timestamps, and -t naming a directory to install into.  -s would
@@ -204,7 +201,7 @@
                       (if (null? ss) st
                         (let ((target
                                 (if (file-dir? dst)
-                                  (cu-path-join dst (cu-base-of (first ss)))
+                                  (Path join dst (cu-base-of (first ss)))
                                   dst)))
                           (do (if (Opts on? o "-D")
                                 (cu-mkdir-p! (cu-dirname-of target)) ())
@@ -265,7 +262,7 @@
             ()))))
     (def template
       (if (null? into) (if (null? ops) "/tmp/tmp.XXXXXX" base)
-        (cu-path-join into (cu-basename-of base))))
+        (Path join into (cu-basename-of base))))
     (def end (byte-len template))
     (def xs
       (let ((go (fn (self i)
@@ -334,7 +331,7 @@
             1))
       ((not (null? bad))
         (do (file-write 2
-              (string-concat (list "cmp: invalid number '" (first (first bad)) "'\n")))
+              (%str-concat (list "cmp: invalid number '" (first (first bad)) "'\n")))
             1))
       (#t (%cu-cmp-run o stdin-thunk)))))
 
@@ -400,7 +397,7 @@
     (def ended
       (fn (_ name)
         (do (if quiet? ()
-              (file-write 2 (string-concat (list "cmp: EOF on " name "\n"))))
+              (file-write 2 (%str-concat (list "cmp: EOF on " name "\n"))))
             1)))
     (def failed (fn (_ name err) (do (cu-say says name err) 2)))
     (def least (fn (_ x y) (if (< x y) x y)))
@@ -465,14 +462,14 @@
 ; and the line it is at
 (def %cu-cmp-differ
   (fn (_ names at line)
-    (string-concat
+    (%str-concat
       (list (first names) " " (first (rest names)) " differ: byte "
             (cu-int->str at) ", line " (cu-int->str line) "\n"))))
 
 ; a line of -l: the offset, and the two bytes in octal, three wide
 (def %cu-cmp-listed
   (fn (_ off x y)
-    (string-concat
+    (%str-concat
       (list (cu-int->str off) " "
             (cu-pad-left (cu-oct->str x) 3) " "
             (cu-pad-left (cu-oct->str y) 3) "\n"))))

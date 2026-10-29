@@ -42,8 +42,7 @@
 
 (module cu/diff-lex)
 
-(import cu/prims byte-at byte-len reverse set-first! string-append
-  string-concat string=?)
+(import cu/prims byte-at byte-len reverse set-first! string-append string=?)
 
 (import x/reader/lexer)
 ; the module a first make imports, here so the state image carries it: read
@@ -79,9 +78,9 @@
       (if (null? cur)
         ""
         (if (string=? (first cur) " ")
-          (string-concat (reverse (rest cur)))
-          (string-concat (reverse cur))))
-      (string-concat (reverse cur)))))
+          (%str-concat (reverse (rest cur)))
+          (%str-concat (reverse cur))))
+      (%str-concat (reverse cur)))))
 
 ; TEXT -> the lines as diff compares them, one string each.
 ;

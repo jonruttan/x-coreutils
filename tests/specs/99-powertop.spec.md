@@ -23,7 +23,7 @@ each line written to standard output `|`.
     (def pt-esc (bytes->str (list 27)))
     (def pt-show (fn (_ st)
       (display (Str8 replace pt-esc "^["
-                 (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (pt-f "out"))) "stderr:\n"
+                 (%str-concat (list (Str8 replace "\n" "|\n" (file-read-all (pt-f "out"))) "stderr:\n"
                                       (file-read-all (pt-f "err")) "status " (cu-int->str st) "\n"))))))
     ; ARGV with stdin the file IN, PREP run first in the child
     (def pt-run (fn (_ argv in prep)
@@ -36,7 +36,7 @@ each line written to standard output `|`.
                   (sys-exit (cu-run argv "")))))
           (pt-show (sys-wait kid))
           ())))
-    (def pt-cp (fn (_ from to) (string-concat (list "cp " pt-fx from " /tmp/x-cu-ptop/proc/" to))))
+    (def pt-cp (fn (_ from to) (%str-concat (list "cp " pt-fx from " /tmp/x-cu-ptop/proc/" to))))
     ; the fixture /proc: SET's first interrupts, the power files when ACPI,
     ; timer_stats a file of the fixture's, a directory or none
     (def pt-proc! (fn (_ set acpi timer)

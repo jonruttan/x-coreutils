@@ -211,7 +211,7 @@
 (def %vi-undo-said
   (fn (_ what len start)
     (%vi-status-line!
-      (string-concat
+      (%str-concat
         (list "Undo [" (%vi-num->str %vi-modified) "] " what " " (%vi-num->str len)
               " chars at position " (%vi-num->str start))))))
 

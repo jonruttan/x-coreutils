@@ -38,9 +38,9 @@
 (import cu/prims append byte-at byte-len cu-int->str cu-sig-ign file-close
   file-err-sym file-open-write file-read-run file-write file-write-run filter
   integer->char length list->string map net-accept net-close net-connect
-  net-die net-listen net-resolve net-shutdown reverse string-concat string=?
-  substring sys-dup2 sys-exec sys-exit sys-poll sys-signal sys-sleep
-  wget-digits wget-div wget-err-text wget-memv)
+  net-die net-listen net-resolve net-shutdown reverse string=? substring
+  sys-dup2 sys-exec sys-exit sys-poll sys-signal sys-sleep wget-digits
+  wget-div wget-err-text wget-memv)
 
 (def %nc-split-exec
   (fn (_ argv)
@@ -74,7 +74,7 @@
 (def %nc-usage
   (fn (_)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list "Usage: " %nc-name " [OPTIONS] HOST PORT  - connect\n"
                   "nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen\n\n"
                   "\t-e PROG\tRun PROG after connect (must be last)\n"
@@ -114,9 +114,9 @@
     (def hex (fn (_ n) (integer->char (if (< n 10) (+ n #\0) (+ n 87)))))
     (def h8 (let go ((v off) (k 8) (acc ()))
               (if (= k 0) acc (go (wget-div v 16) (- k 1) (pair (hex (% v 16)) acc)))))
-    (string-concat
+    (%str-concat
       (list (bytes->str (list dir)) " " (list->string h8) " "
-            (string-concat
+            (%str-concat
               (map (fn (_ b) (list->string (list (hex (wget-div b 16)) (hex (% b 16)) #\space))) bs))
             (wget-times (* 3 (- 16 (length bs))) #\space)
             "# "
@@ -209,7 +209,7 @@
     (do (sys-dup2 net 0)
         (sys-dup2 0 1)
         (sys-exec (first prog) (rest prog))
-        (file-write 2 (string-concat (list %nc-name ": can't execute '" (first prog) "'\n")))
+        (file-write 2 (%str-concat (list %nc-name ": can't execute '" (first prog) "'\n")))
         (sys-exit 1))))
 
 ; --- the applet ----------------------------------------------------------------
@@ -218,7 +218,7 @@
   (fn (_ host ip port)
     (guard (e (do (when (if (> %nc-verbose 1) #t
                           (if (> %nc-verbose 0) (not (eq? (file-err-sym e) (lit econnrefused))) #f))
-                    (file-write 2 (string-concat
+                    (file-write 2 (%str-concat
                       (list %nc-name ": " host " (" ip ":" (cu-int->str port) "): " (wget-err-text e) "\n"))))
                   ()))
       (net-connect ip port))))
@@ -243,12 +243,12 @@
             (do (net-close lfd) c)))
         (let ((host (first ops)) (port (%nc-port (if (null? (rest ops)) () (first (rest ops))))))
           (do (when (null? port)
-                (net-die (string-concat (list "bad port '" (first (rest ops)) "'"))))
+                (net-die (%str-concat (list "bad port '" (first (rest ops)) "'"))))
               (let ((ip (guard (_ ()) (net-resolve host))))
-                (do (when (null? ip) (net-die (string-concat (list "bad address '" host "'"))))
+                (do (when (null? ip) (net-die (%str-concat (list "bad address '" host "'"))))
                     (let ((fd (%nc-connect-or-fail host ip port)))
                       (do (when (if (> %nc-verbose 0) (not (null? fd)) #f)
-                            (file-write 2 (string-concat
+                            (file-write 2 (%str-concat
                               (list host " (" ip ":" (cu-int->str port) ") open\n"))))
                           fd))))))))
     (def st
@@ -260,7 +260,7 @@
                 (let ((r (%nc-copy net #t #t () wait-ms 2 interval)))
                   (do (net-close net) r))))))
     (when (> %nc-verbose 1)
-      (file-write 2 (string-concat
+      (file-write 2 (%str-concat
         (list "sent " (cu-int->str %nc-wrote-net) ", rcvd " (cu-int->str %nc-wrote-out) "\n"))))
     (unless (< %nc-hex-fd 0) (do (file-close %nc-hex-fd) (set! %nc-hex-fd -1)))
     st))
@@ -280,7 +280,7 @@
       ((> (length ops) 2) (%nc-usage))
       (#t
         (guard (e (if (eq? (Err label e) (lit net))
-                    (do (file-write 2 (string-concat (list name ": " (e msg) "\n"))) 1)
+                    (do (file-write 2 (%str-concat (list name ": " (e msg) "\n"))) 1)
                     (error e)))
           (%nc-run o ops (rest split)))))))
 

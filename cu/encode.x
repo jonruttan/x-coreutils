@@ -21,10 +21,10 @@
   cu-b->s cu-hexs cu-int->str cu-last cu-lines cu-nth cu-run-bytes cu-stat-get
   cu-sweep-at cu-sweep-lines cu-sweep-steps cu/ cu< cu<< cu>> file-close
   file-err-text file-open-or-err file-open-write file-stat-full file-write
-  file-write-run filter length map reverse set-first! string-append
-  string-concat string=? substring sys-umask)
-(import cu/text cu-enough cu-fold-said cu-gather-said cu-join-with
-  cu-num-prefix cu-pad-left cu-pad-zero cu-run-join cu-run-part cu-says)
+  file-write-run filter length map reverse set-first! string-append string=?
+  substring sys-umask)
+(import cu/text cu-enough cu-fold-said cu-gather-said cu-num-prefix
+  cu-pad-left cu-pad-zero cu-run-join cu-run-part cu-says)
 (import cu/text2 cu-oct->str)
 (import cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from)
 
@@ -150,7 +150,7 @@
       (let go ((i from) (acc ()))
         (if (cu< i stop)
           (go (cu+ i size) (pair (%cu-od-field s i stop od-type size) acc))
-          (string-concat (reverse acc)))))))
+          (%str-concat (reverse acc)))))))
 
 ; the one-byte fields of each type asked for so far: (TYPE W . TABLE), TABLE
 ; the 256 fields in byte order, each W bytes wide -- every one-byte type pads
@@ -172,7 +172,7 @@
               (if (cu< b 0) acc
                 (go (cu- b 1)
                     (pair (%cu-od-field (bytes->str (list b)) 0 1 od-type 1) acc)))))
-          (def t (pair (byte-len (first fields)) (string-concat fields)))
+          (def t (pair (byte-len (first fields)) (%str-concat fields)))
           (set-first! %cu-od-tables (pair (pair od-type t) (first %cu-od-tables)))
           t)
       have)))
@@ -398,7 +398,7 @@
     ; the input is encoded as it is read, and the begin line goes out with its
     ; first piece, so a FILE that could not be read puts out nothing
     (def begin
-      (string-concat
+      (%str-concat
         (list (if m? "begin-base64 " "begin ") (cu-oct->str mode) " " name
               "\n")))
     (def g (cu-fold-said src stdin-thunk (cu-says "uuencode")
@@ -531,7 +531,7 @@
       ((> (rest g) 0) 1)
       ((Err err? fd)
         (do (file-write 2
-              (string-concat
+              (%str-concat
                 (list "uudecode: " from ": " out ": " (file-err-text fd) "\n")))
             1))
       (#t (do (%cu-uu-put-body b64? body (fn (_ r) (file-write-run fd r)))
@@ -554,7 +554,7 @@
                 (do (cu-sweep-at k cu-sweep-lines)
                     (self (rest ls) (%cu-onto bs out) (+ n (length bs))
                       (+ k 1))))))))
-    (if b64? (cu-b64-decode-to (cu-join-with body "\n") put #t)
+    (if b64? (cu-b64-decode-to (Str8 join "\n" body) put #t)
       (go (filter (fn (_ l) (> (byte-len l) 0)) body) () 0 0))))
 
 (provide cu/encode cu-od cu-uudecode cu-uuencode)

@@ -23,19 +23,19 @@
 
 (import cu/cli cu-families cu-opts cu-usage)
 (import cu/inet inet-aton inet-set! inet-zeros)
-(import cu/inetd in-c in-call in-dontwait in-strtou)
+(import cu/inetd in-call in-dontwait in-strtou)
 (import cu/prims byte-at byte-len cu-err-label cu-int->ptr cu-int->str
-  cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-str->ptr
-  file-write libc-strerror map reverse str-make-raw string-append
-  string-concat string=? substring sys-getpid sys-poll sys-signal wget-digits)
+  cu-libc-sym cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word
+  cu-str->ptr file-write libc-strerror map reverse str-make-raw string-append
+  string=? substring sys-getpid sys-poll sys-signal wget-digits)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-zero)
 
 (def %pn-applet "ping")
-(def %pn-say (fn (_ msg) (file-write 2 (string-concat (list %pn-applet ": " msg "\n")))))
+(def %pn-say (fn (_ msg) (file-write 2 (%str-concat (list %pn-applet ": " msg "\n")))))
 (def %pn-die (fn (_ msg) (do (%pn-say msg) (Err raise (lit ping) msg ()))))
 (def %pn-usage (fn (_) (Err raise (lit ping-usage) "usage" ())))
-(def %pn-errno-die (fn (_ what r) (%pn-die (string-concat (list what ": " (libc-strerror (Err errno-of r)))))))
+(def %pn-errno-die (fn (_ what r) (%pn-die (%str-concat (list what ": " (libc-strerror (Err errno-of r)))))))
 
 (def pn-af6 (if os-darwin? 30 10))
 (def pn-sol-socket (if os-darwin? 65535 1))
@@ -78,7 +78,7 @@
 
 ; N microseconds as %u.%03u milliseconds
 (def pn-ms
-  (fn (_ n) (string-concat (list (cu-int->str (pn-div n 1000)) "." (cu-pad-zero (cu-int->str (% n 1000)) 3)))))
+  (fn (_ n) (%str-concat (list (cu-int->str (pn-div n 1000)) "." (cu-pad-zero (cu-int->str (% n 1000)) 3)))))
 
 ; N bytes of BYTE: the send buffer, filled once a run -- the header and the
 ; clock are written over it at each send
@@ -91,19 +91,19 @@
 (def pn-setopt
   (fn (_ fd level opt v)
     (let ((b (inet-zeros 4)))
-      (do (inet-set! b 0 v 4) (in-call (cu-ptr-call (in-c "setsockopt") fd level opt (cu-str->ptr b) 4))))))
+      (do (inet-set! b 0 v 4) (in-call (cu-ptr-call (cu-libc-sym "setsockopt") fd level opt (cu-str->ptr b) 4))))))
 
 ; --- numbers ---------------------------------------------------------------------------
 
 (def pn-range-die
   (fn (_ s lo hi die)
-    (die (string-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range")))))
+    (die (%str-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range")))))
 
 ; xatou_range: S as a decimal number from LO to HI; past UINT_MAX it is no number
 (def pn-number
   (fn (_ s lo hi die)
     (let ((n (wget-digits s)))
-      (match ((if (null? n) #t (> n 4294967295)) (die (string-concat (list "invalid number '" s "'"))))
+      (match ((if (null? n) #t (> n 4294967295)) (die (%str-concat (list "invalid number '" s "'"))))
              ((if (< n lo) #t (> n hi)) (pn-range-die s lo hi die))
              (#t n)))))
 
@@ -116,9 +116,9 @@
                                 ((if (>= (| c 32) #\a) (<= (| c 32) #\f) #f) (+ 10 (- (| c 32) #\a)))
                                 (#t ()))))
     (let go ((i from) (v 0))
-      (match ((>= i n) (if (= i 0) (%pn-die (string-concat (list "invalid number '" s "'")))
+      (match ((>= i n) (if (= i 0) (%pn-die (%str-concat (list "invalid number '" s "'")))
                          (if (> v 255) (pn-range-die s 0 255 %pn-die) v)))
-             ((null? (digit (byte-at s i))) (%pn-die (string-concat (list "invalid number '" s "'"))))
+             ((null? (digit (byte-at s i))) (%pn-die (%str-concat (list "invalid number '" s "'"))))
              (#t (go (+ i 1) (+ (* v 16) (digit (byte-at s i)))))))))
 
 ; xatoul_sfx with the duration suffixes: S's seconds as a multiplier, or the
@@ -129,7 +129,7 @@
     (def last (if (> n 0) (byte-at s (- n 1)) 0))
     (def scale (match ((= last #\s) 1) ((= last #\m) 60) ((= last #\h) 3600) ((= last #\d) 86400) (#t ())))
     (let ((v (wget-digits (if (null? scale) s (substring s 0 (- n 1))))))
-      (if (if (null? v) #t (> v 4294967295)) (%pn-die (string-concat (list "invalid number '" s "'")))
+      (if (if (null? v) #t (> v 4294967295)) (%pn-die (%str-concat (list "invalid number '" s "'")))
         (* v (if (null? scale) 1 scale))))))
 
 ; parse_duration_str, FLOAT_DURATION: -i's seconds as microseconds, at most
@@ -155,24 +155,21 @@
 (def %pn-index
   (fn (_ s c from)
     (let go ((i from)) (match ((>= i (byte-len s)) ()) ((= (byte-at s i) c) i) (#t (go (+ i 1)))))))
-(def %pn-rindex
-  (fn (_ s c)
-    (let go ((i (- (byte-len s) 1))) (match ((< i 0) ()) ((= (byte-at s i) c) i) (#t (go (- i 1)))))))
 
 ; str2sockaddr's host: HOST without its :PORT or [...]:PORT, the port checked
 (def pn-host-part
   (fn (_ org die)
     (def port-check
-      (fn (_ p) (let ((n (in-strtou p))) (when (if (null? n) #t (> n 65535)) (die (string-concat (list "bad port '" p "'")))))))
+      (fn (_ p) (let ((n (in-strtou p))) (when (if (null? n) #t (> n 65535)) (die (%str-concat (list "bad port '" p "'")))))))
     (if (if (> (byte-len org) 0) (= (byte-at org 0) #\[) #f)
       (let ((h (substring org 1 (byte-len org))))
         (let ((cp (%pn-index h #\] 0)))
           (match
             ((if (null? cp) #t (if (< (+ cp 1) (byte-len h)) (not (= (byte-at h (+ cp 1)) #\:)) #f))
-              (die (string-concat (list "bad address '" org "'"))))
+              (die (%str-concat (list "bad address '" org "'"))))
             ((= (+ cp 1) (byte-len h)) (substring h 0 cp))
             (#t (do (port-check (substring h (+ cp 2) (byte-len h))) (substring h 0 cp))))))
-      (let ((cp (%pn-rindex org #\:)))
+      (let ((cp (Str8 last-index-of ":" org)))
         (if (if (null? cp) #t (not (= (%pn-index org #\: 0) cp))) org
           (do (port-check (substring org (+ cp 1) (byte-len org))) (substring org 0 cp)))))))
 
@@ -195,21 +192,21 @@
     (inet-set! hint 4 af 4)
     (inet-set! hint 8 1 4)
     (def cell (inet-zeros 8))
-    (def r (in-call (cu-ptr-call (in-c "getaddrinfo") host 0 (cu-str->ptr hint) (cu-str->ptr cell))))
+    (def r (in-call (cu-ptr-call (cu-libc-sym "getaddrinfo") host 0 (cu-str->ptr hint) (cu-str->ptr cell))))
     (def head (cu-ptr-word (cu-str->ptr cell) 0))
     (if (if (not (= r 0)) #t (= head 0)) ()
       (let ((np (cu-int->ptr head)))
         (let ((len (cu-ptr-ref np 16 4)) (src (cu-int->ptr (cu-ptr-word np (if os-darwin? 32 24)))))
           (let ((b (inet-zeros len)))
             (do (let copy ((i 0)) (when (< i len) (do (inet-set! b i (pn-byte src i) 1) (copy (+ i 1)))))
-                (cu-ptr-call (in-c "freeaddrinfo") (cu-int->ptr head))
+                (cu-ptr-call (cu-libc-sym "freeaddrinfo") (cu-int->ptr head))
                 (pair b len))))))))
 
 ; inet_pton: HOST as an IPv6 sockaddr, or nil where it is no IPv6 address
 (def %pn-pton6
   (fn (_ host)
     (let ((b (pn-sockaddr 28 pn-af6)))
-      (if (= (in-call (cu-ptr-call (in-c "inet_pton") pn-af6 host (pn-at (cu-str->ptr b) 8))) 1) (pair b 28) ()))))
+      (if (= (in-call (cu-ptr-call (cu-libc-sym "inet_pton") pn-af6 host (pn-at (cu-str->ptr b) 8))) 1) (pair b 28) ()))))
 
 ; xhost_and_af2sockaddr: HOST's address in AF (0 for either, 2, or AF_INET6)
 ; as (SOCKADDR . LENGTH); FLAGS getaddrinfo's (4 for numeric only).  The run
@@ -223,7 +220,7 @@
       (match ((not (null? v4)) (let ((b (pn-sockaddr 16 2))) (do (inet-set! b 4 v4 4) (pair b 16))))
              ((not (null? v6)) v6)
              (#t (%pn-getaddrinfo host af flags))))
-    (if (null? found) (die (string-concat (list "bad address '" org "'"))) found)))
+    (if (null? found) (die (%str-concat (list "bad address '" org "'"))) found)))
 
 ; xmalloc_sockaddr2dotted_noport: the address SA holds
 (def pn-dotted
@@ -232,7 +229,7 @@
     (if (= (pn-family sa) 2)
       (Str8 join "." (List map (fn (_ k) (cu-int->str (pn-byte p (+ 4 k)))) (list 0 1 2 3)))
       (let ((out (str-make-raw 64)))
-        (do (cu-ptr-call (in-c "inet_ntop") pn-af6 (pn-at p 8) (cu-str->ptr out) 64)
+        (do (cu-ptr-call (cu-libc-sym "inet_ntop") pn-af6 (pn-at p 8) (cu-str->ptr out) 64)
             (cu-ptr->str (cu-str->ptr out)))))))
 
 ; --- the statistics --------------------------------------------------------------------
@@ -242,13 +239,13 @@
   (fn (_)
     (sys-signal 2 1)
     (def loss (if (= %pn-ntx 0) 0 (pn-div (* (- %pn-ntx %pn-nrx) 100) %pn-ntx)))
-    (file-write 1 (string-concat
+    (file-write 1 (%str-concat
       (list "\n--- " %pn-host " ping statistics ---\n"
             (cu-int->str %pn-ntx) " packets transmitted, " (cu-int->str %pn-nrx) " packets received, "
             (if (= %pn-nrep 0) "" (string-append (cu-int->str %pn-nrep) " duplicates, "))
             (cu-int->str loss) "% packet loss\n"
             (if (null? %pn-tmin) ""
-              (string-concat (list "round-trip min/avg/max = " (pn-ms %pn-tmin) "/"
+              (%str-concat (list "round-trip min/avg/max = " (pn-ms %pn-tmin) "/"
                                    (pn-ms (pn-div %pn-tsum (+ %pn-nrx %pn-nrep))) "/" (pn-ms %pn-tmax) " ms\n"))))))
     (set! %pn-status (if (= %pn-nrx 0) 1 (if (if (> %pn-deadline 0) (< %pn-nrx %pn-count) #f) 1 0)))
     (Err raise (lit ping-done) "done" ())))
@@ -299,7 +296,7 @@
     ; send all that follow it
     (cu-ptr-set! p 8 (& (pn-now) 4294967295) 4)
     (unless %pn-v6 (pn-be16! p 2 (pn-fold (+ (+ %pn-base seq) (pn-sum p 8 (if (< n 12) n 12))))))
-    (def sz (in-call (cu-ptr-call (in-c "sendto") %pn-fd p n 0 (cu-str->ptr %pn-sa) %pn-salen)))
+    (def sz (in-call (cu-ptr-call (cu-libc-sym "sendto") %pn-fd p n 0 (cu-str->ptr %pn-sa) %pn-salen)))
     (when (< sz 0) (%pn-errno-die "sendto" sz))
     (unless (= sz n) (%pn-die "write error"))
     (set! %pn-timer
@@ -331,7 +328,7 @@
 (def %pn-warn
   (fn (_ type names)
     (let ((n (List find (fn (_ e) (= (first e) type)) names)))
-      (%pn-say (string-concat (list "warning: got ICMP " (cu-int->str type) " (" (if (null? n) "unknown ICMP type" (rest n)) ")"))))))
+      (%pn-say (%str-concat (list "warning: got ICMP " (cu-int->str type) " (" (if (null? n) "unknown ICMP type" (rest n)) ")"))))))
 
 ; unpack_tail
 (def %pn-tail!
@@ -345,9 +342,9 @@
     (def dup (%pn-dup? k))
     (if dup (set! %pn-nrep (+ %pn-nrep 1)) (do (%pn-dup! k #t) (set! %pn-nrx (+ %pn-nrx 1))))
     (unless %pn-quiet
-      (file-write 1 (string-concat
+      (file-write 1 (%str-concat
         (list (cu-int->str sz) " bytes from " from ": seq=" (cu-int->str seq) " ttl=" (cu-int->str ttl)
-              (if (null? trip) "" (string-concat (list " time=" (pn-ms trip) " ms")))
+              (if (null? trip) "" (%str-concat (list " time=" (pn-ms trip) " ms")))
               (if dup " (DUP!)" "") "\n"))))))
 
 ; unpack4: #t for a reply to us
@@ -416,7 +413,7 @@
     (def p (cu-str->ptr %pn-rbuf))
     (if (not %pn-v6)
       (do (inet-set! %pn-rlen 0 128 4)
-          (let ((r (in-call (cu-ptr-call (in-c "recvfrom") %pn-fd p (+ %pn-datalen 136) in-dontwait
+          (let ((r (in-call (cu-ptr-call (cu-libc-sym "recvfrom") %pn-fd p (+ %pn-datalen 136) in-dontwait
                                          (cu-str->ptr %pn-rfrom) (cu-str->ptr %pn-rlen)))))
             (match ((< r 0) (said r))
                    ((= (pn-byte p (* 4 (& (pn-byte p 0) 15))) 8) (self))
@@ -424,7 +421,7 @@
       ; recvmsg, the hop limit in the ancillary data
       (do (inet-set! %pn-msg 8 128 4)
           (inet-set! %pn-msg 40 64 4)
-          (let ((r (in-call (cu-ptr-call (in-c "recvmsg") %pn-fd (cu-str->ptr %pn-msg) in-dontwait))))
+          (let ((r (in-call (cu-ptr-call (cu-libc-sym "recvmsg") %pn-fd (cu-str->ptr %pn-msg) in-dontwait))))
             (match ((< r 0) (said r))
                    ((= (pn-byte p 0) 128) (self))
                    (#t (let ((now (pn-now)))
@@ -476,7 +473,7 @@
 ; create_icmp_socket
 (def %pn-socket
   (fn (_)
-    (let ((fd (in-call (cu-ptr-call (in-c "socket") (if %pn-v6 pn-af6 2) 3 (if %pn-v6 58 1)))))
+    (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") (if %pn-v6 pn-af6 2) 3 (if %pn-v6 58 1)))))
       (match ((>= fd 0) fd)
              ((= (Err errno-of fd) 1) (%pn-die "permission denied (are you root?)"))
              (#t (%pn-errno-die "can't create raw socket" fd))))))
@@ -484,7 +481,7 @@
 ; xbind
 (def %pn-bind
   (fn (_ src)
-    (let ((r (in-call (cu-ptr-call (in-c "bind") %pn-fd (cu-str->ptr (first src)) (rest src)))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "bind") %pn-fd (cu-str->ptr (first src)) (rest src)))))
       (when (< r 0) (%pn-errno-die "bind" r)))))
 
 ; setsockopt_bindtodevice
@@ -494,9 +491,9 @@
       (let ((ifr (inet-zeros 40)))
         (do (let copy ((i 0)) (when (if (< i (byte-len iface)) (< i 15) #f)
                                 (do (inet-set! ifr i (byte-at iface i) 1) (copy (+ i 1)))))
-            (let ((r (in-call (cu-ptr-call (in-c "setsockopt") fd 1 25 (cu-str->ptr ifr) 40))))
+            (let ((r (in-call (cu-ptr-call (cu-libc-sym "setsockopt") fd 1 25 (cu-str->ptr ifr) 40))))
               (when (< r 0)
-                (say (string-concat (list "can't bind to interface " iface ": " (libc-strerror (Err errno-of r))))))))))))
+                (say (%str-concat (list "can't bind to interface " iface ": " (libc-strerror (Err errno-of r))))))))))))
 
 ; the ICMP6_FILTER: echo replies alone, or all with -v; Linux's bits block,
 ; Darwin's pass
@@ -512,7 +509,7 @@
   (fn (_ src if-index)
     (if (not %pn-v6)
       (do (unless (null? src)
-            (do (when (< (in-call (cu-ptr-call (in-c "setsockopt") %pn-fd 0 (if os-darwin? 9 32) (cu-str->ptr (first src)) (rest src))) 0)
+            (do (when (< (in-call (cu-ptr-call (cu-libc-sym "setsockopt") %pn-fd 0 (if os-darwin? 9 32) (cu-str->ptr (first src)) (rest src))) 0)
                   (%pn-die "can't set multicast source interface"))
                 (%pn-bind src)))
           (pn-setopt %pn-fd pn-sol-socket (if os-darwin? 32 6) 1)
@@ -521,7 +518,7 @@
             (do (pn-setopt %pn-fd 0 (if os-darwin? 4 2) %pn-ttl)
                 (pn-setopt %pn-fd 0 (if os-darwin? 10 33) %pn-ttl))))
       (do (unless (null? src) (%pn-bind src))
-          (when (< (in-call (cu-ptr-call (in-c "setsockopt") %pn-fd 58 (if os-darwin? 18 1) (cu-str->ptr (%pn-filter)) 32)) 0)
+          (when (< (in-call (cu-ptr-call (cu-libc-sym "setsockopt") %pn-fd 58 (if os-darwin? 18 1) (cu-str->ptr (%pn-filter)) 32)) 0)
             (%pn-die "setsockopt(ICMP6_FILTER)"))
           (pn-setopt %pn-fd pn-sol-socket (if os-darwin? 32 6) 1)
           (pn-setopt %pn-fd pn-sol-socket (if os-darwin? 4098 8) (+ (* %pn-datalen 2) 7168))
@@ -546,7 +543,7 @@
     (set! %pn-again (Opts on? o "-A"))
     (set! %pn-datalen (let ((v (Opts value o "-s"))) (if (null? v) 56 (pn-number v 0 65535 %pn-die))))
     (def str-i (Opts value o "-I"))
-    (def if-index (if (null? str-i) 0 (cu-ptr-call (in-c "if_nametoindex") str-i)))
+    (def if-index (if (null? str-i) 0 (cu-ptr-call (cu-libc-sym "if_nametoindex") str-i)))
     (def src (if (if (null? str-i) #t (> if-index 0)) () (pn-resolve str-i 0 4 %pn-die)))
     (set! %pn-pattern (let ((v (Opts value o "-p"))) (if (null? v) 0 (%pn-hex-byte v))))
     (set! %pn-deadline (if (= deadline 0) 0 (+ (pn-now) (* (if (> deadline 2147) 2147 deadline) 1000000))))
@@ -562,7 +559,7 @@
     (set! %pn-salen (rest lsa))
     (set! %pn-v6 (= (pn-family %pn-sa) pn-af6))
     (def source (if (null? src) () (if (= (pn-family (first src)) (pn-family %pn-sa)) src ())))
-    (file-write 1 (string-concat (list "PING " %pn-host " (" (pn-dotted %pn-sa) ")"
+    (file-write 1 (%str-concat (list "PING " %pn-host " (" (pn-dotted %pn-sa) ")"
                                        (if (null? source) "" (string-append " from " (pn-dotted (first source))))
                                        ": " (cu-int->str %pn-datalen) " data bytes\n")))
     (set! %pn-fd (%pn-socket))
@@ -586,10 +583,10 @@
       (guard (e (match ((eq? (cu-err-label e) (lit ping-usage)) (cu-usage applet))
                        ((eq? (cu-err-label e) (lit ping)) 1)
                        ((eq? (cu-err-label e) (lit ping-done)) %pn-status)
-                       (#t (do (sys-signal 2 0) (unless (< %pn-fd 0) (cu-ptr-call (in-c "close") %pn-fd)) (error e)))))
+                       (#t (do (sys-signal 2 0) (unless (< %pn-fd 0) (cu-ptr-call (cu-libc-sym "close") %pn-fd)) (error e)))))
         (%pn-main applet argv)))
     (sys-signal 2 0)
-    (unless (< %pn-fd 0) (cu-ptr-call (in-c "close") %pn-fd))
+    (unless (< %pn-fd 0) (cu-ptr-call (cu-libc-sym "close") %pn-fd))
     status))
 
 (def cu-ping (fn (_ argv stdin-thunk) (%pn-run "ping" argv)))

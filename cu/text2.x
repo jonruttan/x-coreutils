@@ -17,11 +17,11 @@
   cu-nth cu-run-of cu-sig-ign cu-sigint cu-sweep! cu-sweep-at cu-sweep-bytes
   cu-sweep-lines cu-sweep-steps cu-sweep-tick! file-close file-err-op
   file-err-text file-open-append file-open-or-err file-open-write file-write
-  file-write-run filter length map reverse string-append string-concat
-  string=? substring sys-signal)
+  file-write-run filter length map reverse string-append string=? substring
+  sys-signal)
 (import cu/text cu-each-said cu-first-unopened cu-fold-lines-said
-  cu-fold-stdin cu-join-with cu-map-swept cu-num-prefix cu-pad-left
-  cu-pad-right cu-pad-zero cu-print-lines cu-put-each cu-read-said cu-says)
+  cu-fold-stdin cu-map-swept cu-num-prefix cu-pad-left cu-pad-right
+  cu-pad-zero cu-print-lines cu-put-each cu-read-said cu-says)
 
 (def cu-echo
   (fn (_ argv stdin-thunk)
@@ -37,7 +37,7 @@
     ; ends the output, newline and all.  What goes out is runs -- bytes and
     ; their count, one a piece between escapes -- so a \0 is written like any
     ; other byte
-    (let ((r (let ((joined (cu-join-with ops " ")))
+    (let ((r (let ((joined (Str8 join " " ops)))
                (if e? (cu-esc-run joined (lit arg))
                  (pair (list (cu-run-of joined)) #f)))))
       (do (cu-write-runs 1 (first r))
@@ -157,14 +157,14 @@
                 ((eq? (cu-nth 2 r) (lit stop)) 0)
                 ((not (eq? (cu-nth 2 r) (lit more)))
                   (do (file-write 2
-                        (string-concat
+                        (%str-concat
                           (list "printf: " (cu-nth 2 r)
                                 ": invalid conversion specification\n")))
                       1))
                 ((if (first r) (pair? (cu-nth 1 r)) #f) (self (cu-nth 1 r)))
                 ((pair? (cu-nth 1 r))
                   (do (file-write 2
-                        (string-concat
+                        (%str-concat
                           (list "printf: warning: ignoring excess arguments, "
                                 "starting with '" (first (cu-nth 1 r)) "'\n")))
                       0))
@@ -211,7 +211,7 @@
                     (self (+ i step) (pair (fmt i) acc))))))
         (go a ())))
     (if (null? vals) 0
-      (do (display (string-append (cu-join-with vals sep) "\n")) 0))))
+      (do (display (string-append (Str8 join sep vals) "\n")) 0))))
 
 (def %cu-rev-line
   (fn (_ s)
@@ -241,9 +241,9 @@
     (cu-each-said (if (null? argv) (list "-") argv) stdin-thunk
       (fn (_ name err)
         (if (eq? (file-err-op err) (lit read))
-          (string-concat
+          (%str-concat
             (list "tac: " name ": read error: " (file-err-text err)))
-          (string-concat
+          (%str-concat
             (list "tac: failed to open '" name "' for reading: "
                   (file-err-text err)))))
       (fn (_ name text)
@@ -362,9 +362,8 @@
           (do (cu-sweep-tick! cu-sweep-lines)
               (display
                 (string-append
-                  (cu-join-with
-                    (map (fn (_ c) (if (pair? c) (first c) "")) cs)
-                    delim)
+                  (Str8 join delim
+                    (map (fn (_ c) (if (pair? c) (first c) "")) cs))
                   "\n"))
               (self (map (fn (_ c) (if (pair? c) (rest c) ())) cs))))))
     (if (Err err? shut) 1
@@ -391,7 +390,7 @@
                       (if a? file-open-append file-open-write) (first os))))
             (if (Err err? fd)
               (do (file-write 2
-                    (string-concat
+                    (%str-concat
                       (list "tee: " (first os) ": " (file-err-text fd) "\n")))
                   (self (rest os) fds 1))
               (self (rest os) (pair fd fds) st))))))

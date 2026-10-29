@@ -27,16 +27,16 @@
 (import cu/hash cu-bytes)
 (import cu/httpd hd-crypt-equal? hd-system-password)
 (import cu/nc nc-count)
-(import cu/prims append bit-and byte-at byte-len cu-dlopen cu-dlsym
-  cu-int->str cu-ptr->str cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
-  cu-sweep-lines cu-sweep-tick! file-close file-err-text file-mkdir
-  file-open-read file-open-wronly file-read-run file-rename file-rmdir
-  file-seek file-stat file-unlink file-write file-write-run map net-accept
-  net-close net-connect net-peer net-sock-addr net-stdin-socket reverse
-  str-make-raw string-append string-concat string=? substring sys-chroot
-  sys-close sys-dup2 sys-exit sys-fork sys-getcwd sys-getpid sys-pipe sys-poll
-  sys-signal sys-signals sys-user-group sys-user-id wget-digits wget-div
-  wget-err-text wget-find wget-index wget-last-index wget-memv)
+(import cu/prims append bit-and byte-at byte-len cu-int->str cu-libc-sym
+  cu-ptr->str cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep-lines
+  cu-sweep-tick! file-close file-err-text file-mkdir file-open-read
+  file-open-wronly file-read-run file-rename file-rmdir file-seek file-stat
+  file-unlink file-write file-write-run map net-accept net-close net-connect
+  net-peer net-sock-addr net-stdin-socket reverse str-make-raw string-append
+  string=? substring sys-chroot sys-close sys-dup2 sys-exit sys-fork
+  sys-getcwd sys-getpid sys-pipe sys-poll sys-signal sys-signals
+  sys-user-group sys-user-id wget-digits wget-div wget-err-text wget-index
+  wget-memv)
 (import cu/session ss-call)
 (import cu/text cu-pad-zero)
 
@@ -53,16 +53,10 @@
 (def %fd-rnfr ())
 (def %fd-local-ip "0.0.0.0")
 (def %fd-in 0)                 ; the control connection: net-stdin-socket's fd
-(def %fd-libc ())
-
-(def %fd-c
-  (fn (_ name)
-    (when (null? %fd-libc) (set! %fd-libc (cu-dlopen () 1)))
-    (cu-dlsym %fd-libc name)))
 
 ; bb_error_msg: said only when -v put stderr in the log mode
 (def %fd-say
-  (fn (_ msg) (when %fd-say? (file-write 2 (string-concat (list %fd-name ": " msg "\n"))))))
+  (fn (_ msg) (when %fd-say? (file-write 2 (%str-concat (list %fd-name ": " msg "\n"))))))
 
 (def %fd-die (fn (_ msg) (do (%fd-say msg) (sys-exit 1))))
 
@@ -118,7 +112,7 @@
 ; with 421, and the end of input with nothing read ends it with 0
 (def %fd-getline
   (fn (self)
-    (def crlf (wget-find %fd-inbuf "\r\n"))
+    (def crlf (Str8 index-of "\r\n" %fd-inbuf))
     (match
       ((not (null? crlf)) (%fd-take (+ crlf 2)))
       ((>= (byte-len %fd-inbuf) 8192) (%fd-take 8192))
@@ -191,7 +185,7 @@
       (if (> %fd-pasv 1)
         (let ((c (guard (_ -1) (net-accept %fd-pasv))))
           (do (when (< c 0) (%fd-err 425)) c))
-        (guard (e (%fd-die (string-concat (list "can't connect to remote host (" (first %fd-port) "): "
+        (guard (e (%fd-die (%str-concat (list "can't connect to remote host (" (first %fd-port) "): "
                                                  (wget-err-text e)))))
           (net-connect (first %fd-port) (rest %fd-port)))))
     (%fd-cleanup)
@@ -228,7 +222,7 @@
 (def %fd-pwd
   (fn (_)
     (let ((cwd (guard (_ "") (sys-getcwd))))
-      (%fd-write "257" (string-concat (list " \"" (%fd-double cwd #\") "\""))))))
+      (%fd-write "257" (%str-concat (list " \"" (%fd-double cwd #\") "\""))))))
 
 (def %fd-cwd
   (fn (_ dir)
@@ -243,20 +237,20 @@
 (def %fd-pasv-cmd
   (fn (_)
     (def port (%fd-passive))
-    (%fd-raw (string-concat (list "227 PASV ok (" (Str8 replace "." "," %fd-local-ip) ","
+    (%fd-raw (%str-concat (list "227 PASV ok (" (Str8 replace "." "," %fd-local-ip) ","
                                   (cu-int->str (wget-div port 256)) "," (cu-int->str (% port 256)) ")\r\n")))))
 
 (def %fd-epsv-cmd
-  (fn (_) (%fd-raw (string-concat (list "229 EPSV ok (|||" (cu-int->str (%fd-passive)) "|)\r\n")))))
+  (fn (_) (%fd-raw (%str-concat (list "229 EPSV ok (|||" (cu-int->str (%fd-passive)) "|)\r\n")))))
 
 ; PORT h1,h2,h3,h4,p1,p2: the peer's own address, at the port the last two name
 (def %fd-port-cmd
   (fn (_)
     (%fd-cleanup)
     (def raw %fd-arg)
-    (def c2 (if (null? raw) () (wget-last-index raw #\,)))
+    (def c2 (if (null? raw) () (Str8 last-index-of "," raw)))
     (def lo (if (null? c2) () (wget-digits (substring raw (+ c2 1) (byte-len raw)))))
-    (def c1 (if (null? lo) () (wget-last-index (substring raw 0 c2) #\,)))
+    (def c1 (if (null? lo) () (Str8 last-index-of "," (substring raw 0 c2))))
     (def hi (if (null? c1) () (wget-digits (substring raw (+ c1 1) c2))))
     (if (if (null? hi) #t (if (> lo 255) #t (> hi 255)))
       (%fd-err 500)
@@ -266,7 +260,7 @@
   (fn (_)
     (set! %fd-rest (if (null? %fd-arg) 0
                      (let ((n (wget-digits %fd-arg)))
-                       (if (null? n) (%fd-die (string-concat (list "invalid number '" %fd-arg "'"))) n))))
+                       (if (null? n) (%fd-die (%str-concat (list "invalid number '" %fd-arg "'"))) n))))
     (%fd-ok 350)))
 
 (def %fd-retr
@@ -284,7 +278,7 @@
   (fn (_ fd offset)
     (unless (= offset 0) (file-seek fd offset))
     (def size (Assoc get (lit size) (file-stat %fd-arg)))
-    (def remote (%fd-data (string-concat (list " Opening BINARY connection for " %fd-arg
+    (def remote (%fd-data (%str-concat (list " Opening BINARY connection for " %fd-arg
                                                " (" (cu-int->str size) " bytes)"))))
     (when (>= remote 0)
       (do (if (%fd-copy fd remote) (do (net-close remote) (%fd-ok 226)) (do (net-close remote) (%fd-err 451)))))
@@ -311,7 +305,7 @@
           (let go ((acc ()))
             (let ((r (file-read-run (first p) 65536)))
               (if (= (rest r) 0)
-                (do (sys-close (first p)) (string-concat (reverse acc)))
+                (do (sys-close (first p)) (%str-concat (reverse acc)))
                 (go (pair (substring (first r) 0 (rest r)) acc)))))))))
 
 (def %fd-lines
@@ -345,7 +339,7 @@
     (if (if (null? %fd-arg) #t (not (%fd-regular? %fd-arg)))
       (%fd-err 550)
       (let ((st (file-stat %fd-arg)))
-        (%fd-raw (string-concat (list "213 "
+        (%fd-raw (%str-concat (list "213 "
           (if size? (cu-int->str (Assoc get (lit size) st)) (%fd-stamp (Assoc get (lit mtime) st)))
           "\r\n")))))))
 
@@ -354,7 +348,7 @@
   (fn (_ secs)
     (def d (Date from-unix secs))
     (def f (fn (_ k w) (cu-pad-zero (cu-int->str (Assoc get k d)) w)))
-    (string-concat (list (f (lit year) 4) (f (lit month) 2) (f (lit day) 2)
+    (%str-concat (list (f (lit year) 4) (f (lit month) 2) (f (lit day) 2)
                          (f (lit hour) 2) (f (lit minute) 2) (f (lit second) 2)))))
 
 ; --- the commands that write (-w) -----------------------------------------------
@@ -378,7 +372,7 @@
     (let go ((i 0) (bs (cu-bytes "uniq.XXXXXX" 0 11)))
       (unless (null? bs) (do (cu-ptr-set! (cu-str->ptr t) i (first bs) 1) (go (+ i 1) (rest bs)))))
     (cu-ptr-set! (cu-str->ptr t) 11 0 1)
-    (def fd (Sys %sign-fold (cu-ptr-call (%fd-c "mkstemp") (cu-str->ptr t))))
+    (def fd (Sys %sign-fold (cu-ptr-call (cu-libc-sym "mkstemp") (cu-str->ptr t))))
     (pair fd (cu-ptr->str (cu-str->ptr t)))))
 
 ; handle_upload_common: STOR, APPE (append?) and STOU (unique?)
@@ -510,10 +504,10 @@
     (def gid (sys-user-group user))
     (def fail? (fn (_ r what)
       (let ((e (ss-call r (lit call) what)))
-        (unless (null? e) (%fd-die (string-concat (list what ": " (file-err-text e))))))))
-    (fail? (cu-ptr-call (%fd-c "initgroups") user gid) "can't set groups")
-    (fail? (cu-ptr-call (%fd-c "setgid") gid) "setgid")
-    (fail? (cu-ptr-call (%fd-c "setuid") uid) "setuid")))
+        (unless (null? e) (%fd-die (%str-concat (list what ": " (file-err-text e))))))))
+    (fail? (cu-ptr-call (cu-libc-sym "initgroups") user gid) "can't set groups")
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") gid) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") uid) "setuid")))
 
 ; --- the applet -------------------------------------------------------------------
 
@@ -521,14 +515,14 @@
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "ftpd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
-                (do (file-write 2 (string-concat (list "ftpd: " (e msg) "\n"))) 1)
+                (do (file-write 2 (%str-concat (list "ftpd: " (e msg) "\n"))) 1)
                 (error e)))
       (%fd-main o))))
 
 (def %fd-num
   (fn (_ s)
     (let ((n (wget-digits s)))
-      (if (null? n) (Err raise (lit net) (string-concat (list "invalid number '" s "'")) ()) n))))
+      (if (null? n) (Err raise (lit net) (%str-concat (list "invalid number '" s "'")) ()) n))))
 
 (def %fd-main
   (fn (_ o)
@@ -545,7 +539,7 @@
           (set! %fd-local-ip (first (net-sock-addr in)))
           (set! %fd-say? (> v 0))
           (when (if (> v 0) #t (> vs 0))
-            (set! %fd-name (string-concat (list "ftpd[" (cu-int->str (sys-getpid)) "]"))))
+            (set! %fd-name (%str-concat (list "ftpd[" (cu-int->str (sys-getpid)) "]"))))
           (%fd-serve o)))))
 
 (def %fd-serve
@@ -561,7 +555,7 @@
     (unless (null? dir)
       (let ((base (if (%fd-try (fn (_ ) (sys-chroot dir))) "/" dir)))
         (unless (%fd-try (fn (_) (Sys chdir base)))
-          (%fd-die (string-concat (list "can't change directory to '" base "'"))))))
+          (%fd-die (%str-concat (list "can't change directory to '" base "'"))))))
     (unless (null? user) (%fd-become user))
     (%fd-loop)
     0))

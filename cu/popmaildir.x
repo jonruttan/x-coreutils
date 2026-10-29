@@ -25,9 +25,9 @@
 (import cu/mime mm-getc mm-in mm-source!)
 (import cu/prims append byte-at byte-len cu-int->str cu-ptr-ref cu-str->ptr
   file-close file-read-run file-rename file-write map reverse set-first!
-  string-append string-concat string=? substring sys-close sys-dup2 sys-exit
-  sys-fork sys-getpid sys-isatty sys-pipe sys-poll sys-setenv sys-signal
-  sys-uname sys-wait wget-err-text wget-index wget-memv)
+  string-append string=? substring sys-close sys-dup2 sys-exit sys-fork
+  sys-getpid sys-isatty sys-pipe sys-poll sys-setenv sys-signal sys-uname
+  sys-wait wget-err-text wget-index wget-memv)
 (import cu/sendmail sm-atoi sm-helper-check sm-helper-pid! sm-space?)
 (import cu/sysinfo si-now)
 (import cu/tar tar-why)
@@ -90,7 +90,7 @@
     (if (match ((null? answer) #f) ((= (byte-len answer) 0) #f) (#t (= (byte-at answer 0) #\+)))
       (%pm-skip4 answer)
       (do (sm-helper-check)
-          (%pm-die (string-concat (list (if (null? msg) "(null)" msg) " failed, reply was: " (if (null? answer) "(null)" answer))))))))
+          (%pm-die (%str-concat (list (if (null? msg) "(null)" msg) " failed, reply was: " (if (null? answer) "(null)" answer))))))))
 
 ; atoi: the leading number of S, past spaces and a plus
 (def %pm-atoi
@@ -134,7 +134,7 @@
     (if (match ((not apop?) #f) ((= (byte-len buf) 0) #f) (#t (= (byte-at buf 0) #\<)))
       (let ((gt (wget-index buf #\> 0)))
         (let ((stamp (if (null? gt) buf (substring buf 0 (+ gt 1)))))
-          (%pm-check (string-concat (list "APOP " (first cred) " " (cu-md5 (string-append stamp (rest cred))))))))
+          (%pm-check (%str-concat (list "APOP " (first cred) " " (cu-md5 (string-append stamp (rest cred))))))))
       (do (%pm-check (string-append "USER " (first cred)))
           (%pm-check (string-append "PASS " (rest cred)))))))
 
@@ -151,7 +151,7 @@
           (sys-dup2 (first to) 0) (sys-dup2 (rest from) 1)
           (sys-close (first to)) (sys-close (rest from)) (sys-close 3)
           (let ((r (in-exec (first argv) argv)))
-            (do (file-write 2 (string-concat (list "popmaildir: can't execute '" (first argv) "': " (in-errtext r) "\n")))
+            (do (file-write 2 (%str-concat (list "popmaildir: can't execute '" (first argv) "': " (in-errtext r) "\n")))
                 (sys-exit 127)))))
     (sys-close (first to))
     (sys-close (rest from))
@@ -175,7 +175,7 @@
           (sys-setenv "FILENAME" filename)
           (sys-signal 13 0)
           (let ((r (in-exec "sh" (list "sh" "-c" prog))))
-            (do (file-write 2 (string-concat (list "popmaildir: can't execute 'sh': " (in-errtext r) "\n")))
+            (do (file-write 2 (%str-concat (list "popmaildir: can't execute 'sh': " (in-errtext r) "\n")))
                 (sys-exit 127)))))
     (sys-close (first p))
     (pair (rest p) pid)))
@@ -202,22 +202,22 @@
                     ((< r 0) (tar-why (lit rename) name))
                     (#t ())))
     (if (null? why) #t
-      (do (file-write 2 (string-concat (list "popmaildir: can't move '" name "' to '" target "': " why "\n")))
+      (do (file-write 2 (%str-concat (list "popmaildir: can't move '" name "' to '" target "': " why "\n")))
           #f))))
 
 ; message K fetched by the command RETR makes of it, to tmp/NAME or to
 ; DELIVERY; DELE unless KEEP?, then new/NAME.  #f stops the run.
 (def %pm-fetch
   (fn (_ k retr delivery keep? suffix)
-    (def name (string-concat (list "tmp/" (let ((t (si-now))) (cu-int->str (+ (* (first t) 1000000) (rest t)))) suffix)))
+    (def name (%str-concat (list "tmp/" (let ((t (si-now))) (cu-int->str (+ (* (first t) 1000000) (rest t)))) suffix)))
     (%pm-check (retr k))
     (if (not (null? delivery))
       ; busybox skips DELE and the move whatever the program answers
       (let ((d (%pm-deliver delivery name)))
         (do (%pm-copy (first d)) (sys-close (first d)) (sys-wait (rest d)) #t))
       (let ((fd (let ((r (guard (e e) (File open name (list (lit wronly) (lit creat) (lit trunc)) 438))))
-                  (match ((Err err? r) (%pm-die (string-concat (list "can't open '" name "': " (wget-err-text r)))))
-                         ((< r 0) (%pm-die (string-concat (list "can't open '" name "': " (tar-why (lit open) name)))))
+                  (match ((Err err? r) (%pm-die (%str-concat (list "can't open '" name "': " (wget-err-text r)))))
+                         ((< r 0) (%pm-die (%str-concat (list "can't open '" name "': " (tar-why (lit open) name)))))
                          (#t r)))))
         (do (%pm-copy fd)
             (file-close fd)
@@ -232,7 +232,7 @@
     (def ops (Opts operands o))
     (if (null? ops) (cu-usage "popmaildir")
       (guard (e (if (eq? (Err label e) (lit net))
-                  (do (file-write 2 (string-concat (list "popmaildir: " (e msg) "\n"))) 1)
+                  (do (file-write 2 (%str-concat (list "popmaildir: " (e msg) "\n"))) 1)
                   (error e)))
         (%pm-main o ops stdin-thunk)))))
 
@@ -252,14 +252,14 @@
     (set-first! mm-in ())
     (def cred (if (Opts on? o "-s") () (%pm-cred)))
     (when (< (Sys chdir (first ops)) 0)
-      (%pm-die (string-concat (list "can't change directory to '" (first ops) "': " (tar-why (lit chdir) (first ops))))))
+      (%pm-die (%str-concat (list "can't change directory to '" (first ops) "': " (tar-why (lit chdir) (first ops))))))
     (unless (null? (rest ops)) (%pm-helper! (rest ops)))
     (def greeting (%pm-check ()))
     (unless (Opts on? o "-s") (%pm-login! greeting cred (Opts on? o "-a")))
     (def n (%pm-atoi (%pm-check "STAT")))
-    (def suffix (string-concat (list "." (cu-int->str (sys-getpid)) "." (cu-uname-field (sys-uname) (lit nodename)))))
+    (def suffix (%str-concat (list "." (cu-int->str (sys-getpid)) "." (cu-uname-field (sys-uname) (lit nodename)))))
     (def retr (if (Opts on? o "-T")
-                (fn (_ k) (string-concat (list "TOP " (cu-int->str k) " " (cu-int->str lines))))
+                (fn (_ k) (%str-concat (list "TOP " (cu-int->str k) " " (cu-int->str lines))))
                 (fn (_ k) (string-append "RETR " (cu-int->str k)))))
     (let go ((k n))
       (when (> k 0)

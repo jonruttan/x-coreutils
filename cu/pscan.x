@@ -22,16 +22,16 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-service inet-set! inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/ping pn-be16! pn-div pn-family pn-now pn-number pn-resolve
   pn-setopt pn-sol-socket)
-(import cu/prims cu-err-label cu-int->str cu-ptr-call cu-ptr-ref cu-str->ptr
-  file-write length libc-strerror string-append string-concat sys-usleep)
+(import cu/prims cu-err-label cu-int->str cu-libc-sym cu-ptr-call cu-ptr-ref
+  cu-str->ptr file-write length libc-strerror string-append sys-usleep)
 (import cu/text cu-pad-left)
 
 (def %ps-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "pscan: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "pscan: " msg "\n")))
         (Err raise (lit pscan) msg ()))))
 
 (def %ps-eagain (if os-darwin? 35 11))
@@ -51,7 +51,7 @@
     (if (if os-darwin? (= errno %ps-epipe) #f)
       (let ((v (inet-zeros 4)) (n (inet-zeros 4)))
         (do (inet-set! n 0 4 4)
-            (cu-ptr-call (in-c "getsockopt") s pn-sol-socket 4103 (cu-str->ptr v) (cu-str->ptr n))
+            (cu-ptr-call (cu-libc-sym "getsockopt") s pn-sol-socket 4103 (cu-str->ptr v) (cu-str->ptr n))
             (let ((e (cu-ptr-ref (cu-str->ptr v) 0 4))) (if (= e 0) errno e))))
       errno)))
 
@@ -60,7 +60,7 @@
 (def %ps-line
   (fn (_ port state)
     (let ((name (inet-service port 0)))
-      (file-write 1 (string-concat
+      (file-write 1 (%str-concat
         (list (cu-pad-left (cu-int->str port) 5) "\ttcp\t" state "\t" (if (null? name) "unknown" name) "\n"))))))
 
 ; one port of the scan, as pscan_main's loop body: the socket SA (of LEN
@@ -71,12 +71,12 @@
 (def %ps-port
   (fn (_ sa len port rtt-4)
     (pn-be16! (cu-str->ptr sa) 2 port)
-    (def s (in-call (cu-ptr-call (in-c "socket") (pn-family sa) 1 0)))
+    (def s (in-call (cu-ptr-call (cu-libc-sym "socket") (pn-family sa) 1 0)))
     (when (< s 0) (%ps-die (string-append "socket: " (libc-strerror (Err errno-of s)))))
     (Sys nonblock! s)
     (when os-darwin? (pn-setopt s pn-sol-socket 4130 1))
     (def start (pn-now))
-    (def write-byte (fn (_) (in-call (cu-ptr-call (in-c "write") s (cu-str->ptr " ") 1))))
+    (def write-byte (fn (_) (in-call (cu-ptr-call (cu-libc-sym "write") s (cu-str->ptr " ") 1))))
     ; the write after a sleep, or at once where the connect went through
     (def try-write
       (fn (_ again)
@@ -89,15 +89,15 @@
           ((= errno %ps-econnrefused) (pair (lit closed) diff))
           ((> diff rtt-4) (pair (lit blocked) diff))
           (#t (do (sys-usleep (pn-div rtt-4 8)) (try-write self))))))
-    (def c (in-call (cu-ptr-call (in-c "connect") s (cu-str->ptr sa) len)))
+    (def c (in-call (cu-ptr-call (cu-libc-sym "connect") s (cu-str->ptr sa) len)))
     (def errno (%ps-errno c))
     (def result
       (match
         ((= c 0) (try-write wait))
         ((if (= errno %ps-eagain) #f (if (= errno %ps-einprogress) #f (not (= errno %ps-econnrefused))))
-          (do (cu-ptr-call (in-c "close") s) (%ps-die (libc-strerror errno))))
+          (do (cu-ptr-call (cu-libc-sym "close") s) (%ps-die (libc-strerror errno))))
         (#t (wait errno 0))))
-    (cu-ptr-call (in-c "close") s)
+    (cu-ptr-call (cu-libc-sym "close") s)
     result))
 
 (def %ps-main
@@ -116,12 +116,12 @@
     (def show-closed (Opts on? o "-c"))
     (def show-blocked (Opts on? o "-b"))
     (def lsa (pn-resolve host 0 0 %ps-die))
-    (file-write 1 (string-concat
+    (file-write 1 (%str-concat
       (list "Scanning " host " ports " (cu-int->str min-port) " to " (cu-int->str max-port) "\n"
             " Port\tProto\tState\tService\n")))
     (let go ((port min-port) (rtt-4 timeout) (closed 0) (open 0))
       (if (> port max-port)
-        (do (file-write 1 (string-concat
+        (do (file-write 1 (%str-concat
               (list (cu-int->str closed) " closed, " (cu-int->str open) " open, "
                     (cu-int->str (- (+ (- max-port min-port) 1) (+ closed open)))
                     " timed out (or blocked) ports\n")))

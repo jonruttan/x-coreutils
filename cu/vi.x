@@ -32,11 +32,11 @@
 (module cu/vi)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-err-label
-  cu-heap-collect cu-ptr-call cu-stat-get cu-stdin-to-command! file-close
-  file-err-sym file-err-text file-exists? file-open-or-err file-open-read
-  file-read-all file-stat-full file-truncate file-unlink file-write filter
-  length map reverse set-first! str-make-raw string-append string-concat
+(import cu/prims append byte-at byte-len cu-err-label cu-heap-collect
+  cu-libc-sym cu-ptr-call cu-stat-get cu-stdin-to-command! cu-string-type cvt
+  file-close file-err-sym file-err-text file-exists? file-open-or-err
+  file-open-read file-read-all file-stat-full file-truncate file-unlink
+  file-write filter length map reverse set-first! str-make-raw string-append
   string=? sys-getenv sys-getuid sys-kill)
 
 (import x/repl/term)
@@ -82,19 +82,18 @@
 
 (def %vi-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %vi-c-memchr (cu-dlsym lib "memchr"))
-    (set! %vi-c-memmove (cu-dlsym lib "memmove"))
-    (set! %vi-c-memcpy (cu-dlsym lib "memcpy"))
-    (set! %vi-c-strcspn (cu-dlsym lib "strcspn"))
-    (set! %vi-c-poll (cu-dlsym lib "poll"))
-    (set! %vi-c-read (cu-dlsym lib "read"))
-    (set! %vi-c-write (cu-dlsym lib "write"))
-    (set! %vi-c-access (cu-dlsym lib "access"))
-    (set! %vi-c-memmem (cu-dlsym lib "memmem"))
-    (set! %vi-c-strcasestr (cu-dlsym lib "strcasestr"))
-    (set! %vi-c-system (cu-dlsym lib "system"))
-    (set! %vi-c-memset (cu-dlsym lib "memset"))))
+    (set! %vi-c-memchr (cu-libc-sym "memchr"))
+    (set! %vi-c-memmove (cu-libc-sym "memmove"))
+    (set! %vi-c-memcpy (cu-libc-sym "memcpy"))
+    (set! %vi-c-strcspn (cu-libc-sym "strcspn"))
+    (set! %vi-c-poll (cu-libc-sym "poll"))
+    (set! %vi-c-read (cu-libc-sym "read"))
+    (set! %vi-c-write (cu-libc-sym "write"))
+    (set! %vi-c-access (cu-libc-sym "access"))
+    (set! %vi-c-memmem (cu-libc-sym "memmem"))
+    (set! %vi-c-strcasestr (cu-libc-sym "strcasestr"))
+    (set! %vi-c-system (cu-libc-sym "system"))
+    (set! %vi-c-memset (cu-libc-sym "memset"))))
 
 ; --- the terminal's words ---------------------------------------------------
 
@@ -432,7 +431,7 @@
 (def %vi-flush!
   (fn (_)
     (if (null? %vi-out) ()
-      (do (%vi-sink (string-concat (reverse %vi-out)))
+      (do (%vi-sink (%str-concat (reverse %vi-out)))
           (set! %vi-out ())))))
 
 (def %vi-place-cursor
@@ -507,7 +506,7 @@
 (def %vi-shown
   (fn (_ src lim)
     (def pieces (%vi-shown-from src 0 lim ()))
-    (if (null? (rest pieces)) (first pieces) (string-concat (reverse pieces)))))
+    (if (null? (rest pieces)) (first pieces) (%str-concat (reverse pieces)))))
 
 (def %vi-shown-from
   (fn (self a co lim acc)
@@ -602,7 +601,7 @@
 ; and the rows themselves, which a redraw or an erase replaces.  Busybox
 ; formats every row and finds them the same; the bytes written are the same.
 ; With the option syntax set, cu/vi-syntax.x draws the rows with their
-; colours, and turning it on or off draws them all again.
+; colours, and turning it on or off, or a new theme, draws them all again.
 (def %vi-drawn-screen ())
 (def %vi-drawn-version -1)
 (def %vi-drawn-top -1)
@@ -610,7 +609,7 @@
 (def %vi-refresh!
   (fn (_ full?)
     (def sy (%vi-syntax))
-    (def toggled (if (null? sy) %vi-drawn-sy (not %vi-drawn-sy)))
+    (def toggled (%vi-colours-stale? sy))
     (def full (if (%vi-window-check full?) #t toggled))
     (%vi-sync-cursor! %vi-dot)
     (def moved (if (= %vi-offset %vi-old-offset) #f #t))
@@ -622,6 +621,7 @@
           (if (null? sy) (set! %vi-cells ()) ())
           (set! %vi-cells-screen %vi-screen)
           (set! %vi-drawn-sy (if (null? sy) #f #t))
+          (set! %vi-drawn-theme (if (null? sy) () (Theme current)))
           (set! %vi-drawn-screen %vi-screen)
           (set! %vi-drawn-version %vi-text-version)
           (set! %vi-drawn-top %vi-screenbegin)
@@ -836,7 +836,7 @@
 (def %vi-literal
   (fn (_ s)
     (if (= (byte-len s) 0) "(NULL)"
-      (string-concat (reverse (%vi-literal-from s 0 ()))))))
+      (%str-concat (reverse (%vi-literal-from s 0 ()))))))
 
 (def %vi-literal-from
   (fn (self s i acc)
@@ -1264,7 +1264,7 @@
 (def %vi-yank-status!
   (fn (_ op s cnt)
     (%vi-status-line!
-      (string-concat
+      (%str-concat
         (list op " " (%vi-num->str (%vi* (%vi-newlines-of s) cnt)) " lines ("
               (%vi-num->str (%vi* (byte-len s) cnt)) " chars) from ["
               (bytes->str (list (%vi-what-reg))) "]")))))
@@ -1843,7 +1843,7 @@
 (def %vi-show-help
   (fn (_)
     (%vi-sink
-      (string-concat
+      (%str-concat
         (list "These features are available:"
               "\n\tPattern searches with / and ?"
               "\n\tLast command repeat with ."

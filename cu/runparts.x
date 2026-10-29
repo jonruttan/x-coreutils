@@ -24,11 +24,10 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/dump dp-in?)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
-  cu-ptr-call cu-stat-get cu-string-type cu-type-of file-err-text
-  file-list-dir file-read-fd file-stat-full file-write filter hx-strtoul
-  length map reverse string-append string-concat sys-close sys-exec-or-err
-  sys-exit sys-fork sys-wait)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-ptr-call
+  cu-stat-get cu-string-type cu-type-of file-err-text file-list-dir
+  file-read-fd file-stat-full file-write filter hx-strtoul length map reverse
+  string-append sys-close sys-exec-or-err sys-exit sys-fork sys-wait)
 (import cu/text cu-msort cu-str<)
 
 (def %rp-c-access ())
@@ -36,9 +35,8 @@
 
 (def %rp-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %rp-c-access (cu-dlsym lib "access"))
-    (set! %rp-c-umask (cu-dlsym lib "umask"))))
+    (set! %rp-c-access (cu-libc-sym "access"))
+    (set! %rp-c-umask (cu-libc-sym "umask"))))
 
 ; NAME as busybox's invalid_name reads it: letters, digits, _ - and ., and no
 ; leading dot
@@ -105,9 +103,9 @@
     (def r (hx-strtoul s 0 8 4294967295))
     (match
       ((if (= (byte-len s) 0) #t (if (null? (first r)) #t (not (= (rest r) (byte-len s)))))
-        (do (file-write 2 (string-concat (list "run-parts: invalid number '" s "'\n"))) ()))
+        (do (file-write 2 (%str-concat (list "run-parts: invalid number '" s "'\n"))) ()))
       ((> (first r) 4095)
-        (do (file-write 2 (string-concat (list "run-parts: number " s " is not in 0..4095 range\n"))) ()))
+        (do (file-write 2 (%str-concat (list "run-parts: number " s " is not in 0..4095 range\n"))) ()))
       (#t (first r)))))
 
 ; run-parts [-a ARG]... [-u UMASK] [--reverse] [--test] [--exit-on-error] [--list] DIRECTORY
@@ -128,12 +126,12 @@
             (let ((r (%rp-spawn (pair (first names) args))))
               (match
                 ((eq? (cu-type-of r) cu-string-type)
-                  (do (file-write 2 (string-concat (list "run-parts: can't execute '" (first names)
+                  (do (file-write 2 (%str-concat (list "run-parts: can't execute '" (first names)
                                                          "': " r "\n")))
                       (if (Opts on? o "--exit-on-error") 1 (self (rest names) 1))))
                 ((= r 0) (self (rest names) st))
                 (#t
-                  (do (file-write 2 (string-concat (list "run-parts: " (first names) ": exit status "
+                  (do (file-write 2 (%str-concat (list "run-parts: " (first names) ": exit status "
                                                          (cu-int->str r) "\n")))
                       (if (Opts on? o "--exit-on-error") 1 (self (rest names) 1))))))))))
     (match
@@ -147,7 +145,7 @@
                 ; a file that is not a directory has nothing under it
                 ((if (Err err? names) (not (null? (file-stat-full (first ops)))) #f) 0)
                 ((Err err? names)
-                  (do (file-write 2 (string-concat (list "run-parts: " (first ops) ": "
+                  (do (file-write 2 (%str-concat (list "run-parts: " (first ops) ": "
                                                          (file-err-text names) "\n")))
                       0))
                 (#t (each (if (Opts on? o "--reverse") (reverse names) names) 0)))))))))

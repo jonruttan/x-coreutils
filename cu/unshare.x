@@ -22,16 +22,15 @@
 (import cu/cli cu-usage)
 (import cu/getopt cu-getopt-long)
 (import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-last
-  cu-member-s? cu-nth substring
-  cu-stdin-to-command! cu-string-type cvt file-close file-err-text
-  file-put-or-errno file-read-fd file-write filter libc-strerror map
-  string-append string-concat string=? sys-exec-or-err sys-execv sys-exit
+  cu-member-s? cu-nth cu-stdin-to-command! cu-string-type cvt file-close
+  file-err-text file-put-or-errno file-read-fd file-write filter libc-strerror
+  map string-append string=? substring sys-exec-or-err sys-execv sys-exit
   sys-fork sys-getegid sys-getenv sys-geteuid sys-getpid sys-kill sys-mount
   sys-pipe sys-signal sys-unshare sys-wait-status)
 
 (def %us-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "unshare: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "unshare: " msg "\n")))
         (Err raise (lit unshare) msg ()))))
 
 (def %us-hex (fn (_ n) (string-append "0x" (cvt n cu-string-type 16))))
@@ -86,13 +85,13 @@
   (fn (_ source target type flags)
     (let ((e (sys-mount source target type flags)))
       (unless (= e 0)
-        (%us-die (string-concat (list "can't mount " source " on " target " (flags:" (%us-hex flags) "): " (libc-strerror e))))))))
+        (%us-die (%str-concat (list "can't mount " source " on " target " (flags:" (%us-hex flags) "): " (libc-strerror e))))))))
 
 ; each of PID's namespaces in BINDS, (NAMESPACE . FILE), bound onto its FILE
 (def %us-bind
   (fn (_ pid binds)
     (map (fn (_ b)
-           (%us-mount (string-concat (list "/proc/" (cu-int->str pid) "/ns/" (cu-nth 2 (first b)))) (rest b) () 4096))
+           (%us-mount (%str-concat (list "/proc/" (cu-int->str pid) "/ns/" (cu-nth 2 (first b)))) (rest b) () 4096))
          binds)))
 
 ; the child that binds this process's namespaces, PPID's, once the parent
@@ -112,7 +111,7 @@
     (let ((r (file-put-or-errno path text)))
       (when (pair? r)
         (%us-die
-          (match ((eq? (first r) (lit open)) (string-concat (list "can't open '" path "': " (libc-strerror (rest r)))))
+          (match ((eq? (first r) (lit open)) (%str-concat (list "can't open '" path "': " (libc-strerror (rest r)))))
                  ((eq? (first r) (lit write)) (string-append "write error: " (libc-strerror (rest r))))
                  (#t "short write")))))))
 
@@ -134,12 +133,12 @@
     (cu-stdin-to-command!)
     (if (pair? prog)
       (let ((err (sys-exec-or-err (first prog) (rest prog))))
-        (file-write 2 (string-concat (list "unshare: can't execute '" (first prog) "': " (file-err-text err) "\n")))
+        (file-write 2 (%str-concat (list "unshare: can't execute '" (first prog) "': " (file-err-text err) "\n")))
         (sys-exit (if (string=? (file-err-text err) "No such file or directory") 127 126)))
       (let ((shell (let ((s (sys-getenv "SHELL"))) (if (if (null? s) #t (string=? s "")) "/bin/sh" s))))
         (def slash (fn (self i) (match ((< i 0) 0) ((= (byte-at shell i) #\/) (+ i 1)) (#t (self (- i 1))))))
         (def e (sys-execv shell (list (string-append "-" (substring shell (slash (- (byte-len shell) 1)) (byte-len shell))))))
-        (%us-die (string-concat (list "can't execute '" shell "': " (libc-strerror e))))))))
+        (%us-die (%str-concat (list "can't execute '" shell "': " (libc-strerror e))))))))
 
 ; after the namespaces are made: -f, the user mapped or setgroups written,
 ; the mount tree's propagation, a fresh /proc, then PROG
@@ -185,7 +184,7 @@
     (def pipe (if (if (pair? binds) mnt #f) (sys-pipe) ()))
     (def binder (if (pair? pipe) (%us-binder pipe (sys-getpid) binds) ()))
     (def e (sys-unshare flags))
-    (unless (= e 0) (%us-die (string-concat (list "unshare(" (%us-hex flags) "): " (libc-strerror e)))))
+    (unless (= e 0) (%us-die (%str-concat (list "unshare(" (%us-hex flags) "): " (libc-strerror e)))))
     (when (pair? pipe) (do (file-close (rest pipe)) (file-close (first pipe))))
     (def bound
       (match ((null? binds) 0)
@@ -199,7 +198,7 @@
       (let ((r (cu-getopt-long "+muinpUfr" %us-longs argv)))
         (if (null? (cu-nth 2 r))
           (%us-run (first r) (cu-nth 1 r))
-          (do (file-write 2 (string-concat (list "unshare: " (cu-nth 2 r) "\n")))
+          (do (file-write 2 (%str-concat (list "unshare: " (cu-nth 2 r) "\n")))
               (cu-usage "unshare")))))))
 
 (provide cu/unshare cu-unshare)

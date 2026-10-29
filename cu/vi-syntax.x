@@ -24,18 +24,32 @@
 (def %vi-cells ())         ; the cell rows as last drawn, beside %vi-screen
 (def %vi-cells-screen ())  ; the %vi-screen those cell rows were drawn with
 (def %vi-drawn-sy #f)      ; whether the rows were drawn in colour
+(def %vi-drawn-theme ())   ; the Theme they were drawn in, nil for none
 
 ; The grammar for the file being edited, found again when the name changes.
 (def %vi-grammar-name ())
 (def %vi-grammar ())
 
+; A run starts in the theme the user's theme file names, whatever an earlier
+; run set with :set theme=NAME.
 (def %vi-syntax-init!
   (fn (_)
     (set! %vi-cells ())
     (set! %vi-cells-screen ())
     (set! %vi-drawn-sy #f)
+    (set! %vi-drawn-theme ())
     (set! %vi-grammar-name ())
-    (set! %vi-grammar ())))
+    (set! %vi-grammar ())
+    (Theme forget!)))
+
+; Whether the colours on the screen are not the ones SY would draw: syntax
+; turned on or off, or the theme changed.
+(def %vi-colours-stale?
+  (fn (_ sy)
+    (match
+      ((null? sy) %vi-drawn-sy)
+      ((not %vi-drawn-sy) #t)
+      (#t (not (eq? %vi-drawn-theme (Theme current)))))))
 
 ; the grammar to draw with, or nil when the option is off or none is the
 ; file's
@@ -85,7 +99,7 @@
 (def %vi-shown-cells
   (fn (_ src lim)
     (def pieces (%vi-cells-from src 0 lim ()))
-    (if (null? pieces) "" (string-concat (reverse pieces)))))
+    (if (null? pieces) "" (%str-concat (reverse pieces)))))
 
 ; %vi-shown-from's walk: a run of plain bytes takes its cells as they are, a
 ; tab or a control byte its one cell for each column it shows in

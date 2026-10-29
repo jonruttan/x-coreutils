@@ -21,13 +21,14 @@
 
 (module cu/powertop)
 
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/prims byte-at byte-len cu-err-label cu-heap-collect cu-int->str
-  cu-nth cu-nthrest cu-ptr-call cu-ptr-ref cu-ptr-set! cu-stdin-to-command!
-  cu-str->ptr file-close file-list-dir file-open-read file-open-write
-  file-read-fd file-read-to-end file-write length libc-strerror map ps-div
-  set-first! str-make-raw string-append string-concat substring sys-getenv
-  sys-geteuid sys-isatty sys-poll sys-signal sys-signals vec-ref vec-set!)
+  cu-libc-sym cu-nth cu-nthrest cu-ptr-call cu-ptr-ref cu-ptr-set!
+  cu-stdin-to-command! cu-str->ptr file-close file-list-dir file-open-read
+  file-open-write file-read-fd file-read-to-end file-write length
+  libc-strerror map ps-div set-first! str-make-raw string-append substring
+  sys-getenv sys-geteuid sys-isatty sys-poll sys-signal sys-signals vec-ref
+  vec-set!)
 (import cu/text cu-pad-left)
 (import cu/vmstat vm-fixed)
 
@@ -78,12 +79,12 @@
 
 (def %ptop-flush!
   (fn (_)
-    (do (file-write 1 (string-concat (List reverse %ptop-pending)))
+    (do (file-write 1 (%str-concat (List reverse %ptop-pending)))
         (set! %ptop-pending ()))))
 
 (def %ptop-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "powertop: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "powertop: " msg "\n")))
         (Err raise (lit powertop) msg ()))))
 
 ; --- C's numbers ----------------------------------------------------------------
@@ -119,10 +120,9 @@
 ; the byte at I, a C string's NUL past its end
 (def %ptop-at (fn (_ s i) (if (< i (byte-len s)) (byte-at s i) 0)))
 (def %ptop-space? (fn (_ c) (if (= c 32) #t (if (>= c 9) (<= c 13) #f))))
-(def %ptop-digit? (fn (_ c) (if (>= c 48) (<= c 57) #f)))
 (def %ptop-alnum?
   (fn (_ c)
-    (match ((%ptop-digit? c) #t)
+    (match ((Char numeric? c) #t)
            ((if (>= c 65) (<= c 90) #f) #t)
            (#t (if (>= c 97) (<= c 122) #f)))))
 
@@ -142,7 +142,7 @@
 (def %ptop-digits
   (fn (self s i v over)
     (def c (%ptop-at s i))
-    (if (not (%ptop-digit? c)) (list v i over)
+    (if (not (Char numeric? c)) (list v i over)
       (self s (+ i 1) (+ (* v 10) (- c 48))
         (match (over #t)
                ((< v 0) #t)
@@ -193,7 +193,7 @@
 
 ; --- the files ------------------------------------------------------------------
 
-(def %ptop-path (fn (_ name) (string-concat (list (Host proc-root) "/" name))))
+(def %ptop-path (fn (_ name) (%str-concat (list (Host proc-root) "/" name))))
 
 ; PATH's text, or the errno its open answered
 (def %ptop-slurp
@@ -208,7 +208,7 @@
   (fn (_ name)
     (def path (%ptop-path name))
     (def r (%ptop-slurp path))
-    (if (number? r) (%ptop-die (string-concat (list "can't open '" path "': " (libc-strerror r)))) r)))
+    (if (number? r) (%ptop-die (%str-concat (list "can't open '" path "': " (libc-strerror r)))) r)))
 
 ; write_str_to_file: #t when the file would not open
 (def %ptop-timer!
@@ -273,13 +273,13 @@
 (def %ptop-counts
   (fn (self s i sum)
     (def j (%ptop-skip s i))
-    (if (not (%ptop-digit? (%ptop-at s j))) (pair sum j)
+    (if (not (Char numeric? (%ptop-at s j))) (pair sum j)
       (let ((r (%ptop-strtoull s j))) (self s (rest r) (+ sum (first r)))))))
 
 (def %ptop-hpet?
   (fn (_ name)
     (let ((k (Str8 index-of "hpet" name)))
-      (if (null? k) #f (%ptop-digit? (%ptop-at name (+ k 4)))))))
+      (if (null? k) #f (Char numeric? (%ptop-at name (+ k 4)))))))
 
 ; a source's piece: its count saved, its line and the totals added to
 (def %ptop-irq-piece!
@@ -351,7 +351,7 @@
         (if (null? ns) acc
           (let ((n (byte-len (first ns))))
             (if (if (< n 3) #t (> n 16)) (self (rest ns) acc)
-              (let ((r (%ptop-slurp (string-concat (list dir "/" (first ns) "/power")))))
+              (let ((r (%ptop-slurp (%str-concat (list dir "/" (first ns) "/power")))))
                 (self (rest ns) (if (number? r) acc (%ptop-power acc r)))))))))
     (go names (pair (%ptop-zeros) (%ptop-zeros)))))
 
@@ -367,7 +367,7 @@
     (def events (sum on du 0))
     (pair
       (if (if (= events 0) (<= %ptop-maxcstate 1) #f) "C-state information is not available\n"
-        (string-concat (pair "Cn\t\t  Avg residency\n" (%ptop-cstate-lines on du dd (sum on dd 0)))))
+        (%str-concat (pair "Cn\t\t  Avg residency\n" (%ptop-cstate-lines on du dd (sum on dd 0)))))
       events)))
 
 (def %ptop-cstate-lines
@@ -376,12 +376,12 @@
     (def new (%ptop-u32 (- total ticks)))
     (def pct (fn (_ v) (Float / (Float * (Float from v) (Float from 100)) (Float from total))))
     (pair
-      (string-concat (list "C0 (cpu running)        (" (%ptop-fixed (pct (if (>= new 2147483648) 0 new)) 4) "%)\n"))
+      (%str-concat (list "C0 (cpu running)        (" (%ptop-fixed (pct (if (>= new 2147483648) 0 new)) 4) "%)\n"))
       (map (fn (_ i)
              (def slept
                (Float / (Float / (%ptop-u64->float (dd i)) (Float + (%ptop-u64->float (du i)) (Float / (Float from 1) (Float from 10))))
                         (Float / (Float from %ptop-freq-1000) (Float from 1000))))
-             (string-concat (list "C" (cu-int->str (+ i 1)) "\t\t" (%ptop-fixed slept 5) "ms ("
+             (%str-concat (list "C" (cu-int->str (+ i 1)) "\t\t" (%ptop-fixed slept 5) "ms ("
                                   (%ptop-fixed (%ptop-u64->float (%ptop-udiv (* (dd i) 100) total)) 4) "%)\n")))
            on))))
 
@@ -408,7 +408,7 @@
       (let ((func (substring s (%ptop-skip s (+ e2 1)) (byte-len s))))
         (if (if (Str8 starts? "tick_nohz_" func) #t (Str8 starts? "tick_setup_sched_timer" func)) ()
           (%ptop-save-line!
-            (string-concat (list (%ptop-pad15 (%ptop-process (substring s ps e2))) " : " (%ptop-chomp func)))
+            (%str-concat (list (%ptop-pad15 (%ptop-process (substring s ps e2))) " : " (%ptop-chomp func)))
             (%ptop-i32 cnt)))))))
 
 ; "N total events": the timers' extra interrupts, and N a processor
@@ -568,15 +568,15 @@
           (def c1 (ch (next c0) (% (ps-div u 100) 10)))
           (def c2 (ch (next (if (str=? c0 " ") c1 c0)) (% (ps-div u 10) 10)))
           (def f3 (next (match ((not (str=? c0 " ")) c0) ((not (str=? c1 " ")) c1) (#t c2))))
-          (string-concat (list c0 c1 c2 (ch f3 (% u 10)) (ch digits v)))))
+          (%str-concat (list c0 c1 c2 (ch f3 (% u 10)) (ch digits v)))))
       ((>= u 100)
         (let ((c0 (ch lead (ps-div u 1000))))
           (def c1 (ch (next c0) (% (ps-div u 100) 10)))
           (def f2 (next (if (str=? c0 " ") c1 c0)))
-          (string-concat (list c0 c1 (ch f2 (% (ps-div u 10) 10)) (ch digits (% u 10)) (ch " KMGTPEZY" (rest s))))))
+          (%str-concat (list c0 c1 (ch f2 (% (ps-div u 10) 10)) (ch digits (% u 10)) (ch " KMGTPEZY" (rest s))))))
       (#t
         (let ((c0 (ch lead (ps-div u 10))))
-          (string-concat (list c0 (ch (next c0) (% u 10)) "." (ch digits v) (ch " KMGTPEZY" (rest s)))))))))
+          (%str-concat (list c0 (ch (next c0) (% u 10)) "." (ch digits v) (ch " KMGTPEZY" (rest s)))))))))
 
 ; C's atoi: blanks, a sign, digits
 (def %ptop-atoi
@@ -601,12 +601,12 @@
     (def go
       (fn (self ls n acc)
         (match
-          ((null? ls) (string-concat (List reverse acc)))
+          ((null? ls) (%str-concat (List reverse acc)))
           ((<= (rest (first ls)) 0) (self (rest ls) n acc))
           ((>= n most) (self (rest ls) (+ n 1) acc))
           (#t (let ((l (first ls)))
                 (self (rest ls) (+ n 1)
-                  (pair (string-concat
+                  (pair (%str-concat
                           (list " " (%ptop-fixed (Float / (Float * (Float from (rest l)) (Float from 100)) (Float from %ptop-cumulative)) 5)
                                 "% (" (%ptop-five (rest l)) ")   " (first l) "\n"))
                         acc)))))))
@@ -626,11 +626,11 @@
     (set! %ptop-lines ())
     (%ptop-irq-counts!)
     (def cs (%ptop-cstates (%ptop-cstate-counts)))
-    (%ptop-out (string-concat (list %ptop-esc "[H" %ptop-esc "[J" (first cs))))
+    (%ptop-out (%str-concat (list %ptop-esc "[H" %ptop-esc "[J" (first cs))))
     (def n (%ptop-timer-stats!))
     (def events
       (if (= (rest cs) 0) (%ptop-u32 (+ (* n %ptop-cpus) %ptop-irq-total)) (rest cs)))
-    (%ptop-out (string-concat (list "\nWakeups-from-idle in 10 seconds: " (%ptop-u64->str events) "\n")))
+    (%ptop-out (%str-concat (list "\nWakeups-from-idle in 10 seconds: " (%ptop-u64->str events) "\n")))
     (map (fn (_ l) (set! %ptop-cumulative (%ptop-i32 (+ %ptop-cumulative (rest l))))) %ptop-lines)
     (%ptop-show-causes)
     (%ptop-flush!)
@@ -647,20 +647,20 @@
 (def %ptop-raw!
   (fn (_)
     (def saved (str-make-raw 128))
-    (if (< (in-call (cu-ptr-call (in-c "tcgetattr") 0 (cu-str->ptr saved))) 0) ()
+    (if (< (in-call (cu-ptr-call (cu-libc-sym "tcgetattr") 0 (cu-str->ptr saved))) 0) ()
       (let ((raw (str-make-raw 128)))
-        (do (cu-ptr-call (in-c "tcgetattr") 0 (cu-str->ptr raw))
+        (do (cu-ptr-call (cu-libc-sym "tcgetattr") 0 (cu-str->ptr raw))
             (let ((p (cu-str->ptr raw)) (at (%ptop-tio-at 3)) (off (if os-darwin? 408 75)))
               (do (cu-ptr-set! p at (- (cu-ptr-ref p at 4) (& (cu-ptr-ref p at 4) off)) 4)
                   (cu-ptr-set! p (%ptop-cc (if os-darwin? 16 6)) 1 1)
                   (cu-ptr-set! p (%ptop-cc (if os-darwin? 17 5)) 0 1)
-                  (cu-ptr-call (in-c "tcsetattr") 0 0 p)))
+                  (cu-ptr-call (cu-libc-sym "tcsetattr") 0 0 p)))
             saved)))))
 
 (def %ptop-restore!
   (fn (_)
     (if (null? %ptop-saved) ()
-      (cu-ptr-call (in-c "tcsetattr") 0 0 (cu-str->ptr %ptop-saved)))))
+      (cu-ptr-call (cu-libc-sym "tcsetattr") 0 0 (cu-str->ptr %ptop-saved)))))
 
 ; BB_FATAL_SIGS, caught: each ends the run as busybox's handler ends it
 (def %ptop-fatal (list "HUP" "INT" "TERM" "PIPE" "QUIT" "ABRT" "ALRM" "VTALRM" "XCPU" "XFSZ" "USR1" "USR2"))

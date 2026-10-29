@@ -23,13 +23,13 @@ status, each reply's time written as T.
           (def lx-st (cu-run argv ""))
           (sys-dup2 9 1) (sys-dup2 8 2) (file-close lx-o) (file-close lx-e)
           (lx-sh (string-append lx-times " /tmp/lx-xo > /tmp/lx-xn"))
-          (string-concat (list (lx-read "/tmp/lx-xn") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n")))))
+          (%str-concat (list (lx-read "/tmp/lx-xn") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n")))))
     (def lx-bb (fn (_ argv)
-      (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be; " lx-times " /tmp/lx-bo > /tmp/lx-bn")))
-          (string-concat (list (lx-read "/tmp/lx-bn") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))
+      (do (lx-sh (%str-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be; " lx-times " /tmp/lx-bo > /tmp/lx-bn")))
+          (%str-concat (list (lx-read "/tmp/lx-bn") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))
     (def lx-case (fn (_ argv)
       (do (def lx-a (lx-x argv)) (def lx-b (lx-bb argv))
-          (display (if (string=? lx-a lx-b) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
+          (display (if (string=? lx-a lx-b) "same\n" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
     (lx-sh (Str8 join "\n" (list
             "ip2 netns add apn"
             "ip2 link add aph0 address 02:00:00:00:03:01 type veth peer name apr0 address 02:00:00:00:03:02 netns apn"

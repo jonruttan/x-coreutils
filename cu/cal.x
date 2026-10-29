@@ -22,8 +22,8 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/date cu-date-today)
 (import cu/prims append byte-at byte-len cal/ cu-int->str cu-nth cu-nthrest
-  cu-take file-write length reverse string-append string-concat substring
-  vec-build vec-make vec-ref vec-set!)
+  cu-take file-write length reverse string-append substring vec-build vec-make
+  vec-ref vec-set!)
 (import cu/strings cu-range-number)
 (import cu/text cu-pad-left cu-pad-right)
 (import cu/tsort ts-space?)
@@ -130,7 +130,7 @@
       (append (cu-nthrest weekstart %cal-day-names) (cu-take %cal-day-names weekstart)))
     (def go
       (fn (self ns acc)
-        (if (null? ns) (string-concat (reverse acc))
+        (if (null? ns) (%str-concat (reverse acc))
           (self (rest ns)
             (pair (string-append (if julian " " "") (first ns))
               (if (null? acc) acc (pair " " acc)))))))
@@ -141,13 +141,13 @@
   (fn (_ month year weekstart julian)
     (def days (%cal-days month year weekstart julian))
     (def title
-      (string-concat
+      (%str-concat
         (list (cu-nth (- month 1) %cal-month-names) " " (cu-int->str year))))
     (def rows
       (fn (self at acc)
         (if (= at 42) (reverse acc)
           (self (+ at 7) (pair (%cal-line (%cal-row days at julian)) acc)))))
-    (string-concat
+    (%str-concat
       (append
         (list (cu-pad-left "" (cal/ (- (+ (if julian 7 0) 20) (byte-len title)) 2))
               title "\n" (%cal-headings weekstart julian) "\n")
@@ -165,7 +165,7 @@
       (fn (_ m)
         (def go
           (fn (self k acc)
-            (if (= k per) (string-concat (reverse acc))
+            (if (= k per) (%str-concat (reverse acc))
               (self (+ k 1)
                 (pair (%cal-center (cu-nth (+ m k) %cal-month-names) week-len
                         (if (= k (- per 1)) 0 2))
@@ -175,7 +175,7 @@
       (fn (_ m at)
         (def go
           (fn (self k acc)
-            (if (= k per) (string-concat (reverse acc))
+            (if (= k per) (%str-concat (reverse acc))
               (self (+ k 1)
                 (pair (%cal-row (vec-ref all (+ m k)) at julian)
                   (if (null? acc) acc (pair " " acc)))))))
@@ -185,7 +185,7 @@
         (def rows
           (fn (self at acc)
             (if (= at 42) (reverse acc) (self (+ at 7) (pair (row m at) acc)))))
-        (string-concat
+        (%str-concat
           (append
             (list (names-line m) "\n" heads "  " heads (if julian "" (string-append "  " heads))
                   "\n")
@@ -193,7 +193,7 @@
     (def blocks
       (fn (self m acc)
         (if (>= m 12) (reverse acc) (self (+ m per) (pair (block m) acc)))))
-    (string-concat
+    (%str-concat
       (pair (%cal-center (cu-int->str year) (if julian 56 64) 0)
         (pair "\n\n" (blocks 0 ()))))))
 

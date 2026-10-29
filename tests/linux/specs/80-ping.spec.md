@@ -22,13 +22,13 @@ cannot share.  192.0.2.1 (TEST-NET-1) is an address nothing answers.
           (def lx-st (cu-run argv ""))
           (sys-dup2 9 1) (sys-dup2 8 2) (file-close lx-o) (file-close lx-e)
           (lx-sh (string-append lx-times " /tmp/lx-xo > /tmp/lx-xn"))
-          (string-concat (list (lx-read "/tmp/lx-xn") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n")))))
+          (%str-concat (list (lx-read "/tmp/lx-xn") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n")))))
     (def lx-bb (fn (_ argv)
-      (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be; " lx-times " /tmp/lx-bo > /tmp/lx-bn")))
-          (string-concat (list (lx-read "/tmp/lx-bn") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))
+      (do (lx-sh (%str-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be; " lx-times " /tmp/lx-bo > /tmp/lx-bn")))
+          (%str-concat (list (lx-read "/tmp/lx-bn") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))
     (def lx-case (fn (_ argv)
       (do (def lx-a (lx-x argv)) (def lx-b (lx-bb argv))
-          (display (if (string=? lx-a lx-b) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
+          (display (if (string=? lx-a lx-b) "same\n" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
     (display "made"))
 ```
 ---
@@ -139,8 +139,8 @@ same
     (sys-kill lx-pid 2)
     (def lx-st (sys-wait lx-pid))
     (lx-sh "busybox ping -i 0.2 127.0.0.1 > /tmp/lx-ib & p=$!; sleep 1.1; kill -INT $p; wait $p; echo $? > /tmp/lx-is")
-    (def lx-shape (fn (_ in out) (string-concat (list "sed -E 's/[0-9]+([.][0-9]+)?/N/g' < " in " | uniq > " out))))
-    (lx-sh (string-concat (list (lx-shape "/tmp/lx-io" "/tmp/lx-ia") "; " (lx-shape "/tmp/lx-ib" "/tmp/lx-ic"))))
+    (def lx-shape (fn (_ in out) (%str-concat (list "sed -E 's/[0-9]+([.][0-9]+)?/N/g' < " in " | uniq > " out))))
+    (lx-sh (%str-concat (list (lx-shape "/tmp/lx-io" "/tmp/lx-ia") "; " (lx-shape "/tmp/lx-ib" "/tmp/lx-ic"))))
     (display (if (string=? (lx-read "/tmp/lx-ia") (lx-read "/tmp/lx-ic")) "same\n" (string-append (lx-read "/tmp/lx-ia") (lx-read "/tmp/lx-ic"))))
     (display (lx-read "/tmp/lx-ic")) (display lx-st) (display "\n") (display (lx-read "/tmp/lx-is")))
 ```

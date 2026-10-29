@@ -19,7 +19,7 @@ itself in the Linux leg.
 ```cu
 (do (def ic-f (fn (_ n) (string-append "/tmp/x-cu-ipcs." n)))
     (def ic-sh (fn (_ cmd)
-      (do (proc-run (list "/bin/sh" "-c" (string-concat (list "{ " cmd "\n} > " (ic-f "sh") " 2>&1"))))
+      (do (proc-run (list "/bin/sh" "-c" (%str-concat (list "{ " cmd "\n} > " (ic-f "sh") " 2>&1"))))
           (file-read-all (ic-f "sh")))))
     (def ic-run (fn (_ argv)
       (do (sys-dup2 1 9) (sys-dup2 2 8)
@@ -27,11 +27,11 @@ itself in the Linux leg.
             (do (sys-dup2 oo 1) (sys-dup2 ee 2) (file-close oo) (file-close ee)))
           (def ic-st (cu-run argv ""))
           (sys-dup2 9 1) (sys-dup2 8 2)
-          (string-concat (list (file-read-all (ic-f "out")) "stderr:\n" (file-read-all (ic-f "err")) "status " (cu-int->str ic-st) "\n")))))
+          (%str-concat (list (file-read-all (ic-f "out")) "stderr:\n" (file-read-all (ic-f "err")) "status " (cu-int->str ic-st) "\n")))))
     ; ARGV run, then the shell's CHECK, which reads its output in $OUT
     (def ic-check (fn (_ argv check)
       (do (ic-run argv)
-          (display (ic-sh (string-concat (list "OUT=" (ic-f "out") "\n" ic-oracle check)))))))
+          (display (ic-sh (%str-concat (list "OUT=" (ic-f "out") "\n" ic-oracle check)))))))
     ; the system ipcs's line for a key, as $1...; busybox's printf of it beside ours
     (def ic-oracle
       (Str8 join "\n"
@@ -39,7 +39,7 @@ itself in the Linux leg.
               "same() { if [ \"$1\" = \"$2\" ]; then echo same; else printf 'ours:\\n%s\\noracle:\\n%s\\n' \"$1\" \"$2\"; fi; }"
               "line() { grep \"^$1\" \"$OUT\"; }"
               "")))
-    (def ic-c (fn (_ name args) (Sys %sign-fold (apply cu-ptr-call (pair (cu-dlsym (cu-dlopen () 1) name) args)))))
+    (def ic-c (fn (_ name args) (Sys %sign-fold (apply cu-ptr-call (pair (cu-libc-sym name) args)))))
     (def ic-zeros (fn (_ n) (let ((b (str-make-raw n))) (do (List map (fn (_ i) (cu-ptr-set! (cu-str->ptr b) i 0 1)) (List range 0 n)) b))))
     (def ic-gone (fn (_)
       (do (List map (fn (_ k) (let ((id (ic-c "shmget" (list k 0 0)))) (when (>= id 0) (ic-c "shmctl" (list id 0 0)))))
@@ -243,13 +243,13 @@ same
 
 ```cu
 (do (ic-run (list "ipcs" "-m" "-i" (cu-int->str (ic-c "shmget" (list 2047934465 0 0)))))
-    (display (ic-sh (string-concat (list "OUT=" (ic-f "out") "\n" ic-oracle
+    (display (ic-sh (%str-concat (list "OUT=" (ic-f "out") "\n" ic-oracle
       "row 0x7a110001; set -- $R; same \"$(sed -n 2,6p $OUT)\" \"$(printf 'Shared memory Segment shmid=%d\\nuid=%d\\tgid=%d\\tcuid=%d\\tcgid=%d\\nmode=04640\\taccess_perms=0640\\nbytes=4096\\tlpid=0\\tcpid=%d\\tnattch=0\\natt_time=Not set                   ' $2 $(id -u) $(id -g) $(id -u) $(id -g) ${11})\""))))
     (ic-run (list "ipcs" "-s" "-i" (cu-int->str ic-sem)))
-    (display (ic-sh (string-concat (list "OUT=" (ic-f "out") "\n" ic-oracle
+    (display (ic-sh (%str-concat (list "OUT=" (ic-f "out") "\n" ic-oracle
       "same \"$(sed -n '2,5p;9,12p' $OUT)\" \"$(printf 'Semaphore Array semid=%d\\nuid=%d\\t gid=%d\\t cuid=%d\\t cgid=%d\\nmode=01600, access_perms=0600\\nnsems = 3\\n0          0          0          0          0         \\n1          2          0          0          %-10d\\n2          0          0          0          0         \\n' " (cu-int->str ic-sem) " $(id -u) $(id -g) $(id -u) $(id -g) " (cu-int->str (sys-getpid)) ")\""))))
     (ic-run (list "ipcs" "-q" "-i" (cu-int->str ic-q)))
-    (display (ic-sh (string-concat (list "OUT=" (ic-f "out") "\n" ic-oracle
+    (display (ic-sh (%str-concat (list "OUT=" (ic-f "out") "\n" ic-oracle
       "same \"$(sed -n 2,4p $OUT)\" \"$(printf 'Message Queue msqid=%d\\nuid=%d\\tgid=%d\\tcuid=%d\\tcgid=%d\\tmode=0660\\ncbytes=12\\tqbytes=2048\\tqnum=2\\tlspid=%d\\tlrpid=0' " (cu-int->str ic-q) " $(id -u) $(id -g) $(id -u) $(id -g) " (cu-int->str (sys-getpid)) ")\""))))
     (display (ic-run (list "ipcs" "-m" "-i" "999999"))))
 ```

@@ -17,16 +17,16 @@
 (module cu/ipneigh)
 
 (import cu/inet inet-int32)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/ip ip-align ip-attr ip-attrs ip-bytes ip-dev-index ip-die ip-dump
   ip-dump-read ip-get ip-index-name ip-invarg ip-keyword ip-ll-addr ip-match?
   ip-next ip-ntoa ip-num ip-open ip-pad16 ip-put ip-run ip-say ip-some)
 (import cu/iproute ip-hz)
 (import cu/ipset ip-buf ip-flush-batches ip-init-map ip-le ip-prefix-in
   ip-send-check)
-(import cu/prims append cal/ cu-int->str cu-nth cu-ptr-call cu-ptr-ref
-  cu-str->ptr file-write filter length libc-strerror map reverse string-append
-  string-concat string=?)
+(import cu/prims append cal/ cu-int->str cu-libc-sym cu-nth cu-ptr-call
+  cu-ptr-ref cu-str->ptr file-write filter length libc-strerror map reverse
+  string-append string=?)
 
 (def %ip-n-states
   (list (pair 1 "INCOMPLETE") (pair 2 "REACHABLE") (pair 4 "STALE") (pair 8 "DELAY")
@@ -79,7 +79,7 @@
     (def hz (ip-hz))
     (def field (fn (_ at) (ip-num (List take 4 (List drop at b)))))
     (def age (fn (_ at) (cu-int->str (inet-int32 (cal/ (field at) hz)))))
-    (string-concat
+    (%str-concat
       (list (if (= (field 12) 0) "" (string-append " ref " (cu-int->str (inet-int32 (field 12)))))
             " used " (age 4) "/" (age 0) "/" (age 8)))))
 
@@ -88,10 +88,10 @@
   (fn (_ f n)
     (def state (%ip-n-state n))
     (def on (filter (fn (_ e) (not (= (& state (first e)) 0))) %ip-n-states))
-    (string-concat
+    (%str-concat
       (list (ip-some (cu-nth 5 n) 1 (fn (_ b) (string-append (ip-ntoa (%ip-n-family n) b) " ")))
             (if (if (= (ip-get f (lit index)) 0) (not (= (%ip-n-index n) 0)) #f)
-              (string-concat (list "dev " (ip-index-name f (%ip-n-index n)) " ")) "")
+              (%str-concat (list "dev " (ip-index-name f (%ip-n-index n)) " ")) "")
             (ip-some (cu-nth 5 n) 2 (fn (_ b) (string-append "lladdr " (ip-ll-addr b 1))))
             (if (= (& (%ip-n-flags n) 128) 0) "" " router")
             (if (= (& (%ip-n-flags n) 8) 0) "" " proxy")
@@ -133,7 +133,7 @@
   (fn (_ f fd seq)
     (def req (append (ip-le 28 4) (ip-le 30 2) (ip-le 769 2) (ip-le seq 4) (ip-le 0 4)
                      (list (ip-get f (lit family)) 0 0 0) (ip-le 0 8)))
-    (let ((r (in-call (cu-ptr-call (in-c "write") fd (cu-str->ptr (ip-buf req)) 28))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "write") fd (cu-str->ptr (ip-buf req)) 28))))
       (when (< r 0) (ip-die f (string-append "can't send dump request: " (libc-strerror (Err errno-of r))))))
     (ip-dump-read f fd seq %ip-n-of)))
 
@@ -179,9 +179,9 @@
           (match
             ((< n 0) 1)
             ((= n 0) (do (file-write 1 (if (= round 0) "Nothing to flush\n"
-                                         (string-concat (list "*** Flush is complete after " (cu-int->str round) " round(s) ***\n"))))
+                                         (%str-concat (list "*** Flush is complete after " (cu-int->str round) " round(s) ***\n"))))
                          0))
-            (#t (do (file-write 1 (string-concat (list "\n*** Round " (cu-int->str (+ round 1)) ", deleting " (cu-int->str n) " entries ***\n")))
+            (#t (do (file-write 1 (%str-concat (list "\n*** Round " (cu-int->str (+ round 1)) ", deleting " (cu-int->str n) " entries ***\n")))
                     (go (+ round 1))))))))))
 
 ; do_ipneigh

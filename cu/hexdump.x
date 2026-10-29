@@ -17,11 +17,11 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
   cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
-  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-skip-ws dp-zeros)
+  cu-dump-xxd-eof! dp-at dp-find dp-formats dp-skip-ws dp-zeros)
 (import cu/prims byte-at byte-len cu-int->str cu-lines cu-nth file-err-text
   file-exists? file-read-all file-write file-write-run hx-hex-digit hx-strtoul
-  length map reverse string-append string-concat string=? substring vec-build
-  vec-ref vec-set!)
+  length map reverse string-append string=? substring vec-build vec-ref
+  vec-set!)
 (import cu/strings cu-range-number)
 (import cu/text cu-pieces cu-run-text)
 (import cu/tsort ts-space?)
@@ -48,10 +48,10 @@
     (def v (match ((null? (first r)) ()) ((null? scale) ()) ((= (rest r) 0) ()) (#t (* (first r) scale))))
     (match
       ((null? v)
-        (do (file-write 2 (string-concat (list applet ": invalid number '" s "'\n"))) ()))
+        (do (file-write 2 (%str-concat (list applet ": invalid number '" s "'\n"))) ()))
       ((if (> v hi) #t (< v lo))
         (do (file-write 2
-              (string-concat
+              (%str-concat
                 (list applet ": number " s " is not in " (cu-int->str lo) ".."
                       (cu-int->str hi) " range\n")))
             ()))
@@ -70,7 +70,7 @@
 (def %hx-add-format
   (fn (_ fmt)
     (do (cu-dump-add "\"%07_Ax\n\"")
-        (cu-dump-add (string-concat (list "\"%07_ax\"" fmt "\"\"\n\""))))))
+        (cu-dump-add (%str-concat (list "\"%07_ax\"" fmt "\"\"\n\""))))))
 
 (def %hx-add-c
   (fn (_)
@@ -91,7 +91,7 @@
   (fn (_ name)
     (let ((text (if (file-exists? name) (file-read-all name) ())))
       (if (null? text)
-        (do (file-write 2 (string-concat (list "hexdump: can't open '" name
+        (do (file-write 2 (%str-concat (list "hexdump: can't open '" name
                                                "': No such file or directory\n")))
             ())
         (do (map (fn (_ line)
@@ -158,7 +158,7 @@
         (if (>= i (byte-len name)) (bytes->str (reverse acc))
           (self (+ i 1) (pair (if (alnum? (byte-at name i)) (byte-at name i) #\_) acc)))))
     (string-append
-      (if (if (> (byte-len name) 0) (dp-digit? (byte-at name 0)) #f) "__" "")
+      (if (if (> (byte-len name) 0) (Char numeric? (byte-at name 0)) #f) "__" "")
       (go 0 ()))))
 
 ; -o: busybox's xstrtoll, base 0, a leading - allowed
@@ -176,20 +176,20 @@
           (if i? (cu-dump-add "\" \"") (cu-dump-add "\"%08_ax: \"")))
         (match
           ((if (< bytes 1) #t (>= bytes cols))
-            (cu-dump-add (string-concat (list (cu-int->str cols) "/1 \"%02x\""))))
+            (cu-dump-add (%str-concat (list (cu-int->str cols) "/1 \"%02x\""))))
           ((= bytes 1)
             (cu-dump-add
-              (string-concat (list (cu-int->str cols) (if i? "/1 \" 0x%02x,\"" "/1 \"%02x \"")))))
+              (%str-concat (list (cu-int->str cols) (if i? "/1 \" 0x%02x,\"" "/1 \"%02x \"")))))
           (#t
             (cu-dump-add
-              (string-concat
+              (%str-concat
                 (map (fn (_ i) (if (if (= i cols) #t (not (= (% i bytes) 0)))
                                  "/1 \"%02x\"" "/1 \"%02x \""))
                      (List range 1 (+ cols 1)))))))
         (if (if p? #t i?)
           (do (cu-dump-add "\"\n\"") (cu-dump-xxd-eof! "\n"))
           (cu-dump-add
-            (string-concat (list "\"  \"" (cu-int->str cols) "/1 \"%_p\"\"\n\"")))))))
+            (%str-concat (list "\"  \"" (cu-int->str cols) "/1 \"%_p\"\"\n\"")))))))
 
 ; xxd [-ri] [-ps] [-g N] [-c N] [-l LEN] [-s OFS] [-o OFS] [FILE]
 (def cu-xxd
@@ -231,12 +231,12 @@
             (cu-dump-displayoff! off)
             (%xxd-formats p? i? (match (p? cols) (i? 1) (#t g)) cols)
             (if named
-              (file-write 1 (string-concat
+              (file-write 1 (%str-concat
                               (list "unsigned char " (%xxd-c-name (first ops)) "[] = {\n")))
               ())
             (let ((st (cu-dump ops)))
               (do (if (if named (= st 0) #f)
-                    (file-write 1 (string-concat
+                    (file-write 1 (%str-concat
                                     (list "};\nunsigned int " (%xxd-c-name (first ops)) "_len = "
                                           (cu-int->str (cu-dump-address)) ";\n")))
                     ())
@@ -292,7 +292,7 @@
 
 (def %xr-die
   (fn (_ rv msg)
-    (do (%xr-flush! rv) (file-write 2 (string-concat (list "xxd: " msg "\n"))) 1)))
+    (do (%xr-flush! rv) (file-write 2 (%str-concat (list "xxd: " msg "\n"))) 1)))
 
 (def %hx-alnum?
   (fn (_ c) (if (>= (hx-hex-digit c) 0) #t (if (>= (| c 32) #\a) (<= (| c 32) #\z) #f))))
@@ -343,7 +343,7 @@
               (match
                 ((eq? r #f) (%xr-die rv "cannot seek: Illegal seek"))
                 ((pair? r) (self rv (lit high) buf (rest r) 0 #f))
-                (#t (%xr-die rv (string-concat (list "invalid number '" r "'")))))))))
+                (#t (%xr-die rv (%str-concat (list "invalid number '" r "'")))))))))
       ((eq? step (lit high))
         (match
           ((>= d 0) (self rv (lit low) buf (+ p1 1) (* 16 d) bad))
@@ -371,7 +371,7 @@
   (fn (_ p? name skip stdin-thunk)
     (def src (cu-pieces name stdin-thunk))
     (if (Err err? src)
-      (do (file-write 2 (string-concat (list "xxd: can't open '" name "': "
+      (do (file-write 2 (%str-concat (list "xxd: can't open '" name "': "
                                              (file-err-text src) "\n")))
           1)
       (let ((rv (vec-build 5 (fn (_ i)

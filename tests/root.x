@@ -33,8 +33,8 @@
 (import cu/dnsd cu-dnsd)
 (import cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
   cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
-  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-in? dp-skip-in
-  dp-skip-ws dp-udigits dp-zeros)
+  cu-dump-xxd-eof! dp-at dp-find dp-formats dp-in? dp-skip-in dp-skip-ws
+  dp-udigits dp-zeros)
 (import cu/dumpleases cu-dumpleases)
 (import cu/ed cu-ed)
 (import cu/encode cu-od cu-uudecode cu-uuencode)
@@ -47,9 +47,9 @@
 (import cu/fs2 cu-base-of cu-cmp cu-cmp-walk cu-install cu-mkdir-p! cu-mktemp
   cu-pwd cu-touch)
 (import cu/fs3 cu-dd cu-dd-has? cu-dd-records cu-dev-major cu-dev-minor cu-du
-  cu-du-blocks cu-mode-octal4 cu-nohup cu-path-join cu-perm-places
-  cu-perm-string cu-shred cu-stat cu-stat-group cu-stat-user cu-timeout
-  cu-truncate cu-tty cu-unlink cu-usleep)
+  cu-du-blocks cu-mode-octal4 cu-nohup cu-perm-places cu-perm-string cu-shred
+  cu-stat cu-stat-group cu-stat-user cu-timeout cu-truncate cu-tty cu-unlink
+  cu-usleep)
 (import cu/ftp cu-ftpget cu-ftpput)
 (import cu/ftpd cu-ftpd)
 (import cu/fuser cu-fuser)
@@ -65,7 +65,7 @@
   inet-hex inet-hex8 inet-host-addr inet-int32 inet-ioctl inet-left inet-ntop6
   inet-ntop6-bytes inet-pton6! inet-resolve inet-rresolve inet-service
   inet-set! inet-sin! inet-socket inet-swap inet-words inet-zeros)
-(import cu/inetd cu-inetd in-af in-bind in-c in-call in-count in-dontwait
+(import cu/inetd cu-inetd in-af in-bind in-call in-count in-dontwait
   in-errtext in-exec in-lines in-now in-percent in-recvfrom in-reuse!
   in-sendto in-sockaddr6 in-strtou in-tokens-max in-zeroed tn-port)
 (import cu/ionice cu-ionice)
@@ -118,49 +118,46 @@
 (import cu/powertop cu-powertop)
 (import cu/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
   byte-len cal/ char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
-  cu-dirname-of cu-dlopen cu-dlsym cu-dot? cu-err-label cu-fd-fields
-  cu-file-read cu-heap-collect cu-hexs cu-int->ptr cu-int->str cu-last
-  cu-lines cu-max-status cu-member-s? cu-mode-file-type cu-nth cu-nthrest
-  cu-piece-bytes cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word
-  cu-rev cu-run-bytes cu-run-list cu-run-of cu-sig-ign cu-sighup cu-sigint
-  cu-sigkill cu-sigterm cu-stat-get cu-stdin! cu-stdin-chunk! cu-stdin-fields!
-  cu-stdin-moved cu-stdin-to-command! cu-str->ptr cu-string-type cu-sweep!
-  cu-sweep-at cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick!
-  cu-sweeps-cell cu-take cu-type-of cu-walk-worst cu-words-line cu/ cu< cu<<
-  cu>> cvt date-now-unix file-chmod file-chown file-close file-copy file-dir?
+  cu-dirname-of cu-dot? cu-err-label cu-fd-fields cu-file-read cu-heap-collect
+  cu-hexs cu-int->ptr cu-int->str cu-last cu-libc-sym cu-lines cu-max-status
+  cu-member-s? cu-mode-file-type cu-nth cu-nthrest cu-piece-bytes cu-ptr->str
+  cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-rev cu-run-bytes
+  cu-run-list cu-run-of cu-sig-ign cu-sighup cu-sigint cu-sigkill cu-sigterm
+  cu-stat-get cu-stdin! cu-stdin-chunk! cu-stdin-fields! cu-stdin-moved
+  cu-stdin-to-command! cu-str->ptr cu-string-type cu-sweep! cu-sweep-at
+  cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick! cu-sweeps-cell
+  cu-take cu-type-of cu-walk-worst cu-words-line cu/ cu< cu<< cu>> cvt
+  date-now-unix file-chmod file-chown file-close file-copy file-dir?
   file-err-op file-err-sym file-err-text file-exists? file-fstat-full
-  file-lchown file-link
-  file-list-dir file-lstat-file-type file-lstat-full file-lstat-wide
-  file-mkdir file-mkfifo file-mounts file-open-append file-open-err
-  file-open-excl file-open-or-err file-open-read file-open-update
-  file-open-write file-open-wronly file-or-err file-read-all file-read-fd
-  file-read-run file-read-to-end file-read-unsized file-readlink file-rename
-  file-rmdir file-seek file-set-times file-stat file-stat-full file-stat-wide
-  file-statfs-full file-symlink file-truncate file-unlink file-utimes
-  file-write file-write-all file-write-field file-write-nuls file-write-random
-  file-write-run filter gz-word-bytes host-args host-boot-time host-counters
-  host-cpu host-cpus host-cwd host-disks host-exe host-files host-files-of
-  host-holders host-interfaces host-interrupts host-load-centi host-load-fixed
-  host-maps host-memory host-now host-proc-root host-process host-processes
-  host-regions
-  host-tasks host-threads host-uptime host-users host-utmp host-wait
-  http-close http-head http-open http-read http-status hx-hex-digit hx-strtoul
-  in-index-of integer->char length libc-strerror list->string load-centi
-  ls-human map net-accept net-aton net-base64 net-close net-connect net-die
-  net-listen net-listen-on net-peer net-recv-from-run net-recv-run net-resolve
-  net-send net-send-run net-send-to-run net-shutdown net-sock-addr
-  net-sockaddr net-sockaddr-read net-stdin-socket net-udp-bind net-udp-connect
-  net-udp-open proc-run ps-div re-compile re-search reverse rng-int rng-make
-  set-first! str-make-raw string-append string-concat string=? substring
-  sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ sys-exec
-  sys-exec-or-err sys-exit sys-fork sys-fsync sys-getcwd sys-getegid
-  sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid sys-getuid
-  sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe sys-poll
-  sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms sys-umask
-  sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
+  file-lchown file-link file-list-dir file-lstat-file-type file-lstat-full
+  file-lstat-wide file-mkdir file-mkfifo file-mounts file-open-append
+  file-open-err file-open-excl file-open-or-err file-open-read
+  file-open-update file-open-write file-open-wronly file-or-err file-read-all
+  file-read-fd file-read-run file-read-to-end file-read-unsized file-readlink
+  file-rename file-rmdir file-seek file-set-times file-stat file-stat-full
+  file-stat-wide file-statfs-full file-symlink file-truncate file-unlink
+  file-utimes file-write file-write-all file-write-field file-write-nuls
+  file-write-random file-write-run filter gz-word-bytes host-args
+  host-boot-time host-counters host-cpu host-cpus host-cwd host-disks host-exe
+  host-files host-files-of host-holders host-interfaces host-interrupts
+  host-load-centi host-load-fixed host-maps host-memory host-now
+  host-proc-root host-process host-processes host-regions host-tasks
+  host-threads host-uptime host-users host-utmp host-wait http-close http-head
+  http-open http-read http-status hx-hex-digit hx-strtoul integer->char length
+  libc-strerror list->string load-centi ls-human map net-accept net-aton
+  net-base64 net-close net-connect net-die net-listen net-listen-on net-peer
+  net-recv-from-run net-recv-run net-resolve net-send net-send-run
+  net-send-to-run net-shutdown net-sock-addr net-sockaddr net-sockaddr-read
+  net-stdin-socket net-udp-bind net-udp-connect net-udp-open proc-run ps-div
+  re-compile re-search reverse rng-int rng-make set-first! str-make-raw
+  string-append string=? substring sys-chroot sys-close sys-cpu-count sys-dup2
+  sys-environ sys-exec sys-exec-or-err sys-exit sys-fork sys-fsync sys-getcwd
+  sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid
+  sys-getuid sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe
+  sys-poll sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms
+  sys-umask sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
   sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!
-  vm-dash-number wget-digits wget-div wget-err-text wget-find wget-index
-  wget-last-index wget-lower wget-memv)
+  vm-dash-number wget-digits wget-div wget-err-text wget-index wget-memv)
 (import cu/procps cu-free cu-kill cu-killall cu-lsof cu-minips cu-pgrep
   cu-pidof cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head
   ps-args ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o
@@ -203,14 +200,14 @@
   cu-delim-fields-said cu-dirname cu-each-run-said cu-each-said cu-enough
   cu-fd-chunks cu-file-pieces cu-first-unopened cu-fold-lines-said cu-fold-one
   cu-fold-pieces cu-fold-said cu-fold-stdin cu-gather-said cu-head cu-join
-  cu-join-with cu-map-swept cu-merge cu-msort cu-newlines-from cu-num-prefix
-  cu-pad-left cu-pad-right cu-pad-zero cu-pieces cu-pieces-past
-  cu-print-fields cu-print-fields-to cu-print-lines cu-print-lines-to
-  cu-put-each cu-read-error cu-read-run-said cu-read-said cu-run-from
-  cu-run-join cu-run-nul? cu-run-part cu-run-slice cu-run-text cu-say cu-says
-  cu-says-open cu-says-read cu-sleep-for cu-sleep-us cu-split-byte
-  cu-stdin-pieces cu-str< cu-tail cu-tail-follow cu-tail-round cu-text-from
-  cu-unmarked cu-wc cu-with-sources)
+  cu-map-swept cu-merge cu-msort cu-newlines-from cu-num-prefix cu-pad-left
+  cu-pad-right cu-pad-zero cu-pieces cu-pieces-past cu-print-fields
+  cu-print-fields-to cu-print-lines cu-print-lines-to cu-put-each
+  cu-read-error cu-read-run-said cu-read-said cu-run-from cu-run-join
+  cu-run-nul? cu-run-part cu-run-slice cu-run-text cu-say cu-says cu-says-open
+  cu-says-read cu-sleep-for cu-sleep-us cu-split-byte cu-stdin-pieces cu-str<
+  cu-tail cu-tail-follow cu-tail-round cu-text-from cu-unmarked cu-wc
+  cu-with-sources)
 (import cu/text2 cu-echo cu-fold cu-oct->str cu-pad cu-paste cu-printf
   cu-rev-applet cu-seq cu-tac cu-tee)
 (import cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from cu-base64

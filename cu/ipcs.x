@@ -26,10 +26,10 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/date cu-date-fmt cu-date-split)
 (import cu/dump dp-udigits)
-(import cu/prims append bit-and bit-or bit-shl bit-shr byte-at byte-len cal/ cu* cu+ cu- cu-dlopen
-  cu-dlsym cu-err-label cu-int->str cu-ptr-call cu-ptr-ref cu-str->ptr file-write
-  hx-hex-digit libc-strerror reverse str-make-raw string-append string-concat substring
-  sys-group-name sys-user-name)
+(import cu/prims append bit-and bit-or bit-shl bit-shr byte-at byte-len cal/
+  cu* cu+ cu- cu-err-label cu-int->str cu-libc-sym cu-ptr-call cu-ptr-ref
+  cu-str->ptr file-write hx-hex-digit libc-strerror reverse str-make-raw
+  string-append substring sys-group-name sys-user-name)
 (import cu/text cu-pad-left cu-pad-right cu-pad-zero)
 
 ; --- the calls ----------------------------------------------------------------
@@ -37,7 +37,7 @@
 ; libc's NAME called with ARGS, its int answer signed
 (def %sv-libc
   (fn (_ name args)
-    (Sys %sign-fold (apply cu-ptr-call (pair (cu-dlsym (cu-dlopen () 1) name) args)))))
+    (Sys %sign-fold (apply cu-ptr-call (pair (cu-libc-sym name) args)))))
 
 ; Linux's six calls are system calls; Darwin's are libc's, semctl as the
 ; __semctl it passes its variadic union to, which takes the union itself
@@ -289,7 +289,7 @@
       (fn (_ k name-of)
         (let ((n (name-of (sv-get-field r k))))
           (string-append " " (%sv-l (if (null? n) (%sv-d (sv-get-field r k)) n) 10)))))
-    (%sv-out (string-concat
+    (%sv-out (%str-concat
                (list (%sv-l (%sv-d (sv-get-field r (lit id))) 10) " "
                      (%sv-l (%sv-o (bit-and (sv-get-field r (lit mode)) 511)) 10)
                      (who (lit cuid) sys-user-name) (who (lit cgid) sys-group-name)
@@ -297,23 +297,23 @@
 
 ; "0x%08x " of the key
 (def %sv-key
-  (fn (_ r) (string-concat (list "0x" (cu-pad-zero (dp-udigits (sv-get-field r (lit key)) 16 #f) 8) " "))))
+  (fn (_ r) (%str-concat (list "0x" (cu-pad-zero (dp-udigits (sv-get-field r (lit key)) 16 #f) 8) " "))))
 
 (def %sv-heads
   (fn (_ names widths)
     (string-append
-      (string-concat
+      (%str-concat
         (List map (fn (_ i) (string-append (if (= i 0) "" " ") (%sv-l (List ref i names) (List ref i widths))))
                   (List range 0 (List length names))))
       "\n")))
 
 ; the section's title line
-(def %sv-title (fn (_ what) (%sv-out (string-concat (list "------ " what " --------\n")))))
+(def %sv-title (fn (_ what) (%sv-out (%str-concat (list "------ " what " --------\n")))))
 
 ; --- the three listings -------------------------------------------------------
 
 (def %sv-not-configured
-  (fn (_ what) (%sv-out (string-concat (list "kernel not configured for " what "\n")))))
+  (fn (_ what) (%sv-out (%str-concat (list "kernel not configured for " what "\n")))))
 
 (def %sv-do-shm
   (fn (_ format)
@@ -323,19 +323,19 @@
         (match
           ((eq? format (lit creator)) (%sv-perms r))
           ((eq? format (lit time))
-            (%sv-out (string-concat
+            (%sv-out (%str-concat
                        (list (%sv-id-owner r 10 10 10)
                              " " (%sv-time20 (sv-get-field r (lit atime)))
                              " " (%sv-time20 (sv-get-field r (lit dtime)))
                              " " (%sv-time20 (sv-get-field r (lit ctime))) "\n"))))
           ((eq? format (lit pid))
-            (%sv-out (string-concat
+            (%sv-out (%str-concat
                        (list (%sv-id-owner r 10 10 10)
                              " " (%sv-l (%sv-d (sv-get-field r (lit cpid))) 10)
                              " " (%sv-l (%sv-d (sv-get-field r (lit lpid))) 10) "\n"))))
           (#t
             (let ((mode (sv-get-field r (lit mode))))
-              (%sv-out (string-concat
+              (%sv-out (%str-concat
                          (list (%sv-key r) (%sv-id-owner r 10 10 10)
                                " " (%sv-l (%sv-o (bit-and mode 511)) 10)
                                " " (%sv-l (sv-u64 (sv-get-field r (lit segsz))) 10)
@@ -348,7 +348,7 @@
         (let ((l (%sv-limits (lit shm))))
           (do (%sv-title "Shared Memory Limits")
               (unless (null? l)
-                (%sv-out (string-concat
+                (%sv-out (%str-concat
                            (list "max number of segments = " (sv-u64 (sv-get-field l (lit shmmni)))
                                  "\nmax seg size (kbytes) = "
                                  (sv-u64 (bit-and (bit-shr (sv-get-field l (lit shmmax)) 10) 18014398509481983))
@@ -357,7 +357,7 @@
       ((eq? format (lit status))
         (let ((s (%sv-status (lit shm) objects)))
           (do (%sv-title "Shared Memory Status")
-              (%sv-out (string-concat
+              (%sv-out (%str-concat
                          (list "segments allocated " (%sv-d (sv-get-field s (lit used)))
                                "\npages allocated " (sv-u64 (sv-get-field s (lit tot)))
                                "\npages resident  " (sv-u64 (sv-get-field s (lit rss)))
@@ -389,14 +389,14 @@
         (match
           ((eq? format (lit creator)) (%sv-perms r))
           ((eq? format (lit time))
-            (%sv-out (string-concat
+            (%sv-out (%str-concat
                        (list (%sv-id-owner r 8 10 10)
                              "  " (sv-time26 (sv-get-field r (lit otime)))
                              " " (sv-time26 (sv-get-field r (lit ctime))) "\n"))))
           ((eq? format (lit pid)) ())
           (#t
             (let ((name (%sv-name (sv-get-field r (lit uid)))))
-              (%sv-out (string-concat
+              (%sv-out (%str-concat
                          (list (%sv-key r) (%sv-l (%sv-d (sv-get-field r (lit id))) 10) " "
                                (if (null? name) (%sv-l (%sv-d (sv-get-field r (lit uid))) 9) (%sv-lp name 10 9))
                                " " (%sv-l (%sv-o (bit-and (sv-get-field r (lit mode)) 511)) 10)
@@ -407,7 +407,7 @@
         (let ((l (%sv-limits (lit sem))))
           (do (%sv-title "Semaphore Limits")
               (unless (null? l)
-                (%sv-out (string-concat
+                (%sv-out (%str-concat
                            (list "max number of arrays = " (%sv-d (sv-get-field l (lit semmni)))
                                  "\nmax semaphores per array = " (%sv-d (sv-get-field l (lit semmsl)))
                                  "\nmax semaphores system wide = " (%sv-d (sv-get-field l (lit semmns)))
@@ -416,7 +416,7 @@
       ((eq? format (lit status))
         (let ((s (%sv-status (lit sem) objects)))
           (do (%sv-title "Semaphore Status")
-              (%sv-out (string-concat
+              (%sv-out (%str-concat
                          (list "used arrays = " (%sv-d (sv-get-field s (lit semusz)))
                                "\nallocated semaphores = " (%sv-d (sv-get-field s (lit semaem))) "\n"))))))
       (#t
@@ -443,18 +443,18 @@
         (match
           ((eq? format (lit creator)) (%sv-perms r))
           ((eq? format (lit time))
-            (%sv-out (string-concat
+            (%sv-out (%str-concat
                        (list (%sv-id-owner r 8 10 10)
                              " " (%sv-time20 (sv-get-field r (lit stime)))
                              " " (%sv-time20 (sv-get-field r (lit rtime)))
                              " " (%sv-time20 (sv-get-field r (lit ctime))) "\n"))))
           ((eq? format (lit pid))
-            (%sv-out (string-concat
+            (%sv-out (%str-concat
                        (list (%sv-id-owner r 8 10 10)
                              "  " (cu-pad-left (%sv-d (sv-get-field r (lit lspid))) 5)
                              "     " (cu-pad-left (%sv-d (sv-get-field r (lit lrpid))) 5) "\n"))))
           (#t
-            (%sv-out (string-concat
+            (%sv-out (%str-concat
                        (list (%sv-key r) (%sv-id-owner r 10 10 10)
                              " " (%sv-l (%sv-o (bit-and (sv-get-field r (lit mode)) 511)) 10)
                              " " (%sv-l (cu-int->str (sv-get-field r (lit cbytes))) 12)
@@ -465,14 +465,14 @@
         (let ((l (%sv-limits (lit msg))))
           (unless (null? l)
             (do (%sv-title "Messages: Limits")
-                (%sv-out (string-concat
+                (%sv-out (%str-concat
                            (list "max queues system wide = " (%sv-d (sv-get-field l (lit msgmni)))
                                  "\nmax size of message (bytes) = " (%sv-d (sv-get-field l (lit msgmax)))
                                  "\ndefault max size of queue (bytes) = " (%sv-d (sv-get-field l (lit msgmnb))) "\n")))))))
       ((eq? format (lit status))
         (let ((s (%sv-status (lit msg) objects)))
           (do (%sv-title "Messages: Status")
-              (%sv-out (string-concat
+              (%sv-out (%str-concat
                          (list "allocated queues = " (%sv-d (sv-get-field s (lit msgpool)))
                                "\nused headers = " (%sv-d (sv-get-field s (lit msgmap)))
                                "\nused space = " (%sv-d (sv-get-field s (lit msgtql))) " bytes\n"))))))
@@ -498,11 +498,11 @@
 ; perror's line after a failed call, to standard error
 (def %sv-perror
   (fn (_ what errno)
-    (file-write 2 (string-concat (list "ipcs: " what ": " (libc-strerror errno) "\n")))))
+    (file-write 2 (%str-concat (list "ipcs: " what ": " (libc-strerror errno) "\n")))))
 
 (def %sv-ids-line
   (fn (_ r sep)
-    (string-concat
+    (%str-concat
       (list "uid=" (%sv-d (sv-get-field r (lit uid))) sep "gid=" (%sv-d (sv-get-field r (lit gid)))
             sep "cuid=" (%sv-d (sv-get-field r (lit cuid))) sep "cgid=" (%sv-d (sv-get-field r (lit cgid)))))))
 
@@ -512,7 +512,7 @@
     (def got (sv-ctl (lit shm) id sv-ipc-stat buf))
     (if (< (first got) 0) (%sv-perror "shmctl" (rest got))
       (let ((r (sv-record (lit shm) id buf)))
-        (%sv-out (string-concat
+        (%sv-out (%str-concat
                    (list "\nShared memory Segment shmid=" (%sv-d id) "\n"
                          (%sv-ids-line r "\t") "\n"
                          "mode=" (sv-alt-o (sv-get-field r (lit mode)))
@@ -531,7 +531,7 @@
     (def got (sv-ctl (lit msg) id sv-ipc-stat buf))
     (if (< (first got) 0) (%sv-perror "msgctl" (rest got))
       (let ((r (sv-record (lit msg) id buf)))
-        (%sv-out (string-concat
+        (%sv-out (%str-concat
                    (list "\nMessage Queue msqid=" (%sv-d id) "\n"
                          (%sv-ids-line r "\t") "\tmode=" (sv-alt-o (sv-get-field r (lit mode))) "\n"
                          "cbytes=" (cu-int->str (sv-get-field r (lit cbytes)))
@@ -552,9 +552,9 @@
     (def bad (List find (fn (_ c) (< (first c) 0)) calls))
     (if (not (null? bad))
       (do (%sv-perror "semctl" (rest bad)) (Err raise (lit ipcs) "semctl" ()))
-      (%sv-out (string-concat
+      (%sv-out (%str-concat
                  (list (%sv-l (cu-int->str i) 10)
-                       (string-concat (List map (fn (_ c) (string-append " " (%sv-l (%sv-d (first c)) 10))) calls))
+                       (%str-concat (List map (fn (_ c) (string-append " " (%sv-l (%sv-d (first c)) 10))) calls))
                        "\n"))))))
 
 (def %sv-print-sem
@@ -563,7 +563,7 @@
     (def got (sv-ctl (lit sem) id sv-ipc-stat buf))
     (if (not (= (first got) 0)) (%sv-perror "semctl" (rest got))
       (let ((r (sv-record (lit sem) id buf)))
-        (do (%sv-out (string-concat
+        (do (%sv-out (%str-concat
                        (list "\nSemaphore Array semid=" (%sv-d id) "\n"
                              (%sv-ids-line r "\t ") "\n"
                              "mode=" (sv-alt-o (sv-get-field r (lit mode)))
@@ -636,15 +636,15 @@
     (def hi (if (if (> (byte-len p) 0) (= (byte-at p 0) #\-) #f) 2147483648 2147483647))
     (def v (sv-strtoul p 10))
     (match
-      ((if (null? v) #t (sv-u> v 4294967295)) (sv-die "ipcs" (string-concat (list "invalid number '" p "'"))))
-      ((sv-u> v hi) (sv-die "ipcs" (string-concat (list "number " p " is not in 0.." (cu-int->str hi) " range"))))
+      ((if (null? v) #t (sv-u> v 4294967295)) (sv-die "ipcs" (%str-concat (list "invalid number '" p "'"))))
+      ((sv-u> v hi) (sv-die "ipcs" (%str-concat (list "number " p " is not in 0.." (cu-int->str hi) " range"))))
       ((= (byte-at s 0) #\-) (- 0 v))
       (#t v))))
 
 ; APPLET's error line, and the run ended with 1
 (def sv-die
   (fn (_ applet msg)
-    (do (file-write 2 (string-concat (list applet ": " msg "\n")))
+    (do (file-write 2 (%str-concat (list applet ": " msg "\n")))
         (Err raise (lit ipcs) msg ()))))
 
 ; --- ipcs ---------------------------------------------------------------------

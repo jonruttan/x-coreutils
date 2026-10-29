@@ -61,7 +61,7 @@ case: stdout, the status, then stderr.
           (sys-dup2 (file-open-write (dl-f ".so")) 1) (sys-dup2 (file-open-write (dl-f ".se")) 2)
           (sys-exit (guard (e 99) (cu-run (pair "dumpleases" argv) "")))))
     (def st (sys-wait pid))
-    (display (string-concat (list (file-read-all (dl-f ".so")) "[status " (cu-int->str st) "]\n" (file-read-all (dl-f ".se")))))))
+    (display (%str-concat (list (file-read-all (dl-f ".so")) "[status " (cu-int->str st) "]\n" (file-read-all (dl-f ".se")))))))
   (display "made"))
 ```
 ---

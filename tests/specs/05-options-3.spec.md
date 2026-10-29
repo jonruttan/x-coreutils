@@ -141,7 +141,7 @@ same
 ### a regular file has no device type; %D is %d in hex; a birth precedes a modify
 
 ```cu
-(do (def w (words (cu-sf (list "stat" "-c" "%t %T %r %R %d %D %W %Y %f" "/tmp/x-cu-st/f")))) (display (cu-join-with (cu-take w 4) " ")) (newline) (display (if (string=? (cu-hexs (cu-num-prefix (cu-nth 4 w))) (cu-nth 5 w)) "hex" "no")) (newline) (display (if (<= (cu-num-prefix (cu-nth 6 w)) (cu-num-prefix (cu-nth 7 w))) "ordered" "no")) (newline) (display (cu-nth 8 w)))
+(do (def w (words (cu-sf (list "stat" "-c" "%t %T %r %R %d %D %W %Y %f" "/tmp/x-cu-st/f")))) (display (Str8 join " " (cu-take w 4))) (newline) (display (if (string=? (cu-hexs (cu-num-prefix (cu-nth 4 w))) (cu-nth 5 w)) "hex" "no")) (newline) (display (if (<= (cu-num-prefix (cu-nth 6 w)) (cu-num-prefix (cu-nth 7 w))) "ordered" "no")) (newline) (display (cu-nth 8 w)))
 ```
 ---
 ```output
@@ -180,7 +180,7 @@ typed
 ### -f's block has stat's five lines, and a missing path is refused
 
 ```cu
-(do (def ls (cu-lines (cu-sf (list "stat" "-f" "/tmp/x-cu-st")))) (display (length ls)) (newline) (display (cu-join-with (map (fn (_ l) (first (cu-words-line l))) ls) "|")) (newline) (display (cu-run (list "stat" "-f" "/tmp/x-cu-st/nope") "")))
+(do (def ls (cu-lines (cu-sf (list "stat" "-f" "/tmp/x-cu-st")))) (display (length ls)) (newline) (display (Str8 join "|" (map (fn (_ l) (first (cu-words-line l))) ls))) (newline) (display (cu-run (list "stat" "-f" "/tmp/x-cu-st/nope") "")))
 ```
 ---
 ```output
@@ -192,7 +192,7 @@ File:|ID:|Block|Blocks:|Inodes:
 ### df -T puts the type stat -f names after the filesystem
 
 ```cu
-(do (def out (cu-sf (list "df" "-T" "/tmp/x-cu-st"))) (def hdr (first (cu-lines out))) (def row (cu-nth 1 (cu-lines out))) (display (cu-join-with (cu-take (cu-words-line hdr) 3) " ")) (newline) (display (if (string=? (cu-nth 1 (cu-words-line row)) (first (words (cu-sf (list "stat" "-f" "-c" "%T" "/tmp/x-cu-st"))))) "same type" "differ")) (newline) (display (cu-join-with (cu-take (cu-words-line (first (cu-lines (cu-sf (list "df" "/tmp/x-cu-st"))))) 2) " ")))
+(do (def out (cu-sf (list "df" "-T" "/tmp/x-cu-st"))) (def hdr (first (cu-lines out))) (def row (cu-nth 1 (cu-lines out))) (display (Str8 join " " (cu-take (cu-words-line hdr) 3))) (newline) (display (if (string=? (cu-nth 1 (cu-words-line row)) (first (words (cu-sf (list "stat" "-f" "-c" "%T" "/tmp/x-cu-st"))))) "same type" "differ")) (newline) (display (Str8 join " " (cu-take (cu-words-line (first (cu-lines (cu-sf (list "df" "/tmp/x-cu-st"))))) 2))))
 ```
 ---
 ```output
@@ -222,7 +222,7 @@ Filesystem 1K-blocks
 ### a bare df lists the mounted filesystems, the root among them, named from and on
 
 ```cu
-(do (def ls (lines (list "df"))) (display (cu-join-with (cu-words-line (first ls)) " ")) (newline) (display (if (null? (filter (fn (_ l) (string=? (last-word l) "/")) (rest ls))) "no root" "root listed")) (newline) (display (if (null? (filter (fn (_ l) (string=? (first (cu-words-line l)) "Filesystem")) (rest ls))) "rows named" "unnamed")))
+(do (def ls (lines (list "df"))) (display (Str8 join " " (cu-words-line (first ls)))) (newline) (display (if (null? (filter (fn (_ l) (string=? (last-word l) "/")) (rest ls))) "no root" "root listed")) (newline) (display (if (null? (filter (fn (_ l) (string=? (first (cu-words-line l)) "Filesystem")) (rest ls))) "rows named" "unnamed")))
 ```
 ---
 ```output
@@ -256,7 +256,7 @@ which contains it
 ### -P is the portable heading, -m and -B name their unit, -h its columns
 
 ```cu
-(do (display (cu-join-with (cu-words-line (first (lines (list "df" "-P" "/tmp")))) " ")) (newline) (display (cu-nth 1 (cu-words-line (first (lines (list "df" "-m" "/tmp")))))) (newline) (display (cu-nth 1 (cu-words-line (first (lines (list "df" "-B" "2048" "/tmp")))))) (newline) (display (cu-join-with (cu-words-line (first (lines (list "df" "-h" "/tmp")))) " ")))
+(do (display (Str8 join " " (cu-words-line (first (lines (list "df" "-P" "/tmp")))))) (newline) (display (cu-nth 1 (cu-words-line (first (lines (list "df" "-m" "/tmp")))))) (newline) (display (cu-nth 1 (cu-words-line (first (lines (list "df" "-B" "2048" "/tmp")))))) (newline) (display (Str8 join " " (cu-words-line (first (lines (list "df" "-h" "/tmp")))))))
 ```
 ---
 ```output

@@ -19,7 +19,7 @@
 (import cu/cli cu-opts)
 (import cu/prims byte-at byte-len cal/ cu-nth cu-sweep-lines cu-sweep-tick!
   cu-take file-err-text file-write file-write-run length map reverse
-  string-append string-concat substring vec-make vec-ref vec-set!)
+  string-append substring vec-make vec-ref vec-set!)
 (import cu/strings cu-range-number)
 (import cu/text cu-fold-one)
 
@@ -76,7 +76,7 @@
               (self (+ i 1) () (put (%b32-group (reverse (pair (byte-at text i) held))) line)))
             (#t (self (+ i 1) (pair (byte-at text i) held) line)))))
       (let ((r (go 0 (first s) (rest s))))
-        (do (file-write 1 (string-concat (reverse (first out))))
+        (do (file-write 1 (%str-concat (reverse (first out))))
             (cu-sweep-tick! cu-sweep-lines)
             r)))))
 
@@ -97,7 +97,7 @@
     (def go
       (fn (self i k acc)
         (if (= i 8)
-          (string-concat (reverse (if (> k 0) (pair "\n" acc) acc)))
+          (%str-concat (reverse (if (> k 0) (pair "\n" acc) acc)))
           (let ((c (substring g i (+ i 1))))
             (if (= (+ k 1) col)
               (self (+ i 1) 0 (pair "\n" (pair c acc)))
@@ -163,7 +163,7 @@
 (def %b32-usage
   (fn (_)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list "Usage: base32 [-d] [-w COL] [FILE]\n\n"
                   "Base32 encode or decode FILE to standard output\n\n"
                   "\t-d\tDecode data\n"
@@ -184,7 +184,7 @@
           ((null? err) 0)
           ((eq? err (lit truncated))
             (do (file-write 2 "base32: truncated input\n") 1))
-          (#t (do (file-write 2 (string-concat (list "base32: " name ": " (file-err-text err) "\n")))
+          (#t (do (file-write 2 (%str-concat (list "base32: " name ": " (file-err-text err) "\n")))
                   1)))))
     (match
       ((> (length ops) 1) (%b32-usage))

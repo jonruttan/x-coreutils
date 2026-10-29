@@ -41,12 +41,13 @@
 (module cu/find)
 
 (import cu/fs2 cu-base-of)
-(import cu/fs3 cu-path-join)
 (import cu/prims byte-at byte-len cu-b->s cu-stat-get file-lstat-full
-  file-write file-write-field map proc-run reverse string-append string-concat
-  string=? substring)
+  file-write file-write-field map proc-run reverse string-append string=?
+  substring)
 (import cu/text cu-num-prefix)
 (import cu/walk cu-walk-names)
+
+(import x/type/path Path)
 
 (def cu-glob-class
   (fn (_ pat pi c)
@@ -109,18 +110,6 @@
     (go 0 0)))
 
 ; --- the pieces a primary asks about -------------------------------------------
-
-(def %find-lower
-  (fn (_ s)
-    (def end (byte-len s))
-    (def go
-      (fn (self i acc)
-        (if (>= i end) (string-concat (reverse acc))
-          (let ((b (byte-at s i)))
-            (self (+ i 1)
-              (pair (cu-b->s (if (if (>= b 65) (<= b 90) #f) (+ b 32) b))
-                acc))))))
-    (go 0 ())))
 
 (def %find-file-type
   (fn (_ c)
@@ -363,9 +352,9 @@
                 (fn (_ path name depth st) (cu-glob? pat name)))
           (rest more)))
       ((string=? a "-iname")
-        (pair (let ((pat (%find-lower arg)))
+        (pair (let ((pat (Str8 downcase arg)))
                 (fn (_ path name depth st)
-                  (cu-glob? pat (%find-lower name))))
+                  (cu-glob? pat (Str8 downcase name))))
           (rest more)))
       ((string=? a "-path")
         (pair (let ((pat arg))
@@ -433,7 +422,7 @@
     (def go
       (fn (self ns)
         (if (null? ns) 0
-          (let ((child (cu-path-join dir (first ns))))
+          (let ((child (Path join dir (first ns))))
             (do
               (let ((cst (file-lstat-full child)))
                 (if (null? cst) ()

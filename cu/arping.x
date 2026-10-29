@@ -26,18 +26,18 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-aton inet-set! inet-zeros)
-(import cu/inetd in-c in-call in-dontwait)
+(import cu/inetd in-call in-dontwait)
 (import cu/ping pn-be16! pn-bind-device pn-byte pn-div pn-ms pn-now pn-number
   pn-resolve pn-setopt pn-sol-socket)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr-call
-  cu-ptr-ref cu-ptr-set! cu-str->ptr cu-string-type cvt file-write
-  libc-strerror map string-append string-concat sys-poll sys-signal)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
+  cu-ptr-call cu-ptr-ref cu-ptr-set! cu-str->ptr cu-string-type cvt file-write
+  libc-strerror map string-append sys-poll sys-signal)
 (import cu/text cu-pad-zero)
 
-(def %ap-say (fn (_ msg) (file-write 2 (string-concat (list "arping: " msg "\n")))))
+(def %ap-say (fn (_ msg) (file-write 2 (%str-concat (list "arping: " msg "\n")))))
 (def %ap-status 1)               ; xfunc_error_retval: 2 once the options are read
 (def %ap-die (fn (_ msg) (do (%ap-say msg) (Err raise (lit arping) msg ()))))
-(def %ap-errno-die (fn (_ what r) (%ap-die (string-concat (list what ": " (libc-strerror (Err errno-of r)))))))
+(def %ap-errno-die (fn (_ what r) (%ap-die (%str-concat (list what ": " (libc-strerror (Err errno-of r)))))))
 (def %ap-done (fn (_ status) (do (set! %ap-status status) (Err raise (lit arping-done) "done" ()))))
 (def %ap-out (fn (_ s) (file-write 1 s)))
 
@@ -103,7 +103,7 @@
     (%ap-copy! b (+ 8 %ap-halen) %ap-src 0 4)
     (%ap-copy! b (+ 12 %ap-halen) (if %ap-advert %ap-me %ap-he) 12 %ap-halen)
     (%ap-copy! b (+ 12 (* 2 %ap-halen)) %ap-dst 0 4)
-    (let ((r (in-call (cu-ptr-call (in-c "sendto") %ap-fd p n 0 (cu-str->ptr %ap-he) 20))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "sendto") %ap-fd p n 0 (cu-str->ptr %ap-he) 20))))
       (when (= r n)
         (do (set! %ap-last (pn-now))
             (set! %ap-sent (+ %ap-sent 1))
@@ -114,7 +114,7 @@
   (fn (_)
     (sys-signal 2 1)
     (unless %ap-quiet
-      (%ap-out (string-concat (list "Sent " (cu-int->str %ap-sent) " probe(s) (" (cu-int->str %ap-brd-sent) " broadcast(s))\n"
+      (%ap-out (%str-concat (list "Sent " (cu-int->str %ap-sent) " probe(s) (" (cu-int->str %ap-brd-sent) " broadcast(s))\n"
                                     "Received " (cu-int->str %ap-received) " response(s) (" (cu-int->str %ap-req-recv)
                                     " request(s), " (cu-int->str %ap-brd-recv) " broadcast(s))\n"))))
     (%ap-done (match (%ap-dad (if (> %ap-received 0) 1 0))
@@ -162,12 +162,12 @@
               #f)
         (do (unless %ap-quiet
               (let ((other (not (%ap-same? b tpa %ap-src 0 4))))
-                (%ap-out (string-concat
+                (%ap-out (%str-concat
                   (list (if (= ftype 0) "Uni" "Broad") "cast re" (if (= op 2) "ply" "quest") " from " (%ap-dotted b spa)
                         " [" (%ap-mac b sha) "]"
                         (if other (string-append "for " (%ap-dotted b tpa)) "")
                         (if (%ap-same? b tha %ap-me 12 hln) ""
-                          (string-concat (list (if other "" " for") " [" (%ap-mac b tha) "]")))
+                          (%str-concat (list (if other "" " for") " [" (%ap-mac b tha) "]")))
                         (if (= %ap-last 0) " UNSOLICITED?\n"
                           (string-append " " (string-append (pn-ms (- (pn-now) %ap-last)) "ms\n"))))))))
             (set! %ap-received (+ %ap-received 1))
@@ -186,7 +186,7 @@
       (let ((wait (let ((ms (pn-div (+ (- %ap-tick now) 999) 1000))) (if (> ms 250) 250 ms))))
         (unless (null? (sys-poll (list (pair %ap-fd (list (lit in)))) wait))
           (do (inet-set! %ap-alen 0 20 4)
-              (let ((r (in-call (cu-ptr-call (in-c "recvfrom") %ap-fd (cu-str->ptr %ap-buf) 4096 in-dontwait
+              (let ((r (in-call (cu-ptr-call (cu-libc-sym "recvfrom") %ap-fd (cu-str->ptr %ap-buf) 4096 in-dontwait
                                              (cu-str->ptr %ap-from) (cu-str->ptr %ap-alen)))))
                 (match ((>= r 0) (%ap-recv-pack r))
                        ((if (= (Err errno-of r) 4) #t (= (Err errno-of r) 11)) ())
@@ -202,7 +202,7 @@
     (let ((ifr (inet-zeros 40)))
       (do (let copy ((i 0)) (when (if (< i (byte-len device)) (< i 15) #f)
                               (do (inet-set! ifr i (byte-at device i) 1) (copy (+ i 1)))))
-          (pair (in-call (cu-ptr-call (in-c "ioctl") %ap-fd req (cu-str->ptr ifr))) ifr)))))
+          (pair (in-call (cu-ptr-call (cu-libc-sym "ioctl") %ap-fd req (cu-str->ptr ifr))) ifr)))))
 
 (def %ap-check (fn (_ r what) (when (< r 0) (%ap-errno-die what r))))
 
@@ -211,7 +211,7 @@
 ; kernel would send from
 (def %ap-probe-src!
   (fn (_ device)
-    (def pfd (in-call (cu-ptr-call (in-c "socket") 2 2 0)))
+    (def pfd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 2 0)))
     (def sa (inet-zeros 16))
     (def len (inet-zeros 4))
     (%ap-check pfd "socket(AF_INET,2,0)")
@@ -219,22 +219,22 @@
     (inet-set! sa 0 2 2)
     (if (not (%ap-zero? %ap-src))
       (do (%ap-copy! sa 4 %ap-src 0 4)
-          (%ap-check (in-call (cu-ptr-call (in-c "bind") pfd (cu-str->ptr sa) 16)) "bind"))
+          (%ap-check (in-call (cu-ptr-call (cu-libc-sym "bind") pfd (cu-str->ptr sa) 16)) "bind"))
       (let ((r (do (pn-be16! (cu-str->ptr sa) 2 1025) (%ap-copy! sa 4 %ap-dst 0 4) (pn-setopt pfd pn-sol-socket 5 1))))
         (do (when (< r 0) (%ap-say (string-append "setsockopt(SO_DONTROUTE): " (libc-strerror (Err errno-of r)))))
-            (%ap-check (in-call (cu-ptr-call (in-c "connect") pfd (cu-str->ptr sa) 16))
-                       (string-concat (list "can't connect to remote host (" (%ap-dotted %ap-dst 0) ")")))
+            (%ap-check (in-call (cu-ptr-call (cu-libc-sym "connect") pfd (cu-str->ptr sa) 16))
+                       (%str-concat (list "can't connect to remote host (" (%ap-dotted %ap-dst 0) ")")))
             (inet-set! len 0 16 4)
-            (%ap-check (in-call (cu-ptr-call (in-c "getsockname") pfd (cu-str->ptr sa) (cu-str->ptr len))) "getsockname")
+            (%ap-check (in-call (cu-ptr-call (cu-libc-sym "getsockname") pfd (cu-str->ptr sa) (cu-str->ptr len))) "getsockname")
             (unless (= (cu-ptr-ref (cu-str->ptr sa) 0 2) 2) (%ap-die "no IP address configured"))
             (%ap-copy! %ap-src 0 sa 4 4))))
-    (cu-ptr-call (in-c "close") pfd)))
+    (cu-ptr-call (cu-libc-sym "close") pfd)))
 
 (def %ap-main
   (fn (_ argv)
     (set! %ap-fd
       (if os-darwin? (%ap-die (string-append "socket(AF_PACKET,2,0): " (libc-strerror 47)))
-        (let ((fd (in-call (cu-ptr-call (in-c "socket") 17 2 0))))
+        (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") 17 2 0))))
           (if (< fd 0) (%ap-errno-die "socket(AF_PACKET,2,0)" fd) fd))))
     (def o (cu-opts "arping" argv))
     (def ops (Opts operands o))
@@ -254,12 +254,12 @@
     (def source (Opts value o "-s"))
     (set! %ap-status 2)
     (def not-arpable
-      (fn (_ why) (do (%ap-say (string-concat (list "interface " device " " why))) (%ap-done (if %ap-dad 0 2)))))
+      (fn (_ why) (do (%ap-say (%str-concat (list "interface " device " " why))) (%ap-done (if %ap-dad 0 2)))))
     (def idx (%ap-ifreq device 35123))
-    (when (< (first idx) 0) (%ap-errno-die (string-concat (list "interface " device " not found")) (first idx)))
+    (when (< (first idx) 0) (%ap-errno-die (%str-concat (list "interface " device " not found")) (first idx)))
     (def flags (let ((f (%ap-ifreq device 35091)))
                  (if (< (first f) 0) (%ap-errno-die "ioctl 0x8913 failed" (first f)) (cu-ptr-ref (cu-str->ptr (rest f)) 16 2))))
-    (when (= (& flags 1) 0) (%ap-die (string-concat (list "interface " device " is down"))))
+    (when (= (& flags 1) 0) (%ap-die (%str-concat (list "interface " device " is down"))))
     (unless (= (& flags 136) 0) (not-arpable "is not ARPable"))
     (set! %ap-dst (let ((sa (first (pn-resolve (first ops) 2 0 %ap-die)))) (let ((b (inet-zeros 4))) (do (%ap-copy! b 0 sa 4 4) b))))
     (set! %ap-src (inet-zeros 4))
@@ -272,18 +272,18 @@
     (inet-set! %ap-me 0 17 2)
     (pn-be16! (cu-str->ptr %ap-me) 2 2054)
     (inet-set! %ap-me 4 (cu-ptr-ref (cu-str->ptr (rest idx)) 16 4) 4)
-    (let ((r (in-call (cu-ptr-call (in-c "bind") %ap-fd (cu-str->ptr %ap-me) 20))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "bind") %ap-fd (cu-str->ptr %ap-me) 20))))
       (when (< r 0) (%ap-errno-die "bind" r)))
     (let ((len (inet-zeros 4)))
       (do (inet-set! len 0 20 4)
-          (cu-ptr-call (in-c "getsockname") %ap-fd (cu-str->ptr %ap-me) (cu-str->ptr len))))
+          (cu-ptr-call (cu-libc-sym "getsockname") %ap-fd (cu-str->ptr %ap-me) (cu-str->ptr len))))
     (set! %ap-halen (pn-byte (cu-str->ptr %ap-me) 11))
     (when (= %ap-halen 0) (not-arpable "is not ARPable (no ll address)"))
     (set! %ap-he (inet-zeros 20))
     (%ap-copy! %ap-he 0 %ap-me 0 20)
     (let fill ((i 0)) (when (< i %ap-halen) (do (inet-set! %ap-he (+ 12 i) 255 1) (fill (+ i 1)))))
     (unless %ap-quiet
-      (%ap-out (string-concat (list "ARPING " (%ap-dotted %ap-dst 0) " from " (%ap-dotted %ap-src 0) " " device "\n"))))
+      (%ap-out (%str-concat (list "ARPING " (%ap-dotted %ap-dst 0) " from " (%ap-dotted %ap-src 0) " " device "\n"))))
     (set! %ap-buf (inet-zeros 4096))
     (set! %ap-from (inet-zeros 20))
     (set! %ap-alen (inet-zeros 4))
@@ -299,10 +299,10 @@
       (guard (e (match ((eq? (cu-err-label e) (lit arping-usage)) (cu-usage "arping"))
                        ((eq? (cu-err-label e) (lit arping)) %ap-status)
                        ((eq? (cu-err-label e) (lit arping-done)) %ap-status)
-                       (#t (do (sys-signal 2 0) (unless (< %ap-fd 0) (cu-ptr-call (in-c "close") %ap-fd)) (error e)))))
+                       (#t (do (sys-signal 2 0) (unless (< %ap-fd 0) (cu-ptr-call (cu-libc-sym "close") %ap-fd)) (error e)))))
         (%ap-main argv)))
     (sys-signal 2 0)
-    (unless (< %ap-fd 0) (cu-ptr-call (in-c "close") %ap-fd))
+    (unless (< %ap-fd 0) (cu-ptr-call (cu-libc-sym "close") %ap-fd))
     status))
 
 (provide cu/arping cu-arping)

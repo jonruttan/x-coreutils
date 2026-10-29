@@ -24,7 +24,7 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/prims append byte-at byte-len cu-int->str cu-sigkill file-stat-full
   file-write filter host-files-of host-holders host-processes map reverse
-  set-first! string-append string-concat substring sys-getpid sys-kill)
+  set-first! string-append substring sys-getpid sys-kill)
 (import cu/procps pg-head ps-sorted)
 (import cu/signal fu-args)
 (import cu/tar tar-why)
@@ -106,7 +106,7 @@
         (match
           ((not (null? port)) (self (rest ops) (pair (pair (lit port) port) acc)))
           ((null? (file-stat-full (first ops)))
-            (do (file-write 2 (string-concat (list "fuser: can't stat '" (first ops) "': "
+            (do (file-write 2 (%str-concat (list "fuser: can't stat '" (first ops) "': "
                                                    (tar-why (lit stat) (first ops)) "\n")))
                 #f))
           (#t (self (rest ops) (pair (pair (lit file) (first ops)) acc))))))))
@@ -135,7 +135,7 @@
     (def failed (list #f))
     (map (fn (_ pid)
            (do (if (if (Opts on? o "-k") (< (sys-kill pid signo) 0) #f)
-                 (do (file-write 2 (string-concat (list "fuser: kill pid " (cu-int->str pid) ": "
+                 (do (file-write 2 (%str-concat (list "fuser: kill pid " (cu-int->str pid) ": "
                                                         (tar-why (lit kill) (cu-int->str pid)) "\n")))
                      (set-first! failed #t))
                  ())

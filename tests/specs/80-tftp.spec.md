@@ -37,7 +37,7 @@ lines busybox draws within one.
     (if (>= i (length bs)) acc
       (let ((k (tf-cstr bs i)))
         (let ((v (tf-cstr bs (rest k))))
-          (self bs (rest v) (pair (pair (wget-lower (first k)) (first v)) acc)))))))
+          (self bs (rest v) (pair (pair (Str8 downcase (first k)) (first v)) acc)))))))
   (def tf-send (fn (_ s to bs) (Socket send-to-run s (pair (bytes->str bs) (length bs)) (first to) (rest to))))
   (def tf-recv (fn (_ s) (tf-b (first (Socket recv-from-run s 70000)))))
   (def tf-err (fn (_ s to code text) (tf-send s to (tf-cat (tf-u16 5) (tf-u16 code) (tf-z text)))))
@@ -71,9 +71,9 @@ lines busybox draws within one.
     (def s (Socket udp-bind 0))
     (def name (first (tf-cstr bs 2)))
     (def opts (tf-opts bs (rest (tf-cstr bs (rest (tf-cstr bs 2)))) ()))
-    (def path (string-concat (list tf "/srv/" name)))
+    (def path (%str-concat (list tf "/srv/" name)))
     (match
-      ((if (= (byte-at name 0) #\.) #t (not (null? (wget-find name "/.")))) (tf-err s to 0 "dot in file name"))
+      ((if (= (byte-at name 0) #\.) #t (not (null? (Str8 index-of "/." name)))) (tf-err s to 0 "dot in file name"))
       ((= (first (rest bs)) 1) (if (file-exists? path) (tf-download s to path opts) (tf-err s to 1 "can't open file")))
       (#t (tf-upload s to path opts)))
     (Socket close s)))
@@ -85,12 +85,12 @@ lines busybox draws within one.
            ((Str8 starts? "D/" a) (string-append tf (substring a 1 (byte-len a))))
            (#t a))))
   (def tf-files (fn (_ dir)
-    (string-concat
-      (map (fn (_ f) (string-concat (list "file " f ": "
-                       (cu-int->str (Assoc get (lit size) (file-stat (string-concat (list dir "/" f))))) " bytes\n")))
+    (%str-concat
+      (map (fn (_ f) (%str-concat (list "file " f ": "
+                       (cu-int->str (Assoc get (lit size) (file-stat (%str-concat (list dir "/" f))))) " bytes\n")))
            (filter (fn (_ f) (not (if (string=? f ".") #t (string=? f "..")))) (file-list-dir dir))))))
   (def tf-case (fn (_ args)
-    (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -rf " tf " && mkdir -p " tf "/srv " tf "/work && printf 'hello\\n' > " tf "/srv/small.txt && : > " tf "/srv/empty && awk 'BEGIN { for (i = 0; i < 1500; i++) printf \"%c\", 65 + i % 26 }' > " tf "/srv/big.bin"))))
+    (proc-run (list "/bin/sh" "-c" (%str-concat (list "rm -rf " tf " && mkdir -p " tf "/srv " tf "/work && printf 'hello\\n' > " tf "/srv/small.txt && : > " tf "/srv/empty && awk 'BEGIN { for (i = 0; i < 1500; i++) printf \"%c\", 65 + i % 26 }' > " tf "/srv/big.bin"))))
     (def lfd (Socket udp-bind 0))
     (def port (cu-int->str (Socket local-port lfd)))
     (def pid (sys-fork))
@@ -108,7 +108,7 @@ lines busybox draws within one.
     (stand-in! (list (module cu/net)) (lit date-now-unix) tf-clock)
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (sys-kill pid 9) (sys-wait pid)
-    (display (string-concat (list (file-read-all (string-append tf "/out")) "stderr:\n"
+    (display (%str-concat (list (file-read-all (string-append tf "/out")) "stderr:\n"
                                   (file-read-all (string-append tf "/err")) "status " (cu-int->str st) "\n"
                                   (tf-files (string-append tf "/work")))))))
   (display "made"))

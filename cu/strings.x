@@ -21,9 +21,9 @@
 (module cu/strings)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-int->str cu-ptr-call
+(import cu/prims byte-at byte-len cu-int->str cu-libc-sym cu-ptr-call
   cu-sweep-lines cu-sweep-tick! file-err-op file-err-text file-write reverse
-  string-append string-concat string=?)
+  string-append string=?)
 (import cu/text cu-fold-one cu-num-prefix cu-pad-left)
 
 (def %sg+ (prim-ref (lit int) (lit +)))
@@ -39,9 +39,8 @@
 
 (def %sg-resolve!
   (fn (_)
-    (def lib (cu-dlopen () 1))
-    (set! %sg-c-strspn (cu-dlsym lib "strspn"))
-    (set! %sg-c-strcspn (cu-dlsym lib "strcspn"))))
+    (set! %sg-c-strspn (cu-libc-sym "strspn"))
+    (set! %sg-c-strcspn (cu-libc-sym "strcspn"))))
 
 ; --- busybox's numbers ----------------------------------------------------------
 
@@ -60,11 +59,11 @@
     (def n (if (if (> end 0) (digits? 0) #f) (cu-num-prefix s) ()))
     (match
       ((if (null? n) #t (> n 4294967295))
-        (do (file-write 2 (string-concat (list applet ": invalid number '" s "'\n")))
+        (do (file-write 2 (%str-concat (list applet ": invalid number '" s "'\n")))
             ()))
       ((if (< n lo) #t (> n hi))
         (do (file-write 2
-              (string-concat
+              (%str-concat
                 (list applet ": number " s " is not in " (cu-int->str lo) ".."
                       (cu-int->str hi) " range\n")))
             ()))
@@ -123,7 +122,7 @@
                       (%sg-put
                         (string-append
                           (cu-pad-left (%sg-radix %sg-start %sg-radix-of) 7) " ")))
-                    (%sg-put (string-concat (reverse %sg-held)))
+                    (%sg-put (%str-concat (reverse %sg-held)))
                     (set! %sg-held ())
                     (set! %sg-on #t))
                 ())))
@@ -154,7 +153,7 @@
                             (cu-sweep-tick! cu-sweep-lines)
                             (self e)))))))))))
     (do (go 0)
-        (file-write 1 (string-concat (reverse %sg-out)))
+        (file-write 1 (%str-concat (reverse %sg-out)))
         (set! %sg-out ())
         s)))
 
@@ -168,7 +167,7 @@
         (set! %sg-out ())
         (let ((r (cu-fold-one name stdin-thunk %sg-take ())))
           (do (%sg-end-run!)
-              (file-write 1 (string-concat (reverse %sg-out)))
+              (file-write 1 (%str-concat (reverse %sg-out)))
               (set! %sg-out ())
               (rest r))))))
 
@@ -200,7 +199,7 @@
                   (if (if (null? err) #t (eq? (file-err-op err) (lit read)))
                     (self (rest names) st)
                     (do (file-write 2
-                          (string-concat
+                          (%str-concat
                             (list "strings: " name ": " (file-err-text err) "\n")))
                         (self (rest names) 1)))))))))
     (match

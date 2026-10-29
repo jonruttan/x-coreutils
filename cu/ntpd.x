@@ -27,18 +27,18 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/date cu-date-fmt cu-date-split)
 (import cu/hash cu-md5-bytes cu-sha1-bytes)
-(import cu/inetd in-c in-call in-dontwait in-errtext in-exec in-lines
-  in-reuse! in-sockaddr6 in-strtou in-tokens-max in-zeroed)
+(import cu/inetd in-call in-dontwait in-errtext in-exec in-lines in-reuse!
+  in-sockaddr6 in-strtou in-tokens-max in-zeroed)
 (import cu/mime mm-ci=)
 (import cu/nc nc-count)
 (import cu/prims append byte-at byte-len cu-hexs cu-int->ptr cu-int->str
-  cu-nth cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign cu-str->ptr
-  cu-sweep-lines cu-sweep-tick! file-open-or-err file-open-read file-read-all
-  file-unlink file-write file-write-all filter in-index-of length map
-  net-resolve net-sockaddr reverse str-make-raw string-append string-concat
-  string=? substring sys-close sys-dup2 sys-exit sys-fork sys-getpid sys-kill
-  sys-poll sys-setenv sys-signal sys-usleep vec-build vec-ref vec-set!
-  wget-div wget-err-text wget-index wget-memv)
+  cu-libc-sym cu-nth cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-sig-ign
+  cu-str->ptr cu-sweep-lines cu-sweep-tick! file-open-or-err file-open-read
+  file-read-all file-unlink file-write file-write-all filter length map
+  net-resolve net-sockaddr reverse str-make-raw string-append string=?
+  substring sys-close sys-dup2 sys-exit sys-fork sys-getpid sys-kill sys-poll
+  sys-setenv sys-signal sys-usleep vec-build vec-ref vec-set! wget-div
+  wget-err-text wget-index wget-memv)
 (import cu/signal ts-signal-number)
 (import cu/sysinfo si-now)
 (import cu/tar tar-why)
@@ -94,7 +94,7 @@
 (def %nt-sigs ())
 (def %nt-got-sig ())             ; a signal taken, not acted on yet
 
-(def %nt-say (fn (_ msg) (file-write 2 (string-concat (list "ntpd: " msg "\n")))))
+(def %nt-say (fn (_ msg) (file-write 2 (%str-concat (list "ntpd: " msg "\n")))))
 (def %nt-die (fn (_ msg) (Err raise (lit net) msg ())))
 (def %nt-why (fn (_ op) (tar-why op "")))
 
@@ -195,8 +195,8 @@
     (def p (cu-str->ptr sa))
     (def out (str-make-raw 64))
     (if (= (%nt-family sa) 2)
-      (cu-ptr-call (in-c "inet_ntop") 2 (cu-int->ptr (+ (td-ptr->int p) 4)) (cu-str->ptr out) 64)
-      (cu-ptr-call (in-c "inet_ntop") %nt-af6 (cu-int->ptr (+ (td-ptr->int p) 8)) (cu-str->ptr out) 64))
+      (cu-ptr-call (cu-libc-sym "inet_ntop") 2 (cu-int->ptr (+ (td-ptr->int p) 4)) (cu-str->ptr out) 64)
+      (cu-ptr-call (cu-libc-sym "inet_ntop") %nt-af6 (cu-int->ptr (+ (td-ptr->int p) 8)) (cu-str->ptr out) 64))
     (cu-ptr->str (cu-str->ptr out))))
 
 ; host2sockaddr(HOST, 123): (SOCKADDR LEN), or nil said as busybox says it
@@ -204,7 +204,7 @@
   (fn (_ org)
     (def bracket? (Str8 starts? "[" org))
     (def close (if bracket? (wget-index org #\] 0) ()))
-    (def last (in-index-of org #\:))
+    (def last (Str8 last-index-of ":" org))
     (def colon (match (bracket? (if (null? close) () (if (< (+ close 1) (byte-len org)) (+ close 1) ())))
                       ((null? last) ())
                       ((= (wget-index org #\: 0) last) last)
@@ -216,19 +216,19 @@
     (def port (if (null? ptext) 123 (let ((n (in-strtou ptext))) (if (if (null? n) #f (<= n 65535)) n -1))))
     (match
       ((if bracket? (if (null? close) #t (if (< (+ close 1) (byte-len org)) (not (= (byte-at org (+ close 1)) #\:)) #f)) #f)
-        (do (%nt-say (string-concat (list "bad address '" org "'"))) ()))
-      ((< port 0) (do (%nt-say (string-concat (list "bad port '" ptext "'"))) ()))
+        (do (%nt-say (%str-concat (list "bad address '" org "'"))) ()))
+      ((< port 0) (do (%nt-say (%str-concat (list "bad port '" ptext "'"))) ()))
       (#t (let ((a4 (str-make-raw 4)) (a6 (in-zeroed 16)))
             (match
-              ((not (= (in-call (cu-ptr-call (in-c "inet_aton") host (cu-str->ptr a4))) 0))
+              ((not (= (in-call (cu-ptr-call (cu-libc-sym "inet_aton") host (cu-str->ptr a4))) 0))
                 (list (net-sockaddr (%nt-dotted-of a4) port) 16))
-              ((= (in-call (cu-ptr-call (in-c "inet_pton") %nt-af6 host (cu-str->ptr a6))) 1)
+              ((= (in-call (cu-ptr-call (cu-libc-sym "inet_pton") %nt-af6 host (cu-str->ptr a6))) 1)
                 (let ((s (in-sockaddr6 a6 port))) (list (first s) (rest s))))
               (#t (let ((q (guard (_ ()) (net-resolve host))))
-                    (if (null? q) (do (%nt-say (string-concat (list "bad address '" org "'"))) ())
+                    (if (null? q) (do (%nt-say (%str-concat (list "bad address '" org "'"))) ())
                       (list (net-sockaddr q port) 16))))))))))
 
-(def %nt-dotted-of (fn (_ a4) (let ((p (cu-str->ptr a4))) (string-concat (list (%nt-u (cu-ptr-ref p 0 1)) "." (%nt-u (cu-ptr-ref p 1 1)) "." (%nt-u (cu-ptr-ref p 2 1)) "." (%nt-u (cu-ptr-ref p 3 1)))))))
+(def %nt-dotted-of (fn (_ a4) (let ((p (cu-str->ptr a4))) (%str-concat (list (%nt-u (cu-ptr-ref p 0 1)) "." (%nt-u (cu-ptr-ref p 1 1)) "." (%nt-u (cu-ptr-ref p 2 1)) "." (%nt-u (cu-ptr-ref p 3 1)))))))
 
 ; calculate_refid: an IPv4 address's bytes, an IPv6 one's MD5's first four
 (def %nt-refid-of
@@ -297,7 +297,7 @@
     (def j (%nt-sqrt (%nt/ (let go ((i 0) (s (Float from 0))) (if (= i 8) s (go (+ i 1) (%nt+ s (%nt-sq (%nt- wavg (%nt-dp p i 0))))))) 8)))
     (%np! p %np-fjitter (if (%nt< %nt-prec j) j %nt-prec))
     (when (>= %nt-verbose 4)
-      (%nt-say (string-concat (list "filter offset:" (%nt-sf (%np p %np-foffset)) " disp:" (%nt-f (%np p %np-fdisp))
+      (%nt-say (%str-concat (list "filter offset:" (%nt-sf (%np p %np-foffset)) " disp:" (%nt-f (%np p %np-fdisp))
                                     " jitter:" (%nt-f (%np p %np-fjitter))))))))
 
 ; reset_peer_stats
@@ -340,7 +340,7 @@
       (do (%np! p %np-sa a)
           (%np! p %np-dotted (%nt-dotted (first a)))
           (when (if (>= %nt-verbose 1) (not (string=? (%np p %np-host) (%np p %np-dotted))) #f)
-            (%nt-say (string-concat (list "'" (%np p %np-host) "' is " (%np p %np-dotted)))))
+            (%nt-say (%str-concat (list "'" (%np p %np-host) "' is " (%np p %np-dotted)))))
           (%np! p %np-refid (%nt-refid-of (first a)))
           (%np! p %np-dns 0)
           a))))
@@ -352,7 +352,7 @@
     (def dup (if (null? (%nt-resolve-peer! p)) ()
                (List find (fn (_ q) (if (null? (%np q %np-dotted)) #f (string=? (%np q %np-dotted) (%np p %np-dotted)))) %nt-peers)))
     (if (not (null? dup))
-      (%nt-say (string-concat (list "duplicate peer " host " (" (%np p %np-dotted) ")")))
+      (%nt-say (%str-concat (list "duplicate peer " host " (" (%np p %np-dotted) ")")))
       (do (set! %nt-peers (pair p %nt-peers))
           (set! %nt-peer-cnt (+ %nt-peer-cnt 1))))))
 
@@ -370,7 +370,7 @@
 (def %nt-sendto
   (fn (_ fd bytes sa)
     (def b (nt-raw bytes))
-    (def r (in-call (cu-ptr-call (in-c "sendto") fd (cu-str->ptr b) (length bytes) in-dontwait
+    (def r (in-call (cu-ptr-call (cu-libc-sym "sendto") fd (cu-str->ptr b) (length bytes) in-dontwait
                                    (cu-str->ptr (first sa)) (cu-nth 1 sa))))
     (if (= r (length bytes)) 0
       (do (%nt-say (string-append "send failed: " (%nt-why (lit sendto)))) -1))))
@@ -381,13 +381,13 @@
     (unless (null? (%np p %np-sa))
       (do (when (< (%np p %np-fd) 0)
             (let ((fam (%nt-family (first (%np p %np-sa)))))
-              (let ((fd (in-call (cu-ptr-call (in-c "socket") fam 2 0))))
+              (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") fam 2 0))))
                 (do (if (= fam 2)
-                      (do (cu-ptr-call (in-c "bind") fd (cu-str->ptr (net-sockaddr "0.0.0.0" 0)) 16)
+                      (do (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (net-sockaddr "0.0.0.0" 0)) 16)
                           (let ((tos (str-make-raw 4)))
                             (do (cu-ptr-set! (cu-str->ptr tos) 0 72 4)
-                                (cu-ptr-call (in-c "setsockopt") fd 0 3 (cu-str->ptr tos) 4))))
-                      (let ((any (in-sockaddr6 () 0))) (cu-ptr-call (in-c "bind") fd (cu-str->ptr (first any)) (rest any))))
+                                (cu-ptr-call (cu-libc-sym "setsockopt") fd 0 3 (cu-str->ptr tos) 4))))
+                      (let ((any (in-sockaddr6 () 0))) (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (first any)) (rest any))))
                     (%np! p %np-fd fd)))))
           (when (>= %nt-verbose 1) (%nt-say (string-append "sending query to " (%np p %np-dotted))))
           (%np! p %np-xmt (append (nt-be-bytes (%nt-random) 4) (nt-be-bytes (%nt-random) 4)))
@@ -402,7 +402,7 @@
   (fn (_ action offset)
     (set! %nt-last-script %nt-cur)
     (unless (null? %nt-script)
-      (do (when (>= %nt-verbose 1) (%nt-say (string-concat (list "executing '" %nt-script " " action "'"))))
+      (do (when (>= %nt-verbose 1) (%nt-say (%str-concat (list "executing '" %nt-script " " action "'"))))
           (when (= (sys-fork) 0)
             (do (sys-setenv "stratum" (%nt-u %nt-stratum))
                 (sys-setenv "freq_drift_ppm" (%nt-u %nt-drift))
@@ -410,7 +410,7 @@
                 (sys-setenv "offset" (%nt-f offset))
                 (map (fn (_ n) (sys-signal n 0)) (list 13 (ts-signal-number "CHLD")))
                 (let ((r (in-exec %nt-script (list %nt-script action))))
-                  (do (%nt-say (string-concat (list "can't execute '" %nt-script "': " (in-errtext r))))
+                  (do (%nt-say (%str-concat (list "can't execute '" %nt-script "': " (in-errtext r))))
                       (sys-exit 111)))))))))
 
 ; strftime_YYYYMMDDHHMMSS
@@ -430,11 +430,11 @@
     (def dtime (%nt+ (%nt+ (first tvc) (%nt* (Float from "0.000001") (rest tvc))) offset))
     (def sec (%nt-trunc dtime))
     (def usec (%nt-trunc (%nt* (%nt- dtime sec) 1000000)))
-    (when (< (in-call (cu-ptr-call (in-c "settimeofday") (cu-str->ptr (%nt-timeval sec usec)) 0)) 0)
+    (when (< (in-call (cu-ptr-call (cu-libc-sym "settimeofday") (cu-str->ptr (%nt-timeval sec usec)) 0)) 0)
       (%nt-die (string-append "settimeofday: " (%nt-why (lit settimeofday)))))
     (when (>= %nt-verbose 2)
-      (%nt-say (string-concat (list "current time is " (%nt-stamp (first tvc)) "." (cu-pad-zero (%nt-u (rest tvc)) 6)))))
-    (%nt-say (string-concat (list "setting time to " (%nt-stamp sec) "." (cu-pad-zero (%nt-u usec) 6) " (offset " (%nt-sf offset) "s)")))
+      (%nt-say (%str-concat (list "current time is " (%nt-stamp (first tvc)) "." (cu-pad-zero (%nt-u (rest tvc)) 6)))))
+    (%nt-say (%str-concat (list "setting time to " (%nt-stamp sec) "." (cu-pad-zero (%nt-u usec) 6) " (offset " (%nt-sf offset) "s)")))
     (set! %nt-cur (%nt+ %nt-cur offset))
     (set! %nt-last-recv (%nt+ %nt-last-recv offset))
     (set! %nt-last-script (%nt+ %nt-last-script offset))
@@ -459,10 +459,10 @@
     (def reach (%np p %np-reach))
     (match
       ((= (& reach (- reach 1)) 0)
-        (do (when (>= %nt-verbose 4) (%nt-say (string-concat (list "peer " (%np p %np-dotted) " unfit for selection: unreachable")))) #f))
+        (do (when (>= %nt-verbose 4) (%nt-say (%str-concat (list "peer " (%np p %np-dotted) " unfit for selection: unreachable")))) #f))
       ((%nt< (%nt+ %nt-maxdist (%nt* %nt-tol (<< 1 %nt-poll))) rd)
         (do (when (>= %nt-verbose 3)
-              (%nt-say (string-concat (list "peer " (%np p %np-dotted) " unfit for selection: root distance " (%nt-f rd)
+              (%nt-say (%str-concat (list "peer " (%np p %np-dotted) " unfit for selection: root distance " (%nt-f rd)
                                             " too high, jitter:" (%nt-f (%np p %np-fjitter))))))
             #f))
       (#t #t))))
@@ -477,7 +477,7 @@
             (let ((rd (%nt-root-distance p)) (off (%np p %np-foffset)))
               (if (not (%nt-fit? p rd)) acc
                 (do (when (>= %nt-verbose 5)
-                      (%nt-say (string-concat (list "interval: [" (%nt-f (%nt- off rd)) " " (%nt-f off) " " (%nt-f (%nt+ off rd)) "] " (%np p %np-dotted)))))
+                      (%nt-say (%str-concat (list "interval: [" (%nt-f (%nt- off rd)) " " (%nt-f off) " " (%nt-f (%nt+ off rd)) "] " (%np p %np-dotted)))))
                     (append acc (list (list p -1 (%nt- off rd) rd) (list p 0 off rd) (list p 1 (%nt+ off rd) rd)))))))
           () %nt-peers)))
     (def pv (vec-build (length points) (fn (_ i) (cu-nth i points))))
@@ -505,12 +505,12 @@
     (match
       ((if (<= (rest hi) false) (%nt< (first lo) (first hi)) #f)
         (do (when (>= %nt-verbose 4)
-              (%nt-say (string-concat (list "selected interval: [" (%nt-f (first lo)) ", " (%nt-f (first hi)) "]; candidates:"
+              (%nt-say (%str-concat (list "selected interval: [" (%nt-f (first lo)) ", " (%nt-f (first hi)) "]; candidates:"
                                             (%nt-u cands) " falsetickers:" (%nt-u false)))))
             (%nt-cluster pv n (first lo) (first hi))))
       ((>= (* (+ false 1) 2) cands)
         (do (when (>= %nt-verbose 3)
-              (%nt-say (string-concat (list "falsetickers:" (%nt-u (+ false 1)) ", candidates:" (%nt-u cands) ", no peer selected"))))
+              (%nt-say (%str-concat (list "falsetickers:" (%nt-u (+ false 1)) ", candidates:" (%nt-u cands) ", no peer selected"))))
             ()))
       (#t (self pv n cands (+ false 1))))))
 
@@ -524,7 +524,7 @@
               (if (if (%nt< (cu-nth 2 pt) low) #t (%nt< high (cu-nth 2 pt))) (go (+ i 1) acc k)
                 (let ((s (pair (first pt) (%nt+ (* %nt-maxdist (%np (first pt) %np-pkt-stratum)) (cu-nth 3 pt)))))
                   (do (when (>= %nt-verbose 5)
-                        (%nt-say (string-concat (list "survivor[" (%nt-u k) "] metric:" (%nt-f (rest s)) " peer:" (%np (first pt) %np-dotted)))))
+                        (%nt-say (%str-concat (list "survivor[" (%nt-u k) "] metric:" (%nt-f (rest s)) " peer:" (%np (first pt) %np-dotted)))))
                       (go (+ i 1) (pair s acc) (+ k 1))))))))))
     (if (null? survivors)
       (do (when (>= %nt-verbose 3) (%nt-say "survivors:0, no peer selected")) ())
@@ -536,7 +536,7 @@
   (fn (self ss)
     (def k (length ss))
     (if (<= k 3)
-      (do (when (>= %nt-verbose 4) (%nt-say (string-concat (list "num_survivors " (%nt-u k) " <= 3, not discarding more")))) ss)
+      (do (when (>= %nt-verbose 4) (%nt-say (%str-concat (list "num_survivors " (%nt-u k) " <= 3, not discarding more")))) ss)
       (let ((js (map (fn (_ s) (List fold (fn (_ acc q) (%nt+ acc (%nt-sq (%nt- (%np (first s) %np-foffset) (%np (first q) %np-foffset))))) (Float from 0) ss)) ss)))
         (def min-j (List fold (fn (_ acc s) (if (%nt< (%np (first s) %np-fjitter) acc) (%np (first s) %np-fjitter) acc))
                      (%np (first (first ss)) %np-fjitter) (rest ss)))
@@ -544,10 +544,10 @@
                       (if (null? l) best (if (%nt< bv (first l)) (go (+ i 1) (rest l) i (first l)) (go (+ i 1) (rest l) best bv)))))
         (def max-j (%nt-sqrt (%nt/ (cu-nth max-at js) k)))
         (when (>= %nt-verbose 5)
-          (%nt-say (string-concat (list "max_selection_jitter (at " (%nt-u max-at) "):" (%nt-f max-j) " min_jitter:" (%nt-f min-j)))))
+          (%nt-say (%str-concat (list "max_selection_jitter (at " (%nt-u max-at) "):" (%nt-f max-j) " min_jitter:" (%nt-f min-j)))))
         (if (%nt< max-j min-j)
           (do (when (>= %nt-verbose 4)
-                (%nt-say (string-concat (list "max_selection_jitter:" (%nt-f max-j) " < min_jitter:" (%nt-f min-j)
+                (%nt-say (%str-concat (list "max_selection_jitter:" (%nt-f max-j) " < min_jitter:" (%nt-f min-j)
                                               ", num_survivors:" (%nt-u k) ", not discarding more"))))
               ss)
           (self (let go ((i 0) (l ss) (acc ())) (if (null? l) (reverse acc) (go (+ i 1) (rest l) (if (= i max-at) acc (pair (first l) acc)))))))))))
@@ -563,7 +563,7 @@
     (def q (if keep? (do (when (>= %nt-verbose 5) (%nt-say "keeping old synced peer")) %nt-last-peer)
              (do (set! %nt-last-peer p) p)))
     (when (>= %nt-verbose 4)
-      (%nt-say (string-concat (list "selected peer " (%np q %np-dotted) " filter_offset:" (%nt-sf (%np q %np-foffset))
+      (%nt-say (%str-concat (list "selected peer " (%np q %np-dotted) " filter_offset:" (%nt-sf (%np q %np-foffset))
                                     " age:" (%nt-f (%nt- %nt-cur (%np q %np-pkt-recv)))))))
     q))
 
@@ -571,14 +571,14 @@
 
 (def %nt-set-values!
   (fn (_ offset recv)
-    (when (>= %nt-verbose 4) (%nt-say (string-concat (list "last update offset=" (%nt-f offset) " recv_time=" (%nt-f recv)))))
+    (when (>= %nt-verbose 4) (%nt-say (%str-concat (list "last update offset=" (%nt-f offset) " recv_time=" (%nt-f recv)))))
     (set! %nt-last-offset offset)
     (set! %nt-last-recv recv)))
 
 ; adjtimex, ntp_adjtime on Darwin, on a struct timex of BUF
 (def %nt-adjtimex
   (fn (_ buf)
-    (in-call (cu-ptr-call (in-c (if os-darwin? "ntp_adjtime" "adjtimex")) (cu-str->ptr buf)))))
+    (in-call (cu-ptr-call (cu-libc-sym (if os-darwin? "ntp_adjtime" "adjtimex")) (cu-str->ptr buf)))))
 
 (def %nt-s64 (fn (_ v) (if (>= v 9223372036854775807) (- v 18446744073709551616) v)))
 (def %nt-tx (fn (_ buf off) (%nt-s64 (cu-ptr-ref (cu-str->ptr buf) off 8))))
@@ -589,14 +589,14 @@
     (def offset (%np p %np-foffset))
     (def recv (%np p %np-pkt-recv))
     (if (not (%nt< %nt-last-recv recv))
-      (do (when (>= %nt-verbose 3) (%nt-say (string-concat (list "update from " (%np p %np-dotted) ": same or older datapoint, not using it")))) 0)
+      (do (when (>= %nt-verbose 3) (%nt-say (%str-concat (list "update from " (%np p %np-dotted) ": same or older datapoint, not using it")))) 0)
       (%nt-discipline p offset recv))))
 
 (def %nt-discipline
   (fn (_ p offset0 recv0)
     (def big? (%nt< 1 (%nt-abs offset0)))
     (when big?
-      (do (when (>= %nt-verbose 4) (%nt-say (string-concat (list "stepping time by " (%nt-sf offset0) "; poll_exp=MINPOLL"))))
+      (do (when (>= %nt-verbose 4) (%nt-say (%str-concat (list "stepping time by " (%nt-sf offset0) "; poll_exp=MINPOLL"))))
           (%nt-step! offset0)
           (when %nt-q? (sys-exit 0))
           (%nt-clamp!)
@@ -626,7 +626,7 @@
     (when (>= %nt-verbose 4)
       (let ((t (in-zeroed 256)))
         (do (when (< (%nt-adjtimex t) 0) (%nt-die (string-append "adjtimex: " (%nt-why (lit adjtimex)))))
-            (%nt-say (string-concat (list "p adjtimex freq:" (%nt-dec (%nt-tx t 16)) " offset:" (%nt-sdec (%nt-tx t 8))
+            (%nt-say (%str-concat (list "p adjtimex freq:" (%nt-dec (%nt-tx t 16)) " offset:" (%nt-sdec (%nt-tx t 8))
                                           " status:0x" (cu-hexs (cu-ptr-ref (cu-str->ptr t) 40 4)) " tc:" (%nt-dec (%nt-tx t 48))))))))
     (%nt-kernel! p offset)))
 
@@ -657,12 +657,12 @@
     (when (< rc 0) (%nt-die (string-append "adjtimex: " (%nt-why (lit adjtimex)))))
     (def freq (%nt-tx t 16))
     (when (>= %nt-verbose 4)
-      (%nt-say (string-concat (list "adjtimex:" (%nt-dec rc) " freq:" (%nt-dec freq) " offset:" (%nt-sdec (%nt-tx t 8))
+      (%nt-say (%str-concat (list "adjtimex:" (%nt-dec rc) " freq:" (%nt-dec freq) " offset:" (%nt-sdec (%nt-tx t 8))
                                     " esterror:" (%nt-dec (%nt-tx t 32)) " maxerror:" (%nt-dec (%nt-tx t 24))
                                     " status:0x" (cu-hexs (cu-ptr-ref tp 40 4))))))
     (set! %nt-drift (if (< freq 0) (- 0 (wget-div (- 0 freq) 65536)) (wget-div freq 65536)))
     (when (>= %nt-verbose 2)
-      (%nt-say (string-concat (list "update from:" (%np p %np-dotted) " offset:" (%nt-sf offset) " delay:" (%nt-f (%np p %np-raw-delay))
+      (%nt-say (%str-concat (list "update from:" (%np p %np-dotted) " offset:" (%nt-sf offset) " delay:" (%nt-f (%np p %np-raw-delay))
                                     " jitter:" (%nt-f %nt-djitter) " clock drift:" (%nt-sf3 (%nt/ freq 65536)) "ppm tc:"
                                     (%nt-dec (%nt-tx t 48))))))
     1))
@@ -673,7 +673,7 @@
   (fn (_ upper)
     (def interval (nt-imin (<< 1 %nt-poll) upper))
     (def r (+ interval (& (%nt-random) (| (>> (- interval 1) 4) 1))))
-    (when (>= %nt-verbose 4) (%nt-say (string-concat (list "chose poll interval:" (%nt-u r) " (poll_exp:" (%nt-u %nt-poll) ")"))))
+    (when (>= %nt-verbose 4) (%nt-say (%str-concat (list "chose poll interval:" (%nt-u r) " (poll_exp:" (%nt-u %nt-poll) ")"))))
     r))
 
 (def %nt-adjust-poll!
@@ -685,14 +685,14 @@
             (when (< %nt-poll %nt-maxpoll)
               (do (set! %nt-poll (+ %nt-poll 1))
                   (when (>= %nt-verbose 4)
-                    (%nt-say (string-concat (list "polladj: discipline_jitter:" (%nt-f %nt-djitter) " ++poll_exp=" (%nt-u %nt-poll)))))))))
+                    (%nt-say (%str-concat (list "polladj: discipline_jitter:" (%nt-f %nt-djitter) " ++poll_exp=" (%nt-u %nt-poll)))))))))
       ((if (< %nt-polladj (- 0 %nt-polladj-limit)) #t (if (< count 0) (> %nt-poll %nt-bigpoll) #f))
         (do (set! %nt-polladj 0)
             (when (> %nt-poll %nt-minpoll)
               (do (set! %nt-poll (- %nt-poll 1))
                   (map (fn (_ q) (when (< (%np q %np-fd) 0) (%np! q %np-next (%nt- (%np q %np-next) (<< 1 %nt-poll))))) %nt-peers)
                   (when (>= %nt-verbose 4)
-                    (%nt-say (string-concat (list "polladj: discipline_jitter:" (%nt-f %nt-djitter) " --poll_exp=" (%nt-u %nt-poll)))))))))
+                    (%nt-say (%str-concat (list "polladj: discipline_jitter:" (%nt-f %nt-djitter) " --poll_exp=" (%nt-u %nt-poll)))))))))
       (#t (when (>= %nt-verbose 4) (%nt-say (string-append "polladj: count:" (%nt-dec %nt-polladj))))))))
 
 ; --- a peer's reply ------------------------------------------------------------------------
@@ -700,7 +700,7 @@
 (def %nt-recv
   (fn (_ fd)
     (def buf (str-make-raw 72))
-    (def r (in-call (cu-ptr-call (in-c "recv") fd (cu-str->ptr buf) 72 in-dontwait)))
+    (def r (in-call (cu-ptr-call (cu-libc-sym "recv") fd (cu-str->ptr buf) 72 in-dontwait)))
     (if (< r 0) (pair () r) (pair (%nt-bytes buf r) r))))
 
 ; recv_and_process_peer_pkt
@@ -713,9 +713,9 @@
         (match
           ((< size 0)
             (unless (= (Err errno-of -1) (if os-darwin? 35 11))
-              (%nt-die (string-concat (list "recv(" (%np p %np-dotted) ") error: " (%nt-why (lit recv)))))))
+              (%nt-die (%str-concat (list "recv(" (%np p %np-dotted) ") error: " (%nt-why (lit recv)))))))
           ((not (wget-memv size (list 48 68 72)))
-            (%nt-say (string-concat (list "malformed packet received from " (%np p %np-dotted) ": size " (%nt-u size)))))
+            (%nt-say (%str-concat (list "malformed packet received from " (%np p %np-dotted) ": size " (%nt-u size)))))
           ((if (null? (%np p %np-key)) #f
              (not (equal? (%nt-hash (%np p %np-key) (%nt-vec->list m 0 48))
                           (%nt-vec->list m 52 (nt-imin size (+ 52 (length (%nt-hash (%np p %np-key) ()))))))))
@@ -728,7 +728,7 @@
     (def status (vec-ref m 0))
     (def stratum (vec-ref m 1))
     (if (match ((= (& status 192) 192) #t) ((= stratum 0) #t) (#t (> stratum 15)))
-      (do (%nt-say (string-concat (list "reply from " (%np p %np-dotted) ": peer is unsynced")))
+      (do (%nt-say (%str-concat (list "reply from " (%np p %np-dotted) ": peer is unsynced")))
           (when (< %nt-poll %nt-bigpoll) (%nt-adjust-poll! %nt-minpoll))
           (%nt-next-query! p (Float from 0)))
       (%nt-take-reply! p m))))
@@ -743,7 +743,7 @@
     (def prev (%np p %np-raw-delay))
     (%np! p %np-raw-delay (if (%nt< delay0 0) (Float from 0) delay0))
     (if (match ((= (%np p %np-reach) 0) #f) ((not (%nt< (%nt* prev 4) delay0)) #f) (#t (%nt< (%nt/ 1 8192) delay0)))
-      (do (%nt-say (string-concat (list "reply from " (%np p %np-dotted) ": delay " (%nt-f delay0) " is too high, ignoring")))
+      (do (%nt-say (%str-concat (list "reply from " (%np p %np-dotted) ": delay " (%nt-f delay0) " is too high, ignoring")))
           (%nt-next-query! p (Float from 0)))
       (%nt-datapoint! p m t1 t2 t3 t4 (if (%nt< delay0 %nt-prec) %nt-prec delay0)))))
 
@@ -767,7 +767,7 @@
       (let go ((k 0)) (when (< k 8) (do (%nt-dp! p k 0 offset) (go (+ k 1))))))
     (%np! p %np-reach (| (%np p %np-reach) 1))
     (when (if (>= %nt-verbose 1) #t %nt-w?)
-      (%nt-say (string-concat (list "reply from " (%np p %np-dotted) ": offset:" (%nt-sf offset) " delay:" (%nt-f (%np p %np-raw-delay))
+      (%nt-say (%str-concat (list "reply from " (%np p %np-dotted) ": offset:" (%nt-sf offset) " delay:" (%nt-f (%np p %np-raw-delay))
                                     " status:0x" (%nt-hex (%np p %np-pkt-status) 2) " strat:" (%nt-u (%np p %np-pkt-stratum))
                                     " refid:0x" (%nt-hex (%np p %np-pkt-refid) 8) " rootdelay:" (%nt-f (%np p %np-pkt-rootdelay))
                                     " reach:0x" (%nt-hex (%np p %np-reach) 2)))))
@@ -798,13 +798,13 @@
     (def sa (in-zeroed 128))
     (def len (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr len) 0 128 4)
-    (def size (in-call (cu-ptr-call (in-c "recvfrom") %nt-listen (cu-str->ptr buf) 72 in-dontwait (cu-str->ptr sa) (cu-str->ptr len))))
+    (def size (in-call (cu-ptr-call (cu-libc-sym "recvfrom") %nt-listen (cu-str->ptr buf) 72 in-dontwait (cu-str->ptr sa) (cu-str->ptr len))))
     (def salen (cu-ptr-ref (cu-str->ptr len) 0 4))
     (match
       ((< size 0)
         (unless (= (Err errno-of -1) (if os-darwin? 35 11)) (%nt-die (string-append "recv: " (%nt-why (lit recv))))))
       ((not (wget-memv size (list 48 68 72)))
-        (%nt-say (string-concat (list "malformed packet received from " (%nt-dotted sa) ": size " (%nt-u size)))))
+        (%nt-say (%str-concat (list "malformed packet received from " (%nt-dotted sa) ": size " (%nt-u size)))))
       (#t (let ((m (%nt-bytes buf size)))
             (let ((mode (& (vec-ref m 0) 7)))
               (when (if (= mode 3) #t (= mode 1))
@@ -827,12 +827,12 @@
 ; create_and_bind_dgram_or_die(NULL, 123): IPv6's any address, else IPv4's
 (def %nt-listen!
   (fn (_ iface)
-    (def fd6 (in-call (cu-ptr-call (in-c "socket") %nt-af6 2 0)))
-    (def fd (if (>= fd6 0) fd6 (in-call (cu-ptr-call (in-c "socket") 2 2 0))))
+    (def fd6 (in-call (cu-ptr-call (cu-libc-sym "socket") %nt-af6 2 0)))
+    (def fd (if (>= fd6 0) fd6 (in-call (cu-ptr-call (cu-libc-sym "socket") 2 2 0))))
     (when (< fd 0) (%nt-die (string-append "socket: " (%nt-why (lit socket)))))
     (in-reuse! fd)
     (def sa (if (>= fd6 0) (in-sockaddr6 () %nt-server-port) (pair (net-sockaddr "0.0.0.0" %nt-server-port) 16)))
-    (when (< (in-call (cu-ptr-call (in-c "bind") fd (cu-str->ptr (first sa)) (rest sa))) 0)
+    (when (< (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (first sa)) (rest sa))) 0)
       (%nt-die (string-append "bind: " (%nt-why (lit bind)))))
     (unless (null? iface) (%nt-bind-iface! fd iface (>= fd6 0)))
     (set! %nt-listen fd)))
@@ -842,12 +842,12 @@
   (fn (_ fd iface v6?)
     (def r
       (if os-darwin?
-        (let ((idx (in-call (cu-ptr-call (in-c "if_nametoindex") iface))) (v (str-make-raw 4)))
+        (let ((idx (in-call (cu-ptr-call (cu-libc-sym "if_nametoindex") iface))) (v (str-make-raw 4)))
           (do (cu-ptr-set! (cu-str->ptr v) 0 idx 4)
-              (if (= idx 0) -1 (in-call (cu-ptr-call (in-c "setsockopt") fd (if v6? 41 0) (if v6? 125 25) (cu-str->ptr v) 4)))))
+              (if (= idx 0) -1 (in-call (cu-ptr-call (cu-libc-sym "setsockopt") fd (if v6? 41 0) (if v6? 125 25) (cu-str->ptr v) 4)))))
         (let ((name (nt-raw (append (tn-str-bytes iface) (list 0)))))
-          (in-call (cu-ptr-call (in-c "setsockopt") fd 1 25 (cu-str->ptr name) (+ (byte-len iface) 1))))))
-    (when (< r 0) (%nt-die (string-concat (list "can't bind to interface " iface ": " (%nt-why (lit setsockopt))))))))
+          (in-call (cu-ptr-call (cu-libc-sym "setsockopt") fd 1 25 (cu-str->ptr name) (+ (byte-len iface) 1))))))
+    (when (< r 0) (%nt-die (%str-concat (list "can't bind to interface " iface ": " (%nt-why (lit setsockopt))))))))
 
 ; --- the configuration ---------------------------------------------------------------------
 
@@ -855,8 +855,8 @@
 (def %nt-config-lines
   (fn (_ file shown)
     (def text (guard (e e) (if (string=? file "-") (file-read-all 0) (file-read-all file))))
-    (match ((Err err? text) (do (%nt-say (string-concat (list shown ": " (wget-err-text text)))) ()))
-           ((null? text) (do (%nt-say (string-concat (list shown ": " (tar-why (lit open) shown)))) ()))
+    (match ((Err err? text) (do (%nt-say (%str-concat (list shown ": " (wget-err-text text)))) ()))
+           ((null? text) (do (%nt-say (%str-concat (list shown ": " (tar-why (lit open) shown)))) ()))
            (#t (in-lines text)))))
 
 ; the keys of -k's FILE: (ID TYPE MSGSIZE KEYBYTES), the last read first
@@ -868,7 +868,7 @@
           (match
             ((null? t) acc)
             ((< (length t) 3)
-              (%nt-die (string-concat (list "bad line " (%nt-u (first l)) ": " (%nt-u (length t)) " tokens found, 3 needed"))))
+              (%nt-die (%str-concat (list "bad line " (%nt-u (first l)) ": " (%nt-u (length t)) " tokens found, 3 needed"))))
             (#t (pair (%nt-key (first l) t) acc)))))
       () (%nt-config-lines file file))))
 
@@ -901,14 +901,14 @@
 (def %nt-range
   (fn (_ s lo hi)
     (def n (in-strtou s))
-    (match ((null? n) (%nt-die (string-concat (list "invalid number '" s "'"))))
-           ((if (< n lo) #t (> n hi)) (%nt-die (string-concat (list "number " s " is not in " (%nt-u lo) ".." (%nt-u hi) " range"))))
+    (match ((null? n) (%nt-die (%str-concat (list "invalid number '" s "'"))))
+           ((if (< n lo) #t (> n hi)) (%nt-die (%str-concat (list "number " s " is not in " (%nt-u lo) ".." (%nt-u hi) " range"))))
            (#t n))))
 
 (def %nt-find-key
   (fn (_ keys id)
     (let ((k (List find (fn (_ k) (= (first k) id)) keys)))
-      (if (null? k) (%nt-die (string-concat (list "key " (%nt-u id) " is not defined"))) k))))
+      (if (null? k) (%nt-die (%str-concat (list "key " (%nt-u id) " is not defined"))) k))))
 
 ; -p's peers, a keyno:N: prefix naming a key
 (def %nt-peer-arg!
@@ -932,7 +932,7 @@
                  (%nt-add-peer! (cu-nth 1 t)
                    (if (if (> (length t) 3) (string=? (cu-nth 2 t) "key") #f)
                      (%nt-find-key keys (%nt-range (cu-nth 3 t) 1 65535)) ())))
-               (#t (%nt-say (string-concat (list "skipping /etc/ntp.conf:" (%nt-u (first l)) ": unimplemented command '" (first t) "'")))))))
+               (#t (%nt-say (%str-concat (list "skipping /etc/ntp.conf:" (%nt-u (first l)) ": unimplemented command '" (first t) "'")))))))
          (%nt-config-lines %nt-conf-file "/etc/ntp.conf"))))
 
 ; --- the applet ------------------------------------------------------------------------------
@@ -983,7 +983,7 @@
     (def n? (if (Opts on? o "-n") #t %nt-w?))
     (def iface (Opts value o "-I"))
     (when (if (Opts on? o "-l") #t (not (null? iface))) (%nt-listen! iface))
-    (when (Opts on? o "-N") (cu-ptr-call (in-c "setpriority") 0 0 -15))
+    (when (Opts on? o "-N") (cu-ptr-call (cu-libc-sym "setpriority") 0 0 -15))
     (unless n? (%nt-daemonize!))
     (def keys (if (Opts on? o "-k") (%nt-keys (Opts value o "-k")) ()))
     (if (null? (Opts values o "-p")) (%nt-conf-peers! keys)
@@ -1006,7 +1006,7 @@
 (def %nt-daemonize!
   (fn (_)
     (unless (= (sys-fork) 0) (sys-exit 0))
-    (cu-ptr-call (in-c "setsid"))
+    (cu-ptr-call (cu-libc-sym "setsid"))
     (let ((null (file-open-or-err file-open-read "/dev/null")))
       (unless (Err err? null)
         (do (sys-dup2 null 0) (sys-dup2 null 1) (sys-dup2 null 2))))))
@@ -1054,7 +1054,7 @@
     (def timeout (+ 1 (%nt-imax 0 (%nt-trunc (%nt- (rest state) %nt-cur)))))
     (def say-poll
       (fn (_ t) (when (>= %nt-verbose 3)
-                  (%nt-say (string-concat (list "poll:" (%nt-u t) "s sockets:" (%nt-u (length fds)) " interval:" (%nt-u (<< 1 %nt-poll)) "s"))))))
+                  (%nt-say (%str-concat (list "poll:" (%nt-u t) "s sockets:" (%nt-u (length fds)) " interval:" (%nt-u (<< 1 %nt-poll)) "s"))))))
     ; -ddd with a reply awaited: a second's poll first, unsaid, as replies
     ; mostly come within one
     (def ready
@@ -1096,7 +1096,7 @@
     (%np! p %np-fd -1)
     (when (< %nt-poll %nt-bigpoll) (%nt-adjust-poll! %nt-minpoll))
     (def t (%nt-poll-interval 512))
-    (%nt-say (string-concat (list "timed out waiting for " (%np p %np-dotted) ", reach 0x" (%nt-hex (%np p %np-reach) 2)
+    (%nt-say (%str-concat (list "timed out waiting for " (%np p %np-dotted) ", reach 0x" (%nt-hex (%np p %np-reach) 2)
                                   ", next query in " (%nt-u t) "s")))
     (when (= (%np p %np-reach) 0) (%nt-resolve-peer! p))
     (%nt-set-next! p t)))

@@ -24,17 +24,17 @@
 
 (import cu/cli cu-usage)
 (import cu/inet inet-set! inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/ping pn-div pn-number)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr-call
-  cu-ptr-ref cu-str->ptr cu-string-type cvt file-list-dir file-read-unsized
-  file-write length libc-strerror map reverse string-append string-concat
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
+  cu-ptr-call cu-ptr-ref cu-str->ptr cu-string-type cvt file-list-dir
+  file-read-unsized file-write length libc-strerror map reverse string-append
   string=? substring)
 (import cu/text cu-pad-left cu-pad-zero)
 
 (def %br-root "/sys/class/net/")
 
-(def %br-say (fn (_ msg) (file-write 2 (string-concat (list "brctl: " msg "\n")))))
+(def %br-say (fn (_ msg) (file-write 2 (%str-concat (list "brctl: " msg "\n")))))
 (def %br-die (fn (_ msg) (do (%br-say msg) (Err raise (lit brctl) msg ()))))
 (def %br-usage (fn (_) (Err raise (lit brctl-usage) "usage" ())))
 (def %br-out (fn (_ s) (file-write 1 s)))
@@ -73,7 +73,7 @@
     (let go ((i (if hex? 2 0)) (v 0))
       (match ((= n 0) (%br-die "invalid number ''"))
              ((>= i n) v)
-             ((>= (digit (byte-at s i)) base) (%br-die (string-concat (list "invalid number '" s "'"))))
+             ((>= (digit (byte-at s i)) base) (%br-die (%str-concat (list "invalid number '" s "'"))))
              (#t (go (+ i 1) (+ (* v base) (digit (byte-at s i)))))))))
 
 (def %br-hex4 (fn (_ v) (cu-pad-zero (cvt v cu-string-type 16) 4)))
@@ -83,7 +83,7 @@
 (def %br-timer
   (fn (_ text)
     (def c (%br-number text))
-    (string-concat (list (%br-u4 (pn-div c 100)) "." (cu-pad-zero (cu-int->str (% c 100)) 2)))))
+    (%str-concat (list (%br-u4 (pn-div c 100)) "." (cu-pad-zero (cu-int->str (% c 100)) 2)))))
 
 ; --- show ------------------------------------------------------------------------
 
@@ -97,9 +97,9 @@
       (do (when hdr (%br-out "bridge name\tbridge id\t\tSTP enabled\tinterfaces\n"))
           (let ((stp (%br-text (string-append base "stp_state")))
                 (ifs (%br-dir (string-append (%br-16 name) "/brif"))))
-            (do (%br-out (string-concat (list name "\t\t" id "\t" (match ((string=? stp "0") "no") ((string=? stp "1") "yes") (#t stp)))))
+            (do (%br-out (%str-concat (list name "\t\t" id "\t" (match ((string=? stp "0") "no") ((string=? stp "1") "yes") (#t stp)))))
                 (if (null? ifs) (%br-out "\n")
-                  (%br-out (string-concat (List map (fn (_ k) (string-concat (list (if (= k 0) "" "\t\t\t\t\t") "\t\t" (List ref k ifs) "\n")))
+                  (%br-out (%str-concat (List map (fn (_ k) (%str-concat (list (if (= k 0) "" "\t\t\t\t\t") "\t\t" (List ref k ifs) "\n")))
                                                     (List range 0 (List length ifs))))))
                 #t))))))
 
@@ -110,7 +110,7 @@
       (let go ((ns names) (hdr #t) (st 0))
         (if (null? ns) st
           (if (%br-show-one (first ns) hdr) (go (rest ns) #f st)
-            (do (%br-say (string-concat (list "bridge " (first ns) " does not exist"))) (go (rest ns) hdr 1))))))))
+            (do (%br-say (%str-concat (list "bridge " (first ns) " does not exist"))) (go (rest ns) hdr 1))))))))
 
 ; --- showmacs --------------------------------------------------------------------
 
@@ -118,19 +118,19 @@
 (def %br-fdb
   (fn (_ name)
     (def path (string-append (%br-16 name) "/brforward"))
-    (def fd (in-call (cu-ptr-call (in-c "open") (string-append %br-root path) 0)))
-    (when (< fd 0) (%br-die (string-concat (list "bridge " name " does not exist"))))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "open") (string-append %br-root path) 0)))
+    (when (< fd 0) (%br-die (%str-concat (list "bridge " name " does not exist"))))
     (def buf (inet-zeros 16))
     (def entries
       (let go ((acc ()))
-        (let ((n (in-call (cu-ptr-call (in-c "read") fd (cu-str->ptr buf) 16))))
+        (let ((n (in-call (cu-ptr-call (cu-libc-sym "read") fd (cu-str->ptr buf) 16))))
           (match ((= n 0) acc)
                  ((not (= n 16))
-                   (do (cu-ptr-call (in-c "close") fd)
-                       (%br-die (string-concat (list "can't read bridge " name " forward db"
+                   (do (cu-ptr-call (cu-libc-sym "close") fd)
+                       (%br-die (%str-concat (list "can't read bridge " name " forward db"
                                                      (if (< n 0) (string-append ": " (libc-strerror (Err errno-of n))) ""))))))
                  (#t (go (pair (List map (fn (_ i) (& (cu-ptr-ref (cu-str->ptr buf) i 1) 255)) (List range 0 16)) acc)))))))
-    (cu-ptr-call (in-c "close") fd)
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (def mac< (fn (_ a b) (let go ((i 0)) (match ((= i 6) #f) ((< (List ref i a) (List ref i b)) #t)
                                                   ((> (List ref i a) (List ref i b)) #f) (#t (go (+ i 1)))))))
     (List sort mac< (reverse entries))))
@@ -141,7 +141,7 @@
     (%br-out "port no\tmac addr\t\tis local?\tageing timer\n")
     (List map (fn (_ e)
                 (let ((age (| (List ref 8 e) (<< (List ref 9 e) 8) (<< (List ref 10 e) 16) (<< (List ref 11 e) 24))))
-                  (%br-out (string-concat (list (cu-pad-left (cu-int->str (List ref 6 e)) 3) "\t"
+                  (%br-out (%str-concat (list (cu-pad-left (cu-int->str (List ref 6 e)) 3) "\t"
                                                 (Str8 join ":" (List map (fn (_ i) (cu-pad-zero (cvt (List ref i e) cu-string-type 16) 2)) (List range 0 6)))
                                                 "\t" (if (= (List ref 7 e) 0) "no" "yes") "\t\t"
                                                 (%br-u4 (pn-div age 100)) "." (cu-pad-zero (cu-int->str (% age 100)) 2) "\n")))))
@@ -155,10 +155,10 @@
 ; show_bridge_port: PORT's STP state, from its brport files
 (def %br-port
   (fn (_ port)
-    (def f (fn (_ leaf) (%br-text (string-concat (list (%br-16 port) "/brport/" leaf)))))
+    (def f (fn (_ leaf) (%br-text (%str-concat (list (%br-16 port) "/brport/" leaf)))))
     (def n (fn (_ leaf) (%br-number (f leaf))))
     (def state (n "state"))
-    (string-concat
+    (%str-concat
       (list port " (" (cu-int->str (n "port_no")) ")\n"
             " port id\t\t" (%br-hex4 (n "port_id"))
             "\t\t\tstate\t\t" (cu-pad-left (if (< state 5) (List ref state %br-states) (cu-int->str state)) 15) "\n"
@@ -180,12 +180,12 @@
   (fn (_ name)
     (def base (string-append (%br-16 name) "/bridge/"))
     (def id (%br-read (string-append base "bridge_id")))
-    (when (null? id) (%br-die (string-concat (list "bridge " name " does not exist"))))
+    (when (null? id) (%br-die (%str-concat (list "bridge " name " does not exist"))))
     (def f (fn (_ leaf) (%br-text (string-append base leaf))))
     (def n (fn (_ leaf) (%br-number (f leaf))))
     (def t (fn (_ leaf) (%br-timer (f leaf))))
     (%br-out
-      (string-concat
+      (%str-concat
         (list name "\n bridge id\t\t" id
               "\n designated root\t" (f "root_id")
               "\n root port\t\t" (%br-u4 (n "root_port")) "\t\t\t"
@@ -210,13 +210,13 @@
 ; write_uint: "VAL\n" to NAME/LEAF under /sys/class/net
 (def %br-write
   (fn (_ name leaf val)
-    (def path (string-concat (list (%br-16 name) "/" leaf)))
-    (def fd (in-call (cu-ptr-call (in-c "open") (string-append %br-root path) 1)))
-    (when (< fd 0) (%br-die (string-concat (list "can't open '" path "': " (libc-strerror (Err errno-of fd))))))
+    (def path (%str-concat (list (%br-16 name) "/" leaf)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "open") (string-append %br-root path) 1)))
+    (when (< fd 0) (%br-die (%str-concat (list "can't open '" path "': " (libc-strerror (Err errno-of fd))))))
     (def s (string-append (cu-int->str val) "\n"))
-    (def r (in-call (cu-ptr-call (in-c "write") fd s (byte-len s))))
-    (cu-ptr-call (in-c "close") fd)
-    (when (< r 0) (%br-die (string-concat (list name ": " (libc-strerror (Err errno-of r))))))
+    (def r (in-call (cu-ptr-call (cu-libc-sym "write") fd s (byte-len s))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
+    (when (< r 0) (%br-die (%str-concat (list name ": " (libc-strerror (Err errno-of r))))))
     0))
 
 (def %br-space? (fn (_ c) (if (= c 32) #t (if (>= c 9) (<= c 13) #f))))
@@ -252,7 +252,7 @@
   (fn (_ s)
     (def i (%br-span-space s 0))
     (def e (%br-strtod-end s i))
-    (def bad (fn (_) (%br-die (string-concat (list "invalid argument '" s "' to 'timespec'")))))
+    (def bad (fn (_) (%br-die (%str-concat (list "invalid argument '" s "' to 'timespec'")))))
     (when (= e i) (bad))
     (def w (Str8 downcase (substring s i e)))
     (def neg? (= (byte-at w 0) #\-))
@@ -271,14 +271,14 @@
   (fn (_ br word)
     (def words (list "0" "off" "n" "no" "1" "on" "y" "yes"))
     (def k (List find-index (fn (_ w) (string=? w word)) words))
-    (when (null? k) (%br-die (string-concat (list "invalid argument '" word "' to 'brctl'"))))
+    (when (null? k) (%br-die (%str-concat (list "invalid argument '" word "' to 'brctl'"))))
     (%br-write br "bridge/stp_state" (if (< k 4) 0 1))))
 
 ; --- the ioctls ------------------------------------------------------------------
 
 (def %br-socket
   (fn (_)
-    (let ((fd (in-call (cu-ptr-call (in-c "socket") 2 1 0))))
+    (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 1 0))))
       (if (< fd 0) (%br-die (string-append "socket(AF_INET,1,0): " (libc-strerror (Err errno-of fd)))) fd))))
 
 ; NAME in a zeroed buffer, IFNAMSIZ bytes of it
@@ -291,16 +291,16 @@
 (def %br-ioctl
   (fn (_ req arg br)
     (def fd (%br-socket))
-    (def r (in-call (cu-ptr-call (in-c "ioctl") fd req (cu-str->ptr arg))))
-    (cu-ptr-call (in-c "close") fd)
-    (when (< r 0) (%br-die (string-concat (list "bridge " br ": " (libc-strerror (Err errno-of r))))))
+    (def r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr arg))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
+    (when (< r 0) (%br-die (%str-concat (list "bridge " br ": " (libc-strerror (Err errno-of r))))))
     0))
 
 ; addif and delif: IFACE's index in an ifreq naming BR
 (def %br-if
   (fn (_ req br iface)
-    (def index (cu-ptr-call (in-c "if_nametoindex") iface))
-    (when (= index 0) (%br-die (string-concat (list "iface " iface ": " (libc-strerror (Err errno-of (- 0 1)))))))
+    (def index (cu-ptr-call (cu-libc-sym "if_nametoindex") iface))
+    (when (= index 0) (%br-die (%str-concat (list "iface " iface ": " (libc-strerror (Err errno-of (- 0 1)))))))
     (def ifr (%br-name-buf br 40))
     (inet-set! ifr 16 index 4)
     (%br-ioctl req ifr br)))
@@ -344,7 +344,7 @@
       (%br-die "can't change directory to '/sys/class/net': No such file or directory"))
     (def key (first words))
     (unless (List find (fn (_ k) (string=? k key)) %br-keywords)
-      (%br-die (string-concat (list "invalid argument '" key "' to 'brctl'"))))
+      (%br-die (%str-concat (list "invalid argument '" key "' to 'brctl'"))))
     (if (string=? key "show") (%br-show (rest words)) (%br-command key (rest words)))))
 
 (def cu-brctl

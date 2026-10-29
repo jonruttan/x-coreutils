@@ -36,7 +36,7 @@
   cu-stat-get cu-str->ptr cu-sweep-tick! file-chmod file-close file-err-text
   file-lstat-full file-open-err file-open-read file-open-wronly file-stat-full
   file-symlink file-write filter length map reverse str-make-raw string-append
-  string-concat string=? substring sys-getcwd vec-build vec-ref vec-set!)
+  string=? substring sys-getcwd vec-build vec-ref vec-set!)
 (import cu/tar cu-unsafe-prefix tar-copy-out! tar-field tar-fill! tar-find-str
   tar-last-slash tar-min tar-mkdir tar-printable tar-reader tar-resolve!
   tar-skip! tar-why)
@@ -51,7 +51,7 @@
 ; the run ends: MSG said under unzip's name, and the status 1
 (def %uz-die (fn (_ msg) (Err raise (lit unzip) (string-append "unzip: " msg) ())))
 
-(def %uz-say (fn (_ msg) (file-write 2 (string-concat (list "unzip: " msg "\n")))))
+(def %uz-say (fn (_ msg) (file-write 2 (%str-concat (list "unzip: " msg "\n")))))
 
 ; --- the run --------------------------------------------------------------------
 
@@ -210,7 +210,7 @@
     (def cut (cu-unsafe-prefix name))
     (do (if (if (> cut 0) (not (vec-ref u 14)) #f)
           (do (vec-set! u 14 #t)
-              (%uz-say (string-concat (list "removing leading '" (substring name 0 cut) "' from member names"))))
+              (%uz-say (%str-concat (list "removing leading '" (substring name 0 cut) "' from member names"))))
           ())
         (substring name cut (byte-len name)))))
 
@@ -234,7 +234,7 @@
   (fn (_ z)
     (def d (vec-ref z 3))
     (def t (vec-ref z 2))
-    (string-concat
+    (%str-concat
       (list (%uz-2 (& (>> d 5) 15)) "-" (%uz-2 (& d 31)) "-" (cu-pad-zero (cu-int->str (+ (>> d 9) 1980)) 4) " "
             (%uz-2 (>> t 11)) ":" (%uz-2 (& (>> t 5) 63))))))
 
@@ -256,9 +256,9 @@
   (fn (_ u z name tot)
     (do (%uz-print u
           (if (= (%uz-verbose u) 0)
-            (string-concat (list (cu-pad-left (cu-int->str (%uz-size z)) 9) "  " (%uz-when z) "   "
+            (%str-concat (list (cu-pad-left (cu-int->str (%uz-size z)) 9) "  " (%uz-when z) "   "
                                  (tar-printable name) "\n"))
-            (string-concat (list (cu-pad-left (cu-int->str (%uz-size z)) 8) "  " (%uz-method-name z)
+            (%str-concat (list (cu-pad-left (cu-int->str (%uz-size z)) 8) "  " (%uz-method-name z)
                                  (cu-pad-left (cu-int->str (%uz-csize z)) 9)
                                  (cu-pad-left (cu-int->str (%uz-ratio (%uz-size z) (%uz-csize z))) 4) "% "
                                  (%uz-when z) " " (cu-pad-zero (dp-udigits (%uz-crc z) 16 #f) 8) "  "
@@ -271,9 +271,9 @@
     (def files (string-append (cu-int->str (vec-ref tot 2)) " files\n"))
     (%uz-print u
       (if (= (%uz-verbose u) 0)
-        (string-concat (list " --------" (cu-pad-left "" 21) "-------\n"
+        (%str-concat (list " --------" (cu-pad-left "" 21) "-------\n"
                              (cu-pad-left (cu-int->str (vec-ref tot 0)) 9) (cu-pad-left "" 21) files))
-        (string-concat (list "--------          ------- ----" (cu-pad-left "" 28) "----\n"
+        (%str-concat (list "--------          ------- ----" (cu-pad-left "" 28) "----\n"
                              (cu-pad-left (cu-int->str (vec-ref tot 0)) 8)
                              (cu-pad-left (cu-int->str (vec-ref tot 1)) 17)
                              (cu-pad-left (cu-int->str (%uz-ratio (vec-ref tot 0) (vec-ref tot 1))) 4) "%"
@@ -359,14 +359,14 @@
           (if (if (if (> (byte-len target) 0) (= (byte-at target 0) #\/) #f) #t (>= (tar-find-str target "..") 0))
             (vec-set! u 13 (pair (pair name target) (vec-ref u 13)))
             (if (guard (e #f) (do (file-symlink target name) #t)) ()
-              (%uz-die (string-concat (list "can't create symlink '" name "' to '" target "': "
+              (%uz-die (%str-concat (list "can't create symlink '" name "' to '" target "': "
                                             (tar-why (lit symlink) name)))))))))))
 
 (def %uz-make-links!
   (fn (_ u)
     (map (fn (_ l)
            (if (guard (e #f) (do (file-symlink (rest l) (first l)) #t)) ()
-             (%uz-die (string-concat (list "can't create symlink '" (first l) "' to '" (rest l) "'")))))
+             (%uz-die (%str-concat (list "can't create symlink '" (first l) "' to '" (rest l) "'")))))
          (reverse (vec-ref u 13)))))
 
 ; --- making the members ---------------------------------------------------------------
@@ -382,7 +382,7 @@
       (match
         ((not (null? st)) (cu-stat-get st (lit mode)))
         ((= (Err errno-of -1) 2) ())
-        (#t (%uz-die (string-concat (list "can't stat '" name "': " (tar-why (lit lstat) name)))))))))
+        (#t (%uz-die (%str-concat (list "can't stat '" name "': " (tar-why (lit lstat) name)))))))))
 
 ; PATH made, its parents first, as busybox's bb_make_directory does with
 ; FILEUTILS_RECUR: one already there is passed over
@@ -394,7 +394,7 @@
         (if (>= (Sys %sign-fold (tar-mkdir p 511)) 0) ()
           (let ((why (tar-why (lit mkdir) p)))
             (if (eq? (%uz-type-of p) 16384) ()
-              (%uz-die (string-concat (list "can't create directory '" p "': " why))))))))
+              (%uz-die (%str-concat (list "can't create directory '" p "': " why))))))))
     (def go
       (fn (self i)
         (match
@@ -429,15 +429,15 @@
           (do (if (= (%uz-quiet u) 0) (%uz-print u (string-append "   creating: " (tar-printable name) "\n")) ())
               (%uz-leading-dirs! name)
               (if (< (Sys %sign-fold (tar-mkdir name 511)) 0)
-                (%uz-die (string-concat (list "can't create directory '" name "': " (tar-why (lit mkdir) name))))
+                (%uz-die (%str-concat (list "can't create directory '" name "': " (tar-why (lit mkdir) name))))
                 (if (guard (e #f) (do (file-chmod name (& mode 4095)) #t)) ()
-                  (%uz-say (string-concat (list "can't set permissions of directory '" name "': "
+                  (%uz-say (%str-concat (list "can't set permissions of directory '" name "': "
                                                 (tar-why (lit chmod) name))))))))
         ((= (%uz-type there) 16384) ())
-        (#t (%uz-die (string-concat (list "'" (tar-printable name) "' exists but is not a directory"))))))))
+        (#t (%uz-die (%str-concat (list "'" (tar-printable name) "' exists but is not a directory"))))))))
 
 (def %uz-not-file
-  (fn (_ name) (%uz-die (string-concat (list "'" (tar-printable name) "' exists but is not a regular file")))))
+  (fn (_ name) (%uz-die (%str-concat (list "'" (tar-printable name) "' exists but is not a regular file")))))
 
 ; Member Z, a file or link to be made at NAME, as busybox's check_file goes:
 ; made where nothing is there, passed over under -n, made over under -o, and
@@ -451,7 +451,7 @@
         ((not (= (%uz-type there) 32768)) (%uz-not-file name))
         ((eq? (%uz-overwrite u) (lit always)) (%uz-make! u z name mode))
         (#t
-          (do (%uz-print u (string-concat (list "replace " (tar-printable name)
+          (do (%uz-print u (%str-concat (list "replace " (tar-printable name)
                                                 "? [y]es, [n]o, [A]ll, [N]one, [r]ename: ")))
               (let ((key (%uz-answer u)))
                 (let ((now (%uz-lstat-mode name)))
@@ -469,7 +469,7 @@
       ((= c #\r)
         (do (%uz-print u "new name: ")
             (again u z (%uz-chomp (%uz-answer u)) mode)))
-      (#t (do (%uz-print u (string-concat (list "error: invalid response [" (bytes->str (list c)) "]\n")))
+      (#t (do (%uz-print u (%str-concat (list "error: invalid response [" (bytes->str (list c)) "]\n")))
               (again u z name mode))))))
 
 (def %uz-chomp
@@ -506,7 +506,7 @@
         (let ((fd (if link? -1
                     (File open name (list (lit wronly) (lit creat) (lit trunc) (lit nofollow)) (& mode 4095)))))
           (if (if (not link?) (< fd 0) #f)
-            (%uz-die (string-concat (list "can't open '" name "': " (file-err-text (file-open-err fd name)))))
+            (%uz-die (%str-concat (list "can't open '" name "': " (file-err-text (file-open-err fd name)))))
             (do (if (= (%uz-quiet u) 0) (%uz-print u (string-append "  inflating: " (tar-printable name) "\n")) ())
                 (if link? (%uz-symlink! u z name)
                   (do (%uz-extract! u z fd) (file-close fd)))
@@ -656,7 +656,7 @@
       (let ((home (sys-getcwd)))
         (do (tar-mkdir dir 511)
             (if (< (Sys chdir dir) 0)
-              (%uz-die (string-concat (list "can't change directory to '" dir "': " (tar-why (lit chdir) dir))))
+              (%uz-die (%str-concat (list "can't change directory to '" dir "': " (tar-why (lit chdir) dir))))
               (let ((r (guard (e (do (Sys chdir home) (error e))) (thunk))))
                 (do (Sys chdir home) r))))))))
 
@@ -666,7 +666,7 @@
     (def quiet (%uz-quiet u))
     (def tot (vec-build 3 (fn (_ i) 0)))
     (do (if (<= quiet 1)
-          (do (if (= quiet 0) (%uz-print u (string-concat (list "Archive:  " (tar-printable name) "\n"))) ())
+          (do (if (= quiet 0) (%uz-print u (%str-concat (list "Archive:  " (tar-printable name) "\n"))) ())
               (if (vec-ref u 6)
                 (%uz-print u (if (> (%uz-verbose u) 0)
                                " Length   Method    Size  Cmpr    Date    Time   CRC-32   Name\n--------  ------  ------- ---- ---------- ----- --------  ----\n"

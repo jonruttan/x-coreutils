@@ -17,14 +17,14 @@
 
 (import cu/cli cu-usage)
 (import cu/inet inet-set! inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/ping pn-number)
-(import cu/prims byte-at byte-len cu-err-label cu-ptr-call cu-str->ptr
-  file-write length libc-strerror map string-concat string=?)
+(import cu/prims byte-at byte-len cu-err-label cu-libc-sym cu-ptr-call
+  cu-str->ptr file-write length libc-strerror map string=?)
 
 (def %vc-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "vconfig: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "vconfig: " msg "\n")))
         (Err raise (lit vconfig) msg ()))))
 (def %vc-usage (fn (_) (Err raise (lit vconfig-usage) "usage" ())))
 
@@ -65,11 +65,11 @@
     (def c (List find (fn (_ c) (%vc-same? (first c) (first words))) %vc-cmds))
     (when (if (null? c) #t (not (= (length words) (List ref 2 c)))) (%vc-usage))
     (def a (%vc-args (List ref 1 c) words))
-    (def fd (in-call (cu-ptr-call (in-c "socket") 2 1 0)))
-    (when (< fd 0) (%vc-die (string-concat (list "socket(AF_INET,1,0): " (libc-strerror (Err errno-of fd))))))
-    (def r (in-call (cu-ptr-call (in-c "ioctl") fd 35203 (cu-str->ptr a))))
-    (cu-ptr-call (in-c "close") fd)
-    (when (< r 0) (%vc-die (string-concat (list "ioctl error for " (first words) ": " (libc-strerror (Err errno-of r))))))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 1 0)))
+    (when (< fd 0) (%vc-die (%str-concat (list "socket(AF_INET,1,0): " (libc-strerror (Err errno-of fd))))))
+    (def r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35203 (cu-str->ptr a))))
+    (cu-ptr-call (cu-libc-sym "close") fd)
+    (when (< r 0) (%vc-die (%str-concat (list "ioctl error for " (first words) ": " (libc-strerror (Err errno-of r))))))
     0))
 
 (def cu-vconfig

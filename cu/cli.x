@@ -17,7 +17,7 @@
 (import cu/options cu-option-spec)
 (import cu/prims append byte-at byte-len cu-last cu-member-s? cu-nth cu-stdin!
   cu-stdin-chunk! file-write filter length map net-stdin-socket reverse
-  set-first! string-append string-concat string=? substring sys-exit)
+  set-first! string-append string=? substring sys-exit)
 (import cu/signal fu-args pg-signal-word)
 
 ; The applet class, which cu/applets.x hands cu-applets! as it loads: the
@@ -240,7 +240,7 @@
                   ; chmod reads a dash word as a mode before getopt sees it
                   (if (string=? applet "chmod")
                     (not (if (> (byte-len tok) 1) (= (byte-at tok 1) #\-) #f)) #f))
-          (file-write 2 (string-concat (list applet ": " (%cu-refusal applet tok) "\n"))))
+          (file-write 2 (%str-concat (list applet ": " (%cu-refusal applet tok) "\n"))))
         ; an applet busybox has no usage text for says so instead
         (file-write 2 (if (cu-member-s? applet %cu-no-help) "No help available\n"
                         (Opts usage (first (%cu-row-of applet)))))
@@ -300,7 +300,7 @@
 (def cu-missing-operand
   (fn (_ applet ops)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (if (null? ops) (list applet ": missing operand\n")
               (list applet ": missing operand after '" (cu-last ops) "'\n"))))
         1)))
@@ -311,7 +311,7 @@
 (def cu-missing-file-operand
   (fn (_ applet ops)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (if (null? ops) (list applet ": missing file operand\n")
               (list applet ": missing destination file operand after '"
                     (first ops) "'\n"))))
@@ -321,7 +321,7 @@
 ; 'OP'`, OP the first of them.  Answers 1.
 (def cu-extra-operand
   (fn (_ applet op)
-    (do (file-write 2 (string-concat (list applet ": extra operand '" op "'\n")))
+    (do (file-write 2 (%str-concat (list applet ": extra operand '" op "'\n")))
         1)))
 
 ; THUNK's answer where OPS number LO to HI, HI nil for no limit; otherwise the

@@ -20,8 +20,8 @@
 
 (import cu/cli cu-usage)
 (import cu/prims byte-at byte-len cu-sweep-lines cu-sweep-tick! file-err-text
-  file-write length reverse string-append string-concat string=? substring
-  vec-build vec-make vec-ref vec-set!)
+  file-write length reverse string-append string=? substring vec-build
+  vec-make vec-ref vec-set!)
 (import cu/text cu-fold-pieces cu-msort cu-pieces cu-run-text cu-str<)
 
 (def ts-space?
@@ -95,7 +95,7 @@
                 (do (cu-sweep-tick! cu-sweep-lines)
                     (if (< f 0)
                       (file-write 2
-                        (string-concat (list "tsort: cycle at " (vec-ref names node) "\n")))
+                        (%str-concat (list "tsort: cycle at " (vec-ref names node) "\n")))
                       ())
                     (vec-set! arr i (vec-ref arr (- len 1)))
                     (drop (vec-ref out node))
@@ -122,7 +122,7 @@
                 (self (rest (rest ws))))))))
     (do (edges words)
         (let ((r (%ts-order names out in)))
-          (do (file-write 1 (string-concat (reverse (first r))))
+          (do (file-write 1 (%str-concat (reverse (first r))))
               (if (= (rest r) 0) 0 1))))))
 
 ; tsort [FILE]: FILE, or `-` or no operand standard input.  A FILE that will
@@ -138,7 +138,7 @@
       (let ((src (cu-pieces name stdin-thunk)))
         (if (Err err? src)
           (do (file-write 2
-                (string-concat
+                (%str-concat
                   (list "tsort: can't open '" name "': " (file-err-text src) "\n")))
               1)
           (let ((s (first (cu-fold-pieces src take (pair "" ())))))

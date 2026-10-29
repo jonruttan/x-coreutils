@@ -23,17 +23,17 @@
 
 (import cu/cli cu-usage)
 (import cu/getopt cu-getopt-long)
-(import cu/inetd in-c in-call in-exec)
+(import cu/inetd in-call in-exec)
 (import cu/perm cu-basename-of)
-(import cu/prims cu-err-label cu-int->str cu-ptr-call cu-ptr-ref cu-str->ptr
-  cu-stdin-to-command! file-err-sym file-err-text file-open-or-err file-open-read
-  file-write libc-strerror str-make-raw string-append string-concat sys-close
+(import cu/prims cu-err-label cu-int->str cu-libc-sym cu-ptr-call cu-ptr-ref
+  cu-stdin-to-command! cu-str->ptr file-err-sym file-err-text file-open-or-err
+  file-open-read file-write libc-strerror str-make-raw string-append sys-close
   sys-exec-or-err sys-exit sys-fork sys-getenv sys-getpid sys-kill sys-signal)
 (import cu/strings cu-range-number)
 
 (def %nse-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "nsenter: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "nsenter: " msg "\n")))
         (Err raise (lit nsenter) msg ()))))
 
 ; the usage text, and the run's end
@@ -79,20 +79,20 @@
   (fn (_ path pid file)
     (def p (match ((not (null? path)) path)
                   ((= pid 0) (%nse-usage))
-                  (#t (string-concat (list "/proc/" (cu-int->str pid) "/" file)))))
+                  (#t (%str-concat (list "/proc/" (cu-int->str pid) "/" file)))))
     (let ((fd (file-open-or-err file-open-read p)))
-      (if (Err err? fd) (%nse-die (string-concat (list "can't open '" p "': " (file-err-text fd)))) fd))))
+      (if (Err err? fd) (%nse-die (%str-concat (list "can't open '" p "': " (file-err-text fd)))) fd))))
 
 ; libc's NAME called by CALL with its address: nil, or why it failed
 (def %nse-libc
   (fn (_ name call)
-    (let ((door (in-c name)))
+    (let ((door (cu-libc-sym name)))
       (if (null? door) "Function not implemented"
         (let ((r (in-call (call door))))
           (if (< r 0) (libc-strerror (Err errno-of r)) ()))))))
 
 (def %nse-or-die
-  (fn (_ why what) (unless (null? why) (%nse-die (string-concat (list what ": " why))))))
+  (fn (_ why what) (unless (null? why) (%nse-die (%str-concat (list what ": " why))))))
 
 (def %nse-zero (fn (_ v) (if (null? v) 0 v)))
 
@@ -109,7 +109,7 @@
 (def %nse-wait-and-exit
   (fn (self kid)
     (def st (str-make-raw 4))
-    (def r (in-call (cu-ptr-call (in-c "waitpid") kid (cu-str->ptr st) 0)))
+    (def r (in-call (cu-ptr-call (cu-libc-sym "waitpid") kid (cu-str->ptr st) 0)))
     (when (< r 0)
       (if (= (Err errno-of r) 4) (self kid) (%nse-die (string-append "waitpid: " (libc-strerror (Err errno-of r))))))
     (def raw (cu-ptr-ref (cu-str->ptr st) 0 4))
@@ -126,14 +126,14 @@
     (def name (cu-basename-of sh))
     (cu-stdin-to-command!)
     (def r (in-exec sh (list (string-append "-" name))))
-    (%nse-die (string-concat (list "can't execute '" sh "': " (libc-strerror (Err errno-of r)))))))
+    (%nse-die (%str-concat (list "can't execute '" sh "': " (libc-strerror (Err errno-of r)))))))
 
 ; PROG run in place of this process, as BB_EXECVP_or_die runs it
 (def %nse-exec
   (fn (_ prog)
     (cu-stdin-to-command!)
     (def err (sys-exec-or-err (first prog) (rest prog)))
-    (file-write 2 (string-concat (list "nsenter: can't execute '" (first prog) "': " (file-err-text err) "\n")))
+    (file-write 2 (%str-concat (list "nsenter: can't execute '" (first prog) "': " (file-err-text err) "\n")))
     (sys-exit (if (eq? (file-err-sym err) (lit enoent)) 127 126))))
 
 (def %nse-run
@@ -156,7 +156,7 @@
            (let ((fd (first p)) (ns (rest p)))
              (when (>= fd 0)
                (do (%nse-or-die (%nse-libc "setns" (fn (_ door) (cu-ptr-call door fd (List ref 2 ns))))
-                     (string-concat (list "setns(): can't reassociate to namespace '" (List ref 1 ns) "'")))
+                     (%str-concat (list "setns(): can't reassociate to namespace '" (List ref 1 ns) "'")))
                    (sys-close fd)))))
          fds)
     (def wd2 (if (if (>= root 0) (< wd 0) #f) (%nse-open "." 0 ".") wd))
@@ -181,7 +181,7 @@
     (def os (%nse-options (first r) ()))
     (if (null? (List ref 2 r))
       (%nse-run os (List ref 1 r))
-      (do (file-write 2 (string-concat (list "nsenter: " (List ref 2 r) "\n")))
+      (do (file-write 2 (%str-concat (list "nsenter: " (List ref 2 r) "\n")))
           (%nse-usage)))))
 
 (def cu-nsenter

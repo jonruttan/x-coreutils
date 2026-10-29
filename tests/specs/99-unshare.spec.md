@@ -18,7 +18,7 @@ namespaces themselves are tested in the Linux leg, against busybox.
             (do (sys-dup2 (file-open-write (us-f "out")) 1) (sys-dup2 (file-open-write (us-f "err")) 2)
                 (sys-exit (cu-run argv ""))))
           (def st (sys-wait kid))
-          (display (string-concat (list (file-read-all (us-f "out")) "stderr:\n"
+          (display (%str-concat (list (file-read-all (us-f "out")) "stderr:\n"
                                         (file-read-all (us-f "err")) "status " (cu-int->str st) "\n")))
           ())))
     (display "made"))

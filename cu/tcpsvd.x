@@ -25,14 +25,14 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/httpd hd-ugid)
 (import cu/nc nc-count)
-(import cu/prims byte-at byte-len cu-dlopen cu-dlsym cu-int->ptr cu-int->str
+(import cu/prims byte-at byte-len cu-int->ptr cu-int->str cu-libc-sym
   cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-sig-ign
   cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text file-read-run
   file-write filter length map net-accept net-close net-peer net-resolve
   net-sock-addr net-sockaddr net-sockaddr-read net-udp-open str-make-raw
-  string-append string-concat string=? substring sys-close sys-dup2
-  sys-exec-or-err sys-exit sys-fork sys-getpid sys-kill sys-pipe sys-poll
-  sys-setenv sys-signal wget-digits wget-div wget-err-text)
+  string-append string=? substring sys-close sys-dup2 sys-exec-or-err sys-exit
+  sys-fork sys-getpid sys-kill sys-pipe sys-poll sys-setenv sys-signal
+  wget-digits wget-div wget-err-text)
 (import cu/session ss-call)
 (import cu/signal ts-signal-number)
 
@@ -42,19 +42,13 @@
 (def %ts-cnum 0)
 (def %ts-cmax 30)
 (def %ts-hosts ())            ; -C: (PID . IP) for each running child
-(def %ts-libc ())
 ; fcntl is a system call here, not libc's: its third argument is variadic
 (def %ts-fcntl (syscall-door (lit fcntl)))
 
 (def %ts-die (fn (_ msg) (Err raise (lit net) msg ())))
 
 (def %ts-say
-  (fn (_ msg) (file-write 2 (string-concat (list %ts-app ": " msg "\n")))))
-
-(def %ts-c
-  (fn (_ name)
-    (when (null? %ts-libc) (set! %ts-libc (cu-dlopen () 1)))
-    (cu-dlsym %ts-libc name)))
+  (fn (_ msg) (file-write 2 (%str-concat (list %ts-app ": " msg "\n")))))
 
 ; a libc call's result folded to a signed int, as the platform folds its own
 (def %ts-call (fn (_ r) (Sys %sign-fold r)))
@@ -65,7 +59,7 @@
 (def %ts-count
   (fn (_ s)
     (let ((n (wget-digits s)))
-      (if (null? n) (%ts-die (string-concat (list "invalid number '" s "'"))) n))))
+      (if (null? n) (%ts-die (%str-concat (list "invalid number '" s "'"))) n))))
 
 ; the decimal digits S starts with: (N . END)
 (def %ts-leading
@@ -80,8 +74,8 @@
   (fn (_ s)
     (def n (wget-digits s))
     (if (if (null? n) #f (<= n 65535)) n
-      (let ((sv (cu-ptr-call (%ts-c "getservbyname") s (if %ts-tcp "tcp" "udp"))))
-        (if (= sv 0) (%ts-die (string-concat (list "bad port '" s "'")))
+      (let ((sv (cu-ptr-call (cu-libc-sym "getservbyname") s (if %ts-tcp "tcp" "udp"))))
+        (if (= sv 0) (%ts-die (%str-concat (list "bad port '" s "'")))
           (let ((p (cu-ptr-ref (cu-int->ptr sv) 16 4)))
             (+ (* (% p 256) 256) (% (wget-div p 256) 256))))))))
 
@@ -91,7 +85,7 @@
     (let ((s (str-make-raw 4)))
       (do (cu-ptr-set! (cu-str->ptr s) 0 16 4) s))))
 
-(def %ts-dotted (fn (_ a) (string-concat (list (first a) ":" (cu-int->str (rest a))))))
+(def %ts-dotted (fn (_ a) (%str-concat (list (first a) ":" (cu-int->str (rest a))))))
 
 ; gethostbyaddr's name for QUAD, or nil
 (def %ts-host-name
@@ -100,7 +94,7 @@
     (let go ((i 0) (parts (Str8 split "." quad)))
       (unless (null? parts)
         (do (cu-ptr-set! (cu-str->ptr buf) i (wget-digits (first parts)) 1) (go (+ i 1) (rest parts)))))
-    (def r (cu-ptr-call (%ts-c "gethostbyaddr") (cu-str->ptr buf) 4 2))
+    (def r (cu-ptr-call (cu-libc-sym "gethostbyaddr") (cu-str->ptr buf) 4 2))
     (if (= r 0) () (cu-ptr->str (cu-int->ptr (cu-ptr-word (cu-int->ptr r) 0))))))
 
 ; --- the sockets ----------------------------------------------------------------
@@ -117,7 +111,7 @@
   (fn (_ fd)
     (def sa (net-sockaddr "0.0.0.0" 0))
     (def buf (str-make-raw 4))
-    (def r (%ts-call (cu-ptr-call (%ts-c "recvfrom") fd (cu-str->ptr buf) 1 2
+    (def r (%ts-call (cu-ptr-call (cu-libc-sym "recvfrom") fd (cu-str->ptr buf) 1 2
                                    (cu-str->ptr sa) (cu-str->ptr (%ts-len16)))))
     (if (< r 0) () (net-sockaddr-read sa))))
 
@@ -131,9 +125,9 @@
   (fn (_ ug)
     (def fail? (fn (_ r sym)
       (let ((e (ss-call r (lit call) sym)))
-        (unless (null? e) (%ts-die (string-concat (list sym ": " (file-err-text e))))))))
-    (fail? (cu-ptr-call (%ts-c "setgid") (rest ug)) "setgid")
-    (fail? (cu-ptr-call (%ts-c "setuid") (first ug)) "setuid")))
+        (unless (null? e) (%ts-die (%str-concat (list sym ": " (file-err-text e))))))))
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") (rest ug)) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") (first ug)) "setuid")))
 
 ; --- the children ---------------------------------------------------------------
 
@@ -147,7 +141,7 @@
 (def %ts-reap!
   (fn (self)
     (def st (str-make-raw 4))
-    (def pid (%ts-call (cu-ptr-call (%ts-c "waitpid") -1 (cu-str->ptr st) 1)))
+    (def pid (%ts-call (cu-ptr-call (cu-libc-sym "waitpid") -1 (cu-str->ptr st) 1)))
     (when (> pid 0)
       (do (%ts-ended pid (cu-ptr-ref (cu-str->ptr st) 0 4))
           (self)))))
@@ -158,7 +152,7 @@
     (set! %ts-hosts (filter (fn (_ h) (not (= (first h) pid))) %ts-hosts))
     (when (> %ts-cnum 0) (set! %ts-cnum (- %ts-cnum 1)))
     (when (> %ts-verbose 0)
-      (%ts-say (string-concat (list "end " (cu-int->str pid) " "
+      (%ts-say (%str-concat (list "end " (cu-int->str pid) " "
         (if (= (% raw 128) 0)
           (string-append "exit " (cu-int->str (% (wget-div raw 256) 256)))
           (string-append "signal " (cu-int->str (% raw 128))))))))
@@ -167,14 +161,14 @@
 (def %ts-status
   (fn (_)
     (when (if (> %ts-verbose 0) (> %ts-cmax 1) #f)
-      (%ts-say (string-concat (list "status " (cu-int->str %ts-cnum) "/" (cu-int->str %ts-cmax)))))))
+      (%ts-say (%str-concat (list "status " (cu-int->str %ts-cnum) "/" (cu-int->str %ts-cmax)))))))
 
 ; sig_term_handler: a fatal signal ends the run with that signal's own death
 (def %ts-fatal-check
   (fn (_ sigs)
     (unless (null? sigs)
       (if (Sys take-signal (first sigs))
-        (do (when (> %ts-verbose 0) (%ts-say (string-concat (list "got signal " (cu-int->str (first sigs)) ", exit"))))
+        (do (when (> %ts-verbose 0) (%ts-say (%str-concat (list "got signal " (cu-int->str (first sigs)) ", exit"))))
             (sys-signal (first sigs) 0)
             (sys-kill (sys-getpid) (first sigs))
             (sys-exit (+ 128 (first sigs))))
@@ -203,7 +197,7 @@
         (if (null? c) () (list c (net-peer c) lfd)))
       (let ((remote (%ts-udp-peek lfd)))
         (if (null? remote) ()
-          (do (cu-ptr-call (%ts-c "connect") lfd (cu-str->ptr (net-sockaddr (first remote) (rest remote))) 16)
+          (do (cu-ptr-call (cu-libc-sym "connect") lfd (cu-str->ptr (net-sockaddr (first remote) (rest remote))) 16)
               (list lfd remote (%ts-udp-bind (first %ts-bound) (rest %ts-bound)))))))))
 
 ; ipsvd_perhost_add: how many connections REMOTE's address would have, this one
@@ -220,7 +214,7 @@
       (let ((conn (first n)) (remote (first (rest n))) (next (first (rest (rest n)))))
         (def cur (if (> %ts-maxph 0) (%ts-per-host (first remote)) 0))
         (if (if (> %ts-maxph 0) (> cur %ts-maxph) #f)
-          (do (unless (null? %ts-msg) (guard (_ ()) (cu-ptr-call (%ts-c "send") conn %ts-msg (byte-len %ts-msg) (if os-darwin? 128 64))))
+          (do (unless (null? %ts-msg) (guard (_ ()) (cu-ptr-call (cu-libc-sym "send") conn %ts-msg (byte-len %ts-msg) (if os-darwin? 128 64))))
               (net-close conn)
               next)
           (do (%ts-fork conn remote cur lfd) next))))))
@@ -265,9 +259,9 @@
                  ()))
     (when (> %ts-verbose 0)
       (do (when (> %ts-maxph 0)
-            (%ts-say (string-concat (list "concurrency " raddr " " (cu-int->str cur) "/" (cu-int->str %ts-maxph)))))
-          (%ts-say (string-concat (list "start " (cu-int->str (sys-getpid)) " " laddr "-" raddr
-                                        (if %ts-h? (string-concat (list " (" lhost "-" rhost ")")) ""))))))
+            (%ts-say (%str-concat (list "concurrency " raddr " " (cu-int->str cur) "/" (cu-int->str %ts-maxph)))))
+          (%ts-say (%str-concat (list "start " (cu-int->str (sys-getpid)) " " laddr "-" raddr
+                                        (if %ts-h? (%str-concat (list " (" lhost "-" rhost ")")) ""))))))
     (when %ts-env?
       (do (sys-setenv "PROTO" proto)
           (sys-setenv (string-append proto "LOCALADDR") laddr)
@@ -280,7 +274,7 @@
     (sys-signal 13 0)
     (map (fn (_ s) (sys-signal s 0)) %ts-sigs)
     (let ((err (sys-exec-or-err (first %ts-prog) (rest %ts-prog))))
-      (do (%ts-say (string-concat (list "can't execute '" (first %ts-prog) "': " (file-err-text err))))
+      (do (%ts-say (%str-concat (list "can't execute '" (first %ts-prog) "': " (file-err-text err))))
           (sys-exit 127)))))
 
 (def %ts-loop
@@ -340,7 +334,7 @@
     (def host (first ops))
     (def quad (if (if (= (byte-len host) 0) #t (string=? host "0")) "0.0.0.0"
                 (let ((q (guard (_ ()) (net-resolve host))))
-                  (if (null? q) (%ts-die (string-concat (list "bad address '" host "'"))) q))))
+                  (if (null? q) (%ts-die (%str-concat (list "bad address '" host "'"))) q))))
     (def port (%ts-port (first (rest ops))))
     (set! %ts-prog (rest (rest ops)))
     (set! %ts-chld (ts-signal-number "CHLD"))
@@ -352,8 +346,8 @@
     (set! %ts-bound (pair quad port))
     (unless (null? ug) (%ts-drop! ug))
     (when (> %ts-verbose 0)
-      (%ts-say (string-concat (list "listening on " quad ":" (cu-int->str port) ", starting"
-        (if (null? ug) "" (string-concat (list ", uid " (cu-int->str (first ug)) ", gid " (cu-int->str (rest ug)))))))))
+      (%ts-say (%str-concat (list "listening on " quad ":" (cu-int->str port) ", starting"
+        (if (null? ug) "" (%str-concat (list ", uid " (cu-int->str (first ug)) ", gid " (cu-int->str (rest ug)))))))))
     (let ((p (sys-pipe)))
       (do (%ts-fcntl (first p) 2 1) (%ts-fcntl (rest p) 2 1) (set! %ts-idle (first p))))
     (%ts-loop lfd)))

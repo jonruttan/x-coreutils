@@ -29,7 +29,7 @@ weight and timeout are the TLS engines' build, which a session pays once.
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def sc-port (let ((l (Socket tcp-listen 0))) (let ((p (Socket local-port l))) (do (Socket close l) p))))
   (sys-setenv "SC_PORT" (cu-int->str sc-port))
-  (sc-sh (string-concat (list
+  (sc-sh (%str-concat (list
     "d=/tmp/x-cu-ssl; rm -rf $d; mkdir -p $d && cd $d"
     " && openssl req -x509 -newkey rsa:2048 -nodes -keyout key.pem -out cert.pem -days 1 -subj /CN=localhost >/dev/null 2>&1"
     " && { openssl s_server -quiet -www -tls1_3 -accept $SC_PORT -cert cert.pem -key key.pem >/dev/null 2>&1 & echo $! > pid; } && sleep 1")))
@@ -54,7 +54,7 @@ weight and timeout are the TLS engines' build, which a session pays once.
           (def full (if socket? (append (list "-s" (cu-int->str (net-connect "127.0.0.1" sc-port))) argv) argv))
           (sys-exit (guard (e (do (file-write 2 "uncaught\n") 99)) (cu-run (pair "ssl_client" full) "")))))
     (def st (sys-wait pid))
-    (sc-sh (string-concat (list
+    (sc-sh (%str-concat (list
       "d=/tmp/x-cu-ssl; { if [ -s $d/out ]; then head -1 $d/out | tr -d '\\r'; grep -q TLSv1.3 $d/out && echo 'the page names TLSv1.3'; fi;"
       " echo \"[status " (cu-int->str st) "]\"; cat $d/err; } > $d/report")))
     (display (file-read-all (sc-f "report")))))

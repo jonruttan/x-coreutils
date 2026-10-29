@@ -31,10 +31,12 @@
 (import cu/fs2 cu-cmp-walk)
 (import cu/prims byte-at byte-len cu-int->str cu-last cu-lines cu-nth
   file-dir? file-read-all file-write length map reverse set-first!
-  string-append string-concat string=? substring vec-make vec-ref vec-set!)
-(import cu/text cu-file-pieces cu-first-unopened cu-join-with cu-num-prefix
-  cu-run-nul? cu-say cu-says cu-text-from cu-with-sources)
+  string-append string=? substring vec-make vec-ref vec-set!)
+(import cu/text cu-file-pieces cu-first-unopened cu-num-prefix cu-run-nul?
+  cu-say cu-says cu-text-from cu-with-sources)
 (import cu/walk cu-walk-pair)
+
+(import x/type/path Path)
 
 (def %cu-diff-lcs
   (fn (_ av bv n m)
@@ -79,21 +81,21 @@
                     (string-append (first ls) "\n"))
               acc)))))
     (if (= na 0)
-      (string-concat
+      (%str-concat
         (reverse
           (show dels "< "
             (list (string-append (%cu-range i (+ i (- nd 1)))
                     (string-append "d"
                       (string-append (cu-int->str (- j 1)) "\n")))))))
       (if (= nd 0)
-        (string-concat
+        (%str-concat
           (reverse
             (show adds "> "
               (list (string-append (cu-int->str (- i 1))
                       (string-append "a"
                         (string-append (%cu-range j (+ j (- na 1)))
                           "\n")))))))
-        (string-concat
+        (%str-concat
           (reverse
             (show adds "> "
               (pair "---\n"
@@ -210,7 +212,7 @@
                         (%cu-diff-body (vec-ref bv (%cu-diff-bi op)) untab? tab?)
                         "\n"))))
                 acc))))))
-    (string-concat (pair head (reverse (go hunk ()))))))
+    (%str-concat (pair head (reverse (go hunk ()))))))
 
 ; THE HUNKS, by index rather than by accumulation.  Collect the ops that
 ; are real changes, group them -- two groups merge when the run of equal
@@ -326,7 +328,7 @@
             (if (= status 0) ""
               (string-append
                 (%cu-diff-uni-head paths o)
-                (string-concat
+                (%str-concat
                   (map (fn (_ h) (%cu-diff-uni-hunk av bv h untab? tab?))
                     hs))))
             status))))))
@@ -355,7 +357,7 @@
     (def go
       (fn (self l dels adds hi hj acc)
         (if (null? l)
-          (string-concat (reverse (flush dels adds hi hj acc)))
+          (%str-concat (reverse (flush dels adds hi hj acc)))
           (let ((op (first l)))
             (match
               ((%cu-diff-eq? op)
@@ -404,19 +406,13 @@
 ; it at every level, which hides files in directories it was never pointed at;
 ; not followed.
 
-(def %cu-diff-path
-  (fn (_ dir name)
-    (if (string=? dir "/")
-      (string-append "/" name)
-      (string-append dir (string-append "/" name)))))
-
 ; `diff FLAGS A B`, the line the report puts above a body -- the flags as
 ; they were given, which is what the header is FOR: it is the command
 ; that would show this one file.
 (def %cu-diff-header
   (fn (_ flags pa pb)
     (string-append "diff"
-      (string-append (if (null? flags) "" (string-append " " (cu-join-with flags " ")))
+      (string-append (if (null? flags) "" (string-append " " (Str8 join " " flags)))
         (string-append " "
           (string-append pa (string-append " " (string-append pb "\n"))))))))
 
@@ -474,7 +470,7 @@
 
 (def %cu-diff-binary-text
   (fn (_ ops)
-    (string-concat
+    (%str-concat
       (list "Binary files " (first ops) " and " (first (rest ops))
             " differ\n"))))
 
@@ -491,8 +487,8 @@
         (do (set-first! out (pair (first r) (first out))) (rest r))))
     (def one
       (fn (_ n ina inb)
-        (def pa (%cu-diff-path a n))
-        (def pb (%cu-diff-path b n))
+        (def pa (Path join a n))
+        (def pb (Path join b n))
         (match
           ((if ina (not inb) #f)
             (if absent?
@@ -524,7 +520,7 @@
           (#t (emit! (%cu-diff-one-file o flags pa pb
                        (%cu-diff-source pa) (%cu-diff-source pb)))))))
     (let ((st (cu-walk-pair a b start one)))
-      (pair (string-concat (reverse (first out))) st))))
+      (pair (%str-concat (reverse (first out))) st))))
 
 ; The two names a report names.  "-" is stdin, and diff calls it that.
 (def %cu-diff-pair-text
@@ -568,7 +564,7 @@
     (if (= (length (Opts operands o)) 2)
       (%cu-diff-run o argv stdin-thunk)
       (do (file-write 2
-            (string-concat
+            (%str-concat
               (list "diff: usage: diff [-ibwBqsadTtrN] [-U N] [-L LABEL] "
                     "[-S FILE] FILE1 FILE2\n")))
           2))))
@@ -585,8 +581,8 @@
       (let ((d (cu-diff-dir o (%cu-diff-flags argv) pa pb (Opts value o "-S"))))
         (do (display (first d)) (rest d)))
       (%cu-diff-files o argv stdin-thunk
-        (if (file-dir? pa) (%cu-diff-path pa (%cu-diff-tail pb)) pa)
-        (if (file-dir? pb) (%cu-diff-path pb (%cu-diff-tail pa)) pb)))))
+        (if (file-dir? pa) (Path join pa (%cu-diff-tail pb)) pa)
+        (if (file-dir? pb) (Path join pb (%cu-diff-tail pa)) pb)))))
 
 (def %cu-diff-files
   (fn (_ o argv stdin-thunk pa pb)

@@ -8,8 +8,8 @@
 ;
 ; :set and the options it sets, each busybox's (editors/vi.c, with
 ; FEATURE_VI_SETOPTS): autoindent, expandtab, flash, ignorecase, showmatch
-; and tabstop, and x's own syntax (cu/vi-syntax.x).  An option is a bit of
-; %vi-setops, as busybox's vi_setops.
+; and tabstop, and x's own syntax and theme (cu/vi-syntax.x).  An option is a
+; bit of %vi-setops, as busybox's vi_setops.
 ; What each one does lives here, called from the places busybox checks it:
 ; char_insert for autoindent, expandtab and showmatch, indicate_error for
 ; flash, char_search for ignorecase.
@@ -25,6 +25,7 @@
 (def %vi-sm 16)         ; showmatch
 (def %vi-ts 32)         ; tabstop, whose value is %vi-tabstop
 (def %vi-sy 64)         ; syntax, x's own: colour by the file's grammar
+(def %vi-th 128)        ; theme, x's own, whose value is the Theme in use
 
 (def %vi-setops 0)
 (def %vi-indentcol 0)   ; the column of the autoindent just made, or 0
@@ -48,7 +49,8 @@
         (pair "ic" %vi-ic) (pair "ignorecase" %vi-ic)
         (pair "sm" %vi-sm) (pair "showmatch" %vi-sm)
         (pair "ts" %vi-ts) (pair "tabstop" %vi-ts)
-        (pair "sy" %vi-sy) (pair "syntax" %vi-sy)))
+        (pair "sy" %vi-sy) (pair "syntax" %vi-sy)
+        (pair "theme" %vi-th)))
 
 (def %vi-opt-bit
   (fn (self name opts)
@@ -60,7 +62,8 @@
 ; --- :set -------------------------------------------------------------------
 
 ; :set -- with nothing or `all`, every option as it stands; else each word
-; sets an option, `no` before it clears one, and ts=N sets the tab stop
+; sets an option, `no` before it clears one, ts=N sets the tab stop and
+; theme=NAME the colours syntax draws in
 (def %vi-colon-set
   (fn (_ args)
     (if (if (= (byte-len args) 0) #t (string=? args "all"))
@@ -69,11 +72,16 @@
 
 (def %vi-options-shown
   (fn (_)
-    (string-concat
+    (%str-concat
       (list (%vi-no %vi-ai) "autoindent " (%vi-no %vi-et) "expandtab "
             (%vi-no %vi-fl) "flash " (%vi-no %vi-ic) "ignorecase "
             (%vi-no %vi-sm) "showmatch tabstop=" (%vi-num->str %vi-tabstop)
-            (if (%vi-opt? %vi-sy) " syntax" "")))))
+            (if (%vi-opt? %vi-sy) (string-append " syntax" (%vi-theme-shown)) "")))))
+; theme=NAME, only for a theme other than the default
+(def %vi-theme-shown
+  (fn (_)
+    (def name ((Theme current) name))
+    (if (eq? name (lit default)) "" (string-append " theme=" (cvt name cu-string-type)))))
 (def %vi-no (fn (_ bit) (if (%vi-opt? bit) "" "no")))
 
 (def %vi-set-words
@@ -85,7 +93,7 @@
       ())))
 
 ; busybox's setops: WORD names an option, with `no` before it to clear it;
-; only tabstop takes =N
+; only tabstop and theme take =
 (def %vi-setops!
   (fn (_ word)
     (def no (if (vi< 1 (byte-len word)) (string=? (vi-bsub word 0 2) "no") #f))
@@ -96,6 +104,7 @@
     (match
       ((= bit 0) (%vi-bad-option word))
       ((= bit %vi-ts) (%vi-set-tabstop word (if no -1 eq)))
+      ((= bit %vi-th) (%vi-set-theme word (if no -1 eq)))
       ((vi< -1 eq) (%vi-bad-option word))
       (no (set! %vi-setops (if (%vi-opt? bit) (vi- %vi-setops bit) %vi-setops)))
       (#t (set! %vi-setops (if (%vi-opt? bit) %vi-setops (vi+ %vi-setops bit)))))))
@@ -116,6 +125,16 @@
     (if (if (vi< 0 t) (vi< t 33) #f)
       (set! %vi-tabstop t)
       (%vi-bad-option word))))
+
+; theme=NAME: draw in the theme of that name x/tool/syntax knows, the
+; default, a registered one or the user's theme file's; EQ as for tabstop
+(def %vi-set-theme
+  (fn (_ word eq)
+    (def t (if (vi< eq 0) ()
+             (Theme named (cvt (vi-bsub word (vi+ eq 1) (vi- (byte-len word) (vi+ eq 1)))
+                               %vi-symbol-type))))
+    (if (null? t) (%vi-bad-option word) (Theme use! t))))
+(def %vi-symbol-type (Type named SYMBOL))
 
 ; the number at I of S as busybox's bb_strtou reads it: a digit or a letter
 ; first, and no digit or letter after the digits; -1 when it is not one.
@@ -241,8 +260,8 @@
       ((vi< n 1) "")
       ((vi< 32 n) (string-append (self b 32) (self b (vi- n 32))))
       (#t (vi-bsub (if (= b #\tab) %vi-tab-run %vi-space-run) 0 n)))))
-(def %vi-tab-run (string-concat (List map (fn (_ i) (bytes->str (list 9))) (List range 0 32))))
-(def %vi-space-run (string-concat (List map (fn (_ i) " ") (List range 0 32))))
+(def %vi-tab-run (%str-concat (List map (fn (_ i) (bytes->str (list 9))) (List range 0 32))))
+(def %vi-space-run (%str-concat (List map (fn (_ i) " ") (List range 0 32))))
 
 ; Tab with expandtab: spaces to the next tab stop, each recorded on its own
 ; as busybox puts them in one at a time

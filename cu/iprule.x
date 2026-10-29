@@ -18,7 +18,6 @@
 
 (import cu/dump dp-find)
 (import cu/inet inet-int32)
-(import cu/inetd in-c)
 (import cu/ip ip-addr1 ip-attrs ip-cstr ip-die ip-die-usage ip-dump ip-get
   ip-id ip-invarg ip-keyword ip-name ip-names ip-next ip-ntoa ip-num ip-open
   ip-put ip-run ip-say ip-some)
@@ -26,8 +25,8 @@
   ip-r-type ip-rtn-id ip-rtn-name ip-tables)
 (import cu/ipset ip-attr! ip-le ip-pfx-bytes ip-prefix-in ip-req ip-req-bytes
   ip-str-bytes ip-talk ip-unsigned)
-(import cu/prims append byte-len cu-int->str cu-nth cu-ptr-call cu-ptr-ref
-  cu-string-type cvt file-write map string-append string-concat string=?
+(import cu/prims append byte-len cu-int->str cu-libc-sym cu-nth cu-ptr-call
+  cu-ptr-ref cu-string-type cvt file-write map string-append string=?
   substring)
 
 (def ip-dsfields (fn (_ f) (ip-names f "dsfield" (list (pair 0 "0")))))
@@ -53,7 +52,7 @@
     (def family (ip-r-family r))
     (match
       ((not (null? e)) (if (= len (ip-host-len family)) (ip-ntoa family (rest e))
-                         (string-concat (list (ip-ntoa family (rest e)) "/" (cu-int->str len)))))
+                         (%str-concat (list (ip-ntoa family (rest e)) "/" (cu-int->str len)))))
       ((= len 0) none)
       (#t (string-append "0/" (cu-int->str len))))))
 
@@ -64,22 +63,22 @@
     (def m (if (null? mark) 0 (ip-num (rest mark))))
     (match
       ((if (null? mark) (null? mask) #f) "")
-      ((if (null? mask) #t (= (ip-num (rest mask)) 4294967295)) (string-concat (list "fwmark " (%ip-hex-alt m) " ")))
-      (#t (string-concat (list "fwmark " (%ip-hex-alt m) "/" (%ip-hex-alt (ip-num (rest mask))) " "))))))
+      ((if (null? mask) #t (= (ip-num (rest mask)) 4294967295)) (%str-concat (list "fwmark " (%ip-hex-alt m) " ")))
+      (#t (%str-concat (list "fwmark " (%ip-hex-alt m) "/" (%ip-hex-alt (ip-num (rest mask))) " "))))))
 
 ; a suppress limit, shown where it is not -1
 (def %ip-rule-limit
   (fn (_ r type word)
     (let ((e (ip-r-attr r type)))
       (if (if (null? e) #t (= (ip-num (rest e)) 4294967295)) ""
-        (string-concat (list word " " (cu-int->str (inet-int32 (ip-num (rest e)))) " "))))))
+        (%str-concat (list word " " (cu-int->str (inet-int32 (ip-num (rest e)))) " "))))))
 
 (def %ip-rule-realms
   (fn (_ f r)
     (let ((e (ip-r-attr r 11)))
       (if (null? e) ""
         (let ((to (& (ip-num (rest e)) 65535)) (from (>> (ip-num (rest e)) 16)))
-          (string-append (if (= from 0) "" (string-concat (list "realms " (ip-name (%ip-realms f) from) "/")))
+          (string-append (if (= from 0) "" (%str-concat (list "realms " (ip-name (%ip-realms f) from) "/")))
                          (string-append (ip-name (%ip-realms f) to) " ")))))))
 
 ; the rule's type: a nat's map-to, else any type but unicast, as its name
@@ -87,7 +86,7 @@
   (fn (_ r)
     (match
       ((= (ip-r-type r) 10)
-        (let ((g (ip-r-attr r 5))) (if (null? g) "masquerade" (string-concat (list "map-to " (ip-ntoa (ip-r-family r) (rest g)) " ")))))
+        (let ((g (ip-r-attr r 5))) (if (null? g) "masquerade" (%str-concat (list "map-to " (ip-ntoa (ip-r-family r) (rest g)) " ")))))
       ((= (ip-r-type r) 1) "")
       (#t (ip-rtn-name (ip-r-type r))))))
 
@@ -96,16 +95,16 @@
   (fn (_ f r)
     (def prio (ip-r-attr r 6))
     (def table (ip-r-attr r 15))
-    (string-concat
+    (%str-concat
       (list (cu-int->str (if (null? prio) 0 (ip-num (rest prio)))) ":\tfrom "
             (%ip-rule-end r 2 (ip-r-src-len r) "all") " "
-            (let ((to (%ip-rule-end r 1 (ip-r-dst-len r) ""))) (if (string=? to "") "" (string-concat (list "to " to " "))))
-            (if (= (cu-nth 4 r) 0) "" (string-concat (list "tos " (ip-name (ip-dsfields f) (cu-nth 4 r)) " ")))
+            (let ((to (%ip-rule-end r 1 (ip-r-dst-len r) ""))) (if (string=? to "") "" (%str-concat (list "to " to " "))))
+            (if (= (cu-nth 4 r) 0) "" (%str-concat (list "tos " (ip-name (ip-dsfields f) (cu-nth 4 r)) " ")))
             (%ip-rule-fwmark r)
-            (ip-some (cu-nth 10 r) 3 (fn (_ b) (string-concat (list "iif " (ip-cstr b) " "))))
-            (match ((not (null? table)) (string-concat (list "lookup " (ip-name (ip-tables f) (ip-num (rest table))) " ")))
+            (ip-some (cu-nth 10 r) 3 (fn (_ b) (%str-concat (list "iif " (ip-cstr b) " "))))
+            (match ((not (null? table)) (%str-concat (list "lookup " (ip-name (ip-tables f) (ip-num (rest table))) " ")))
                    ((= (cu-nth 5 r) 0) "")
-                   (#t (string-concat (list "lookup " (ip-name (ip-tables f) (cu-nth 5 r)) " "))))
+                   (#t (%str-concat (list "lookup " (ip-name (ip-tables f) (cu-nth 5 r)) " "))))
             (%ip-rule-limit r 14 "suppress_prefixlength")
             (%ip-rule-limit r 13 "suppress_ifgroup")
             (%ip-rule-realms f r)
@@ -119,7 +118,7 @@
       (let ((fd (ip-open f)))
         (do (map (fn (_ r) (file-write 1 (%ip-rule-text f r)))
                  (ip-dump f fd 34 (if (= (ip-get f (lit preferred)) 0) 2 (ip-get f (lit preferred))) 1 %ip-rule-of))
-            (cu-ptr-call (in-c "close") fd)
+            (cu-ptr-call (cu-libc-sym "close") fd)
             0)))))
 
 (def %ip-rule-words
@@ -131,7 +130,7 @@
   (fn (_ f arg)
     (let ((a (ip-addr1 arg 2)))
       (if (first a) (List take 4 (List ref 2 a))
-        (ip-die f (string-concat (list "an IP address is expected rather than \"" arg "\"")))))))
+        (ip-die f (%str-concat (list "an IP address is expected rather than \"" arg "\"")))))))
 
 ; get_rt_realms: FROM/TO or TO, each a realm's name or number; nil where one is neither
 (def %ip-rule-realm-of
@@ -204,7 +203,7 @@
                     (ip-get s (lit tos)) table 3 0 (ip-get s (lit type))))
     (def fd (ip-open f))
     (def r (ip-talk f fd (ip-req-bytes (ip-get s (lit req)) (append body (ip-le 0 4)) 2) 2))
-    (cu-ptr-call (in-c "close") fd)
+    (cu-ptr-call (cu-libc-sym "close") fd)
     (if (< r 0) 2 0)))
 
 ; do_iprule

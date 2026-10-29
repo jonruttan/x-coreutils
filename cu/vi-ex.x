@@ -374,7 +374,7 @@
     (def qr (%vi-or-this-line got? q r))
     (%vi-text-yank! (first qr) (rest qr) %vi-ydreg 1)
     (%vi-status-line!
-      (string-concat
+      (%str-concat
         (list "Yank " (%vi-num->str (%vi-count-lines (first qr) (rest qr)))
               " lines (" (%vi-num->str (byte-len (first (%vi-reg %vi-ydreg))))
               " chars) into [" (bytes->str (list (%vi-what-reg))) "]")))))
@@ -383,7 +383,7 @@
 (def %vi-colon-list
   (fn (_ got? q r)
     (def qr (%vi-or-this-line got? q r))
-    (%vi-status-line! (string-concat (reverse (%vi-listed (first qr) (rest qr) ()))))))
+    (%vi-status-line! (%str-concat (reverse (%vi-listed (first qr) (rest qr) ()))))))
 
 (def %vi-listed
   (fn (self q r acc)
@@ -440,7 +440,7 @@
   (fn (self s i acc)
     (def c (%vi-byte-of s i))
     (match
-      ((if (vi< i (byte-len s)) #f #t) (string-concat (reverse acc)))
+      ((if (vi< i (byte-len s)) #f #t) (%str-concat (reverse acc)))
       ((= c #\%) (%vi-expand-name self s i acc %vi-filename))
       ((= c #\#) (%vi-expand-name self s i acc %vi-alt-filename))
       ((if (= c #\\) (vi< (vi+ i 1) (byte-len s)) #f)
@@ -486,7 +486,7 @@
     (Vector set! %vi-ydreg () %vi-regs)
     (set! %vi-cur-line -1)
     (%vi-status-line!
-      (string-concat
+      (%str-concat
         (list "'" name "'" (if (vi< size 0) " [New file]" "")
               (if (= %vi-readonly 0) "" " [Readonly]")
               " " (%vi-num->str (%vi-count-lines 0 (vi- %vi-end 1))) "L, "
@@ -509,7 +509,7 @@
     (def size (%vi-file-insert name q #f))
     (if (vi< size 0) ()
       (do (%vi-status-line!
-            (string-concat
+            (%str-concat
               (list "'" name "'" (if (= %vi-readonly 0) "" " [Readonly]")
                     " " (%vi-num->str (%vi-count-lines q (vi+ q (vi- size 1)))) "L, "
                     (%vi-num->str size) "C")))
@@ -551,7 +551,7 @@
 (def %vi-written
   (fn (_ cmd name force? q l size)
     (%vi-status-line!
-      (string-concat
+      (%str-concat
         (list "'" name "' "
               (%vi-num->str (%vi-count-lines q (vi-max q (vi- (vi+ q l) 1)))) "L, "
               (%vi-num->str l) "C")))
@@ -613,7 +613,7 @@
       (#t (do (%vi-dot-skip-over-ws!)
               (if (vi< 1 (first res))
                 (%vi-status-line!
-                  (string-concat
+                  (%str-concat
                     (list (%vi-num->str (first res)) " substitutions on "
                           (%vi-num->str (rest res)) " lines")))
                 ()))))))
@@ -705,7 +705,7 @@
 (def %vi-path-join
   (fn (_ dir name)
     (if (= (byte-at dir (vi- (byte-len dir) 1)) #\/) (string-append dir name)
-      (string-concat (list dir "/" name)))))
+      (%str-concat (list dir "/" name)))))
 
 ; busybox's run_cmds: each line of S a colon command, a run of newlines one
 ; break
@@ -758,7 +758,7 @@
 (def %vi-shell-ran
   (fn (_ st)
     (if (= st 0) ()
-      (%vi-put (string-concat (list "\nshell returned " (%vi-num->str st) "\n\n"))))
+      (%vi-put (%str-concat (list "\nshell returned " (%vi-num->str st) "\n\n"))))
     (%vi-raw!)
     (%vi-hit-return "")))
 

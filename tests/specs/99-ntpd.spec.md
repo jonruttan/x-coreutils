@@ -35,7 +35,7 @@ then the server's record or the reply.
   (eval (lit (set! %nt-conf-file "/tmp/x-cu-ntp/ntp.conf")) (module cu/ntpd))
   (def nt-prep (fn (_ flags args setup port)
     (sys-setenv "NT_FLAGS" flags) (sys-setenv "NT_ARGS" args) (sys-setenv "NT_SETUP" setup) (sys-setenv "NT_PORT" (cu-int->str port))
-    (nt-sh (string-concat (list
+    (nt-sh (%str-concat (list
       "d=/tmp/x-cu-ntp; rm -rf $d; mkdir -p $d; cd $d; port=$NT_PORT; : > $d/got; : > $d/err; eval \"$NT_SETUP\"; "
       "eval \"set -- $(printf '%s' \"$NT_ARGS\" | sed \"s/:P/:$port/g\")\"; for a; do printf '%s\\n' \"$a\"; done > $d/.argv")))
     (nt-lines (file-read-all (nt-f ".argv")))))
@@ -49,21 +49,21 @@ then the server's record or the reply.
   ; the child's raw wait status, nil while it runs (WNOHANG)
   (def nt-reap (fn (_ pid hang?)
     (let ((st (str-make-raw 4)))
-      (if (> (in-call (cu-ptr-call (in-c "waitpid") pid (cu-str->ptr st) (if hang? 0 1))) 0)
+      (if (> (in-call (cu-ptr-call (cu-libc-sym "waitpid") pid (cu-str->ptr st) (if hang? 0 1))) 0)
         (cu-ptr-ref (cu-str->ptr st) 0 4) ()))))
   (def nt-status (fn (_ raw) (if (> (% raw 128) 0) (+ 128 (% raw 128)) (% (wget-div raw 256) 256))))
   (def nt-said? (fn (_ words) (let ((e (file-read-all (nt-f "err")))) (List any? (fn (_ w) (not (null? (Str8 index-of w e)))) words))))
   (def nt-has? (fn (_ flags w) (List any? (fn (_ x) (string=? x w)) (Str8 split " " flags))))
   (def nt-be (fn (_ n k) (nt-be-bytes n k)))
-  (def nt-hexs (fn (_ l) (string-concat (map (fn (_ b) (cu-pad-zero (cu-hexs b) 2)) l))))
+  (def nt-hexs (fn (_ l) (%str-concat (map (fn (_ b) (cu-pad-zero (cu-hexs b) 2)) l))))
   (def nt-sha-key (list 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20))
   ; the server's record of a query Q, its bytes
   (def nt-record (fn (_ q)
     (def n (length q))
-    (string-concat (list "query " (cu-int->str n) " bytes, status 0x" (nt-hexs (list (first q)))
+    (%str-concat (list "query " (cu-int->str n) " bytes, status 0x" (nt-hexs (list (first q)))
       (if (<= n 48) ""
         (let ((got (List drop 52 q)) (head (List take 48 q)))
-          (string-concat (list ", keyid " (nt-hexs (List take 4 (List drop 48 q)))
+          (%str-concat (list ", keyid " (nt-hexs (List take 4 (List drop 48 q)))
             (match ((equal? got (cu-md5-bytes (append (tn-str-bytes "secret") head))) ", md5 digest ok")
                    ((equal? got (cu-sha1-bytes (append nt-sha-key head))) ", sha1 digest ok")
                    (#t (string-append ", digest " (nt-hexs got))))))))
@@ -107,7 +107,7 @@ then the server's record or the reply.
                                           (#t ()))))))))))
   (def nt-report (fn (_ port st tail)
     (sys-setenv "NT_PORT" (cu-int->str port))
-    (nt-sh (string-concat (list
+    (nt-sh (%str-concat (list
       "d=/tmp/x-cu-ntp; { sed -E -e \"s/:$NT_PORT([^0-9]|\\$)/:P\\1/g\" -e 's/offset:([+-])[0-9.]+/offset:\\1N/' -e 's/delay:[0-9.]+ /delay:N /' $d/err; "
       "echo \"[status " (cu-int->str st) "]\"; " tail "; } > $d/report")))
     (display (file-read-all (nt-f "report")))))
@@ -138,7 +138,7 @@ then the server's record or the reply.
     (sys-usleep 300000)
     (sys-kill pid 15)
     (def st (nt-status (nt-reap pid #t)))
-    (nt-report port st (string-concat (list
+    (nt-report port st (%str-concat (list
       "od -An -tx1 -v $d/reply | tr -s ' \\n' '  ' | awk -v now=$(( $(date +%s) + 2208988800 )) '"
       "{ n = split($0, b, \" \") } "
       "function hx(i, k,   s, j) { s = \"\"; for (j = i; j < i + k; j++) s = s b[j + 1]; return s } "

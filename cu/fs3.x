@@ -27,14 +27,15 @@
   file-open-wronly file-or-err file-seek file-stat-full file-stat-wide
   file-statfs-full file-truncate file-unlink file-write file-write-nuls
   file-write-random file-write-run length ls-human reverse set-first!
-  string-append string-concat string=? substring sys-exec sys-exit sys-fork
-  sys-group-name sys-isatty sys-kill sys-signal sys-sleep sys-user-name
-  sys-usleep sys-wait)
+  string-append string=? substring sys-exec sys-exit sys-fork sys-group-name
+  sys-isatty sys-kill sys-signal sys-sleep sys-user-name sys-usleep sys-wait)
 (import cu/text cu-enough cu-file-pieces cu-fold-pieces cu-num-prefix
   cu-pad-left cu-pad-right cu-pad-zero cu-run-join cu-run-part cu-run-slice
   cu-split-byte cu-stdin-pieces cu-unmarked)
 (import cu/text2 cu-oct->str)
 (import cu/walk cu-walk-names)
+
+(import x/type/path Path)
 
 ; --- the mode, spelled two ways -----------------------------------------------
 
@@ -182,7 +183,7 @@
   (fn (_ fmt name st spec)
     (def go
       (fn (self ts acc)
-        (if (null? ts) (string-concat (reverse acc))
+        (if (null? ts) (%str-concat (reverse acc))
           (let ((t (first ts)))
             (self (rest ts)
               (pair
@@ -210,7 +211,7 @@
     (def gid (cu-stat-get st (lit gid)))
     (def nlink (cu-int->str (cu-stat-get st (lit nlink))))
     (def device? (if (eq? file-type (lit char)) #t (eq? file-type (lit block))))
-    (string-concat
+    (%str-concat
       (list "  File: " name "\n"
             "  Size: " (cu-int->str (cu-stat-get st (lit size)))
             "\tBlocks: " (cu-int->str (cu-stat-get st (lit blocks)))
@@ -222,7 +223,7 @@
             (cu-pad-right (cu-int->str (cu-stat-get st (lit ino))) 10)
             "  Links: "
             (if device?
-              (string-concat
+              (%str-concat
                 (list (cu-pad-right nlink 5) " Device type: "
                       (cu-int->str (cu-dev-major rdev)) ","
                       (cu-int->str (cu-dev-minor rdev))))
@@ -239,7 +240,7 @@
 (def %cu-stat-fs-default
   (fn (_ name fs)
     (def sp (fn (_ c) (%cu-stat-fs-spec c name fs)))
-    (string-concat
+    (%str-concat
       (list "  File: \"" name "\"\n"
             "    ID: " (cu-pad-right (sp 105) 8)
             " Namelen: " (cu-pad-right (sp 108) 7)
@@ -288,7 +289,7 @@
           (let ((s (stat-of (first os))))
             (if (null? s)
               (do (file-write 2
-                    (string-concat
+                    (%str-concat
                       (if fs?
                         (list "stat: cannot read file system information for '"
                               (first os) "': No such file or directory\n")
@@ -308,11 +309,6 @@
 (def cu-du-blocks
   (fn (_ st) (/ (- (cu-stat-get st (lit blocks))
                    (% (cu-stat-get st (lit blocks)) 2)) 2)))
-
-(def cu-path-join
-  (fn (_ dir name)
-    (if (string=? dir "/") (string-append "/" name)
-      (string-append dir (string-append "/" name)))))
 
 ; du: -a prints every file as well as each directory, -d N stops the printing
 ; below a depth and -s is -d 0, -c adds a grand total, and -h and -m choose the
@@ -345,7 +341,7 @@
             (pair (lit emit)
               (fn (_ n path)
                 (display
-                  (string-concat (list (%cu-du-show n o) "\t" path "\n")))))
+                  (%str-concat (list (%cu-du-show n o) "\t" path "\n")))))
             (pair (lit seen) (list ()))
             (pair (lit bad) (list 0))))))
 
@@ -387,7 +383,7 @@
                             (file-lstat-wide path))))))
         (if (not (Err err? st)) st
           (do (%cu-du-bad! way
-                (string-concat
+                (%str-concat
                   (if (eq? (file-lstat-file-type path) (lit link))
                     (list "du: cannot access '" path "'\n")
                     (list "du: cannot access '" path "': " (file-err-text st)
@@ -460,7 +456,7 @@
               (+ (cu-du-blocks st)
                  (if (Err err? names)
                    (do (%cu-du-bad! way
-                         (string-concat
+                         (%str-concat
                            (list "du: cannot read directory '" path "': "
                                  (file-err-text names) "\n")))
                        0)
@@ -474,7 +470,7 @@
     (if (null? names) acc
       (self way dir (rest names) level root
         (+ acc
-          (%cu-du-walk way (cu-path-join dir (first names)) level #f root))))))
+          (%cu-du-walk way (Path join dir (first names)) level #f root))))))
 
 (def %cu-du-emit
   (fn (_ way level n path)
@@ -639,7 +635,7 @@
                 (if (null? o) () (pair "oflag" o))))))))
     (if (not (null? bad))
       (do (file-write 2
-            (string-concat
+            (%str-concat
               (list "dd: unknown " (first bad) " value: " (rest bad) "\n")))
           1)
       ; the input is opened before anything else, as dd opens it first; one
@@ -693,7 +689,7 @@
               (file-close fd)))
         (if quiet? ()
           (file-write 2
-            (string-concat
+            (%str-concat
               (list (cu-dd-records n ibs) " records in\n"
                     (cu-dd-records n obs) " records out\n"
                     (cu-int->str n) " bytes copied\n"))))
@@ -741,7 +737,7 @@
 (def %cu-dd-failed
   (fn (_ path r)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list "dd: failed to open '" path "': " (file-err-text r) "\n")))
         1)))
 
@@ -773,7 +769,7 @@
               (#t (let ((fd (file-open-or-err file-open-update (first os))))
                     (if (Err err? fd)
                       (do (file-write 2
-                            (string-concat
+                            (%str-concat
                               (list "truncate: cannot open '" (first os)
                                     "' for writing: " (file-err-text fd) "\n")))
                           (self (rest os) 1))
@@ -792,13 +788,13 @@
       ((null? argv) (do (file-write 2 "unlink: missing operand\n") 1))
       ((pair? (rest argv))
         (do (file-write 2
-              (string-concat (list "unlink: extra operand '" (cu-nth 1 argv) "'\n")))
+              (%str-concat (list "unlink: extra operand '" (cu-nth 1 argv) "'\n")))
             1))
       (#t
         (let ((r (file-or-err (fn (_) (file-unlink (first argv))))))
           (if (not (Err err? r)) 0
             (do (file-write 2
-                  (string-concat
+                  (%str-concat
                     (list "unlink: cannot unlink '" (first argv) "': "
                           (file-err-text r) "\n")))
                 1)))))))
@@ -858,7 +854,7 @@
           (let ((fd (file-open-or-err file-open-wronly path)))
             (if (Err err? fd)
               (do (file-write 2
-                    (string-concat
+                    (%str-concat
                       (list "shred: " path ": failed to open for writing: "
                             (file-err-text fd) "\n")))
                   1)
@@ -941,7 +937,7 @@
     (match
       ((null? argv) (cu-usage "usleep"))
       ((if (> (byte-len n) 0) (digits? 0) #f) (do (sys-usleep (cu-num-prefix n)) 0))
-      (#t (do (file-write 2 (string-concat (list "usleep: invalid number '" n "'\n"))) 1)))))
+      (#t (do (file-write 2 (%str-concat (list "usleep: invalid number '" n "'\n"))) 1)))))
 
 ; tty(1) names the terminal; there is no ttyname door, so this answers
 ; the QUESTION isatty asks and says so plainly.
@@ -970,6 +966,6 @@
           127))))
 
 (provide cu/fs3 cu-dd cu-dd-has? cu-dd-records cu-dev-major cu-dev-minor cu-du
-  cu-du-blocks cu-mode-octal4 cu-nohup cu-path-join cu-perm-places
-  cu-perm-string cu-shred cu-stat cu-stat-group cu-stat-user cu-timeout
-  cu-truncate cu-tty cu-unlink cu-usleep)
+  cu-du-blocks cu-mode-octal4 cu-nohup cu-perm-places cu-perm-string cu-shred
+  cu-stat cu-stat-group cu-stat-user cu-timeout cu-truncate cu-tty cu-unlink
+  cu-usleep)

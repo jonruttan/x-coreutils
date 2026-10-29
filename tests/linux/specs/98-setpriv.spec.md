@@ -31,13 +31,13 @@ than one state.  A PROG that is busybox's setpriv -d shows what was set.
             (do (sys-dup2 lx-o 1) (sys-dup2 lx-e 2) (pre) (sys-exit (run))))
           (file-close lx-o) (file-close lx-e)
           (def lx-st (sys-wait lx-child))
-          (proc-run (list "/bin/sh" "-c" (string-concat (list "sed -i '/^BusyBox v/{N;d;}' /tmp/lx-e" tag))))
-          (string-concat (list (lx-read (string-append "/tmp/lx-o" tag)) "stderr:\n"
+          (proc-run (list "/bin/sh" "-c" (%str-concat (list "sed -i '/^BusyBox v/{N;d;}' /tmp/lx-e" tag))))
+          (%str-concat (list (lx-read (string-append "/tmp/lx-o" tag)) "stderr:\n"
                                (lx-read (string-append "/tmp/lx-e" tag)) "status " (cu-int->str lx-st) "\n")))))
     (def lx-case-in (fn (_ pre argv)
       (do (def lx-a (lx-side pre (fn (_) (cu-run argv "")) "x"))
           (def lx-b (lx-side pre (fn (_) (do (sys-exec "/bin/busybox" argv) 99)) "b"))
-          (display (if (string=? lx-a lx-b) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
+          (display (if (string=? lx-a lx-b) "same\n" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
     (def lx-case (fn (_ argv) (lx-case-in lx-none argv)))
     (display "made"))
 ```

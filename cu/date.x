@@ -32,7 +32,7 @@
 (import cu/fmt-lex cu-fmt-conv cu-fmt-dir? cu-fmt-parse)
 (import cu/prims append byte-at byte-len cu-b->s cu-int->str cu-nth
   cu-stat-get date-now-unix file-stat-full file-write reverse string-append
-  string-concat string=? substring)
+  string=? substring)
 (import cu/text cu-pad-left cu-pad-zero)
 
 (def %cu-date-wday-abbr
@@ -71,7 +71,7 @@
   (fn (_ d colon?)
     (def off (Assoc get-or 0 (lit offset) d))
     (def a (if (< off 0) (- 0 off) off))
-    (string-concat
+    (%str-concat
       (list (if (< off 0) "-" "+") (%cu-date-pad2 (%cu-date-div a 3600))
             (if colon? ":" "") (%cu-date-pad2 (% (%cu-date-div a 60) 60))))))
 
@@ -286,7 +286,7 @@
       (fn (_ b) (match ((= b 32) #t) ((= b 9) #t) ((= b 10) #t) (#t (= b 13)))))
     (def go
       (fn (self i acc gap?)
-        (if (>= i end) (string-concat (reverse acc))
+        (if (>= i end) (%str-concat (reverse acc))
           (let ((b (byte-at s i)))
             (match
               ((space? b) (self (+ i 1) acc (pair? acc)))

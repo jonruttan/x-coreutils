@@ -26,10 +26,9 @@
 (import cu/prims byte-at byte-len cu-b->s cu-int->str cu-lines cu-nth
   cu-sweep-at cu-sweep-steps cu-sweep-tick! cu-words-line file-close
   file-err-op file-err-text file-open-or-err file-open-write file-write length
-  reverse string-append string-concat string=? substring)
-(import cu/text cu-delim-fields-said cu-gather-said cu-join-with cu-msort
-  cu-num-prefix cu-print-fields-to cu-print-lines cu-print-lines-to
-  cu-split-byte cu-str<)
+  reverse string-append string=? substring)
+(import cu/text cu-delim-fields-said cu-gather-said cu-msort cu-num-prefix
+  cu-print-fields-to cu-print-lines cu-print-lines-to cu-split-byte cu-str<)
 
 (def %sort-blank? (fn (_ b) (if (= b 32) #t (= b 9))))
 
@@ -57,7 +56,7 @@
                 (#t #f))
               (if (>= b 32) (< b 127) #f))))
         (def go (fn (self i acc)
-                  (if (>= i end) (string-concat (reverse acc))
+                  (if (>= i end) (%str-concat (reverse acc))
                     (self (+ i 1)
                       (if (keep? (byte-at s i))
                         (pair (cu-b->s (byte-at s i)) acc) acc)))))
@@ -67,7 +66,7 @@
   (fn (_ s)
     (def end (byte-len s))
     (def go (fn (self i acc)
-              (if (>= i end) (string-concat (reverse acc))
+              (if (>= i end) (%str-concat (reverse acc))
                 (let ((b (byte-at s i)))
                   (self (+ i 1)
                     (pair (cu-b->s (if (if (>= b 97) (<= b 122) #f) (- b 32) b))
@@ -143,7 +142,7 @@
                           (if (if (>= i sf) (<= i ef) #f)
                             (pair (first xs) acc) acc))))))
             (go fs 1 ())))
-        (def joined (cu-join-with picked (if (null? sep) " " sep)))
+        (def joined (Str8 join (if (null? sep) " " sep) picked))
         (def end (byte-len joined))
         (def from (let ((c (cu-nth 1 spec))) (if (> c 0) (- c 1) 0)))
         (def to (let ((c (cu-nth 3 spec))) (if (= c 0) end (if (> c end) end c))))
@@ -280,7 +279,7 @@
 ; would not open, "read failed" for one that opened and would not read
 (def %sort-cannot-read
   (fn (_ name err)
-    (string-concat
+    (%str-concat
       (list (if (eq? (file-err-op err) (lit read)) "sort: read failed: "
               "sort: cannot read: ")
             name ": " (file-err-text err)))))
@@ -290,7 +289,7 @@
 (def %sort-open-failed
   (fn (_ out r)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list "sort: open failed: " out ": " (file-err-text r) "\n")))
         2)))
 
@@ -324,7 +323,7 @@
           ((null? (rest xs)) 0)
           ((do (cu-sweep-at n cu-sweep-steps) (less? (first (rest xs)) (first xs)))
             (do (file-write 2
-                  (string-concat
+                  (%str-concat
                     (list "sort: " name ":" (cu-int->str (+ n 1))
                           ": disorder: " (first (rest xs)) "\n")))
                 1))

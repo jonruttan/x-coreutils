@@ -21,7 +21,7 @@ in the Linux leg, against busybox.
             (do (sys-dup2 (file-open-write (ns-f "out")) 1) (sys-dup2 (file-open-write (ns-f "err")) 2)
                 (sys-exit (cu-run argv ""))))
           (def st (sys-wait kid))
-          (display (string-concat (list (Str8 replace (string-append ns-uid "|\n") "UID|\n" (Str8 replace "\n" "|\n" (file-read-all (ns-f "out")))) "stderr:\n"
+          (display (%str-concat (list (Str8 replace (string-append ns-uid "|\n") "UID|\n" (Str8 replace "\n" "|\n" (file-read-all (ns-f "out")))) "stderr:\n"
                                         (Str8 replace "\n\t" "|" (file-read-all (ns-f "err")))
                                         "status " (cu-int->str st) "\n")))
           ())))

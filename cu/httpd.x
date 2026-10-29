@@ -43,17 +43,16 @@
 (import cu/date cu-date-fmt cu-date-split)
 (import cu/nc nc-count)
 (import cu/net wget-last-part)
-(import cu/prims append byte-at byte-len cu-dlopen cu-dlsym cu-int->str
-  cu-lines cu-member-s? cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr
-  cu-sweep! date-now-unix file-close file-dir? file-err-text file-exists?
-  file-open-read file-read-all file-read-run file-seek file-stat file-write
-  file-write-run map net-accept net-close net-connect net-listen net-listen-on
-  net-peer net-resolve net-shutdown net-stdin-socket reverse set-first!
-  str-make-raw string-append string-concat string=? substring sys-dup2
-  sys-exec-or-err sys-exit sys-fork sys-getcwd sys-group-id sys-kill sys-pipe
-  sys-setenv sys-signal sys-user-group sys-user-id sys-user-name sys-wait
-  wget-digits wget-div wget-err-text wget-find wget-index wget-last-index
-  wget-lower wget-memv)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-lines
+  cu-member-s? cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep!
+  date-now-unix file-close file-dir? file-err-text file-exists? file-open-read
+  file-read-all file-read-run file-seek file-stat file-write file-write-run
+  map net-accept net-close net-connect net-listen net-listen-on net-peer
+  net-resolve net-shutdown net-stdin-socket reverse set-first! str-make-raw
+  string-append string=? substring sys-dup2 sys-exec-or-err sys-exit sys-fork
+  sys-getcwd sys-group-id sys-kill sys-pipe sys-setenv sys-signal
+  sys-user-group sys-user-id sys-user-name sys-wait wget-digits wget-div
+  wget-err-text wget-index wget-memv)
 (import cu/session hd-daemonize ss-call)
 (import cu/test t-permitted?)
 (import cu/text3 cu-b64-decode-to)
@@ -100,7 +99,7 @@
 (def %hd-done (fn (_) (Err raise (lit httpd-done) "" ())))
 
 (def %hd-log
-  (fn (_ msg) (file-write 2 (string-concat (list %hd-name ": " msg "\n")))))
+  (fn (_ msg) (file-write 2 (%str-concat (list %hd-name ": " msg "\n")))))
 
 ; a fatal error before any request: the message, status 1
 (def %hd-die (fn (_ msg) (Err raise (lit net) msg ())))
@@ -122,7 +121,7 @@
 (def %hd-prefix-ci?
   (fn (_ s p)
     (if (< (byte-len s) (byte-len p)) #f
-      (string=? (wget-lower (substring s 0 (byte-len p))) (wget-lower p)))))
+      (string=? (Str8 downcase (substring s 0 (byte-len p))) (Str8 downcase p)))))
 
 (def %hd-skip-blanks
   (fn (_ s i)
@@ -194,30 +193,30 @@
     (when (> %hd-verbose 0) (%hd-log (string-append "response:" (cu-int->str code))))
     (def now (date-now-unix))
     (def head
-      (string-concat
+      (%str-concat
         (list "HTTP/1.1 " (cu-int->str code) " " reason "\r\n"
               "Date: " (%hd-http-date now) "\r\n"
               "Connection: close\r\n"
               (if (if (= code 200) (null? %hd-mime-found) #f) ""
-                (string-concat (list "Content-type: " (if (= code 200) %hd-mime-found "text/html") "\r\n")))
-              (if (= code 401) (string-concat (list "WWW-Authenticate: Basic realm=\"" %hd-realm "\"\r\n")) "")
+                (%str-concat (list "Content-type: " (if (= code 200) %hd-mime-found "text/html") "\r\n")))
+              (if (= code 401) (%str-concat (list "WWW-Authenticate: Basic realm=\"" %hd-realm "\"\r\n")) "")
               (if (= code 302)
-                (string-concat (list "Location: " %hd-moved "/" (if (null? %hd-query) "" (string-append "?" %hd-query)) "\r\n"))
+                (%str-concat (list "Location: " %hd-moved "/" (if (null? %hd-query) "" (string-append "?" %hd-query)) "\r\n"))
                 ""))))
     (def page (let ((p (Assoc find code %hd-errpages))) (if (null? p) () (rest p))))
     (if (if (null? page) #f (t-permitted? page 4))
       (do (%hd-write-all (string-append head "\r\n"))
           (%hd-send-file page #f))
       (%hd-write-all
-        (string-concat
+        (%str-concat
           (list head
                 (if (= %hd-file-size -1) ""
                   (let ((size (if (= code 206)
                                 (- (+ %hd-range-end 1) %hd-range-start)
                                 %hd-file-size)))
-                    (string-concat
+                    (%str-concat
                       (list (if (= code 206)
-                              (string-concat (list "Content-Range: bytes " (cu-int->str %hd-range-start) "-"
+                              (%str-concat (list "Content-Range: bytes " (cu-int->str %hd-range-start) "-"
                                                    (cu-int->str %hd-range-end) "/" (cu-int->str %hd-file-size) "\r\n"))
                               "")
                             "Accept-Ranges: bytes\r\n"
@@ -227,7 +226,7 @@
                 (if %hd-gzip "Content-Encoding: gzip\r\n" "")
                 "\r\n"
                 (if (null? info) ""
-                  (string-concat
+                  (%str-concat
                     (list "<HTML><HEAD><TITLE>" (cu-int->str code) " " reason "</TITLE></HEAD>\n"
                           "<BODY><H1>" (cu-int->str code) " " reason "</H1>\n"
                           info "\n"
@@ -262,7 +261,7 @@
 
 (def %hd-mime-of
   (fn (_ url)
-    (def dot (wget-last-index url #\.))
+    (def dot (Str8 last-index-of "." url))
     (if (null? dot) ()
       (let ((suffix (substring url dot (byte-len url))))
         (let ((user (let go ((ms %hd-mime))
@@ -271,7 +270,7 @@
                              (#t (go (rest ms))))))
               (builtin (let go ((ts %hd-mime-table))
                          (if (null? ts) ()
-                           (let ((at (wget-find (first (first ts)) suffix)))
+                           (let ((at (Str8 index-of suffix (first (first ts)))))
                              (if (null? at) (go (rest ts))
                                (let ((end (+ at (byte-len suffix))) (line (first (first ts))))
                                  (if (if (= end (byte-len line)) #t (= (byte-at line end) #\.))
@@ -296,8 +295,8 @@
     (def fd (%hd-open-maybe-gz url))
     (when (< fd 0) (if headers? (%hd-fail 404) (%hd-finish)))
     (when %hd-gzip (set! %hd-range-start -1))
-    (set! %hd-etag (string-concat (list "\"" (%hd-hex %hd-last-mod) "-" (%hd-hex %hd-file-size) "\"")))
-    (when (if (null? %hd-if-none-match) #f (not (null? (wget-find %hd-if-none-match %hd-etag))))
+    (set! %hd-etag (%str-concat (list "\"" (%hd-hex %hd-last-mod) "-" (%hd-hex %hd-file-size) "\"")))
+    (when (if (null? %hd-if-none-match) #f (not (null? (Str8 index-of %hd-etag %hd-if-none-match))))
       (%hd-fail 304))
     (set! %hd-mime-found (%hd-mime-of url))
     (unless headers? (set! %hd-range-start -1))
@@ -365,7 +364,7 @@
         ((if at-slash (= c #\/) #f) (go (+ t 1) out))
         ((if at-slash (if (= c #\.) (if (= c1 #\.) (if (= c2 #\/) #t (= c2 0)) #f) #f) #f)
           (if (= (byte-len out) 1) ()
-            (let ((cut (wget-last-index (substring out 0 (- (byte-len out) 1)) #\/)))
+            (let ((cut (Str8 last-index-of "/" (substring out 0 (- (byte-len out) 1)))))
               (go (+ t 2) (substring out 0 (+ cut 1))))))
         ((if at-slash (if (= c #\.) (if (= c1 #\/) #t (= c1 0)) #f) #f) (go (+ t 1) out))
         ((= c 0) out)
@@ -434,7 +433,7 @@
             (go (rest as))))))))
 
 (def %hd-conf-error
-  (fn (_ line file) (%hd-log (string-concat (list "config error '" line "' in '" file "'")))))
+  (fn (_ line file) (%hd-log (%str-concat (list "config error '" line "' in '" file "'")))))
 
 ; parse_conf: PATH/httpd.conf, or -c's file for the first parse.  The first
 ; parse falls back to ./httpd.conf; a subdirectory's answers #f when it has
@@ -472,7 +471,7 @@
       ((= up #\I) (set! %hd-index after))
       ((if first? (= up #\H) #f)
         (if (%hd-chdir after) (set! %hd-home after)
-          (%hd-die (string-concat (list "can't change directory to '" after "': No such file or directory")))))
+          (%hd-die (%str-concat (list "can't change directory to '" after "': No such file or directory")))))
       ((if (= up #\A) #t (= up #\D)) (%hd-conf-acl! up after))
       ((if first? (= up #\E) #f) (%hd-conf-errpage! line after file))
       ((if first? (= up #\P) #f) (%hd-conf-proxy! line after file))
@@ -641,7 +640,7 @@
     (when (eq? decoded (lit encoded)) (%hd-fail 404))
     (def url (%hd-canon decoded))
     (when (null? url) (%hd-fail 400))
-    (when (> %hd-verbose 1) (%hd-log (string-concat (list method " " url))))
+    (when (> %hd-verbose 1) (%hd-log (%str-concat (list method " " url))))
     (let go ((i 1))
       (let ((s (wget-index url #\/ i)))
         (unless (null? s)
@@ -685,7 +684,7 @@
 ; interp when a *.ext: line names TARGET's suffix, its interpreter kept
 (def %hd-interp-for
   (fn (_ target)
-    (def dot (wget-last-index target #\.))
+    (def dot (Str8 last-index-of "." target))
     (def hit (if (null? dot) ()
                (let ((suffix (substring target dot (byte-len target))))
                  (let go ((ss %hd-scripts))
@@ -710,7 +709,7 @@
               ((%hd-prefix-ci? h "Authorization:") (%hd-authorization! h url cgi?))
               ((%hd-prefix-ci? h "Range:") (%hd-range! (%hd-after-header h "Range:")))
               ((%hd-prefix-ci? h "Accept-Encoding:")
-                (unless (null? (wget-find h "gzip")) (set! %hd-accept-gzip #t)))
+                (unless (null? (Str8 index-of "gzip" h)) (set! %hd-accept-gzip #t)))
               ((%hd-prefix-ci? h "If-None-Match:")
                 (set! %hd-if-none-match (%hd-after-header h "If-None-Match:")))
               (cgi? (%hd-cgi-header! h))
@@ -798,15 +797,15 @@
     (def hp (first (rest pe)))
     (def slash (wget-index hp #\/ 0))
     (def host-port (substring hp 0 slash))
-    (def colon (wget-last-index host-port #\:))
+    (def colon (Str8 last-index-of ":" host-port))
     (def host (if (null? colon) host-port (substring host-port 0 colon)))
     (def port (if (null? colon) 80 (wget-digits (substring host-port (+ colon 1) (byte-len host-port)))))
     (def ip (if (null? port) () (guard (_ ()) (net-resolve host))))
     (when (null? ip)
-      (do (%hd-log (string-concat (list "bad address '" host "'"))) (%hd-fail 500)))
+      (do (%hd-log (%str-concat (list "bad address '" host "'"))) (%hd-fail 500)))
     (def fd (guard (_ ()) (net-connect ip port)))
     (when (null? fd) (%hd-fail 500))
-    (%hd-write-fd fd (string-concat
+    (%hd-write-fd fd (%str-concat
       (list method " " (substring hp slash (byte-len hp))
             (substring url (byte-len (first pe)) (byte-len url)) " " proto "\r\n")))
     (def writer (%hd-relay-client fd))
@@ -849,7 +848,7 @@
       (append (reverse %hd-cgi-env)
         (list (pair "PATH_INFO" (if (null? script-end) "" (substring url script-end (byte-len url))))
               (pair "REQUEST_METHOD" method)
-              (pair "REQUEST_URI" (if (null? %hd-query) orig (string-concat (list orig "?" %hd-query)))))
+              (pair "REQUEST_URI" (if (null? %hd-query) orig (%str-concat (list orig "?" %hd-query)))))
         (if (Str8 starts? "/" %hd-home)
           (list (pair "SCRIPT_FILENAME" (string-append (%hd-strip-slash %hd-home) script-url)))
           ())
@@ -892,7 +891,7 @@
 (def %hd-remote-env
   (fn (_)
     (def p (if (null? %hd-rmt) "" %hd-rmt))
-    (def colon (wget-last-index p #\:))
+    (def colon (Str8 last-index-of ":" p))
     (def cut (if (if (null? colon) #f (null? (wget-index p #\] colon))) colon ()))
     (if (null? cut) (list (pair "REMOTE_ADDR" p))
       (list (pair "REMOTE_ADDR" (substring p 0 cut))
@@ -912,15 +911,15 @@
     (def name (substring script-url (+ last-slash 1) (byte-len script-url)))
     (when (> %hd-verbose 2) (%hd-log (string-append "cd:" dir)))
     (if (if (> last-slash 0) (not (%hd-chdir dir)) #f)
-      (%hd-log (string-concat (list "can't change directory to '" dir "': No such file or directory")))
+      (%hd-log (%str-concat (list "can't change directory to '" dir "': No such file or directory")))
       (do (when (> %hd-verbose 1)
-            (%hd-log (string-concat (list "exec:" (if (null? %hd-interp) name %hd-interp) " "
+            (%hd-log (%str-concat (list "exec:" (if (null? %hd-interp) name %hd-interp) " "
                                           (if (null? %hd-interp) "(null)" name)))))
           (let ((e (if (null? %hd-interp)
                      (sys-exec-or-err (string-append "./" name) ())
                      (sys-exec-or-err %hd-interp (list name)))))
             (when (> %hd-verbose 0)
-              (%hd-log (string-concat (list "can't execute '" (if (null? %hd-interp) name %hd-interp) "': "
+              (%hd-log (%str-concat (list "can't execute '" (if (null? %hd-interp) name %hd-interp) "': "
                                             (file-err-text e))))))))
     (set! %hd-file-size -1)
     (%hd-send-headers 404)
@@ -966,12 +965,12 @@
       ((if (>= (byte-len h) 10) (Str8 starts? "Status: " h) #f)
         (let ((out (string-append "HTTP/1.1 " (substring h 8 (byte-len h)))))
           (do (when (> %hd-verbose 0)
-                (%hd-log (string-concat (list "cgi response:'" (%hd-printable out 9) "'"))))
+                (%hd-log (%str-concat (list "cgi response:'" (%hd-printable out 9) "'"))))
               (%hd-write-all out))))
       ((if (>= (byte-len h) 10) (Str8 starts? "Location: " h) #f)
         (do (%hd-write-all "HTTP/1.1 302 Found\r\n")
             (when (> %hd-verbose 0)
-              (%hd-log (string-concat (list "cgi redirect:'" (%hd-printable h 10) "'"))))
+              (%hd-log (%str-concat (list "cgi redirect:'" (%hd-printable h 10) "'"))))
             (%hd-write-all h)))
       ((if (>= (byte-len h) 10) (Str8 starts? "HTTP/1.1" h) #f) (%hd-write-all h))
       (#t (do (%hd-write-all "HTTP/1.1 200 OK\r\n")
@@ -1041,8 +1040,8 @@
       (if (null? p)
         (do (set! %hd-remote-ip 0) (set! %hd-rmt ()) (set! %hd-name "httpd"))
         (do (set! %hd-remote-ip (let ((r (%hd-scan-ip (first p) 0))) (if (null? r) 0 (first r))))
-            (set! %hd-rmt (string-concat
-              (list (if listener? (string-concat (list "[::ffff:" (first p) "]")) (first p))
+            (set! %hd-rmt (%str-concat
+              (list (if listener? (%str-concat (list "[::ffff:" (first p) "]")) (first p))
                     ":" (cu-int->str (rest p)))))
             (when (> %hd-verbose 0)
               (set! %hd-name %hd-rmt)))))))
@@ -1052,9 +1051,9 @@
 ; encodeString: a letter or digit as itself, any other byte as &#N;
 (def %hd-encode
   (fn (_ s)
-    (string-concat
+    (%str-concat
       (map (fn (_ c)
-             (if (%hd-alnum? c) (bytes->str (list c)) (string-concat (list "&#" (cu-int->str c) ";"))))
+             (if (%hd-alnum? c) (bytes->str (list c)) (%str-concat (list "&#" (cu-int->str c) ";"))))
            (tftp-bytes s 0 (byte-len s))))))
 
 (def %hd-alnum?
@@ -1068,7 +1067,7 @@
   (fn (_ argv stdin-thunk)
     (def o (cu-opts "httpd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
-                (do (file-write 2 (string-concat (list "httpd: " (e msg) "\n"))) 1)
+                (do (file-write 2 (%str-concat (list "httpd: " (e msg) "\n"))) 1)
                 (error e)))
       (match
         ((not (null? (Opts value o "-d")))
@@ -1094,7 +1093,7 @@
     (set! %hd-home (if (null? home) (sys-getcwd) home))
     (unless (null? home)
       (unless (%hd-chdir home)
-        (%hd-die (string-concat (list "can't change directory to '" home "': No such file or directory")))))
+        (%hd-die (%str-concat (list "can't change directory to '" home "': No such file or directory")))))
     (def inetd? (Opts on? o "-i"))
     (def lfd (if inetd? () (%hd-open-server (Opts value o "-p"))))
     (unless (if inetd? #t (null? ug)) (%hd-drop! ug))
@@ -1121,14 +1120,14 @@
 
 (def %hd-listen-on
   (fn (_ v)
-    (def colon (wget-last-index v #\:))
+    (def colon (Str8 last-index-of ":" v))
     (def host (if (null? colon) v (substring v 0 colon)))
     (def pv (if (null? colon) () (substring v (+ colon 1) (byte-len v))))
     (def port (if (null? pv) 80 (wget-digits pv)))
     (when (if (null? port) #t (> port 65535))
-      (%hd-die (string-concat (list "bad port '" pv "'"))))
+      (%hd-die (%str-concat (list "bad port '" pv "'"))))
     (def ip (if (= (byte-len host) 0) () (guard (_ ()) (net-resolve host))))
-    (when (null? ip) (%hd-die (string-concat (list "bad address '" v "'"))))
+    (when (null? ip) (%hd-die (%str-concat (list "bad address '" v "'"))))
     (net-listen-on ip port)))
 
 
@@ -1170,14 +1169,13 @@
 ; setuid -- each failure the end of the run, named as busybox names it
 (def %hd-drop!
   (fn (_ ug)
-    (def lib (cu-dlopen () 1))
     (def fail? (fn (_ r sym)
       (let ((e (ss-call r (lit call) sym)))
-        (unless (null? e) (%hd-die (string-concat (list sym ": " (file-err-text e))))))))
+        (unless (null? e) (%hd-die (%str-concat (list sym ": " (file-err-text e))))))))
     (def buf (str-make-raw 4))
     (cu-ptr-set! (cu-str->ptr buf) 0 (rest ug) 4)
-    (fail? (cu-ptr-call (cu-dlsym lib "setgroups") 1 (cu-str->ptr buf)) "setgroups")
-    (fail? (cu-ptr-call (cu-dlsym lib "setgid") (rest ug)) "setgid")
-    (fail? (cu-ptr-call (cu-dlsym lib "setuid") (first ug)) "setuid")))
+    (fail? (cu-ptr-call (cu-libc-sym "setgroups") 1 (cu-str->ptr buf)) "setgroups")
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") (rest ug)) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") (first ug)) "setuid")))
 
 (provide cu/httpd cu-httpd hd-crypt-equal? hd-system-password hd-ugid)

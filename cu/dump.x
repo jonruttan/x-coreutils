@@ -30,8 +30,7 @@
 (import cu/cal cal-sum)
 (import cu/prims append byte-at byte-len cal/ cu-nth cu-stat-get
   cu-sweep-tick! file-err-text file-stat-full file-write file-write-run map
-  reverse string-append string-concat string=? substring vec-build vec-ref
-  vec-set!)
+  reverse string-append string=? substring vec-build vec-ref vec-set!)
 (import cu/text cu-pad-left cu-pad-zero cu-pieces cu-pieces-past)
 (import cu/tsort ts-space?)
 
@@ -106,7 +105,7 @@
   (fn (_ msg)
     (if (null? %dp-error)
       (do (set! %dp-error msg)
-          (file-write 2 (string-concat (list %dp-applet ": " msg "\n"))))
+          (file-write 2 (%str-concat (list %dp-applet ": " msg "\n"))))
       ())))
 
 ; --- the output -----------------------------------------------------------------
@@ -125,9 +124,9 @@
     (def go
       (fn (self ps acc)
         (match
-          ((null? ps) (if (null? acc) () (file-write 1 (string-concat (reverse acc)))))
+          ((null? ps) (if (null? acc) () (file-write 1 (%str-concat (reverse acc)))))
           ((eq? (first ps) (lit nul))
-            (do (if (null? acc) () (file-write 1 (string-concat (reverse acc))))
+            (do (if (null? acc) () (file-write 1 (%str-concat (reverse acc))))
                 (file-write-run 1 %dp-nul-run)
                 (self (rest ps) ())))
           (#t (self (rest ps) (pair (first ps) acc))))))
@@ -135,8 +134,6 @@
       (do (set! %dp-out ()) (go ps ())))))
 
 ; --- bytes and characters -----------------------------------------------------
-
-(def dp-digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
 
 ; C in the string SET
 (def dp-in?
@@ -156,11 +153,11 @@
   (fn (_ s i)
     (def go
       (fn (self j acc)
-        (if (dp-digit? (dp-at s j)) (self (+ j 1) (+ (* acc 10) (- (byte-at s j) #\0))) acc)))
+        (if (Char numeric? (dp-at s j)) (self (+ j 1) (+ (* acc 10) (- (byte-at s j) #\0))) acc)))
     (go i 0)))
 
 (def %dp-digits-end
-  (fn (self s i) (if (dp-digit? (dp-at s i)) (self s (+ i 1)) i)))
+  (fn (self s i) (if (Char numeric? (dp-at s i)) (self s (+ i 1)) i)))
 
 ; --- the escapes of a format ------------------------------------------------------
 
@@ -237,7 +234,7 @@
 (def cu-dump-add
   (fn (_ fmt)
     (def n (byte-len fmt))
-    (def bad (fn (_) (do (%dp-fail! (string-concat (list "bad format {" fmt "}"))) ())))
+    (def bad (fn (_) (do (%dp-fail! (%str-concat (list "bad format {" fmt "}"))) ())))
     (def unit
       (fn (_ p)
         ; a unit from P: (FU . NEXT), or nil once refused
@@ -303,8 +300,8 @@
                 (let ((j (dp-skip-in fmt (+ i 1) %dp-flag-chars)))
                   (let ((dot (= (dp-at fmt j) #\.)))
                     (let ((k (if dot (+ j 1) j)))
-                      (let ((prec2 (if (if dot (dp-digit? (dp-at fmt k)) #f) (%dp-atoi fmt k) prec))
-                            (k2 (if (if dot (dp-digit? (dp-at fmt k)) #f) (%dp-digits-end fmt k) k)))
+                      (let ((prec2 (if (if dot (Char numeric? (dp-at fmt k)) #f) (%dp-atoi fmt k) prec))
+                            (k2 (if (if dot (Char numeric? (dp-at fmt k)) #f) (%dp-digits-end fmt k) k)))
                         (let ((c (dp-at fmt k2)))
                           (match
                             ((= c #\c) (self (+ k2 1) (+ bcnt 1) prec2))
@@ -409,7 +406,7 @@
 ; the refusal of the conversion character at AT of FMT
 (def %dp-bad
   (fn (_ fmt at)
-    (do (%dp-fail! (string-concat
+    (do (%dp-fail! (%str-concat
                      (list "bad conversion character %" (substring fmt at (byte-len fmt)))))
         ())))
 
@@ -419,7 +416,7 @@
 (def %dp-counted
   (fn (_ fmt pct fbcnt kind counts at conv end)
     (if (if (> fbcnt 0) (not (%dp-member? fbcnt counts)) #f)
-      (do (%dp-fail! (string-concat
+      (do (%dp-fail! (%str-concat
                        (list "bad byte count for conversion character "
                              (substring fmt at (byte-len fmt)))))
           ())
@@ -459,7 +456,7 @@
     (def p1a (dp-skip-in fmt (+ pct 1) (if (> fbcnt 0) %dp-dot-flag-chars %dp-flag-chars)))
     (def dot (if (> fbcnt 0) #f (= (dp-at fmt p1a) #\.)))
     (def p1b (if dot (+ p1a 1) p1a))
-    (def prec? (if dot (dp-digit? (dp-at fmt p1b)) #f))
+    (def prec? (if dot (Char numeric? (dp-at fmt p1b)) #f))
     (def p1 (if prec? (%dp-digits-end fmt p1b) p1b))
     (def c (dp-at fmt p1))
     (match
@@ -469,7 +466,7 @@
           (%dp-int-conv fmt pct fbcnt q)))
       ((dp-in? c "diouxX") (%dp-int-conv fmt pct fbcnt p1))
       ((dp-in? c "eEfgG")
-        (do (%dp-fail! (string-concat
+        (do (%dp-fail! (%str-concat
                          (list "floating-point conversion %" (bytes->str (list c))
                                " is not supported")))
             ()))
@@ -683,7 +680,7 @@
 
 (def %dp-say
   (fn (_ name err)
-    (file-write 2 (string-concat (list %dp-applet ": " name ": " (file-err-text err) "\n")))))
+    (file-write 2 (%str-concat (list %dp-applet ": " name ": " (file-err-text err) "\n")))))
 
 ; the next file, opened, and the skip taken out of it: #f when there is none
 (def %dp-next!
@@ -907,5 +904,5 @@
 
 (provide cu/dump cu-dump cu-dump-add cu-dump-address cu-dump-all!
   cu-dump-displayoff! cu-dump-length! cu-dump-reset! cu-dump-skip!
-  cu-dump-xxd-eof! dp-at dp-digit? dp-find dp-formats dp-in? dp-skip-in
-  dp-skip-ws dp-udigits dp-zeros)
+  cu-dump-xxd-eof! dp-at dp-find dp-formats dp-in? dp-skip-in dp-skip-ws
+  dp-udigits dp-zeros)

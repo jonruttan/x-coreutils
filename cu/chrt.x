@@ -18,15 +18,15 @@
 
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-set! inet-zeros)
-(import cu/inetd in-c in-call)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-ptr-call
-  cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-err-text file-write
-  hx-strtoul libc-strerror string-append string-concat string=?
-  sys-exec-or-err sys-exit)
+(import cu/inetd in-call)
+(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
+  cu-ptr-call cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-err-text
+  file-write hx-strtoul libc-strerror string-append string=? sys-exec-or-err
+  sys-exit)
 
 (def %ch-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "chrt: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "chrt: " msg "\n")))
         (Err raise (lit chrt) msg ()))))
 
 (def %ch-usage (fn (_) (Err raise (lit chrt-usage) "usage" ())))
@@ -55,7 +55,7 @@
 (def %ch-bound
   (fn (_ which pol)
     (def name (if (eq? which (lit min)) "sched_get_priority_min" "sched_get_priority_max"))
-    (if os-darwin? (in-call (cu-ptr-call (in-c name) pol))
+    (if os-darwin? (in-call (cu-ptr-call (cu-libc-sym name) pol))
       (first (%ch-call (if (eq? which (lit min)) (lit sched_get_priority_min) (lit sched_get_priority_max))
                        pol () ())))))
 
@@ -65,8 +65,8 @@
     (def hi (%ch-bound (lit max) pol))
     (file-write 1
       (if (if (< lo 0) #t (< hi 0))
-        (string-concat (list "SCHED_" (%ch-name pol) " not supported\n"))
-        (string-concat (list "SCHED_" (%ch-name pol) " min/max priority\t: "
+        (%str-concat (list "SCHED_" (%ch-name pol) " not supported\n"))
+        (%str-concat (list "SCHED_" (%ch-name pol) " min/max priority\t: "
                              (cu-int->str lo) "/" (cu-int->str hi) "\n"))))))
 
 ; xstrtou_range's template: S in BASE, no sign or space before it and
@@ -78,14 +78,14 @@
              (pair () 0) (hx-strtoul s 0 base limit)))
     (match
       ((if (= (rest r) 0) #t (if (null? (first r)) #t (< (rest r) (byte-len s))))
-        (%ch-die (string-concat (list "invalid number '" s "'"))))
+        (%ch-die (%str-concat (list "invalid number '" s "'"))))
       ((if (< (first r) lo) #t (> (first r) hi))
-        (%ch-die (string-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range"))))
+        (%ch-die (%str-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range"))))
       (#t (first r)))))
 
 (def %ch-fail
   (fn (_ what pid errno)
-    (%ch-die (string-concat (list "can't " what " pid " (cu-int->str pid) "'s policy: " (libc-strerror errno))))))
+    (%ch-die (%str-concat (list "can't " what " pid " (cu-int->str pid) "'s policy: " (libc-strerror errno))))))
 
 ; PID's policy and priority, as now or as just set; the policy without
 ; SCHED_RESET_ON_FORK, which the kernel answers in it
@@ -93,13 +93,13 @@
   (fn (_ pid which)
     (def p (%ch-call (lit sched_getscheduler) pid () ()))
     (when (< (first p) 0) (%ch-fail "get" pid (rest p)))
-    (file-write 1 (string-concat (list "pid " (cu-int->str pid) "'s " which " scheduling policy: SCHED_"
+    (file-write 1 (%str-concat (list "pid " (cu-int->str pid) "'s " which " scheduling policy: SCHED_"
                                        (%ch-name (& (first p) 1073741823)) "\n")))
     (def sp (inet-zeros 4))
     (def g (%ch-call (lit sched_getparam) pid sp ()))
     (when (< (first g) 0)
-      (%ch-die (string-concat (list "can't get pid " (cu-int->str pid) "'s attributes: " (libc-strerror (rest g))))))
-    (file-write 1 (string-concat (list "pid " (cu-int->str pid) "'s " which " scheduling priority: "
+      (%ch-die (%str-concat (list "can't get pid " (cu-int->str pid) "'s attributes: " (libc-strerror (rest g))))))
+    (file-write 1 (%str-concat (list "pid " (cu-int->str pid) "'s " which " scheduling priority: "
                                        (cu-int->str (cu-ptr-ref (cu-str->ptr sp) 0 4)) "\n")))))
 
 (def %ch-set
@@ -124,7 +124,7 @@
   (fn (_ argv)
     (cu-stdin-to-command!)
     (let ((err (sys-exec-or-err (first argv) (rest argv))))
-      (do (file-write 2 (string-concat (list "chrt: can't execute '" (first argv) "': " (file-err-text err) "\n")))
+      (do (file-write 2 (%str-concat (list "chrt: can't execute '" (first argv) "': " (file-err-text err) "\n")))
           (sys-exit (if (string=? (file-err-text err) "No such file or directory") 127 126))))))
 
 (def %ch-main

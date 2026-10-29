@@ -30,7 +30,7 @@ The lines are a number and two words, the numbers out of order and
 repeating; the short lines are one digit each, built a hundred at a time.
 
 ```cu
-(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def mk (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair (cu-int->str (% (* n 7919) 1000)) (pair " alpha beta\tx\n" acc)))))) (def short (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair (cu-int->str (% n 10)) (pair "\n" acc)))))) (def block (short 100 ())) (def rep (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair block acc))))) (def in800 (mk 800 ())) (def short8000 (rep 80 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display "made"))
+(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def mk (fn (self n acc) (if (= n 0) (%str-concat acc) (self (- n 1) (pair (cu-int->str (% (* n 7919) 1000)) (pair " alpha beta\tx\n" acc)))))) (def short (fn (self n acc) (if (= n 0) (%str-concat acc) (self (- n 1) (pair (cu-int->str (% n 10)) (pair "\n" acc)))))) (def block (short 100 ())) (def rep (fn (self n acc) (if (= n 0) (%str-concat acc) (self (- n 1) (pair block acc))))) (def in800 (mk 800 ())) (def short8000 (rep 80 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display "made"))
 ```
 ---
     made

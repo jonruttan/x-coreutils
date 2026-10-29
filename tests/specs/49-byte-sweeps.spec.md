@@ -17,7 +17,9 @@ ever grows past it is stopped, and the child's status says so.  Each bound
 sits about half again above what the tool holds at its fullest on the release
 lang.xon declares, and under what an unswept walk leaves over the same input:
 the walks whose bytes cost the least run on 15,997 bytes, the dearer ones on
-3,995.  tr's runs are counted in a child that counts the writes it makes.
+3,995.  sum's fullest is x/codec/sum building its compiled engine, which on a
+cold X_ASM_CACHE_DIR is 2.6M objects for sum and 2.5M for sum -s.  tr's runs
+are counted in a child that counts the writes it makes.
 
 ## the fixtures
 
@@ -28,7 +30,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 
 ```cu
 (def stand-in! (fn (_ envs name v) (List map (fn (_ e) (eval (list (lit set!) name (list (lit lit) v)) e)) envs)))
-(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def mk (fn (self n acc) (if (= n 0) (string-concat acc) (self (- n 1) (pair (cu-int->str (+ 100 (% (* n 7919) 900))) (pair " alpha beta\tx\n" acc)))))) (def in16k (mk 941 ())) (def in8k (mk 470 ())) (def in4k (mk 235 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display (list (byte-len in16k) (byte-len in8k) (byte-len in4k))))
+(do (def limit! (prim-ref (lit alloc) (lit limit!))) (def mk (fn (self n acc) (if (= n 0) (%str-concat acc) (self (- n 1) (pair (cu-int->str (+ 100 (% (* n 7919) 900))) (pair " alpha beta\tx\n" acc)))))) (def in16k (mk 941 ())) (def in8k (mk 470 ())) (def in4k (mk 235 ())) (def under? (fn (_ argv input bound) (= 0 (let ((pid (sys-fork))) (if (= pid 0) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (cu-run argv "2\n1\n") (cu-heap-collect) (limit! (+ (Heap count) bound)) (cu-run argv input) (sys-exit 0)) (sys-wait pid)))))) (display (list (byte-len in16k) (byte-len in8k) (byte-len in4k))))
 ```
 ---
     (15997 7990 3995)
@@ -38,7 +40,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 ### wc, sum and sum -s on 15,997 bytes
 
 ```cu
-(display (list (under? (list "wc") in16k 3700000) (under? (list "sum") in16k 2900000) (under? (list "sum" "-s") in16k 2000000)))
+(display (list (under? (list "wc") in16k 3700000) (under? (list "sum") in16k 3900000) (under? (list "sum" "-s") in16k 3700000)))
 ```
 ---
     (#t #t #t)

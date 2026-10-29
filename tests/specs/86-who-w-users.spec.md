@@ -41,7 +41,7 @@ standard output.
 ### each line: the user to column 16, the tty to 32, the idle to 40, the login time to 57, then the host
 
 ```cu
-(let ((idle-rx (re-compile "^([0-9][0-9]:[0-9][0-9]|old|[?])$"))) (null? (filter (fn (_ r) (not (null? (filter (fn (_ v) (not v)) r)))) (map (fn (_ pr) (let ((l (first pr)) (u (first (rest pr)))) (def d (Date local (Assoc get (lit time) u))) (def two (fn (_ k) (cu-pad-zero (cu-int->str (Assoc get k d)) 2))) (list (str=? (trim (substring l 0 15)) (Assoc get (lit user) u)) (= (byte-at l 15) #\space) (str=? (trim (substring l 16 31)) (Assoc get (lit tty) u)) (not (null? (re-search idle-rx (trim (substring l 32 39))))) (str=? (substring l 40 56) (string-concat (list (cu-nth (- (Assoc get (lit month) d) 1) cu-date-mon-abbr) (cu-pad-left (cu-int->str (Assoc get (lit day) d)) 3) " " (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second)) " "))) (str=? (substring l 57 (byte-len l)) (let ((h (Assoc get (lit host) u))) (if (null? h) "" h)))))) (zip (lines (out (list "who"))) (host-users))))))
+(let ((idle-rx (re-compile "^([0-9][0-9]:[0-9][0-9]|old|[?])$"))) (null? (filter (fn (_ r) (not (null? (filter (fn (_ v) (not v)) r)))) (map (fn (_ pr) (let ((l (first pr)) (u (first (rest pr)))) (def d (Date local (Assoc get (lit time) u))) (def two (fn (_ k) (cu-pad-zero (cu-int->str (Assoc get k d)) 2))) (list (str=? (trim (substring l 0 15)) (Assoc get (lit user) u)) (= (byte-at l 15) #\space) (str=? (trim (substring l 16 31)) (Assoc get (lit tty) u)) (not (null? (re-search idle-rx (trim (substring l 32 39))))) (str=? (substring l 40 56) (%str-concat (list (cu-nth (- (Assoc get (lit month) d) 1) cu-date-mon-abbr) (cu-pad-left (cu-int->str (Assoc get (lit day) d)) 3) " " (two (lit hour)) ":" (two (lit minute)) ":" (two (lit second)) " "))) (str=? (substring l 57 (byte-len l)) (let ((h (Assoc get (lit host) u))) (if (null? h) "" h)))))) (zip (lines (out (list "who"))) (host-users))))))
 ```
 ---
     #t
@@ -49,7 +49,7 @@ standard output.
 ### users: the names on one line, a space between
 
 ```cu
-(let ((r (run (list "users")))) (list (str=? (first r) (string-append (cu-join-with (map (fn (_ u) (Assoc get (lit user) u)) (host-users)) " ") "\n")) (first (rest (rest r)))))
+(let ((r (run (list "users")))) (list (str=? (first r) (string-append (Str8 join " " (map (fn (_ u) (Assoc get (lit user) u)) (host-users))) "\n")) (first (rest (rest r)))))
 ```
 ---
     (#t 0)

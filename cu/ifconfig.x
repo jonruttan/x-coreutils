@@ -24,12 +24,12 @@
 (import cu/dump dp-find)
 (import cu/inet inet-aton inet-dotted inet-hex inet-host-addr inet-left
   inet-ntop6 inet-pton6! inet-set! inet-sin! inet-socket inet-words inet-zeros)
-(import cu/inetd in-c in-call)
+(import cu/inetd in-call)
 (import cu/prims append byte-at byte-len cal/ char->integer cu-err-label
-  cu-int->ptr cu-int->str cu-lines cu-ptr->str cu-ptr-call cu-ptr-ref
-  cu-ptr-set! cu-str->ptr cu-string-type cvt file-or-err file-read-unsized
-  file-write filter length libc-strerror map reverse set-first! string-append
-  string-concat string=? substring)
+  cu-int->ptr cu-int->str cu-libc-sym cu-lines cu-ptr->str cu-ptr-call
+  cu-ptr-ref cu-ptr-set! cu-str->ptr cu-string-type cvt file-or-err
+  file-read-unsized file-write filter length libc-strerror map reverse
+  set-first! string-append string=? substring)
 (import cu/strings cu-range-number)
 (import cu/sysctl sy-trim)
 (import cu/telnetd td-ptr->int)
@@ -55,8 +55,8 @@
 (def %if-ioctl
   (fn (_ req r)
     (let ((fd (inet-socket 2 %if-die)))
-      (let ((n (in-call (cu-ptr-call (in-c "ioctl") fd req (cu-str->ptr r)))))
-        (do (cu-ptr-call (in-c "close") fd) n)))))
+      (let ((n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr r)))))
+        (do (cu-ptr-call (cu-libc-sym "close") fd) n)))))
 
 ; an IPv4 address at AT of R, as the u32 the kernel holds
 (def %if-sin (fn (_ r at) (if-ref r (+ at 4) 4)))
@@ -133,7 +133,7 @@
 (def %if-scaled
   (fn (_ n)
     (let go ((i 4) (int n) (frac 0) (ext ""))
-      (if (= i 0) (string-concat (list "X bytes:" (cu-int->str n) " (" (cu-int->str int) "." (cu-int->str frac) " " ext "B)"))
+      (if (= i 0) (%str-concat (list "X bytes:" (cu-int->str n) " (" (cu-int->str int) "." (cu-int->str frac) " " ext "B)"))
         (if (>= int 1024)
           (go (- i 1) (cal/ int 1024) (cal/ (* (& int 1023) 10) 1024)
               (match ((string=? ext "") "Ki") ((string=? ext "Ki") "Mi") ((string=? ext "Mi") "Gi") (#t "Ti")))
@@ -144,12 +144,12 @@
   (fn (_ name)
     (let ((text (file-or-err (fn (_) (file-read-unsized "/proc/net/if_inet6")))))
       (if (Err err? text) ""
-        (string-concat
+        (%str-concat
           (map (fn (_ line)
                  (let ((w (inet-words line)))
                    (if (if (>= (length w) 6) (string=? (List ref 5 w) name) #f)
                      (let ((scope (& (inet-hex (List ref 3 w)) 240)))
-                       (string-concat
+                       (%str-concat
                          (list "          inet6 addr: " (inet-ntop6 (first w)) "/" (cu-int->str (inet-hex (List ref 2 w)))
                                " Scope:" (match ((= scope 0) "Global") ((= scope 32) "Link") ((= scope 64) "Site")
                                                 ((= scope 128) "Compat") ((= scope 16) "Host") (#t "Unknown")) "\n")))
@@ -160,13 +160,13 @@
 (def %if-print
   (fn (_ name ife stats)
     (def flags (List ref 0 ife))
-    (string-concat
+    (%str-concat
       (list (%if-link-line name (List ref 1 ife) (List ref 2 ife))
             (%if-ip-line flags (List ref 7 ife))
             (%if-inet6 name)
             "          "
             (if (= flags 0) "[NO FLAGS] "
-              (string-concat (map (fn (_ f) (if (= (& flags (first f)) 0) "" (string-append (rest f) " "))) %if-flag-names)))
+              (%str-concat (map (fn (_ f) (if (= (& flags (first f)) 0) "" (string-append (rest f) " "))) %if-flag-names)))
             " MTU:" (cu-int->str (List ref 4 ife)) "  Metric:" (cu-int->str (let ((m (List ref 3 ife))) (if (= m 0) 1 m))) "\n"
             (if (null? stats) "" (%if-stats-lines stats (List ref 6 ife)))
             (%if-map-line (List ref 5 ife))
@@ -183,28 +183,28 @@
              ((eq? (List ref 2 hw) (lit unspec)) unspec)
              ((if (eq? (List ref 2 hw) (lit unspec-suppress)) (not (List all? (fn (_ b) (= b 0)) hwb)) #f) unspec)
              (#t ())))
-    (string-concat (list (inet-left name 9) " Link encap:" (List ref 1 hw) "  "
-                         (if (null? hwtext) "" (string-concat (list "HWaddr " hwtext "  "))) "\n"))))
+    (%str-concat (list (inet-left name 9) " Link encap:" (List ref 1 hw) "  "
+                         (if (null? hwtext) "" (%str-concat (list "HWaddr " hwtext "  "))) "\n"))))
 
 ; the IPv4 line, where IP (address, dstaddr, broadcast, netmask) is given
 (def %if-ip-line
   (fn (_ flags ip)
     (if (null? ip) ""
-      (string-concat
+      (%str-concat
         (list "          inet addr:" (inet-dotted (first ip)) " "
-              (if (= (& flags 16) 0) "" (string-concat (list " P-t-P:" (inet-dotted (%if-or0 (List ref 1 ip))) " ")))
-              (if (= (& flags 2) 0) "" (string-concat (list " Bcast:" (inet-dotted (%if-or0 (List ref 2 ip))) " ")))
+              (if (= (& flags 16) 0) "" (%str-concat (list " P-t-P:" (inet-dotted (%if-or0 (List ref 1 ip))) " ")))
+              (if (= (& flags 2) 0) "" (%str-concat (list " Bcast:" (inet-dotted (%if-or0 (List ref 2 ip))) " ")))
               " Mask:" (inet-dotted (%if-or0 (List ref 3 ip))) "\n")))))
 
 ; the counters' lines, and txqueuelen where the kernel gave it
 (def %if-stats-lines
   (fn (_ stats txq)
     (def n (fn (_ k) (cu-int->str (List ref k stats))))
-    (string-concat
+    (%str-concat
       (list "          RX packets:" (n 1) " errors:" (n 2) " dropped:" (n 3) " overruns:" (n 4) " frame:" (n 5) "\n"
             "          TX packets:" (n 9) " errors:" (n 10) " dropped:" (n 11) " overruns:" (n 12) " carrier:" (n 14) "\n"
             "          collisions:" (n 13) " "
-            (if (= txq -1) "" (string-concat (list "txqueuelen:" (cu-int->str txq) " ")))
+            (if (= txq -1) "" (%str-concat (list "txqueuelen:" (cu-int->str txq) " ")))
             "\n          R" (%if-scaled (List ref 0 stats)) "  T" (%if-scaled (List ref 8 stats)) "\n"))))
 
 ; the hardware map's line, IFMAP (base_addr irq mem_start mem_end dma), where
@@ -213,12 +213,12 @@
   (fn (_ ifmap)
     (def hex (fn (_ v) (cvt v cu-string-type 16)))
     (if (List all? (fn (_ k) (= (List ref k ifmap) 0)) (list 0 1 2 4)) ""
-      (string-concat
+      (%str-concat
         (list "          "
-              (if (= (List ref 1 ifmap) 0) "" (string-concat (list "Interrupt:" (cu-int->str (List ref 1 ifmap)) " ")))
-              (if (< (List ref 0 ifmap) 256) "" (string-concat (list "Base address:0x" (hex (List ref 0 ifmap)) " ")))
-              (if (= (List ref 2 ifmap) 0) "" (string-concat (list "Memory:" (hex (List ref 2 ifmap)) "-" (hex (List ref 3 ifmap)) " ")))
-              (if (= (List ref 4 ifmap) 0) "" (string-concat (list "DMA chan:" (hex (List ref 4 ifmap)) " ")))
+              (if (= (List ref 1 ifmap) 0) "" (%str-concat (list "Interrupt:" (cu-int->str (List ref 1 ifmap)) " ")))
+              (if (< (List ref 0 ifmap) 256) "" (%str-concat (list "Base address:0x" (hex (List ref 0 ifmap)) " ")))
+              (if (= (List ref 2 ifmap) 0) "" (%str-concat (list "Memory:" (hex (List ref 2 ifmap)) "-" (hex (List ref 3 ifmap)) " ")))
+              (if (= (List ref 4 ifmap) 0) "" (%str-concat (list "DMA chan:" (hex (List ref 4 ifmap)) " ")))
               "\n")))))
 
 (def %if-or0 (fn (_ v) (if (null? v) 0 v)))
@@ -234,7 +234,7 @@
     (def one (fn (_ n stats)
                (let ((ife (%if-fetch n)))
                  (if (null? ife)
-                   (do (%if-say (string-concat (list n ": error fetching interface information: " (%if-fetch-err n)))) #f)
+                   (do (%if-say (%str-concat (list n ": error fetching interface information: " (%if-fetch-err n)))) #f)
                    (do (when (if (null? name) (if all? #t (not (= (& (List ref 0 ife) 1) 0))) #t)
                          (file-write 1 (%if-print n ife stats)))
                        #t)))))
@@ -283,13 +283,13 @@
 (def %if-set!
   (fn (_ req r name)
     (let ((n (%if-ioctl req r)))
-      (when (< n 0) (%if-die (string-concat (list "SIOC" name ": " (libc-strerror (Err errno-of n)))))))))
+      (when (< n 0) (%if-die (%str-concat (list "SIOC" name ": " (libc-strerror (Err errno-of n)))))))))
 
 ; xioctl for the flags: the ioctl's number where it fails
 (def %if-xioctl!
   (fn (_ req r)
     (let ((n (%if-ioctl req r)))
-      (when (< n 0) (%if-die (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n)))))))))
+      (when (< n 0) (%if-die (%str-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n)))))))))
 
 ; the flags SEL set or cleared
 (def %if-flag!
@@ -307,7 +307,7 @@
       ((string=? host "default") (pair 4 0))
       ((not (null? (inet-aton host))) (pair 4 (inet-aton host)))
       ((inet-pton6! b 0 host) (pair 6 b))
-      (#t (let ((a (inet-host-addr host))) (if (null? a) (%if-die (string-concat (list "bad address '" host "'"))) (pair 4 a)))))))
+      (#t (let ((a (inet-host-addr host))) (if (null? a) (%if-die (%str-concat (list "bad address '" host "'"))) (pair 4 a)))))))
 
 ; an address for OP into IFACE: an IPv4 one by OP's ioctl, an IPv6 one by an
 ; in6_ifreq, ADDR/PREFIX taken only for IPv6; #t where it was IPv4
@@ -320,7 +320,7 @@
     (def a (%if-host (if (< slash 0) host (substring host 0 slash))))
     (match
       ((= (first a) 6) (do (%if-address6! iface op (rest a) plen) #f))
-      ((>= slash 0) (%if-die (string-concat (list "bad address '" host "'"))))
+      ((>= slash 0) (%if-die (%str-concat (list "bad address '" host "'"))))
       (#t (let ((r (if-req iface)))
             (do (inet-sin! r (List ref 5 op) (rest a))
                 (%if-set! (List ref 4 op) r (List ref 6 op))
@@ -331,14 +331,14 @@
     (def idx (if-req iface))
     (def fd (inet-socket 10 %if-die))
     (def r6 (inet-zeros 24))
-    (let ((n (in-call (cu-ptr-call (in-c "ioctl") fd 35123 (cu-str->ptr idx)))))
-      (when (< n 0) (do (cu-ptr-call (in-c "close") fd) (%if-die (string-append "ioctl 0x8933 failed: " (libc-strerror (Err errno-of n)))))))
+    (let ((n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd 35123 (cu-str->ptr idx)))))
+      (when (< n 0) (do (cu-ptr-call (cu-libc-sym "close") fd) (%if-die (string-append "ioctl 0x8933 failed: " (libc-strerror (Err errno-of n)))))))
     (map (fn (_ k) (inet-set! r6 k (cu-ptr-ref (cu-str->ptr bytes) k 1) 1)) (List range 0 16))
     (inet-set! r6 16 plen 4)
     (inet-set! r6 20 (if-ref idx 16 4) 4)
-    (let ((n (in-call (cu-ptr-call (in-c "ioctl") fd (List ref 4 op) (cu-str->ptr r6)))))
-      (do (cu-ptr-call (in-c "close") fd)
-          (when (< n 0) (%if-die (string-concat (list "SIOC" (List ref 6 op) ": " (libc-strerror (Err errno-of n))))))))))
+    (let ((n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd (List ref 4 op) (cu-str->ptr r6)))))
+      (do (cu-ptr-call (cu-libc-sym "close") fd)
+          (when (< n 0) (%if-die (%str-concat (list "SIOC" (List ref 6 op) ": " (libc-strerror (Err errno-of n))))))))))
 
 ; strtoul with base 0: decimal, 0x hex or 0 octal, its digits as far as they go
 (def %if-strtoul
@@ -394,7 +394,7 @@
     (def arg (if (null? (rest ws)) () (first (rest ws))))
     (def kind (if (null? op) () (List ref 2 op)))
     (match
-      ((if (null? op) #f (= mask 0)) (%if-die (string-concat (list "bad: '" w "'"))))
+      ((if (null? op) #f (= mask 0)) (%if-die (%str-concat (list "bad: '" w "'"))))
       ; a word no option names: an address, the interface brought up after
       ((null? op)
         (do (unless (string=? w "inet")
