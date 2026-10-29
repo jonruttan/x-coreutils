@@ -31,8 +31,8 @@
   ip-say ip-scope-id ip-scopes)
 (import cu/prims append byte-at byte-len char->integer cu-int->str cu-libc-sym
   cu-nth cu-ptr-call cu-ptr-ref cu-str->ptr cu-string-type cvt file-write
-  filter length libc-strerror map reverse str-make-raw string-append
-  string-concat string=? substring)
+  filter length libc-strerror map reverse str-make-raw string-append string=?
+  substring)
 
 (def ip-le
   (fn (_ n k) (map (fn (_ i) (& (>> n (* 8 i)) 255)) (List range 0 k))))
@@ -94,7 +94,7 @@
       (let ((len (if (> (+ o 16) n) 0 (cu-ptr-ref p o 4))))
         (match
           ((> (+ o 16) n) ())
-          ((if (< len 16) #t (> (+ o len) n)) (ip-die f (string-concat (list "malformed message: len=" (cu-int->str len) "!"))))
+          ((if (< len 16) #t (> (+ o len) n)) (ip-die f (%str-concat (list "malformed message: len=" (cu-int->str len) "!"))))
           ((not (= (cu-ptr-ref p (+ o 8) 4) seq)) (go (+ o (ip-align len))))
           ((not (= (cu-ptr-ref p (+ o 4) 2) 2)) (do (ip-say f "unexpected reply!") (go (+ o (ip-align len)))))
           ((< len 36) (do (ip-say f "ERROR truncated") -1))
@@ -154,7 +154,7 @@
   (fn (_ f arg len)
     (if (>= (dp-find arg 0 #\.) 0)
       (let ((a (ip-addr1 arg 2)))
-        (match ((not (first a)) (do (ip-say f (string-concat (list "\"" arg "\" is invalid lladdr"))) -1))
+        (match ((not (first a)) (do (ip-say f (%str-concat (list "\"" arg "\" is invalid lladdr"))) -1))
                ((< len 4) -1)
                (#t (pair 4 (List take 4 (List ref 2 a))))))
       (let go ((i 0) (s arg) (acc ()))
@@ -163,7 +163,7 @@
             (let ((v (%ip-scanx part)))
               (match
                 ((>= i len) (pair (+ i 1) (reverse acc)))
-                ((if (null? v) #t (if (< v 0) #t (> v 255))) (do (ip-say f (string-concat (list "\"" part "\" is invalid lladdr"))) -1))
+                ((if (null? v) #t (if (< v 0) #t (> v 255))) (do (ip-say f (%str-concat (list "\"" part "\" is invalid lladdr"))) -1))
                 ((null? more) (pair (+ i 1) (reverse (pair v acc))))
                 (#t (go (+ i 1) more (pair v acc)))))))))))
 
@@ -188,19 +188,19 @@
 (def ip-address
   (fn (_ f arg family)
     (when (= family 17)
-      (ip-die f (string-concat (list "\"" arg "\" may be inet address, but it is not allowed in this context"))))
+      (ip-die f (%str-concat (list "\"" arg "\" may be inet address, but it is not allowed in this context"))))
     (let ((a (ip-addr1 arg family)))
       (if (first a) (rest a)
-        (ip-die f (string-concat (list "an inet address is expected rather than \"" arg "\"")))))))
+        (ip-die f (%str-concat (list "an inet address is expected rather than \"" arg "\"")))))))
 
 (def ip-prefix-in
   (fn (_ f arg family)
     (when (= family 17)
-      (ip-die f (string-concat (list "\"" arg "\" may be inet prefix, but it is not allowed in this context"))))
+      (ip-die f (%str-concat (list "\"" arg "\" may be inet prefix, but it is not allowed in this context"))))
     (ip-prefix f arg family)))
 
 (def %ip-duparg
-  (fn (_ f key arg) (ip-die f (string-concat (list "duplicate \"" key "\": \"" arg "\" is the second value")))))
+  (fn (_ f key arg) (ip-die f (%str-concat (list "duplicate \"" key "\": \"" arg "\" is the second value")))))
 
 ; set_lifetime
 (def %ip-lifetime
@@ -262,7 +262,7 @@
 (def %ip-local
   (fn (_ f s a)
     (unless (= (ip-get s (lit local-len)) 0)
-      (ip-die f (string-concat (list "either \"local\" is duplicate, or \"" (first a) "\" is garbage"))))
+      (ip-die f (%str-concat (list "either \"local\" is duplicate, or \"" (first a) "\" is garbage"))))
     (let ((p (ip-prefix-in f (first a) (ip-get s (lit family)))))
       (pair (ip-put (ip-put (ip-attr! (ip-family! s (first p)) 2 (ip-pfx-bytes p)) (lit lcl) p) (lit local-len) (List ref 3 p))
             (rest a)))))
@@ -286,7 +286,7 @@
     (def s1 (if (> (ip-get s (lit flags)) 255) (ip-attr! s 8 (ip-le (ip-get s (lit flags)) 4)) s))
     (when (null? dev) (ip-die f "need \"dev IFACE\""))
     (unless (if (null? label) #t (if (>= (byte-len label) (byte-len dev)) (string=? (substring label 0 (byte-len dev)) dev) #f))
-      (ip-die f (string-concat (list "\"dev\" (" dev ") must match \"label\" (" label ")"))))
+      (ip-die f (%str-concat (list "\"dev\" (" dev ") must match \"label\" (" label ")"))))
     (def own-peer? (if (= (ip-get s (lit peer-len)) 0) (if (> (ip-get s (lit local-len)) 0) (not del?) #f) #f))
     (def s2 (if own-peer? (ip-put (ip-attr! s1 1 (ip-pfx-bytes lcl)) (lit peer) lcl) s1))
     (def s3 (if (= (ip-get s2 (lit plen)) 0) (ip-put s2 (lit plen) (& (List ref 2 lcl) 255)) s2))
@@ -410,7 +410,7 @@
   (fn (_ f fd req r)
     (let ((n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr r)))))
       (when (< n 0)
-        (ip-die f (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n)))))))))
+        (ip-die f (%str-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n)))))))))
 
 ; an ifreq naming DEV with N bytes of V at 16, set by REQ on a control socket
 (def %ip-ifreq-set
@@ -468,7 +468,7 @@
     (def a (%ip-lladdr f lla (if (= (first hw) 1) 14 19)))
     (when (not (pair? a)) (Err raise (lit ip-exit1) "lladdr" ()))
     (unless (= (first a) (rest hw))
-      (ip-die f (string-concat (list "wrong address (" (if (>= (dp-find lla 0 #\.) 0) lla (first (Str8 split ":" lla)))
+      (ip-die f (%str-concat (list "wrong address (" (if (>= (dp-find lla 0 #\.) 0) lla (first (Str8 split ":" lla)))
                                       ") length: expected " (cu-int->str (rest hw)) " bytes"))))
     (def r (if-req dev))
     (inet-set! r 16 (first hw) 2)
@@ -492,7 +492,7 @@
 (def %ip-on-off
   (fn (_ f what arg)
     (match ((string=? arg "on") #t) ((string=? arg "off") #f)
-           (#t (ip-die f (string-concat (list "argument of \"" what "\" must be \"on\" or \"off\"")))))))
+           (#t (ip-die f (%str-concat (list "argument of \"" what "\" must be \"on\" or \"off\"")))))))
 
 ; an on|off flag: BIT set in S's flags where ON? (or where not, for INVERT?)
 (def %ip-flag-word
@@ -515,7 +515,7 @@
       ((= k 11) (pair (ip-put s (lit master) 0) (rest ws)))
       ((= k 12) (let ((a (if (= k0 12) (ip-next f ws) ws)))
                   (if (null? (ip-get s (lit dev))) (pair (ip-put s (lit dev) (first a)) (rest a))
-                    (ip-die f (string-concat (list "either \"dev\" is duplicate, or \"" (first a) "\" is garbage"))))))
+                    (ip-die f (%str-concat (list "either \"dev\" is duplicate, or \"" (first a) "\" is garbage"))))))
       (#t (%ip-set-flag f s k (ip-next f ws))))))
 
 (def %ip-set-num
@@ -576,7 +576,7 @@
     (def low (Str8 downcase arg))
     (def k (ip-keyword (list "802.1q" "802.1ad") low))
     (match ((= k 0) (list 129 0)) ((= k 1) (list 136 168))
-           (#t (ip-die f (string-concat (list "unknown VLAN encapsulation protocol '" low "'")))))))
+           (#t (ip-die f (%str-concat (list "unknown VLAN encapsulation protocol '" low "'")))))))
 
 ; vrf_parse_opt: the table, the one word it reads
 (def %ip-vrf-attrs

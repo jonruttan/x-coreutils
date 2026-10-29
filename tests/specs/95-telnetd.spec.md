@@ -35,7 +35,7 @@ stderr.  The terminal's name is shown as PTS.
   (def td-prep (fn (_ args issue script input port)
     (sys-setenv "TD_ARGS" args) (sys-setenv "TD_ISSUE" issue) (sys-setenv "TD_S" script)
     (sys-setenv "TD_IN" input) (sys-setenv "TD_PORT" (cu-int->str port))
-    (td-sh (string-concat (list
+    (td-sh (%str-concat (list
       "d=/tmp/x-cu-telnetd; rm -f $d/p* $d/got $d/out $d/err $d/argv; "
       "printf '%b' \"$TD_ISSUE\" > $d/issue; printf '%b' \"$TD_S\" > $d/s; "
       "printf '#!/bin/sh\\nexec sh %s/s\\n' $d > $d/login; chmod +x $d/login; "
@@ -93,7 +93,7 @@ stderr.  The terminal's name is shown as PTS.
                   (sys-dup2 (file-open-write (td-f "out")) 1) (sys-dup2 (file-open-write (td-f "err")) 2)
                   (sys-exit (cu-run (pair "telnetd" argv) ""))))
             (def st (sys-wait pid))
-            (td-sh (string-concat (list "d=/tmp/x-cu-telnetd; { echo \"[status " (cu-int->str st) "]\"; cat $d/out; cat $d/err; } > $d/report")))))
+            (td-sh (%str-concat (list "d=/tmp/x-cu-telnetd; { echo \"[status " (cu-int->str st) "]\"; cat $d/out; cat $d/err; } > $d/report")))))
       (let ((pid (td-start mode argv l)))
         (do (unless (null? l) (Socket close l))
             (td-client port)

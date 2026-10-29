@@ -21,7 +21,7 @@
 (import cu/prims byte-at byte-len char->integer cu-int->ptr cu-int->str
   cu-libc-sym cu-ptr->str cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word
   cu-str->ptr cu-string-type cvt filter libc-strerror map str-make-raw
-  string-append string-concat string=? substring)
+  string-append string=? substring)
 (import cu/text cu-pad-right cu-pad-zero)
 
 (def inet-hex
@@ -147,7 +147,7 @@
   (fn (_ fd req buf die)
     (let ((r (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr buf)))))
       (do (cu-ptr-call (cu-libc-sym "close") fd)
-          (when (< r 0) (die (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of r))))))))))
+          (when (< r 0) (die (%str-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of r))))))))))
 
 ; a zeroed buffer of N bytes
 (def inet-zeros

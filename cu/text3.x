@@ -26,8 +26,8 @@
   cu-sweep-lines cu-sweep-steps cu-take cu-words-line cu< cu<< cu>>
   date-now-unix file-close file-err-op file-err-text file-open-or-err
   file-open-write file-write file-write-run integer->char length list->string
-  reverse rng-int rng-make set-first! string-append string-concat substring
-  vec-build vec-ref vec-set!)
+  reverse rng-int rng-make set-first! string-append substring vec-build
+  vec-ref vec-set!)
 (import cu/text cu-delim-fields-said cu-enough cu-file-pieces
   cu-fold-lines-said cu-fold-pieces cu-fold-said cu-fold-stdin cu-gather-said
   cu-map-swept cu-newlines-from cu-num-prefix cu-print-fields
@@ -114,7 +114,7 @@
     (def n (%cu-factor-number s))
     (if (null? n)
       (do (file-write 2
-            (string-concat
+            (%str-concat
               (list "factor: '" s "' is not a valid positive integer\n")))
           #f)
       (do (display
@@ -154,7 +154,7 @@
     (def end (byte-len s))
     (def go
       (fn (self i col lead? acc)
-        (if (>= i end) (string-concat (reverse acc))
+        (if (>= i end) (%str-concat (reverse acc))
           (let ((b (byte-at s i)))
             (match
               ((if (= b 9) (if init? lead? #t) #f)
@@ -212,7 +212,7 @@
               (#t (list i col n)))))))
     (def go
       (fn (self i col lead? acc)
-        (if (>= i end) (string-concat (reverse acc))
+        (if (>= i end) (%str-concat (reverse acc))
           (let ((b (byte-at s i)))
             (match
               ((not (if (= b 32) #t (= b 9)))
@@ -224,7 +224,7 @@
                   (self (first r) to #f
                     (pair (%cu-unexpand-run col to w (if (= n 1) (= b 32) #f))
                           acc))))
-              (#t (string-concat (reverse (pair (substring s i end) acc)))))))))
+              (#t (%str-concat (reverse (pair (substring s i end) acc)))))))))
     (go 0 0 #t ())))
 
 ; Which runs are respelled: the leading one, unless -a -- or -t, which says it
@@ -372,7 +372,7 @@
         (let ((fd (file-open-or-err file-open-write path)))
           (if (Err err? fd)
             (do (file-write 2
-                  (string-concat
+                  (%str-concat
                     (list "split: " path ": " (file-err-text fd) "\n")))
                 ())
             fd))))))
@@ -428,7 +428,7 @@
     ; the input is read a piece at a time and put out as it is read
     (if (<= size 0)
       (do (file-write 2
-            (string-concat
+            (%str-concat
               (list "split: invalid number of " (if by-bytes? "bytes" "lines")
                     ": '" (if by-bytes? bv lv) "'\n")))
           1)
@@ -445,8 +445,8 @@
 (def %cu-split-says
   (fn (_ name err)
     (if (eq? (file-err-op err) (lit read))
-      (string-concat (list "split: " name ": " (file-err-text err)))
-      (string-concat
+      (%str-concat (list "split: " name ": " (file-err-text err)))
+      (%str-concat
         (list "split: cannot open '" name "' for reading: " (file-err-text err))))))
 
 ; --- shuf ---------------------------------------------------------------------
@@ -549,7 +549,7 @@
 (def %cu-shuf-cannot
   (fn (_ dest r)
     (do (file-write 2
-          (string-concat (list "shuf: " dest ": " (file-err-text r) "\n")))
+          (%str-concat (list "shuf: " dest ": " (file-err-text r) "\n")))
         1)))
 
 ; "LO-HI" -> the integers from LO to HI, as strings.
@@ -805,7 +805,7 @@
     ; -w sets the wrap column, 0 one unbroken line; it is read before the input
     (def wrap (if (null? wv) 76 (%cu-b64-wrap wv)))
     (if (null? wrap)
-      (do (file-write 2 (string-concat (list "base64: invalid wrap size: '" wv "'\n")))
+      (do (file-write 2 (%str-concat (list "base64: invalid wrap size: '" wv "'\n")))
           1)
       ; the input is encoded or decoded as it is read.  One that could not be
       ; read is said and fails, and nothing more is put out.

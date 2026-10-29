@@ -63,7 +63,7 @@ bundle's ls to the widest entry.
               (Socket send c (string-append cmd "\r\n"))
               (let ((got (fd-data-all d "")))
                 (do (Socket close d) (sys-usleep 200000) (fd-drain c 100)
-                    (string-concat (list "---\n" got "<EOF>\n"))))))))))
+                    (%str-concat (list "---\n" got "<EOF>\n"))))))))))
   (def fd-step (fn (_ c s)
     (match ((if (Str8 starts? "D:" s) #t (Str8 starts? "W:" s)) (fd-data-step c s))
            ((Str8 starts? "S:" s) (do (sys-usleep (* 1000000 (wget-digits (substring s 2 (byte-len s))))) (fd-drain c 100) ""))
@@ -87,7 +87,7 @@ bundle's ls to the widest entry.
     (def c (Socket tcp-connect "127.0.0.1" port))
     (sys-usleep 300000)
     (fd-drain c 100)
-    (def data (string-concat (map (fn (_ s) (fd-step c s)) (Str8 split ";" steps))))
+    (def data (%str-concat (map (fn (_ s) (fd-step c s)) (Str8 split ";" steps))))
     (sys-usleep 300000) (fd-drain c 100)
     (Socket close c)
     (sys-usleep 300000)
@@ -552,7 +552,7 @@ the status.  The suite's stdin is not a socket, as busybox's was not.
 ### the fixture: a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (def nf (fn (_ n) (string-append "/tmp/x-cu-fd/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
+(do (def nf (fn (_ n) (string-append "/tmp/x-cu-fd/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (%str-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
 ```
 ---
     made

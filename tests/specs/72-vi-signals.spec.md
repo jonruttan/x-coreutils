@@ -38,7 +38,7 @@ types the bursts, and draws what came of them.
         (pair (lit left) (string-append (bytes->str (list 27)) "[D"))))
 (def vi-b
   (fn (_ . parts)
-    (string-concat
+    (%str-concat
       (List map (fn (_ p) (if (symbol? p) (Assoc get p vi-keys) p)) parts))))
 (def vi-byte
   (fn (_ b)
@@ -47,7 +47,7 @@ types the bursts, and draws what came of them.
       (bytes->str (list 92 (vi+ 48 (vi/ b 64)) (vi+ 48 (vi% (vi/ b 8) 8)) (vi+ 48 (vi% b 8)))))))
 (def vi-shown
   (fn (_ s)
-    (string-concat
+    (%str-concat
       (List map (fn (_ i) (vi-byte (& (byte-at s i) 255))) (List range 0 (byte-len s))))))
 (def vi-trim
   (fn (self s)
@@ -89,7 +89,7 @@ types the bursts, and draws what came of them.
     (set! vt-pc 0)
     (set! vt-bells 0)
     (set! vt-flashes 0)
-    (vt-run! (string-concat (reverse drawn)) 0)
+    (vt-run! (%str-concat (reverse drawn)) 0)
     (vt-shown)))
 
 (def vt-row
@@ -207,8 +207,8 @@ types the bursts, and draws what came of them.
 
 (def vt-shown
   (fn (_)
-    (string-concat
-      (list (string-concat
+    (%str-concat
+      (list (%str-concat
               (List map (fn (_ r) (string-append "|" (vt-text r) "\n"))
                 (List range 0 (vi- vt-rows 1))))
             "status " vt-lb "\n"
@@ -252,7 +252,7 @@ types the bursts, and draws what came of them.
     (vi-set! (lit %vi-typed-env) ())
     (def f (if (file-exists? "/tmp/x-cu-vg/f") (vi-shown (file-read-all "/tmp/x-cu-vg/f")) "no file\n"))
     (display
-      (string-concat
+      (%str-concat
         (list "exit " (cu-int->str st) "\n"
               (if (if (< 0 (byte-len f)) (= (byte-at f (- (byte-len f) 1)) #\newline) #t) f
                 (string-append f " (no newline)\n"))
@@ -273,7 +273,7 @@ screen: the same bytes vi-tools' model draws the same way.
 (def vt-e (fn (_ s) (string-append (bytes->str (list 27)) s)))
 (display
   (vt-draw
-    (list (string-concat
+    (list (%str-concat
             (list (vt-e "[1;1H") "hello" (vt-e "[2;3H") "ab" (vt-e "[3;1H") (vt-e "[K")
                   "status" (bytes->str (list 7)) (vt-e "[?5h") (vt-e "[3;1H") (vt-e "[K")
                   "wide line that wraps" (bytes->str (list 10 8)) "x" (vt-e "[1;4H") (vt-e "[J"))))

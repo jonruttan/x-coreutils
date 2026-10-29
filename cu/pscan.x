@@ -26,13 +26,12 @@
 (import cu/ping pn-be16! pn-div pn-family pn-now pn-number pn-resolve
   pn-setopt pn-sol-socket)
 (import cu/prims cu-err-label cu-int->str cu-libc-sym cu-ptr-call cu-ptr-ref
-  cu-str->ptr file-write length libc-strerror string-append string-concat
-  sys-usleep)
+  cu-str->ptr file-write length libc-strerror string-append sys-usleep)
 (import cu/text cu-pad-left)
 
 (def %ps-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "pscan: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "pscan: " msg "\n")))
         (Err raise (lit pscan) msg ()))))
 
 (def %ps-eagain (if os-darwin? 35 11))
@@ -61,7 +60,7 @@
 (def %ps-line
   (fn (_ port state)
     (let ((name (inet-service port 0)))
-      (file-write 1 (string-concat
+      (file-write 1 (%str-concat
         (list (cu-pad-left (cu-int->str port) 5) "\ttcp\t" state "\t" (if (null? name) "unknown" name) "\n"))))))
 
 ; one port of the scan, as pscan_main's loop body: the socket SA (of LEN
@@ -117,12 +116,12 @@
     (def show-closed (Opts on? o "-c"))
     (def show-blocked (Opts on? o "-b"))
     (def lsa (pn-resolve host 0 0 %ps-die))
-    (file-write 1 (string-concat
+    (file-write 1 (%str-concat
       (list "Scanning " host " ports " (cu-int->str min-port) " to " (cu-int->str max-port) "\n"
             " Port\tProto\tState\tService\n")))
     (let go ((port min-port) (rtt-4 timeout) (closed 0) (open 0))
       (if (> port max-port)
-        (do (file-write 1 (string-concat
+        (do (file-write 1 (%str-concat
               (list (cu-int->str closed) " closed, " (cu-int->str open) " open, "
                     (cu-int->str (- (+ (- max-port min-port) 1) (+ closed open)))
                     " timed out (or blocked) ports\n")))

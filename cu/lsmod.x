@@ -14,8 +14,7 @@
 (module cu/lsmod)
 
 (import cu/prims byte-at byte-len char->integer cu-lines file-or-err
-  file-read-unsized file-write length map reverse string-append string-concat
-  substring)
+  file-read-unsized file-write length map reverse string-append substring)
 (import cu/text cu-pad-left cu-pad-right)
 
 (def %lm-words
@@ -35,7 +34,7 @@
   (fn (_)
     (let ((t (guard (_ 0) (let ((s (file-read-unsized "/proc/sys/kernel/tainted"))) (%lm-atoi s)))))
       (if (= t 0) "    Not tainted\n"
-        (string-concat (list "    Tainted: " (if (= (& t 1) 0) "G" "P") (if (= (& t 2) 0) " " "F")
+        (%str-concat (list "    Tainted: " (if (= (& t 1) 0) "G" "P") (if (= (& t 2) 0) " " "F")
                              (if (= (& t 4) 0) " " "S") "\n"))))))
 
 ; atoi: the leading decimal digits of S, 0 where there are none
@@ -55,7 +54,7 @@
                    (let ((w (%lm-words line)))
                      (when (= (length w) 4)
                        (let ((users (List ref 3 w)))
-                         (file-write 1 (string-concat
+                         (file-write 1 (%str-concat
                                          (list (cu-pad-right (first w) 19) " "
                                                (cu-pad-left (List ref 1 w) 8) " "
                                                (cu-pad-left (List ref 2 w) 2) " "

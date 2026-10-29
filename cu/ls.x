@@ -28,8 +28,8 @@
 (import cu/prims append bit-and byte-at byte-len cu-dot? cu-int->str
   cu-member-s? cu-nth cu-stat-get date-now-unix file-list-dir file-lstat-full
   file-readlink file-stat-full file-write filter length ls-human map reverse
-  set-first! string-append string-concat string=? substring sys-getenv
-  sys-group-name sys-isatty sys-user-name vec-make vec-ref vec-set!)
+  set-first! string-append string=? substring sys-getenv sys-group-name
+  sys-isatty sys-user-name vec-make vec-ref vec-set!)
 (import cu/text cu-msort cu-num-prefix cu-pad-left cu-pad-right cu-pad-zero
   cu-str<)
 (import cu/text3 cu-list->vec cu-spaces)
@@ -169,7 +169,7 @@
     (def d (Date local t))
     (def f (fn (_ k) (rest (Assoc entry k d))))
     (def recent? (< (if (> now t) (- now t) (- t now)) 15768000))
-    (string-concat
+    (%str-concat
       (list (cu-nth (- (f (lit month)) 1) %ls-months) " "
             (cu-pad-left (cu-int->str (f (lit day))) 2) " "
             (if recent?
@@ -233,7 +233,7 @@
     (def k (%ls-get e (lit file-type)))
     (if (if (eq? k (lit char)) #t (eq? k (lit block)))
       (let ((dev (%ls-get e (lit rdev))))
-        (string-concat
+        (%str-concat
           (list (cu-pad-left (cu-int->str (cu-dev-major dev)) 4) ", "
                 (cu-pad-left (cu-int->str (cu-dev-minor dev)) 3))))
       (cu-pad-left (%ls-size-str e o) (if (%ls-flag? o "-h") 7 9)))))
@@ -248,14 +248,14 @@
     (def long? (if numeric? #t (%ls-flag? o "-l")))
     (def st (%ls-st e))
     (def name (string-append (%ls-name e) (%ls-suffix e o)))
-    (string-concat
+    (%str-concat
       (list
         (if (%ls-flag? o "-i")
           (string-append (cu-pad-left (cu-int->str (%ls-get e (lit ino))) 7) " ") "")
         (if (%ls-flag? o "-s")
           (string-append (cu-pad-left (cu-int->str (cu-du-blocks st)) 6) " ") "")
         (if (not long?) name
-          (string-concat
+          (%str-concat
             (list (cu-perm-string (%ls-get e (lit file-type)) (%ls-get e (lit mode))) " "
                   (cu-pad-left (cu-int->str (%ls-get e (lit nlink))) 4) " "
                   (cu-pad-right (%ls-owner e numeric?) 8) " "
@@ -362,14 +362,14 @@
   (fn (_ rows w)
     (def line
       (fn (self cells c acc)
-        (if (null? cells) (string-concat (reverse acc))
+        (if (null? cells) (%str-concat (reverse acc))
           (let ((cell (first cells)))
             (self (rest cells) (+ c 1)
               (pair (if (null? (rest cells)) cell
                       (string-append cell
                         (cu-spaces (- (+ (vec-ref w c) 2) (byte-len cell)))))
                     acc))))))
-    (string-concat (map (fn (_ r) (string-append (line r 0 ()) "\n")) rows))))
+    (%str-concat (map (fn (_ r) (string-append (line r 0 ()) "\n")) rows))))
 
 ; CELLS laid out in the most columns that fit WIDTH.  A column needs a
 ; cell and a gap, so no more than a third of the width are tried.
@@ -453,7 +453,7 @@
       (let ((go (fn (self ms)
                   (if (null? ms) ()
                     (do (file-write 2
-                          (string-concat
+                          (%str-concat
                             (list "ls: " (%ls-name (first ms))
                                   ": No such file or directory\n")))
                         (self (rest ms)))))))

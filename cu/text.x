@@ -17,13 +17,13 @@
   cu-opts)
 (import cu/prims append byte-at byte-len cu-dirname-of cu-fd-fields
   cu-file-read cu-int->str cu-lines cu-nth cu-piece-bytes cu-rev cu-run-bytes
-  cu-run-of cu-stat-get cu-stdin-fields! cu-sweep! cu-sweep-at
-  cu-sweep-bytes cu-sweep-lines cu-sweep-steps cu-sweep-tick! cu-walk-worst
-  cu-words-line file-close file-dir? file-err-op file-err-text
-  file-open-or-err file-open-read file-or-err file-read-all file-read-fd
-  file-seek file-stat-full file-write file-write-field file-write-run filter
-  length map reverse set-first! str-make-raw string-append string-concat
-  string=? substring sys-sleep sys-usleep)
+  cu-run-of cu-stat-get cu-stdin-fields! cu-sweep! cu-sweep-at cu-sweep-bytes
+  cu-sweep-lines cu-sweep-steps cu-sweep-tick! cu-walk-worst cu-words-line
+  file-close file-dir? file-err-op file-err-text file-open-or-err
+  file-open-read file-or-err file-read-all file-read-fd file-seek
+  file-stat-full file-write file-write-field file-write-run filter length map
+  reverse set-first! str-make-raw string-append string=? substring sys-sleep
+  sys-usleep)
 
 (import x/codec/bytes)
 
@@ -63,13 +63,13 @@
               ((eq? (file-err-op text) (lit read))
                 (do (%cu-input-header head? name first?)
                     (file-write 2
-                      (string-concat
+                      (%str-concat
                         (list applet ": error reading '" name "': "
                               (file-err-text text) "\n")))
                     (self applet (rest ops) stdin-thunk head? show #f 1)))
               (#t
                 (do (file-write 2
-                      (string-concat
+                      (%str-concat
                         (list applet ": cannot open '" name "' for reading: "
                               (file-err-text text) "\n")))
                     (self applet (rest ops) stdin-thunk head? show first? 1))))))))))
@@ -77,7 +77,7 @@
 (def %cu-input-header
   (fn (_ head? name first?)
     (if head?
-      (display (string-concat (list (if first? "" "\n") "==> " name " <==\n")))
+      (display (%str-concat (list (if first? "" "\n") "==> " name " <==\n")))
       ())))
 
 ; The same inputs, headers and complaints, for head and tail, which read each
@@ -95,7 +95,7 @@
       (let ((name (first ops)) (src (cu-pieces (first ops) stdin-thunk)))
         (if (Err err? src)
           (do (file-write 2
-                (string-concat
+                (%str-concat
                   (list applet ": cannot open '" name "' for reading: "
                         (file-err-text src) "\n")))
               (self applet (rest ops) stdin-thunk head? read first? 1))
@@ -106,7 +106,7 @@
                     (if (null? (rest r))
                       (self applet (rest ops) stdin-thunk head? read #f st)
                       (do (file-write 2
-                            (string-concat
+                            (%str-concat
                               (list applet ": error reading '" name "': "
                                     (file-err-text (rest r)) "\n")))
                           (self applet (rest ops) stdin-thunk head? read #f 1)))))))))))
@@ -209,7 +209,7 @@
   (fn (_ src r)
     (let ((g (cu-fold-pieces src (fn (_ p acc) (pair (cu-run-text p) acc))
                (list (cu-run-text r)))))
-      (if (null? (rest g)) (string-concat (reverse (first g))) (rest g)))))
+      (if (null? (rest g)) (%str-concat (reverse (first g))) (rest g)))))
 
 ; F called with the piece sources of the two NAMES, both closed once it
 ; answers -- or FAIL where either will not open, said by SAYS
@@ -324,7 +324,7 @@
                (pair () state))))
       (pair (let ((s (first r)))
               (if (null? (first s)) (rest s)
-                (each (string-concat (reverse (first s))) (rest s))))
+                (each (%str-concat (reverse (first s))) (rest s))))
             (rest r)))))
 
 ; EACH, a taker of whole lines, as a TAKE of pieces.  A piece is cut after its
@@ -359,11 +359,11 @@
 ; the pieces LEFT, newest first, then P, as one text
 (def %cu-joined
   (fn (_ left p)
-    (if (null? left) p (string-concat (reverse (pair p left))))))
+    (if (null? left) p (%str-concat (reverse (pair p left))))))
 
 ; LS each on a line of its own, put out as they are walked, sweeping as they
 ; go.  Made into one string first they would cost thousands of objects a line
-; inside string-concat, where no sweep reaches; each line and its newline go
+; inside %str-concat, where no sweep reaches; each line and its newline go
 ; out as two writes, since joining them first costs three times as much.
 (def cu-print-lines
   (fn (self ls)
@@ -475,7 +475,7 @@
       (stdin-thunk)
       (let ((go (fn (self ops acc)
                   (if (null? ops)
-                    (string-concat (reverse acc))
+                    (%str-concat (reverse acc))
                     (self (rest ops)
                       (pair
                         (if (string=? (first ops) "-")
@@ -497,7 +497,7 @@
 (def %cu-gather-said-go
   (fn (self ops stdin-thunk says stop? acc st)
     (if (if (null? ops) #t (if stop? (> st 0) #f))
-      (pair (string-concat (reverse acc)) st)
+      (pair (%str-concat (reverse acc)) st)
       (if (string=? (first ops) "-")
         (self (rest ops) stdin-thunk says stop? (pair (stdin-thunk) acc) st)
         (let ((text (file-or-err (fn (_) (file-read-all (first ops))))))
@@ -528,7 +528,7 @@
 (def %cu-runs-join
   (fn (_ rs)
     (if (null? (filter cu-run-nul? rs))
-      (cu-run-of (string-concat (reverse (map cu-run-text rs))))
+      (cu-run-of (%str-concat (reverse (map cu-run-text rs))))
       (let ((w (Bytes writer)))
         (def put
           (fn (self ps)
@@ -602,7 +602,7 @@
 (def cu-says
   (fn (_ applet)
     (fn (_ name err)
-      (string-concat (list applet ": " name ": " (file-err-text err))))))
+      (%str-concat (list applet ": " name ": " (file-err-text err))))))
 
 ; and for an applet with words of its own for a file that opened and would
 ; not read: READ-SAYS answers that line, and a file that would not open is
@@ -611,7 +611,7 @@
   (fn (_ applet read-says)
     (fn (_ name err)
       (if (eq? (file-err-op err) (lit read)) (read-says name err)
-        (string-concat (list applet ": " name ": " (file-err-text err)))))))
+        (%str-concat (list applet ": " name ": " (file-err-text err)))))))
 
 ; busybox's open_or_warn words: "APPLET: can't open 'NAME': REASON" for a file
 ; that would not open, and the common way for one that opened and would not
@@ -620,8 +620,8 @@
   (fn (_ applet)
     (fn (_ name err)
       (if (eq? (file-err-op err) (lit read))
-        (string-concat (list applet ": " name ": " (file-err-text err)))
-        (string-concat (list applet ": can't open '" name "': " (file-err-text err)))))))
+        (%str-concat (list applet ": " name ": " (file-err-text err)))
+        (%str-concat (list applet ": can't open '" name "': " (file-err-text err)))))))
 
 ; the words of shuf and base64, which name no file for one that opened and
 ; would not read: "APPLET: read error: REASON"
@@ -629,7 +629,7 @@
   (fn (_ applet)
     (cu-says-read applet
       (fn (_ name err)
-        (string-concat (list applet ": read error: " (file-err-text err)))))))
+        (%str-concat (list applet ": read error: " (file-err-text err)))))))
 
 ; The -z and -0 reading format: operands (or standard input) as fields
 ; split on a byte, which is cu-lines over %cu-gather when the delimiter
@@ -795,7 +795,7 @@
 (def %cu-count-refused
   (fn (_ applet lines? spec)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list applet ": invalid number of " (if lines? "lines" "bytes") ": '"
                   (%cu-count-body spec) "'\n")))
         1)))
@@ -990,7 +990,7 @@
 (def %cu-head-trailing
   (fn (_ c)
     (do (file-write 2
-          (string-concat (list "head: invalid trailing option -- " c "\n")))
+          (%str-concat (list "head: invalid trailing option -- " c "\n")))
         1)))
 
 (def %cu-head-run
@@ -1089,14 +1089,14 @@
                 (def from
                   (if (< size (first os))
                     (do (file-write 2
-                          (string-concat
+                          (%str-concat
                             (list "tail: " (first ns) ": file truncated\n")))
                         0)
                     (first os)))
                 (if (> size from)
                   (do (if (if head? (not (string=? last (first ns))) #f)
                         (display
-                          (string-concat (list "\n==> " (first ns) " <==\n")))
+                          (%str-concat (list "\n==> " (first ns) " <==\n")))
                         ())
                       (display (%cu-read-range (first ns) from size))
                       (self (rest ns) (rest os) (first ns) (pair size acc)))
@@ -1302,7 +1302,7 @@
         (if (null? misplaced)
           (%cu-tail-run (cu-opts "tail" args) stdin-thunk)
           (do (file-write 2
-                (string-concat
+                (%str-concat
                   (list "tail: option used in invalid context -- " misplaced "\n")))
               1))))))
 
@@ -1425,7 +1425,7 @@
               (map (fn (_ f)
                      (cu-pad-left (cu-int->str (%cu-wc-count counts f)) width))
                 cols))
-            (if (null? name) "\n" (string-concat (list " " name "\n")))))))
+            (if (null? name) "\n" (%str-concat (list " " name "\n")))))))
     (def each
       (fn (self is)
         (if (null? is) ()

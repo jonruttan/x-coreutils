@@ -22,12 +22,12 @@
 (import cu/inetd in-count in-errtext in-exec)
 (import cu/net cu-dial cu-dial-host)
 (import cu/prims append cu-sig-ign cu-stdin-to-command! cu-sweep-tick!
-  file-read-run file-write string-concat sys-close sys-dup2 sys-exit sys-fork
-  sys-pipe sys-poll sys-signal)
+  file-read-run file-write sys-close sys-dup2 sys-exit sys-fork sys-pipe
+  sys-poll sys-signal)
 
 (import x/net/tls13)
 
-(def %sc-say (fn (_ msg) (file-write 2 (string-concat (list "ssl_client: " msg "\n")))))
+(def %sc-say (fn (_ msg) (file-write 2 (%str-concat (list "ssl_client: " msg "\n")))))
 
 (def cu-ssl-client
   (fn (_ argv stdin-thunk)
@@ -74,7 +74,7 @@
           (sys-dup2 (first to) 0) (sys-dup2 (rest from) 1)
           (sys-close (first to)) (sys-close (rest from))
           (let ((r (in-exec (first argv) argv)))
-            (do (say (string-concat (list "can't execute '" (first argv) "': " (in-errtext r))))
+            (do (say (%str-concat (list "can't execute '" (first argv) "': " (in-errtext r))))
                 (sys-exit (if (= (Err errno-of r) 2) 127 126))))))
     (sys-close (first to))
     (sys-close (rest from))

@@ -45,9 +45,8 @@
   file-close file-err-text file-link file-list-dir file-lstat-file-type
   file-lstat-full file-open-err file-readlink file-set-times file-stat-full
   file-symlink file-unlink file-write file-write-run filter length map reverse
-  str-make-raw string-append string-concat string=? substring sys-getcwd
-  sys-group-id sys-group-name sys-user-id sys-user-name vec-build vec-ref
-  vec-set!)
+  str-make-raw string-append string=? substring sys-getcwd sys-group-id
+  sys-group-name sys-user-id sys-user-name vec-build vec-ref vec-set!)
 (import cu/strings cu-range-number)
 (import cu/text cu-num-prefix cu-pad-left cu-pad-zero cu-pieces cu-run-text)
 
@@ -76,7 +75,7 @@
 ; the run ends: MSG said under tar's name, and the status 1
 (def %tar-die (fn (_ msg) (Err raise (lit tar) (string-append "tar: " msg) ())))
 
-(def %tar-say (fn (_ msg) (file-write 2 (string-concat (list "tar: " msg "\n")))))
+(def %tar-say (fn (_ msg) (file-write 2 (%str-concat (list "tar: " msg "\n")))))
 
 ; the reason an io Err gives, after a failed call named OP on NAME
 (def tar-why
@@ -221,7 +220,7 @@
     (def cut (cu-unsafe-prefix name))
     (do (if (if (> cut 0) (not %tar-warned) #f)
           (do (set! %tar-warned #t)
-              (%tar-say (string-concat (list "removing leading '" (substring name 0 cut)
+              (%tar-say (%str-concat (list "removing leading '" (substring name 0 cut)
                                              "' from member names"))))
           ())
         (substring name cut (byte-len name)))))
@@ -370,7 +369,7 @@
 ; a header tar passes over, its blocks with it
 (def %tar-skip-header
   (fn (_ again rd st flag size)
-    (do (%tar-say (string-concat (list "warning: skipping header '" (bytes->str (list flag)) "'")))
+    (do (%tar-say (%str-concat (list "warning: skipping header '" (bytes->str (list flag)) "'")))
         (tar-skip! rd (* 512 (cal/ (+ size 511) 512)))
         (again rd st))))
 
@@ -388,7 +387,7 @@
   (fn (_ m)
     (def d (Date local (vec-ref m 5)))
     (def at (fn (_ k) (Assoc get k d)))
-    (string-concat
+    (%str-concat
       (list (%tar-mode-string (tm-mode m)) " "
             (if (null? (vec-ref m 7)) (cu-int->str (vec-ref m 2)) (vec-ref m 7)) "/"
             (if (null? (vec-ref m 8)) (cu-int->str (vec-ref m 3)) (vec-ref m 8)) " "
@@ -488,7 +487,7 @@
       ((if (null? target) #f (string=? target dst)) ())
       ((eq? (file-lstat-file-type dst) (lit none)) ())
       ((guard (e #f) (do (file-unlink dst) #t)) ())
-      (#t (%tar-die (string-concat (list "can't remove old file " dst ": "
+      (#t (%tar-die (%str-concat (list "can't remove old file " dst ": "
                                          (tar-why (lit unlink) dst))))))))
 
 (def %tar-make!
@@ -501,25 +500,25 @@
                                      (list (lit wronly) (lit creat) (lit excl)))
                       (& mode 4095))))
             (if (< fd 0)
-              (%tar-die (string-concat (list "can't open '" dst "': " (file-err-text (file-open-err fd dst)))))
+              (%tar-die (%str-concat (list "can't open '" dst "': " (file-err-text (file-open-err fd dst)))))
               (do (tar-copy-out! rd fd (tm-size m)) (file-close fd)))))
         ((= type 16384)
           (if (< (Sys %sign-fold (tar-mkdir dst (& mode 4095))) 0)
             (let ((why (tar-why (lit mkdir) dst)))
               (if (string=? why "File exists") ()
-                (%tar-say (string-concat (list "can't make dir " dst ": " why)))))
+                (%tar-say (%str-concat (list "can't make dir " dst ": " why)))))
             ()))
         ((= type 40960)
           (let ((l (tm-link m)))
             (if (if (= (byte-at l 0) #\/) #t (>= (tar-find-str l "..") 0))
               (set! %tar-pending (pair (pair #f (pair dst l)) %tar-pending))
               (if (guard (e #f) (do (file-symlink l dst) #t)) ()
-                (%tar-die (string-concat (list "can't create symlink '" dst "' to '" l "': "
+                (%tar-die (%str-concat (list "can't create symlink '" dst "' to '" l "': "
                                                (tar-why (lit symlink) dst))))))))
         (#t
           (let ((dev (vec-ref m 9)))
             (if (< (Sys %sign-fold (tar-mknod dst mode (tar-makedev dev))) 0)
-              (%tar-say (string-concat (list "can't create node " dst ": " (tar-why (lit mknod) dst))))
+              (%tar-say (%str-concat (list "can't create node " dst ": " (tar-why (lit mknod) dst))))
               ()))))
       (if (if (= type 40960) #t (not (null? target))) () (%tar-restore! t m dst mode)))))
 
@@ -560,7 +559,7 @@
     (map (fn (_ l)
            (let ((name (first (rest l))) (target (rest (rest l))))
              (if (guard (e #f) (do (if (first l) (file-link target name) (file-symlink target name)) #t)) ()
-               (%tar-die (string-concat (list "can't create " (if (first l) "hard" "sym") "link '"
+               (%tar-die (%str-concat (list "can't create " (if (first l) "hard" "sym") "link '"
                                               name "' to '" target "'"))))))
          (reverse %tar-pending))))
 
@@ -830,7 +829,7 @@
   (fn (self c path)
     (def st (if (vec-ref c 5) (file-stat-full path) (file-lstat-full path)))
     (if (null? st)
-      (do (%tar-say (string-concat (list path ": " (tar-why (lit stat) path)))) #f)
+      (do (%tar-say (%str-concat (list path ": " (tar-why (lit stat) path)))) #f)
       (let ((r (%tc-file! c path st)))
         (if (if (eq? r (lit skip)) #t
               (if (vec-ref c 6) (not (= (& (cu-stat-get st (lit mode)) 61440) 16384)) #t))
@@ -853,7 +852,7 @@
       (let ((w (first argv)))
         (let ((f (dp-find w 0 #\f)))
           (pair (string-append "-" (if (< f 0) w
-                                     (string-concat (list (substring w 0 f) (substring w (+ f 1) (byte-len w)) "f"))))
+                                     (%str-concat (list (substring w 0 f) (substring w (+ f 1) (byte-len w)) "f"))))
                 (rest argv))))
       argv)))
 
@@ -867,8 +866,8 @@
     (def one
       (fn (_ f)
         (let ((src (cu-pieces f ())))
-          (if (Err err? src) (%tar-die (string-concat (list "can't open '" f "': " (file-err-text src))))
-            (let ((text (string-concat (map cu-run-text (tar-all-pieces src)))))
+          (if (Err err? src) (%tar-die (%str-concat (list "can't open '" f "': " (file-err-text src))))
+            (let ((text (%str-concat (map cu-run-text (tar-all-pieces src)))))
               (map %tar-unslash (cu-lines text)))))))
     (%tar-flatten (map one names))))
 
@@ -922,7 +921,7 @@
     (if (null? dir) (thunk)
       (let ((home (sys-getcwd)))
         (if (< (Sys chdir dir) 0)
-          (%tar-die (string-concat (list "can't change directory to '" dir "': " (tar-why (lit chdir) dir))))
+          (%tar-die (%str-concat (list "can't change directory to '" dir "': " (tar-why (lit chdir) dir))))
           (let ((r (guard (e (do (Sys chdir home) (error e))) (thunk))))
             (do (Sys chdir home) r)))))))
 
@@ -944,7 +943,7 @@
     (def src (if (Err err? raw) raw
                (if (on "-z" "--gzip") (gz-tar-pieces raw)
                  (let ((s (gz-sniff raw))) (if (first s) (gz-tar-pieces (rest s)) (rest s))))))
-    (if (Err err? src) (%tar-die (string-concat (list "can't open '" file "': " (file-err-text src))))
+    (if (Err err? src) (%tar-die (%str-concat (list "can't open '" file "': " (file-err-text src))))
       (%tar-in-dir (let ((d (Opts value o "-C"))) (if (null? d) (Opts value o "--directory") d))
         (fn (_)
           (let ((r (%tar-read-all t (tar-reader src))))
@@ -960,7 +959,7 @@
   (fn (_ o file verbose accept reject)
     (def fd (if (string=? file "-") 1
               (let ((f (File open file (list (lit wronly) (lit creat) (lit trunc)) 438)))
-                (if (< f 0) (%tar-die (string-concat (list "can't open '" file "': " (file-err-text (file-open-err f file)))))
+                (if (< f 0) (%tar-die (%str-concat (list "can't open '" file "': " (file-err-text (file-open-err f file)))))
                   f))))
     (def self (if (= fd 1) ()
                 (let ((st (file-stat-full file)))

@@ -15,9 +15,9 @@
 (module cu/sha256)
 
 (import cu/cli cu-opts cu-usage)
-(import cu/prims byte-at byte-len cu-as-run cu-int->str cu-lines
-  cu-max-status file-err-op file-err-text file-or-err file-read-all file-write
-  string-append string-concat string=? substring)
+(import cu/prims byte-at byte-len cu-as-run cu-int->str cu-lines cu-max-status
+  file-err-op file-err-text file-or-err file-read-all file-write string-append
+  string=? substring)
 (import cu/text cu-each-run-said cu-read-run-said cu-say cu-says)
 
 (import x/codec/sha256)
@@ -83,11 +83,11 @@
     (def failed (first (rest counts)))
     (do (if (if status? #t (= failed 0)) ()
           (file-write 2
-            (string-concat
+            (%str-concat
               (list name ": WARNING: " (cu-int->str failed) " of " (cu-int->str total)
                     " computed checksums did NOT match\n"))))
         (if (= total 0)
-          (file-write 2 (string-concat (list name ": " shown ": no checksum lines found\n")))
+          (file-write 2 (%str-concat (list name ": " shown ": no checksum lines found\n")))
           ())
         (if (if (= total 0) #t (> failed 0)) 1 0))))
 
@@ -135,7 +135,7 @@
 (def %cu-sum-says
   (fn (_ applet)
     (fn (_ name err)
-      (string-concat
+      (%str-concat
         (list applet
               (if (eq? (file-err-op err) (lit read)) ": can't read '" ": can't open '")
               name "': " (file-err-text err))))))
@@ -148,7 +148,7 @@
     (def ops (if (null? (Opts operands o)) (list "-") (Opts operands o)))
     (def one
       (fn (_ path text)
-        (display (string-concat (list (digest text) "  " path "\n")))))
+        (display (%str-concat (list (digest text) "  " path "\n")))))
     (match
       ((Opts on? o "-c")
         (%cu-sum-check-lists name digest ops stdin-thunk

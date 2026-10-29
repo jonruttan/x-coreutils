@@ -26,8 +26,7 @@
 (import cu/iostat io-time io-uname-line)
 (import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-nth
   file-write filter host-counters host-cpu host-cpus host-interrupts host-now
-  host-wait length map reverse string-append string-concat substring
-  vm-dash-number)
+  host-wait length map reverse string-append substring vm-dash-number)
 (import cu/strings cu-range-number)
 (import cu/text cu-pad-right)
 (import cu/vmstat vm-fixed vm-get vm-rate vm-right vm-ticks)
@@ -117,7 +116,7 @@
     (def at (fn (_ v i) (cu-nth i v)))
     (def d (fn (_ i) (- (at c i) (at p i))))
     (string-append
-      (string-concat
+      (%str-concat
         (list (%mp-pct (- (- (at c 0) (at c 8)) (- (at p 0) (at p 8))) itv)
               (%mp-pct (d 1) itv) (%mp-pct (d 2) itv) (%mp-pct (d 4) itv) (%mp-pct (d 5) itv)
               (%mp-pct (d 6) itv) (%mp-pct (d 7) itv) (%mp-pct (d 8) itv) (%mp-pct (d 3) itv)))
@@ -125,7 +124,7 @@
 
 (def %mp-zeros
   (fn (_ idle)
-    (string-append (string-concat (map (fn (_ i) (%mp-pct 0 1)) (%mp-range 0 8)))
+    (string-append (%str-concat (map (fn (_ i) (%mp-pct 0 1)) (%mp-range 0 8)))
       (string-append " " (vm-right (vm-fixed (Float from idle) 2) 7) "\n"))))
 
 (def %mp-cpu-report
@@ -141,8 +140,8 @@
             ((= 0 (%mp-up cv)) (%mp-zeros 0))
             ((= 0 (- (%mp-up cv) (%mp-up pv))) (%mp-zeros 100))
             (#t (%mp-shares pv cv (- (%mp-up cv) (%mp-up pv))))))))
-    (string-concat
-      (pair (string-concat (list "\n" (%mp-label pl) "  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest   %idle\n"))
+    (%str-concat
+      (pair (%str-concat (list "\n" (%mp-label pl) "  CPU    %usr   %nice    %sys %iowait    %irq   %soft  %steal  %guest   %idle\n"))
         (map line (filter (fn (_ i) (cu-nth i bitmap)) (%mp-range 0 (length bitmap))))))))
 
 (def %mp-sum-report
@@ -158,8 +157,8 @@
               2)
             9)
           "\n")))
-    (string-concat
-      (pair (string-concat (list "\n" (%mp-label pl) "  CPU    intr/s\n"))
+    (%str-concat
+      (pair (%str-concat (list "\n" (%mp-label pl) "  CPU    intr/s\n"))
         (map line (filter (fn (_ i) (cu-nth i bitmap)) (%mp-range 0 (length bitmap))))))))
 
 ; A table's rates, a column a source and a line a processor.  A source whose
@@ -178,9 +177,9 @@
           (#t ()))))
     (def header
       (fn (self js printed expected acc)
-        (if (null? js) (string-concat (reverse acc))
+        (if (null? js) (%str-concat (reverse acc))
           (let ((w (- 7 (- printed expected))))
-            (def s (string-concat (list " " (vm-right (first (cu-nth (first js) ctab)) (if (> w 0) w 0)) "/s")))
+            (def s (%str-concat (list " " (vm-right (first (cu-nth (first js) ctab)) (if (> w 0) w 0)) "/s")))
             (self (rest js) (+ printed (byte-len s)) (+ expected 10) (pair s acc))))))
     (def count (fn (_ tab j cpu) (if (< j (length tab)) (cu-nth (+ cpu 1) (cu-nth j tab)) 0)))
     (def js (%mp-range 0 (length ctab)))
@@ -188,7 +187,7 @@
       (fn (_ cpu)
         (string-append (%mp-cpu-label cl (+ cpu 1))
           (string-append
-            (string-concat
+            (%str-concat
               (map (fn (_ j)
                      (def k (match-at j (first (cu-nth j ctab))))
                      (if (null? k) "        N/A"
@@ -197,15 +196,15 @@
                          10)))
                 js))
             "\n"))))
-    (string-concat
-      (pair (string-concat (list "\n" (%mp-label pl) "  CPU" (header js 0 0 ()) "\n"))
+    (%str-concat
+      (pair (%str-concat (list "\n" (%mp-label pl) "  CPU" (header js 0 0 ()) "\n"))
         (map line (filter (fn (_ i) (if only (cu-nth (+ i 1) bitmap) #t)) (%mp-range 0 n)))))))
 
 ; One report of sample C against P, labelled with PL and CL
 (def %mp-report
   (fn (_ p c pl cl shows bitmap only n interval)
     (def itv (if (> n 1) (%mp-gap (cu-nth 3 p) (cu-nth 3 c)) (%mp-gap (cu-nth 2 p) (cu-nth 2 c))))
-    (string-concat
+    (%str-concat
       (list (if (cu-member-s? "cpu" shows) (%mp-cpu-report p c pl cl bitmap) "")
             (if (cu-member-s? "sum" shows) (%mp-sum-report p c pl cl bitmap itv) "")
             (if (cu-member-s? "irq" shows) (%mp-irq-report (cu-nth 5 p) (cu-nth 5 c) pl cl bitmap only n itv interval) "")

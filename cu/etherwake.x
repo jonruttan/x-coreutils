@@ -26,12 +26,11 @@
 (import cu/inetd in-call)
 (import cu/ping pn-byte pn-setopt pn-sol-socket)
 (import cu/prims byte-at byte-len cu-err-label cu-libc-sym cu-ptr-call
-  cu-ptr-ref cu-str->ptr file-write length libc-strerror reverse string-append
-  string-concat)
+  cu-ptr-ref cu-str->ptr file-write length libc-strerror reverse string-append)
 
-(def %ew-say (fn (_ msg) (file-write 2 (string-concat (list "ether-wake: " msg "\n")))))
+(def %ew-say (fn (_ msg) (file-write 2 (%str-concat (list "ether-wake: " msg "\n")))))
 (def %ew-die (fn (_ msg) (do (%ew-say msg) (Err raise (lit ether-wake) msg ()))))
-(def %ew-errno-die (fn (_ what r) (%ew-die (string-concat (list what ": " (libc-strerror (Err errno-of r)))))))
+(def %ew-errno-die (fn (_ what r) (%ew-die (%str-concat (list what ": " (libc-strerror (Err errno-of r)))))))
 (def %ew-usage (fn (_) (Err raise (lit ether-wake-usage) "usage" ())))
 (def %ew-fd -1)
 
@@ -144,7 +143,7 @@
     (let go ((k 0)) (when (< k 16) (do (%ew-put! pkt (+ 20 (* k 6)) mac) (go (+ k 1)))))
     (let ((hw (%ew-ifreq device 35111)))
       (do (when (< (first hw) 0)
-            (%ew-errno-die (string-concat (list "SIOCGIFHWADDR on " device " failed")) (first hw)))
+            (%ew-errno-die (%str-concat (list "SIOCGIFHWADDR on " device " failed")) (first hw)))
           (let go ((k 0)) (when (< k 6) (do (inet-set! pkt (+ 6 k) (pn-byte (cu-str->ptr (rest hw)) (+ 18 k)) 1) (go (+ k 1)))))))
     (%ew-put! pkt 116 pw)
     (when bcast

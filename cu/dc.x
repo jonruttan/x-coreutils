@@ -28,8 +28,8 @@
 (import cu/prims byte-at byte-len cu-err-label cu-int->str cu-nthrest
   cu-ptr-set! cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text
   file-write file-write-run filter length map reverse str-make-raw
-  string-append string-concat string=? substring sys-getenv vec-build vec-make
-  vec-ref vec-set!)
+  string-append string=? substring sys-getenv vec-build vec-make vec-ref
+  vec-set!)
 (import cu/sysinfo si-digits?)
 (import cu/text cu-num-prefix cu-pad-zero cu-pieces cu-run-text)
 
@@ -335,7 +335,7 @@
 ; the list written: runs of text joined, each NUL (lit nul) written alone
 (def %dc-flush!
   (fn (_)
-    (def write (fn (_ acc) (if (null? acc) () (file-write 1 (string-concat (reverse acc))))))
+    (def write (fn (_ acc) (if (null? acc) () (file-write 1 (%str-concat (reverse acc))))))
     (def go
       (fn (self cs acc)
         (match
@@ -549,7 +549,7 @@
       (#t (%dc-bad-char c)))))
 
 (def %dc-bad-char
-  (fn (_ c) (if (= c 0) (%dc-die "NUL character") (%dc-die (string-concat (list "bad character '" (bytes->str (list c)) "'"))))))
+  (fn (_ c) (if (= c 0) (%dc-die "NUL character") (%dc-die (%str-concat (list "bad character '" (bytes->str (list c)) "'"))))))
 
 ; a number's text from its first character C: digits, A to F, one point, a
 ; backslash and newline passed over; a point at its end dropped
@@ -580,7 +580,7 @@
     (go () 1)))
 
 (def %dc-bad-token
-  (fn (_ src) (%dc-die (string-concat (list "bad token at '" (vec-ref src 4) "'")))))
+  (fn (_ src) (%dc-die (%str-concat (list "bad token at '" (vec-ref src 4) "'")))))
 
 (def %dc-reg-ops (list "<" "=" ">" "!=" "!<" "!>" ":" ";" "s" "S" "l" "L"))
 
@@ -853,7 +853,7 @@
 (def %dc-file
   (fn (_ file)
     (let ((p (cu-pieces file ())))
-      (if (Err err? p) (%dc-die (string-concat (list "can't open '" file "': " (file-err-text p))))
+      (if (Err err? p) (%dc-die (%str-concat (list "can't open '" file "': " (file-err-text p))))
         (do (%dg! 10 file) (%dc-process (%dcl-make "" (%dc-more p))) (p (lit close)) (%dg! 10 ()))))))
 
 ; DC_LINE_LENGTH, as xc_vm_init reads it
@@ -896,8 +896,8 @@
                       (match
                         ((eq? (cu-err-label e) (lit dc-quit)) 0)
                         ((eq? (cu-err-label e) (lit dc))
-                          (do (file-write 2 (string-concat (list "dc: " (if (null? (%dg 10)) ""
-                                                                           (string-concat (list (%dg 10) ":" (cu-int->str (%dg 11)) ": ")))
+                          (do (file-write 2 (%str-concat (list "dc: " (if (null? (%dg 10)) ""
+                                                                           (%str-concat (list (%dg 10) ":" (cu-int->str (%dg 11)) ": ")))
                                                                  (e msg) "\n")))
                               1))
                         (#t (error e)))))

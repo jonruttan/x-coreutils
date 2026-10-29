@@ -30,9 +30,9 @@
   cu-str->ptr cu-sweep-lines cu-sweep-tick! file-err-text file-read-run
   file-write filter length map net-accept net-close net-peer net-resolve
   net-sock-addr net-sockaddr net-sockaddr-read net-udp-open str-make-raw
-  string-append string-concat string=? substring sys-close sys-dup2
-  sys-exec-or-err sys-exit sys-fork sys-getpid sys-kill sys-pipe sys-poll
-  sys-setenv sys-signal wget-digits wget-div wget-err-text)
+  string-append string=? substring sys-close sys-dup2 sys-exec-or-err sys-exit
+  sys-fork sys-getpid sys-kill sys-pipe sys-poll sys-setenv sys-signal
+  wget-digits wget-div wget-err-text)
 (import cu/session ss-call)
 (import cu/signal ts-signal-number)
 
@@ -48,7 +48,7 @@
 (def %ts-die (fn (_ msg) (Err raise (lit net) msg ())))
 
 (def %ts-say
-  (fn (_ msg) (file-write 2 (string-concat (list %ts-app ": " msg "\n")))))
+  (fn (_ msg) (file-write 2 (%str-concat (list %ts-app ": " msg "\n")))))
 
 ; a libc call's result folded to a signed int, as the platform folds its own
 (def %ts-call (fn (_ r) (Sys %sign-fold r)))
@@ -59,7 +59,7 @@
 (def %ts-count
   (fn (_ s)
     (let ((n (wget-digits s)))
-      (if (null? n) (%ts-die (string-concat (list "invalid number '" s "'"))) n))))
+      (if (null? n) (%ts-die (%str-concat (list "invalid number '" s "'"))) n))))
 
 ; the decimal digits S starts with: (N . END)
 (def %ts-leading
@@ -75,7 +75,7 @@
     (def n (wget-digits s))
     (if (if (null? n) #f (<= n 65535)) n
       (let ((sv (cu-ptr-call (cu-libc-sym "getservbyname") s (if %ts-tcp "tcp" "udp"))))
-        (if (= sv 0) (%ts-die (string-concat (list "bad port '" s "'")))
+        (if (= sv 0) (%ts-die (%str-concat (list "bad port '" s "'")))
           (let ((p (cu-ptr-ref (cu-int->ptr sv) 16 4)))
             (+ (* (% p 256) 256) (% (wget-div p 256) 256))))))))
 
@@ -85,7 +85,7 @@
     (let ((s (str-make-raw 4)))
       (do (cu-ptr-set! (cu-str->ptr s) 0 16 4) s))))
 
-(def %ts-dotted (fn (_ a) (string-concat (list (first a) ":" (cu-int->str (rest a))))))
+(def %ts-dotted (fn (_ a) (%str-concat (list (first a) ":" (cu-int->str (rest a))))))
 
 ; gethostbyaddr's name for QUAD, or nil
 (def %ts-host-name
@@ -125,7 +125,7 @@
   (fn (_ ug)
     (def fail? (fn (_ r sym)
       (let ((e (ss-call r (lit call) sym)))
-        (unless (null? e) (%ts-die (string-concat (list sym ": " (file-err-text e))))))))
+        (unless (null? e) (%ts-die (%str-concat (list sym ": " (file-err-text e))))))))
     (fail? (cu-ptr-call (cu-libc-sym "setgid") (rest ug)) "setgid")
     (fail? (cu-ptr-call (cu-libc-sym "setuid") (first ug)) "setuid")))
 
@@ -152,7 +152,7 @@
     (set! %ts-hosts (filter (fn (_ h) (not (= (first h) pid))) %ts-hosts))
     (when (> %ts-cnum 0) (set! %ts-cnum (- %ts-cnum 1)))
     (when (> %ts-verbose 0)
-      (%ts-say (string-concat (list "end " (cu-int->str pid) " "
+      (%ts-say (%str-concat (list "end " (cu-int->str pid) " "
         (if (= (% raw 128) 0)
           (string-append "exit " (cu-int->str (% (wget-div raw 256) 256)))
           (string-append "signal " (cu-int->str (% raw 128))))))))
@@ -161,14 +161,14 @@
 (def %ts-status
   (fn (_)
     (when (if (> %ts-verbose 0) (> %ts-cmax 1) #f)
-      (%ts-say (string-concat (list "status " (cu-int->str %ts-cnum) "/" (cu-int->str %ts-cmax)))))))
+      (%ts-say (%str-concat (list "status " (cu-int->str %ts-cnum) "/" (cu-int->str %ts-cmax)))))))
 
 ; sig_term_handler: a fatal signal ends the run with that signal's own death
 (def %ts-fatal-check
   (fn (_ sigs)
     (unless (null? sigs)
       (if (Sys take-signal (first sigs))
-        (do (when (> %ts-verbose 0) (%ts-say (string-concat (list "got signal " (cu-int->str (first sigs)) ", exit"))))
+        (do (when (> %ts-verbose 0) (%ts-say (%str-concat (list "got signal " (cu-int->str (first sigs)) ", exit"))))
             (sys-signal (first sigs) 0)
             (sys-kill (sys-getpid) (first sigs))
             (sys-exit (+ 128 (first sigs))))
@@ -259,9 +259,9 @@
                  ()))
     (when (> %ts-verbose 0)
       (do (when (> %ts-maxph 0)
-            (%ts-say (string-concat (list "concurrency " raddr " " (cu-int->str cur) "/" (cu-int->str %ts-maxph)))))
-          (%ts-say (string-concat (list "start " (cu-int->str (sys-getpid)) " " laddr "-" raddr
-                                        (if %ts-h? (string-concat (list " (" lhost "-" rhost ")")) ""))))))
+            (%ts-say (%str-concat (list "concurrency " raddr " " (cu-int->str cur) "/" (cu-int->str %ts-maxph)))))
+          (%ts-say (%str-concat (list "start " (cu-int->str (sys-getpid)) " " laddr "-" raddr
+                                        (if %ts-h? (%str-concat (list " (" lhost "-" rhost ")")) ""))))))
     (when %ts-env?
       (do (sys-setenv "PROTO" proto)
           (sys-setenv (string-append proto "LOCALADDR") laddr)
@@ -274,7 +274,7 @@
     (sys-signal 13 0)
     (map (fn (_ s) (sys-signal s 0)) %ts-sigs)
     (let ((err (sys-exec-or-err (first %ts-prog) (rest %ts-prog))))
-      (do (%ts-say (string-concat (list "can't execute '" (first %ts-prog) "': " (file-err-text err))))
+      (do (%ts-say (%str-concat (list "can't execute '" (first %ts-prog) "': " (file-err-text err))))
           (sys-exit 127)))))
 
 (def %ts-loop
@@ -334,7 +334,7 @@
     (def host (first ops))
     (def quad (if (if (= (byte-len host) 0) #t (string=? host "0")) "0.0.0.0"
                 (let ((q (guard (_ ()) (net-resolve host))))
-                  (if (null? q) (%ts-die (string-concat (list "bad address '" host "'"))) q))))
+                  (if (null? q) (%ts-die (%str-concat (list "bad address '" host "'"))) q))))
     (def port (%ts-port (first (rest ops))))
     (set! %ts-prog (rest (rest ops)))
     (set! %ts-chld (ts-signal-number "CHLD"))
@@ -346,8 +346,8 @@
     (set! %ts-bound (pair quad port))
     (unless (null? ug) (%ts-drop! ug))
     (when (> %ts-verbose 0)
-      (%ts-say (string-concat (list "listening on " quad ":" (cu-int->str port) ", starting"
-        (if (null? ug) "" (string-concat (list ", uid " (cu-int->str (first ug)) ", gid " (cu-int->str (rest ug)))))))))
+      (%ts-say (%str-concat (list "listening on " quad ":" (cu-int->str port) ", starting"
+        (if (null? ug) "" (%str-concat (list ", uid " (cu-int->str (first ug)) ", gid " (cu-int->str (rest ug)))))))))
     (let ((p (sys-pipe)))
       (do (%ts-fcntl (first p) 2 1) (%ts-fcntl (rest p) 2 1) (set! %ts-idle (first p))))
     (%ts-loop lfd)))

@@ -15,7 +15,7 @@ process whose directory cannot be read, as another user's is not.  600 is a
 zombie, which has no directory.
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-pw && mkdir -p /tmp/x-cu-pw/proc/400 && cd /tmp/x-cu-pw/proc && printf 'cpu  1 0 1 1 0 0 0 0 0 0\\nbtime 1790000000\\n' > stat && mk() { mkdir $1 && printf '%s (%s) %s 1 %s %s 0 -1 0 0 0 0 0 1 1 0 0 20 0 1 0 100 4096 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\\n' $1 $2 $3 $1 $1 > $1/stat; } && mk 300 sh S && mk 500 sh S && mk 600 sh Z && ln -s /home/u 300/cwd")) (def pw-f (fn (_ n) (string-append "/tmp/x-cu-pw/" n))) (def pw-run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (pw-f ".out"))) (ee (file-open-write (pw-f ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (pw-f ".out"))) "stderr:\n" (file-read-all (pw-f ".err")) "status " (cu-int->str st) "\n"))))))) (def pw-kernel (Host %backend)) (def pw-fixed (fn (_ argv) (do (Host source (lit linux)) (Host proc-root (pw-f "proc")) (def r (pw-run argv)) (Host source pw-kernel) (Host proc-root "/proc") r))) (def pw-show (fn (_ argv) (do (display (pw-fixed argv)) ()))) (display (if (file-exists? (pw-f "proc/600/stat")) "made" "fixture incomplete")))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-pw && mkdir -p /tmp/x-cu-pw/proc/400 && cd /tmp/x-cu-pw/proc && printf 'cpu  1 0 1 1 0 0 0 0 0 0\\nbtime 1790000000\\n' > stat && mk() { mkdir $1 && printf '%s (%s) %s 1 %s %s 0 -1 0 0 0 0 0 1 1 0 0 20 0 1 0 100 4096 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0\\n' $1 $2 $3 $1 $1 > $1/stat; } && mk 300 sh S && mk 500 sh S && mk 600 sh Z && ln -s /home/u 300/cwd")) (def pw-f (fn (_ n) (string-append "/tmp/x-cu-pw/" n))) (def pw-run (fn (_ argv) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (pw-f ".out"))) (ee (file-open-write (pw-f ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv "")) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (%str-concat (list (Str8 replace "\n" "|\n" (file-read-all (pw-f ".out"))) "stderr:\n" (file-read-all (pw-f ".err")) "status " (cu-int->str st) "\n"))))))) (def pw-kernel (Host %backend)) (def pw-fixed (fn (_ argv) (do (Host source (lit linux)) (Host proc-root (pw-f "proc")) (def r (pw-run argv)) (Host source pw-kernel) (Host proc-root "/proc") r))) (def pw-show (fn (_ argv) (do (display (pw-fixed argv)) ()))) (display (if (file-exists? (pw-f "proc/600/stat")) "made" "fixture incomplete")))
 ```
 ---
     made
@@ -164,7 +164,7 @@ status 1
 ### this process's directory is the one it runs in; a pid no process has is no such process
 
 ```cu
-(do (def me (cu-int->str (sys-getpid))) (def r (pw-run (list "pwdx" me "999999999"))) (display (if (str=? r (string-concat (list me ": " (sys-getcwd) "|\n999999999: No such process|\nstderr:\nstatus 0\n"))) "same" r)))
+(do (def me (cu-int->str (sys-getpid))) (def r (pw-run (list "pwdx" me "999999999"))) (display (if (str=? r (%str-concat (list me ": " (sys-getcwd) "|\n999999999: No such process|\nstderr:\nstatus 0\n"))) "same" r)))
 ```
 ---
     same

@@ -25,8 +25,8 @@
 (import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-ptr-call
   cu-stdin-to-command! file-close file-err-text file-exists? file-open-err
   file-read-all file-write file-write-run length reverse string-append
-  string-concat string=? sys-dup2 sys-exec-or-err sys-exit sys-fork sys-fsync
-  sys-getenv sys-usleep sys-wait)
+  string=? sys-dup2 sys-exec-or-err sys-exit sys-fork sys-fsync sys-getenv
+  sys-usleep sys-wait)
 (import cu/strings cu-range-number)
 (import cu/text cu-pieces)
 
@@ -61,7 +61,7 @@
     (if (= pid 0)
       (do (cu-stdin-to-command!)
           (let ((err (sys-exec-or-err (first command) (rest command))))
-            (do (file-write 2 (string-concat (list applet ": " (first command) ": "
+            (do (file-write 2 (%str-concat (list applet ": " (first command) ": "
                                                    (file-err-text err) "\n")))
                 (sys-exit failed))))
       (sys-wait pid))))
@@ -82,7 +82,7 @@
       (fn (_ name)
         (let ((fd (File open name (list (lit rdonly) (lit nonblock) (lit noctty)))))
           (if (< fd 0)
-            (do (file-write 2 (string-concat
+            (do (file-write 2 (%str-concat
                                 (list "fsync: can't open '" name "': "
                                       (file-err-text (file-open-err fd name)) "\n")))
                 1)
@@ -92,7 +92,7 @@
                            (Err from-errno (Err errno-of -1) (lit fsync) name) ()))))
               (do (file-close fd)
                   (if (null? err) 0
-                    (do (file-write 2 (string-concat (list "fsync: " name ": "
+                    (do (file-write 2 (%str-concat (list "fsync: " name ": "
                                                            (file-err-text err) "\n")))
                         1))))))))
     (def each
@@ -107,7 +107,7 @@
 (def %flock-usage
   (fn (_)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list "Usage: flock [-sxun] FD | { FILE [-c] PROG ARGS }\n\n"
                   "[Un]lock file descriptor, or lock FILE, run PROG\n\n"
                   "\t-s\tShared lock\n"
@@ -156,7 +156,7 @@
       ((null? ops) (%flock-usage))
       ((null? target) 1)
       ((Err err? target)
-        (do (file-write 2 (string-concat (list "flock: can't open '" (first ops) "': "
+        (do (file-write 2 (%str-concat (list "flock: can't open '" (first ops) "': "
                                                (file-err-text target) "\n")))
             1))
       ((if c? (> (length cmd) 2) #f)
@@ -175,7 +175,7 @@
                           (do (file-close target) st)))))
                 ; the lock is taken elsewhere, under -n: no word, status 1
                 ((string=? (file-err-text err) "Resource temporarily unavailable") 1)
-                (#t (do (file-write 2 (string-concat (list "flock: : " (file-err-text err) "\n")))
+                (#t (do (file-write 2 (%str-concat (list "flock: : " (file-err-text err) "\n")))
                         1)))))))))
 
 ; --- setsid ----------------------------------------------------------------------
@@ -183,7 +183,7 @@
 (def %setsid-usage
   (fn (_)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list "Usage: setsid [-c] PROG ARGS\n\n"
                   "Run PROG in a new session. PROG will have no controlling terminal\n"
                   "and will not be affected by keyboard signals (^C etc).\n\n"
@@ -205,7 +205,7 @@
         (do (if (Opts on? o "-c") ((syscall-door (lit ioctl)) 0 %setsid-tiocsctty 1) ())
             (cu-stdin-to-command!)
             (let ((err (sys-exec-or-err (first command) (rest command))))
-              (do (file-write 2 (string-concat (list "setsid: can't execute '" (first command)
+              (do (file-write 2 (%str-concat (list "setsid: can't execute '" (first command)
                                                      "': " (file-err-text err) "\n")))
                   (sys-exit (if (string=? (file-err-text err) "No such file or directory")
                               127 126)))))))
@@ -238,7 +238,7 @@
                 ((= c #\h) (pair (string-append sep (cu-int->str h)) acc))
                 (#t acc)))))))
     (do (file-write 1
-          (string-concat
+          (%str-concat
             (append (if (null? argv) (list (cu-int->str w) " " (cu-int->str h)) (go argv "" ()))
                     (list "\n"))))
         0)))

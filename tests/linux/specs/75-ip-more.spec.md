@@ -21,21 +21,21 @@ status, and what `ip rule` or `ip tunnel` says after.
           (sys-dup2 lx-o 1) (sys-dup2 lx-e 2)
           (def lx-st (cu-run argv ""))
           (sys-dup2 9 1) (sys-dup2 8 2) (file-close lx-o) (file-close lx-e)
-          (string-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n")))))
+          (%str-concat (list (lx-read "/tmp/lx-xo") "stderr:\n" (lx-read "/tmp/lx-xe") "status " (cu-int->str lx-st) "\n")))))
     (def lx-bb (fn (_ argv)
-      (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be")))
-          (string-concat (list (lx-read "/tmp/lx-bo") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))
+      (do (lx-sh (%str-concat (list "/bin/busybox " (Str8 join " " (map lx-q argv)) " > /tmp/lx-bo 2> /tmp/lx-bx; echo $? > /tmp/lx-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-bx > /tmp/lx-be")))
+          (%str-concat (list (lx-read "/tmp/lx-bo") "stderr:\n" (lx-read "/tmp/lx-be") "status " (lx-read "/tmp/lx-bs"))))))
     ; PRE run through the shell before each side
     (def lx-case (fn (_ pre argv)
       (do (lx-sh pre) (def lx-a (lx-x argv)) (lx-sh pre) (def lx-b (lx-bb argv))
-          (display (if (string=? lx-a lx-b) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
+          (display (if (string=? lx-a lx-b) "same\n" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
     ; as lx-case, with what POST says after each side's run compared too: the
     ; kernel's own account of what the run changed
     (def lx-case-after (fn (_ pre argv post)
-      (do (lx-sh pre) (def lx-a (lx-x argv)) (lx-sh (string-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pa (lx-read "/tmp/lx-post"))
-          (lx-sh pre) (def lx-b (lx-bb argv)) (lx-sh (string-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pb (lx-read "/tmp/lx-post"))
+      (do (lx-sh pre) (def lx-a (lx-x argv)) (lx-sh (%str-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pa (lx-read "/tmp/lx-post"))
+          (lx-sh pre) (def lx-b (lx-bb argv)) (lx-sh (%str-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pb (lx-read "/tmp/lx-post"))
           (display (if (if (string=? lx-a lx-b) (string=? lx-pa lx-pb) #f) "same\n"
-                     (string-concat (list "ours:\n" lx-a lx-pa "busybox:\n" lx-b lx-pb)))))))
+                     (%str-concat (list "ours:\n" lx-a lx-pa "busybox:\n" lx-b lx-pb)))))))
     (display "made"))
 ```
 ---
@@ -67,10 +67,10 @@ before they are compared.
 ```cu
 (do (def lx-sorted (fn (_ s) (Str8 join "\n" (List sort (fn (_ a b) (Str8 <? a b)) (Str8 split "\n" s)))))
     (def lx-case-sorted (fn (_ pre argv post)
-      (do (lx-sh pre) (def lx-a (lx-x argv)) (lx-sh (string-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pa (lx-read "/tmp/lx-post"))
-          (lx-sh pre) (def lx-b (lx-bb argv)) (lx-sh (string-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pb (lx-read "/tmp/lx-post"))
+      (do (lx-sh pre) (def lx-a (lx-x argv)) (lx-sh (%str-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pa (lx-read "/tmp/lx-post"))
+          (lx-sh pre) (def lx-b (lx-bb argv)) (lx-sh (%str-concat (list "{ " post "; } > /tmp/lx-post 2>&1"))) (def lx-pb (lx-read "/tmp/lx-post"))
           (display (if (if (string=? (lx-sorted lx-a) (lx-sorted lx-b)) (string=? (lx-sorted lx-pa) (lx-sorted lx-pb)) #f) "same\n"
-                     (string-concat (list "ours:\n" lx-a lx-pa "busybox:\n" lx-b lx-pb)))))))
+                     (%str-concat (list "ours:\n" lx-a lx-pa "busybox:\n" lx-b lx-pb)))))))
     (display "made"))
 ```
 ---

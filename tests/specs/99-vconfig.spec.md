@@ -17,7 +17,7 @@ the Linux leg.
             (do (sys-dup2 oo 1) (sys-dup2 ee 2)
                 (def st (cu-run argv ""))
                 (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
-                (display (string-concat (list (file-read-all (vc-f "out")) "stderr:\n"
+                (display (%str-concat (list (file-read-all (vc-f "out")) "stderr:\n"
                                               (file-read-all (vc-f "err")) "status " (cu-int->str st) "\n")))
                 ())))))
     (display "made"))

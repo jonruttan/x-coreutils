@@ -99,7 +99,7 @@
 (def %vi-shown-cells
   (fn (_ src lim)
     (def pieces (%vi-cells-from src 0 lim ()))
-    (if (null? pieces) "" (string-concat (reverse pieces)))))
+    (if (null? pieces) "" (%str-concat (reverse pieces)))))
 
 ; %vi-shown-from's walk: a run of plain bytes takes its cells as they are, a
 ; tab or a control byte its one cell for each column it shows in

@@ -58,7 +58,7 @@ shown as LPORT, a peer's as RPORT and a pid as PID.
                (do (sys-usleep 300000)
                    (let ((second (ts-recv-all (ts-send port req))))
                      (do (sys-usleep 1000000)
-                         (string-concat (list "===\n" second "===\n" (ts-recv-all c1))))))))
+                         (%str-concat (list "===\n" second "===\n" (ts-recv-all c1))))))))
            (#t (string-append "===\n" (ts-udp port req))))))
   (def ts-run (fn (_ app args kind req)
     (def port (ts-free-port))
@@ -69,7 +69,7 @@ shown as LPORT, a peer's as RPORT and a pid as PID.
     (sys-kill pid 15)
     (def st (sys-wait pid))
     (let ((fd (file-open-write (ts-f "raw"))))
-      (do (file-write fd (string-concat (list out "[status " (cu-int->str st) "]\n" (file-read-all (ts-f "log")))))
+      (do (file-write fd (%str-concat (list out "[status " (cu-int->str st) "]\n" (file-read-all (ts-f "log")))))
           (file-close fd)))
     (proc-run (list "/bin/sh" "-c" "sed -E -e \"s/:$TS_PORT([^0-9]|\\$)/:LPORT\\1/g\" -e 's/127\\.0\\.0\\.1:[0-9]+/127.0.0.1:RPORT/g' -e 's/(start|end) [0-9]+/\\1 PID/' -e 's/Address already in use/Address in use/' /tmp/x-cu-ts/raw > /tmp/x-cu-ts/norm"))
     (display (file-read-all (ts-f "norm")))))
@@ -338,7 +338,7 @@ as a user who is not root, as busybox's own check of this does.
 ### the fixture: a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (def nf (fn (_ n) (string-append "/tmp/x-cu-ts/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (Str8 replace "Address already in use" "Address in use" (file-read-all (nf ".err"))) "status " (cu-int->str st) "\n")))))))) (display "made"))
+(do (def nf (fn (_ n) (string-append "/tmp/x-cu-ts/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (%str-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (Str8 replace "Address already in use" "Address in use" (file-read-all (nf ".err"))) "status " (cu-int->str st) "\n")))))))) (display "made"))
 ```
 ---
     made

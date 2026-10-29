@@ -20,7 +20,7 @@
 (import cu/fmt-lex cu-esc-at)
 (import cu/prims append byte-at byte-len cu-b->s cu-lines cu-member-s? cu-nth
   cu-run-bytes cu-sweep! cu-sweep-steps file-write file-write-run filter
-  length map reverse string-concat string=? substring)
+  length map reverse string=? substring)
 (import cu/text cu-fold-lines-said cu-fold-stdin cu-map-swept cu-num-prefix
   cu-print-lines cu-says cu-split-byte)
 
@@ -247,12 +247,12 @@
       (match
         ((not (null? bad))
           (do (file-write 2
-                (string-concat
+                (%str-concat
                   (list "tr: invalid character class '" bad "'\n")))
               1))
         ((not (null? other))
           (do (file-write 2
-                (string-concat
+                (%str-concat
                   (list "tr: when translating, the only character classes that "
                         "may appear in\nstring2 are 'upper' and 'lower'\n")))
               1))
@@ -351,7 +351,7 @@
                   (def end (byte-len line))
                   (def go
                     (fn (self i acc)
-                      (if (>= i end) (string-concat (reverse acc))
+                      (if (>= i end) (%str-concat (reverse acc))
                         (self (+ i 1)
                           (if (%cu-in-ranges? (+ i 1) ranges)
                             (pair (cu-b->s (byte-at line i)) acc)

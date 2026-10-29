@@ -27,8 +27,8 @@
   file-err-text file-exists? file-open-err file-read-all file-read-run
   file-write file-write-run filter integer->char length list->string map
   net-close net-die net-resolve net-udp-connect reverse set-first!
-  string-append string-concat string=? substring sys-poll sys-time-ms
-  sys-uname vec-build vec-ref wget-digits wget-div wget-index wget-memv)
+  string-append string=? substring sys-poll sys-time-ms sys-uname vec-build
+  vec-ref wget-digits wget-div wget-index wget-memv)
 
 (def %ns-port 53)
 (def %ns-retry 2)
@@ -50,9 +50,9 @@
   (fn (_ val lo hi)
     (def n (wget-digits val))
     (match
-      ((null? n) (net-die (string-concat (list "invalid number '" val "'"))))
+      ((null? n) (net-die (%str-concat (list "invalid number '" val "'"))))
       ((if (< n lo) #t (> n hi))
-        (net-die (string-concat (list "number " val " is not in "
+        (net-die (%str-concat (list "number " val " is not in "
           (cu-int->str lo) ".." (cu-int->str hi) " range"))))
       (#t n))))
 
@@ -62,7 +62,7 @@
     (def up (%ns-upper val))
     (let go ((ts %ns-types))
       (match
-        ((null? ts) (net-die (string-concat (list "invalid query type \"" val "\""))))
+        ((null? ts) (net-die (%str-concat (list "invalid query type \"" val "\""))))
         ((string=? (first (first ts)) up) (rest (first ts)))
         (#t (go (rest ts)))))))
 
@@ -198,7 +198,7 @@
   (fn (_ s)
     (def v6 (%ns-ipv6 s))
     (def v4 (%ns-ipv4 s))
-    (def join (fn (_ ns) (string-concat (map (fn (_ n) (string-append (cu-int->str n) ".")) ns))))
+    (def join (fn (_ ns) (%str-concat (map (fn (_ n) (string-append (cu-int->str n) ".")) ns))))
     (match
       ((not (null? v6))
         (if (if (= (first v6) 0) (if (= (first (rest v6)) 0) (if (= (first (rest (rest v6))) 0)
@@ -211,7 +211,7 @@
             (string-append (join (list (% b 256) (wget-div b 256) (% a 256) (wget-div a 256)))
                            "in-addr.arpa"))
           (string-append
-            (string-concat
+            (%str-concat
               (map (fn (_ n) (list->string (list (%ns-hexch (% n 16)) #\. (%ns-hexch (wget-div n 16)) #\.)))
                    (reverse (%ns-nibbles v6))))
             "ip6.arpa")))
@@ -278,7 +278,7 @@
     (def port (if (null? colon) () (wget-digits (substring name (+ colon 1) (byte-len name)))))
     (def host (if (null? port) name (substring name 0 colon)))
     (def ip (guard (_ ()) (net-resolve host)))
-    (when (null? ip) (net-die (string-concat (list "bad address '" name "'"))))
+    (when (null? ip) (net-die (%str-concat (list "bad address '" name "'"))))
     (list name ip (if (null? port) %ns-port port))))
 
 ; --- the exchange: busybox's send_queries ---------------------------------------------
@@ -296,7 +296,7 @@
         (#t
           (let ((r (file-write-run fd (%ns-run (first (rest (first qs)))))))
             (if (< r 0)
-              (do (file-write 2 (string-concat (list "nslookup: write to '" (first server) "': "
+              (do (file-write 2 (%str-concat (list "nslookup: write to '" (first server) "': "
                     (file-err-text (file-open-err r (first server))) "\n")))
                   #f)
               (go (rest qs)))))))))
@@ -336,7 +336,7 @@
 (def %ns-on-reply
   (fn (_ loop fd server queries timeout interval tstart tsent replies servfail printed? r)
     (unless printed?
-      (file-write 1 (string-concat
+      (file-write 1 (%str-concat
         (list "Server:\t\t" (first server) "\nAddress:\t" (first (rest server)) ":"
               (cu-int->str (first (rest (rest server)))) "\n\n"))))
     (def bs (ns-bytes (first r) 0 (rest r)))
@@ -352,14 +352,14 @@
       (#t
         (do (set-first! (rest (rest q)) #t)
             (when %ns-debug
-              (file-write 1 (string-concat
+              (file-write 1 (%str-concat
                 (list "Query #" (cu-int->str (%ns-index queries q 0)) " completed in "
                       (cu-int->str (- (sys-time-ms) tstart)) "ms:\n"))))
             (if (= rcode 0)
               (when (< (%ns-print-reply bs) 0)
-                (do (file-write 1 (string-concat (list "*** Can't find " (first q) ": Parse error\n")))
+                (do (file-write 1 (%str-concat (list "*** Can't find " (first q) ": Parse error\n")))
                     (set! %ns-exit 1)))
-              (do (file-write 1 (string-concat (list "** server can't find " (first q) ": "
+              (do (file-write 1 (%str-concat (list "** server can't find " (first q) ": "
                     (cu-nth rcode %ns-rcodes) "\n")))
                   (set! %ns-exit 1)))
             (file-write 1 "\n")
@@ -408,7 +408,7 @@
 (def %ns-join
   (fn (_ parts)
     (if (null? parts) ""
-      (string-concat (pair (first parts) (map (fn (_ p) (string-append "." p)) (rest parts)))))))
+      (%str-concat (pair (first parts) (map (fn (_ p) (string-append "." p)) (rest parts)))))))
 
 ; the record parse: print each answer as busybox's parse_reply does; answers
 ; how many, or -1 for a reply it cannot read
@@ -451,7 +451,7 @@
 ; one record, as busybox prints it; -1 for one it cannot read
 (def %ns-print-rr
   (fn (_ v n name type rd rdlen)
-    (def say (fn (_ parts) (do (file-write 1 (string-concat parts)) 0)))
+    (def say (fn (_ parts) (do (file-write 1 (%str-concat parts)) 0)))
     (def named (fn (_ fmt-mid at)
       (let ((d (ns-name v n at)))
         (if (null? d) -1 (say (list name fmt-mid (first d) "\n"))))))
@@ -498,7 +498,7 @@
     (def mail (if (null? origin) () (ns-name v n (+ rd (rest origin)))))
     (if (null? mail) -1
       (let ((at (+ (+ rd (rest origin)) (rest mail))))
-        (do (file-write 1 (string-concat
+        (do (file-write 1 (%str-concat
               (list name "\n\torigin = " (first origin) "\n\tmail addr = " (first mail)
                     "\n\tserial = " (cu-int->str (%ns-u32 v at))
                     "\n\trefresh = " (cu-int->str (%ns-u32 v (+ at 4)))
@@ -518,7 +518,7 @@
     (def bl (rest best))
     (if (< bl 2)
       (%ns-join-colon (map hex groups))
-      (string-concat
+      (%str-concat
         (list (%ns-join-colon (map hex (%ns-take bs groups))) "::"
               (%ns-join-colon (map hex (ns-drop (+ bs bl) groups))))))))
 
@@ -535,7 +535,7 @@
 (def %ns-take (fn (self n l) (if (<= n 0) () (pair (first l) (self (- n 1) (rest l))))))
 (def ns-drop (fn (self n l) (if (<= n 0) l (self (- n 1) (rest l)))))
 (def %ns-join-colon
-  (fn (_ ss) (if (null? ss) "" (string-concat (pair (first ss) (map (fn (_ s) (string-append ":" s)) (rest ss)))))))
+  (fn (_ ss) (if (null? ss) "" (%str-concat (pair (first ss) (map (fn (_ s) (string-append ":" s)) (rest ss)))))))
 (def %ns-hex-group
   (fn (_ g)
     (if (= g 0) "0"
@@ -548,7 +548,7 @@
     (set! %ns-port 53) (set! %ns-retry 2) (set! %ns-timeout 5)
     (set! %ns-debug #f) (set! %ns-exit 0)
     (guard (e (if (eq? (Err label e) (lit net))
-                (do (file-write 2 (string-concat (list "nslookup: " (e msg) "\n"))) 1)
+                (do (file-write 2 (%str-concat (list "nslookup: " (e msg) "\n"))) 1)
                 (error e)))
       (%ns-run-applet argv))))
 
@@ -583,7 +583,7 @@
     (if (not answered)
       (do (file-write 1 ";; connection timed out; no servers could be reached\n\n") 1)
       (let ((missing (filter (fn (_ q) (not (first (rest (rest q))))) queries)))
-        (do (map (fn (_ q) (file-write 1 (string-concat (list "*** Can't find " (first q) ": No answer\n"))))
+        (do (map (fn (_ q) (file-write 1 (%str-concat (list "*** Can't find " (first q) ": No answer\n"))))
                  missing)
             (unless (null? missing) (file-write 1 "\n"))
             %ns-exit)))))

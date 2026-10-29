@@ -38,9 +38,9 @@ draws only the lines busybox draws within one.
                 (substring l 0 (- (byte-len l) 1)) l)))))))
   (def fp-say (fn (_ c s) (Socket send c (string-append s "\r\n"))))
   (def fp-file? (fn (_ name)
-    (let ((path (string-concat (list fp "/srv/" name))))
+    (let ((path (%str-concat (list fp "/srv/" name))))
       (if (= (byte-len name) 0) #f (if (file-exists? path) (not (file-dir? path)) #f)))))
-  (def fp-size (fn (_ name) (Assoc get (lit size) (file-stat (string-concat (list fp "/srv/" name))))))
+  (def fp-size (fn (_ name) (Assoc get (lit size) (file-stat (%str-concat (list fp "/srv/" name))))))
   (def fp-listen (fn (_)
     (do (unless (null? fp-dl) (Socket close fp-dl))
         (set! fp-dl (Socket tcp-listen 0))
@@ -50,15 +50,15 @@ draws only the lines busybox draws within one.
       ((null? fp-dl) (fp-say c "425 Use PORT/PASV first"))
       ((not (fp-file? name)) (fp-say c "550 Error"))
       (#t
-        (let ((d (Socket accept fp-dl)) (text (file-read-all (string-concat (list fp "/srv/" name)))))
-          (do (fp-say c (string-concat (list "150 Opening BINARY connection for " name
+        (let ((d (Socket accept fp-dl)) (text (file-read-all (%str-concat (list fp "/srv/" name)))))
+          (do (fp-say c (%str-concat (list "150 Opening BINARY connection for " name
                                              " (" (cu-int->str (fp-size name)) " bytes)")))
               (Socket send d (substring text fp-rest (byte-len text)))
               (Socket close d) (Socket close fp-dl) (set! fp-dl ())
               (fp-say c "226 Operation successful")))))
     (set! fp-rest 0)))
   (def fp-stor (fn (_ c name)
-    (let ((fd (file-open-or-err file-open-write (string-concat (list fp "/srv/" name)))))
+    (let ((fd (file-open-or-err file-open-write (%str-concat (list fp "/srv/" name)))))
       (if (Err err? fd) (fp-say c "553 Error")
         (let ((d (Socket accept fp-dl)))
           (do (fp-say c "150 Ok to send data")
@@ -76,10 +76,10 @@ draws only the lines busybox draws within one.
       ((string=? cmd "SIZE")
         (fp-say c (if (fp-file? arg) (string-append "213 " (cu-int->str (fp-size arg))) "550 Error")))
       ((string=? cmd "EPSV")
-        (fp-say c (string-concat (list "229 EPSV ok (|||" (cu-int->str (fp-listen)) "|)"))))
+        (fp-say c (%str-concat (list "229 EPSV ok (|||" (cu-int->str (fp-listen)) "|)"))))
       ((string=? cmd "PASV")
         (let ((p (fp-listen)))
-          (fp-say c (string-concat (list "227 PASV ok (127,0,0,1," (cu-int->str (wget-div p 256)) ","
+          (fp-say c (%str-concat (list "227 PASV ok (127,0,0,1," (cu-int->str (wget-div p 256)) ","
                                          (cu-int->str (% p 256)) ")")))))
       ((string=? cmd "REST") (do (set! fp-rest (wget-digits arg)) (fp-say c "350 Operation successful")))
       ((string=? cmd "RETR") (fp-retr c arg))
@@ -104,27 +104,27 @@ draws only the lines busybox draws within one.
                   (loop)))))
         (sys-exec "/bin/sh" (list "-c" "exit 0")))))
   (def fp-files (fn (_ dir pre)
-    (string-concat
+    (%str-concat
       (map (fn (_ f)
-             (let ((path (string-concat (list dir "/" f))))
-               (if (file-dir? path) (fp-files path (string-concat (list pre f "/")))
+             (let ((path (%str-concat (list dir "/" f))))
+               (if (file-dir? path) (fp-files path (%str-concat (list pre f "/")))
                  (let ((t (file-read-all path)))
-                   (string-concat (list "file " pre f ": " (cu-int->str (byte-len t)) " bytes\n"
+                   (%str-concat (list "file " pre f ": " (cu-int->str (byte-len t)) " bytes\n"
                                         (substring t 0 (if (> (byte-len t) 40) 40 (byte-len t))) "\n"))))))
            (filter (fn (_ f) (not (if (string=? f ".") #t (string=? f "..")))) (file-list-dir dir))))))
   (def fp-srv (fn (_)
-    (string-concat
-      (map (fn (_ f) (string-concat (list "srv " f ":\n" (file-read-all (string-concat (list fp "/srv/" f))))))
+    (%str-concat
+      (map (fn (_ f) (%str-concat (list "srv " f ":\n" (file-read-all (%str-concat (list fp "/srv/" f))))))
            (filter (fn (_ f) (not (cu-member-s? f (list "." ".." "small.txt" "big.bin" "empty"))))
                    (file-list-dir (string-append fp "/srv")))))))
   (def fp-dport (fn (self s)
     (let ((i (Str8 index-of "(|||" s)))
       (if (null? i) s
         (let ((j (wget-index s #\| (+ i 4))))
-          (string-concat (list (substring s 0 (+ i 4)) "DPORT"
+          (%str-concat (list (substring s 0 (+ i 4)) "DPORT"
                                (self (substring s j (byte-len s))))))))))
   (def fp-case (fn (_ pre args input)
-    (proc-run (list "/bin/sh" "-c" (string-concat (list "rm -rf " fp " && mkdir -p " fp "/srv " fp "/work && cd " fp " && printf 'hello\\n' > srv/small.txt && : > srv/empty && awk 'BEGIN { for (i = 0; i < 70000; i++) printf \"%c\", 65 + i % 26 }' > srv/big.bin && cd work && " pre))))
+    (proc-run (list "/bin/sh" "-c" (%str-concat (list "rm -rf " fp " && mkdir -p " fp "/srv " fp "/work && cd " fp " && printf 'hello\\n' > srv/small.txt && : > srv/empty && awk 'BEGIN { for (i = 0; i < 70000; i++) printf \"%c\", 65 + i % 26 }' > srv/big.bin && cd work && " pre))))
     (def lfd (Socket tcp-listen 0))
     (def port (cu-int->str (Socket local-port lfd)))
     (def rfd (Socket tcp-listen 0))
@@ -143,8 +143,8 @@ draws only the lines busybox draws within one.
     (stand-in! (list (module cu/net)) (lit date-now-unix) (fn (_) fp-now))
     (def st (guard (e (do (file-write 2 (string-append "raised: " (if (Err err? e) (e msg) "?"))) -1))
               (cu-run (map (fn (_ a) (match ((string=? a "P") port) ((string=? a "R") rport)
-                                            (#t (Str8 replace ":R/" (string-concat (list ":" rport "/"))
-                                                  (Str8 replace ":P/" (string-concat (list ":" port "/")) a)))))
+                                            (#t (Str8 replace ":R/" (%str-concat (list ":" rport "/"))
+                                                  (Str8 replace ":P/" (%str-concat (list ":" port "/")) a)))))
                            args)
                       input)))
     (stand-in! (list (module cu/net)) (lit date-now-unix) fp-clock)
@@ -152,7 +152,7 @@ draws only the lines busybox draws within one.
     (Sys chdir fp-home)
     (sys-kill pid 9) (sys-wait pid)
     (display (fp-dport (Str8 replace (string-append ":" rport) ":PORT" (Str8 replace (string-append ":" port) ":PORT"
-      (string-concat (list "status " (cu-int->str st) "\nstdout:\n" (file-read-all (string-append fp "/out"))
+      (%str-concat (list "status " (cu-int->str st) "\nstdout:\n" (file-read-all (string-append fp "/out"))
                            "stderr:\n" (file-read-all (string-append fp "/err"))
                            (fp-files (string-append fp "/work") "") (fp-srv)))))))))
   (display "made"))

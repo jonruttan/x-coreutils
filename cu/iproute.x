@@ -36,7 +36,7 @@
 (import cu/prims append byte-at byte-len cal/ cu-int->str cu-libc-sym cu-lines
   cu-nth cu-ptr-call cu-ptr-ref cu-str->ptr file-or-err file-read-unsized
   file-write filter length libc-strerror map reverse str-make-raw
-  string-append string-concat string=?)
+  string-append string=?)
 
 (def %ip-protos
   (fn (_ f)
@@ -167,11 +167,11 @@
     (match
       ((null? e) none)
       ((= len (ip-host-len family)) (string-append (ip-ntoa family (rest e)) " "))
-      (#t (string-concat (list (ip-ntoa family (rest e)) "/" (cu-int->str len) " "))))))
+      (#t (%str-concat (list (ip-ntoa family (rest e)) "/" (cu-int->str len) " "))))))
 
 (def %ip-route-flag-words
   (fn (_ flags)
-    (string-concat (map (fn (_ e) (if (= (& flags (first e)) 0) "" (rest e)))
+    (%str-concat (map (fn (_ e) (if (= (& flags (first e)) 0) "" (rest e)))
                         (list (pair 1 "dead ") (pair 4 "onlink ") (pair 2 "pervasive ") (pair 256 "notify "))))))
 
 ; IPv6's cache line and cache info, as busybox 1.36 prints them: "cache"
@@ -185,8 +185,8 @@
     (match
       ((not (= (ip-r-family r) 10)) "")
       ((if (%ip-cloned? r) #t (not (= expires 0)))
-        (string-concat (list (if (%ip-cloned? r) (string-append (ip-sl f) "    cache ") "")
-                             (if (= expires 0) "" (string-concat (list " expires " (cu-int->str (inet-int32 (cal/ expires (ip-hz)))) "sec")))
+        (%str-concat (list (if (%ip-cloned? r) (string-append (ip-sl f) "    cache ") "")
+                             (if (= expires 0) "" (%str-concat (list " expires " (cu-int->str (inet-int32 (cal/ expires (ip-hz)))) "sec")))
                              err)))
       (#t err))))
 
@@ -198,20 +198,20 @@
     (def tid (%ip-r-table r))
     (def dst-len (ip-r-dst-len r))
     (def src-len (ip-r-src-len r))
-    (string-concat
+    (%str-concat
       (list (if (= (first r) 25) "Deleted " "")
             (if (= (ip-r-type r) 1) "" (string-append (ip-rtn-name (ip-r-type r)) " "))
-            (%ip-route-end r 1 dst-len (if (= dst-len 0) "default " (string-concat (list "0/" (cu-int->str dst-len) " "))))
+            (%ip-route-end r 1 dst-len (if (= dst-len 0) "default " (%str-concat (list "0/" (cu-int->str dst-len) " "))))
             (%ip-route-end-from r src-len)
             (if (if (null? (ip-r-attr r 5)) #f (not (= (List ref 2 (ip-get f (lit rvia))) host)))
-              (string-concat (list "via " (ip-ntoa family (rest (ip-r-attr r 5))) " ")) "")
-            (ip-some (cu-nth 10 r) 4 (fn (_ b) (string-concat (list "dev " (ip-index-name f (inet-int32 (ip-num b))) " "))))
+              (%str-concat (list "via " (ip-ntoa family (rest (ip-r-attr r 5))) " ")) "")
+            (ip-some (cu-nth 10 r) 4 (fn (_ b) (%str-concat (list "dev " (ip-index-name f (inet-int32 (ip-num b))) " "))))
             (if (if (= tid 0) #f (if (= tid 254) #f (= (ip-get f (lit tb)) 0)))
-              (string-concat (list "table " (ip-name (ip-tables f) tid) " ")) "")
+              (%str-concat (list "table " (ip-name (ip-tables f) tid) " ")) "")
             (if (if (%ip-cloned? r) #f (if (= (%ip-r-scope r) 0) #f (not (= (ip-get f (lit scopemask)) 4294967295))))
-              (string-concat (list "scope " (ip-scope-name f (%ip-r-scope r)) " ")) "")
-            (ip-some (cu-nth 10 r) 7 (fn (_ b) (string-concat (list " src " (ip-ntoa family b) " "))))
-            (ip-some (cu-nth 10 r) 6 (fn (_ b) (string-concat (list " metric " (cu-int->str (inet-int32 (ip-num b))) " "))))
+              (%str-concat (list "scope " (ip-scope-name f (%ip-r-scope r)) " ")) "")
+            (ip-some (cu-nth 10 r) 7 (fn (_ b) (%str-concat (list " src " (ip-ntoa family b) " "))))
+            (ip-some (cu-nth 10 r) 6 (fn (_ b) (%str-concat (list " metric " (cu-int->str (inet-int32 (ip-num b))) " "))))
             (%ip-route-flag-words (%ip-r-flags r))
             (%ip-route-cache f r)
             (if (= (ip-get f (lit iif)) 0)
@@ -223,7 +223,7 @@
     (let ((s (%ip-route-end r 2 src-len "")))
       (match ((not (string=? s "")) (string-append "from " s))
              ((= src-len 0) "")
-             (#t (string-concat (list "from 0/" (cu-int->str src-len) " ")))))))
+             (#t (%str-concat (list "from 0/" (cu-int->str src-len) " ")))))))
 
 ; --- list and flush ---------------------------------------------------------------
 
@@ -324,7 +324,7 @@
   (fn (_ f)
     (def path "/proc/sys/net/ipv4/route/flush")
     (def fd (in-call (cu-ptr-call (cu-libc-sym "open") path 1)))
-    (if (< fd 0) (ip-say f (string-concat (list "can't open '" path "': " (libc-strerror (Err errno-of fd)))))
+    (if (< fd 0) (ip-say f (%str-concat (list "can't open '" path "': " (libc-strerror (Err errno-of fd)))))
       (let ((n (in-call (cu-ptr-call (cu-libc-sym "write") fd "-1" 2))))
         (if (< n 2) (ip-say f (string-append "can't flush routing cache: " (libc-strerror (Err errno-of n))))
           (cu-ptr-call (cu-libc-sym "close") fd))))))
@@ -381,7 +381,7 @@
     (def b (if (null? type) a (ip-next f a)))
     (def s1 (if (null? type) s (ip-put s (lit type) type)))
     (when (ip-get s1 (lit dst-ok))
-      (ip-die f (string-concat (list "either \"to\" is duplicate, or \"" (first b) "\" is garbage"))))
+      (ip-die f (%str-concat (list "either \"to\" is duplicate, or \"" (first b) "\" is garbage"))))
     (let ((p (ip-prefix-in f (first b) (ip-get s1 (lit family)))))
       (pair (List fold (fn (_ t kv) (ip-put t (first kv) (rest kv)))
                        (if (> (List ref 3 p) 0) (ip-attr! (ip-family! s1 (first p)) 1 (ip-pfx-bytes p)) (ip-family! s1 (first p)))
@@ -496,7 +496,7 @@
     (def kind (cu-ptr-ref (cu-str->ptr buf) 4 2))
     (def r (%ip-route-of (cu-str->ptr buf) (length bytes) kind))
     (if (null? r)
-      (do (file-write 2 (string-concat (list "Not a route: " (inet-hex8 (length bytes)) " " (inet-hex8 kind) " "
+      (do (file-write 2 (%str-concat (list "Not a route: " (inet-hex8 (length bytes)) " " (inet-hex8 kind) " "
                                              (inet-hex8 (cu-ptr-ref (cu-str->ptr buf) 6 2)) "\n"))) ())
       (do (file-write 1 (%ip-route-text f r)) r))))
 

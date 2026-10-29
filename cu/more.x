@@ -31,7 +31,7 @@
 (import cu/prims byte-at byte-len cu-b->s cu-int->str cu-stat-get
   cu-stdin-to-command! cu-sweep! cu-sweep-bytes file-close file-open-or-err
   file-open-read file-read-fd file-stat-full file-write file-write-run reverse
-  set-first! string-append string-concat string=? sys-exec sys-isatty)
+  set-first! string-append string=? sys-exec sys-isatty)
 (import cu/text cu-enough cu-fold-one cu-fold-said cu-pad-left cu-say cu-says)
 
 (import x/repl/term)
@@ -67,7 +67,7 @@
 (def %more-flush!
   (fn (_)
     (if (null? %more-out) ()
-      (do (%more-sink (string-concat (reverse %more-out)))
+      (do (%more-sink (%str-concat (reverse %more-out)))
           (set! %more-out ())))))
 
 ; busybox's get_wh: the window, never narrower or shorter than two, its height
@@ -87,7 +87,7 @@
   (fn (_)
     (if (= %more-size 0) "--More-- "
       (let ((d (if (< %more-size 100) 1 (%more/ %more-size 100))))
-        (string-concat
+        (%str-concat
           (list "--More-- (" (cu-int->str (%more/ %more-pos d))
                 "% of " (cu-int->str %more-size) " bytes)"))))))
 
@@ -106,7 +106,7 @@
       (fn (self len)
         (do (%more-flush!)
           (let ((k (%more-key)))
-            (do (%more-put (string-concat (list %more-cr (cu-pad-left "" len) %more-cr)))
+            (do (%more-put (%str-concat (list %more-cr (cu-pad-left "" len) %more-cr)))
               (match
                 ((null? k) (set! %more-stop 0))
                 ((if (= k (%more-ctrl #\C)) #t (= k (%more-ctrl #\\)))
@@ -267,14 +267,14 @@
     (set! %more-window (fn (_) (pair cols rows)))
     (let ((st (%more-page (Opts operands (cu-opts "more" argv))
                 (cu-string-stdin stdin))))
-      (pair st (string-concat (reverse (first drawn)))))))
+      (pair st (%str-concat (reverse (first drawn)))))))
 
 ; --- clear, reset -------------------------------------------------------------
 
 ; busybox's clear: the cursor home, and the screen cleared from there
 (def cu-clear
   (fn (_ argv stdin-thunk)
-    (do (file-write 1 (string-concat (list %more-esc "[H" %more-esc "[J"))) 0)))
+    (do (file-write 1 (%str-concat (list %more-esc "[H" %more-esc "[J"))) 0)))
 
 ; busybox's reset, built without its own stty: with standard output a
 ; terminal, the console reset, the US character set, the attributes off, the
@@ -282,7 +282,7 @@
 ; settings put back, by whichever stty the path finds.  There being none is not
 ; a failure.
 (def %reset-codes
-  (string-concat (list %more-esc "c" %more-esc "(B" %more-esc "[m" %more-esc "[J"
+  (%str-concat (list %more-esc "c" %more-esc "(B" %more-esc "[m" %more-esc "[J"
                        %more-esc "[?25h")))
 
 (def cu-reset

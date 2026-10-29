@@ -26,8 +26,7 @@
 (import cu/iostat io-time)
 (import cu/prims byte-at byte-len cu-int->str cu-nth file-write filter
   host-counters host-cpu host-disks host-interfaces host-interrupts
-  host-memory host-tasks host-wait map ps-div reverse string-append
-  string-concat substring)
+  host-memory host-tasks host-wait map ps-div reverse string-append substring)
 (import cu/text cu-pad-zero)
 (import cu/vmstat vm-four vm-get vm-ticks vm-zip)
 
@@ -66,7 +65,7 @@
               (fracs (map (fn (_ v) (% (* size v) all)) d)))
           (def bumped (%nm-bump shares fracs (- size (List fold + 0 shares))))
           (def run (fn (_ i c) (%str-make-raw-of (cu-nth i bumped) c)))
-          (def bar (string-concat (list (run 2 #\S) (run 0 #\U) (run 1 #\N) (run 4 #\D) (run 5 #\I) (run 6 #\i))))
+          (def bar (%str-concat (list (run 2 #\S) (run 0 #\U) (run 1 #\N) (run 4 #\D) (run 5 #\I) (run 6 #\i))))
           (pair (%cu-pad-right-with bar size #\.) now))))))
 
 ; SHARES with LEFT more added, one at a time to the share with the largest
@@ -124,7 +123,7 @@
       (if (null? r) (pair "??????????" old)
         (let ((now (map (fn (_ k) (vm-get k (first r))) (lit (rx-bytes rx-errors tx-bytes tx-errors)))))
           (def d (map (fn (_ p) (%nm-delta (first p) (rest p))) (vm-zip now (if (null? old) (list 0 0 0 0) old))))
-          (pair (string-concat (list (if (> (cu-nth 1 d) 0) "*" " ") (%nm-scale (first d))
+          (pair (%str-concat (list (if (> (cu-nth 1 d) 0) "*" " ") (%nm-scale (first d))
                                      (if (> (cu-nth 3 d) 0) "*" " ") (%nm-scale (cu-nth 2 d))))
                 now))))))
 
@@ -179,7 +178,7 @@
                 (+ wr (ps-div (vm-get (lit write-bytes) (first ds)) 512))))))))
     (def now (go (Assoc get (lit disks) s) () 0 0))
     (def o (if (null? old) (list 0 0) old))
-    (pair (string-concat (list (%nm-scale (* 512 (%nm-delta (first now) (first o)))) " "
+    (pair (%str-concat (list (%nm-scale (* 512 (%nm-delta (first now) (first o)))) " "
                                (%nm-scale (* 512 (%nm-delta (first (rest now)) (first (rest o)))))))
           now)))
 
@@ -203,7 +202,7 @@
       (def sec1 (if carry (+ sec0 1) sec0))
       (def us1 (if carry (- us0 1000000) us0))
       (def hms (if since (cu-date-fmt "%H:%M:%S" (cu-date-split sec1 #t) sec1) (io-time sec1)))
-      (pair (if (= prec 0) hms (string-concat (list hms "." (cu-pad-zero (cu-int->str (ps-div us1 scale)) prec))))
+      (pair (if (= prec 0) hms (%str-concat (list hms "." (cu-pad-zero (cu-int->str (ps-div us1 scale)) prec))))
             old))))
 
 ; --- the format ----------------------------------------------------------------
@@ -287,7 +286,7 @@
   (fn (_ fields s)
     (def go
       (fn (self fs acc out)
-        (if (null? fs) (pair (string-concat (reverse out)) (reverse acc))
+        (if (null? fs) (pair (%str-concat (reverse out)) (reverse acc))
           (let ((f (first fs)))
             (def r ((first (rest f)) s (rest (rest f))))
             (self (rest fs) (pair (pair (first f) (pair (first (rest f)) (rest r))) acc)
@@ -305,7 +304,7 @@
     (def parsed (if (null? ops) () (nm-parse (first ops))))
     (match
       ((not (null? (Opts unknown o))) (cu-refuse-option "nmeter" (Opts unknown o)))
-      ((null? delta) (do (file-write 2 (string-concat (list "nmeter: invalid number '" d "'\n"))) 1))
+      ((null? delta) (do (file-write 2 (%str-concat (list "nmeter: invalid number '" d "'\n"))) 1))
       ((null? parsed) (cu-usage "nmeter"))
       (#t (%nm-main (first parsed) (if (rest parsed) "\r" "\n") delta)))))
 

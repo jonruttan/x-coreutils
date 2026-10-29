@@ -21,7 +21,7 @@ parent waiting for it.
             (do (sys-dup2 oo 1) (sys-dup2 ee 2) (file-close oo) (file-close ee))))))
     (def io-show (fn (_ st)
       (do (sys-dup2 9 1) (sys-dup2 8 2)
-          (display (string-concat (list (file-read-all (io-f "out")) "stderr:\n"
+          (display (%str-concat (list (file-read-all (io-f "out")) "stderr:\n"
                                         (file-read-all (io-f "err")) "status " (cu-int->str st) "\n"))))))
     (def io-run (fn (_ argv) (do (io-aside) (io-show (cu-run argv "")))))
     (def io-forked (fn (_ argv)

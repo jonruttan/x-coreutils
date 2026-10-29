@@ -49,14 +49,14 @@ counts the SGR sequences drawn that are not resets.
     (vi-typed (list path) bursts 6 (if (null? cols) 30 (first cols)))
     (def cells (vi-state (lit %vi-cells)))
     (display
-      (string-concat
+      (%str-concat
         (list
-          (string-concat
+          (%str-concat
             (List map
               (fn (_ r) (string-append "|" (vi-trim r) "\n"))
               (vi-state (lit %vi-screen))))
           (if (null? cells) "no cells\n"
-            (string-concat (List map (fn (_ c) (string-append ":" (vi-trim c) "\n")) cells)))
+            (%str-concat (List map (fn (_ c) (string-append ":" (vi-trim c) "\n")) cells)))
           "status " (vi-trim (vi-state (lit %vi-bottom))) "\n"
           "colours " (cu-int->str (List fold (fn (_ n d) (vi-sgrs-in d 0 n)) 0 (vi-state (lit %vi-drawn)))) "\n")))))
 (display "made")

@@ -28,7 +28,7 @@ a message file shown as tmp/NAME or new/NAME.
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def pm-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
-  (def pm-srv (string-concat (list
+  (def pm-srv (%str-concat (list
     "exec 2>/dev/null\n"
     "d=/tmp/x-cu-pop; f=\" $(cat $d/flags) \"; cr=$(printf '\\r')\n"
     "has() { case \"$f\" in *\" $1 \"*) return 0;; esac; return 1; }\n"
@@ -54,7 +54,7 @@ a message file shown as tmp/NAME or new/NAME.
   (def pm (fn (_ flags args input box)
     (cu-heap-collect)
     (sys-setenv "PM_FLAGS" flags) (sys-setenv "PM_ARGS" args) (sys-setenv "PM_IN" input) (sys-setenv "PM_BOX" box)
-    (pm-sh (string-concat (list
+    (pm-sh (%str-concat (list
       "d=/tmp/x-cu-pop; rm -rf $d; mkdir -p $d/box; "
       "case \" $PM_FLAGS \" in *\" nomd \"*) ;; *) mkdir -p $d/md/tmp $d/md/new $d/md/cur;; esac; "
       "case \" $PM_FLAGS \" in *\" nonew \"*) rmdir $d/md/new;; esac; "
@@ -72,7 +72,7 @@ a message file shown as tmp/NAME or new/NAME.
           (sys-dup2 (file-open-write (pm-f "out")) 1) (sys-dup2 (file-open-write (pm-f "err")) 2)
           (sys-exit (guard (e (do (file-write 2 "uncaught\n") 99)) (cu-run (pair "popmaildir" argv) in)))))
     (def st (sys-wait pid))
-    (pm-sh (string-concat (list
+    (pm-sh (%str-concat (list
       "d=/tmp/x-cu-pop; norm() { sed -E \"s#(tmp|new)/[0-9]+\\.[0-9]+\\.[^' ]+#\\1/NAME#g\"; }; "
       "{ LC_ALL=C cat -v $d/out; echo \"[status " (cu-int->str st) "]\"; LC_ALL=C cat -v $d/err | norm; "
       "echo \"--- server got\"; LC_ALL=C cat -v $d/got; "

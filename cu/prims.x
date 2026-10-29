@@ -42,23 +42,13 @@
 (def cu-string-type (Type named STRING))
 (def list->string (fn (_ l) (if (null? l) "" (cvt l cu-string-type))))
 
-(def string-append (fn (_ . ss) (string-concat ss)))
+; The pieces joined end to end by the platform's concat
+; (lib/x/boot/string.x), which loops over the list, so a list of any length
+; joins, and raises a type error on a piece that is not a string.  The
+; bundle calls (%str-concat LIST) wherever it has the pieces as a list.
+(def string-append (fn (_ . ss) (%str-concat ss)))
 
-; SS joined end to end by the platform's own concat (lib/x/boot/string.x),
-; which loops over the list rather than recursing, so a list of any length
-; joins, at a few dozen objects a piece.  It reads its pieces raw, as bytes,
-; so each is checked first: a piece that is not a string is a type error
-; here, not a read of whatever it points at.
 (def cu-type-of (prim-ref (lit type) (lit of)))
-(def %cu-strings
-  (fn (self ss all)
-    (match
-      ((null? ss) all)
-      ((if (null? (first ss)) #f (eq? (cu-type-of (first ss)) cu-string-type))
-        (self (rest ss) all))
-      (#t (Err raise (lit type) "string-concat: not a string" ())))))
-(def string-concat
-  (fn (_ ss) (%str-concat (%cu-strings ss ss))))
 
 (def length (fn (_ l) (List length l)))
 (def reverse (fn (_ l) (cu-rev l ())))
@@ -472,9 +462,9 @@
       (let ((buf (str-make-raw 4096)))
         (let ((r (File read fd buf 4096)))
           (match
-            ((not (number? r)) (string-concat (reverse acc)))
+            ((not (number? r)) (%str-concat (reverse acc)))
             ((< r 0) (Err from-errno (Err errno-of r) (lit read) path))
-            ((= r 0) (string-concat (reverse acc)))
+            ((= r 0) (%str-concat (reverse acc)))
             (#t (go (pair (substring buf 0 r) acc)))))))))
 
 ; PATH whole, read to its end, as file-read-all reads a file stat sizes;
@@ -504,7 +494,7 @@
         (let ((chunk (file-read-fd 0 65536)))
           (if (> (byte-len chunk) 0)
             (self (pair chunk acc))
-            (string-concat (reverse acc))))))
+            (%str-concat (reverse acc))))))
     (slurp ())))
 
 ; --- sweeps -------------------------------------------------------------------
@@ -871,7 +861,7 @@
           (if os-darwin? (cu-cstr-at buf 72 16)
             (let ((e (Assoc entry (get (lit type)) %cu-fs-magic-names)))
               (if (null? e)
-                (string-concat (list "UNKNOWN (0x" (cu-hexs (get (lit type))) ")"))
+                (%str-concat (list "UNKNOWN (0x" (cu-hexs (get (lit type))) ")"))
                 (rest e)))))
         (append
           (list (pair (lit fsid) (+ (* hi 4294967296) lo))
@@ -1218,7 +1208,7 @@
 ; a sockaddr_in's (QUAD . PORT)
 (def net-sockaddr-read
   (fn (_ s)
-    (pair (string-concat (list (cu-int->str (byte-at s 4)) "." (cu-int->str (byte-at s 5)) "."
+    (pair (%str-concat (list (cu-int->str (byte-at s 4)) "." (cu-int->str (byte-at s 5)) "."
                                (cu-int->str (byte-at s 6)) "." (cu-int->str (byte-at s 7))))
           (+ (* (byte-at s 2) 256) (byte-at s 3)))))
 
@@ -1365,7 +1355,7 @@
         (match
           ((null? (rest units)) (string-append (cu-int->str whole) (first units)))
           ((<= tenths 99)
-            (string-concat
+            (%str-concat
               (list (cu-int->str (/ (- tenths (% tenths 10)) 10)) "."
                     (cu-int->str (% tenths 10)) (first units))))
           ((< whole 1024) (string-append (cu-int->str whole) (first units)))
@@ -1516,13 +1506,13 @@
   net-send-run net-send-to-run net-shutdown net-sock-addr net-sockaddr
   net-sockaddr-read net-stdin-socket net-udp-bind net-udp-connect net-udp-open
   proc-run ps-div re-compile re-search reverse rng-int rng-make set-first!
-  str-make-raw string-append string-concat string=? substring sys-affinity
-  sys-affinity! sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ
-  sys-exec sys-exec-or-err sys-execv sys-exit sys-fork sys-fsync sys-getcwd
-  sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid
-  sys-getuid sys-group-id sys-group-name sys-isatty sys-kill sys-mount
-  sys-nice sys-pipe sys-poll sys-setenv sys-signal sys-signals sys-sleep
-  sys-sync sys-time-ms sys-umask sys-uname sys-unsetenv sys-unshare
-  sys-user-group sys-user-groups sys-user-id sys-user-name sys-usleep sys-wait
-  sys-wait-status vec-build vec-make vec-ref vec-set! vm-dash-number
-  wget-digits wget-div wget-err-text wget-index wget-memv)
+  str-make-raw string-append string=? substring sys-affinity sys-affinity!
+  sys-chroot sys-close sys-cpu-count sys-dup2 sys-environ sys-exec
+  sys-exec-or-err sys-execv sys-exit sys-fork sys-fsync sys-getcwd sys-getegid
+  sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid sys-getuid
+  sys-group-id sys-group-name sys-isatty sys-kill sys-mount sys-nice sys-pipe
+  sys-poll sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms
+  sys-umask sys-uname sys-unsetenv sys-unshare sys-user-group sys-user-groups
+  sys-user-id sys-user-name sys-usleep sys-wait sys-wait-status vec-build
+  vec-make vec-ref vec-set! vm-dash-number wget-digits wget-div wget-err-text
+  wget-index wget-memv)

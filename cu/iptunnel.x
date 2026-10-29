@@ -35,7 +35,7 @@
 (import cu/prims append byte-len cu-err-label cu-int->str cu-libc-sym cu-lines
   cu-nth cu-ptr->str cu-ptr-call cu-str->ptr cu-string-type cvt file-or-err
   file-read-unsized file-write length libc-strerror map reverse string-append
-  string-concat string=? substring)
+  string=? substring)
 (import cu/telnetd td-ptr->int)
 
 (def %ip-t-put
@@ -85,7 +85,7 @@
     (def n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr r))))
     (cu-ptr-call (cu-libc-sym "close") fd)
     (when (< n 0)
-      (let ((msg (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n))))))
+      (let ((msg (%str-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n))))))
         (if die? (ip-die f msg) (ip-say f msg))))
     (pair n (ip-bytes (cu-str->ptr buf) 0 52))))
 
@@ -95,7 +95,7 @@
     (def fd (%ip-t-socket f))
     (def n (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr r))))
     (cu-ptr-call (cu-libc-sym "close") fd)
-    (if (< n 0) (do (ip-say f (string-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n))))) ())
+    (if (< n 0) (do (ip-say f (%str-concat (list "ioctl 0x" (cvt req cu-string-type 16) " failed: " (libc-strerror (Err errno-of n))))) ())
       r)))
 
 ; do_ioctl_get_ifindex: DEV's index, or the run ended
@@ -177,7 +177,7 @@
 ; the name: a second refused; for change, the first word's tunnel read from the kernel
 (def %ip-t-name-word
   (fn (_ f p arg cmd count)
-    (unless (string=? (%ip-t-name p) "") (ip-die f (string-concat (list "either \"name\" is duplicate, or \"" arg "\" is garbage"))))
+    (unless (string=? (%ip-t-name p) "") (ip-die f (%str-concat (list "either \"name\" is duplicate, or \"" arg "\" is garbage"))))
     (let ((p1 (%ip-t-put p 0 (%ip-t-name-bytes arg))))
       (if (if (= cmd 35315) (= count 0) #f)
         (let ((old (%ip-t-ioctl f 35312 arg (map (fn (_ k) 0) (List range 0 52)) #f)))
@@ -270,19 +270,19 @@
     (def iflags (%ip-t-get p 20 2))
     (def oflags (%ip-t-get p 22 2))
     (def keys? (if (= (& iflags %ip-gre-key) 0) #f (if (= (& oflags %ip-gre-key) 0) #f (= (%ip-t-get p 24 4) (%ip-t-get p 28 4)))))
-    (string-concat
+    (%str-concat
       (list (%ip-t-name p) ": " (match ((= proto 4) "ip") ((= proto 47) "gre") ((= proto 41) "ipv6") (#t "unknown"))
             "/ip  remote " (addr 48) "  local " (addr 44) " "
-            (if (= link 0) "" (let ((n (%ip-t-ifname f link))) (if (null? n) "" (string-concat (list " dev " n " ")))))
-            (if (= (%ip-t-get p 40 1) 0) " ttl inherit " (string-concat (list " ttl " (cu-int->str (%ip-t-get p 40 1)) " ")))
+            (if (= link 0) "" (let ((n (%ip-t-ifname f link))) (if (null? n) "" (%str-concat (list " dev " n " ")))))
+            (if (= (%ip-t-get p 40 1) 0) " ttl inherit " (%str-concat (list " ttl " (cu-int->str (%ip-t-get p 40 1)) " ")))
             (if (= tos 0) ""
-              (string-concat (list " tos" (if (= (& tos 1) 0) "" " inherit")
+              (%str-concat (list " tos" (if (= (& tos 1) 0) "" " inherit")
                                    (if (= (& tos 254) 0) ""
-                                     (string-concat (list (if (= (& tos 1) 0) " " "/") (ip-name (ip-dsfields f) (& tos 254)) " "))))))
+                                     (%str-concat (list (if (= (& tos 1) 0) " " "/") (ip-name (ip-dsfields f) (& tos 254)) " "))))))
             (if (= (& (%ip-t-get p 38 2) 64) 0) " nopmtudisc" "")
             (if keys? (string-append " key " (dotted 24))
-              (string-append (if (= (& iflags %ip-gre-key) 0) "" (string-concat (list " ikey " (dotted 24) " ")))
-                             (if (= (& oflags %ip-gre-key) 0) "" (string-concat (list " okey " (dotted 28) " ")))))
+              (string-append (if (= (& iflags %ip-gre-key) 0) "" (%str-concat (list " ikey " (dotted 24) " ")))
+                             (if (= (& oflags %ip-gre-key) 0) "" (%str-concat (list " okey " (dotted 28) " ")))))
             (if (= (& iflags %ip-gre-seq) 0) "" (string-append (ip-sl f) "  Drop packets out of sequence.\n"))
             (if (= (& iflags %ip-gre-csum) 0) "" (string-append (ip-sl f) "  Checksum in received packet is required."))
             (if (= (& oflags %ip-gre-seq) 0) "" (string-append (ip-sl f) "  Sequence packets on output."))
@@ -312,7 +312,7 @@
     (def hw (%ip-t-ifreq f 35111 (if-req name)))
     (def type (if (null? hw) -1 (if-ref hw 16 2)))
     (match
-      ((< type 0) (do (ip-say f (string-concat (list "can't get type of [" name "]"))) #t))
+      ((< type 0) (do (ip-say f (%str-concat (list "can't get type of [" name "]"))) #t))
       ((not (if (= type 768) #t (if (= type 778) #t (= type 776)))) #t)
       (#t (let ((q (%ip-t-ioctl f 35312 name (map (fn (_ k) 0) (List range 0 52)) #f)))
             (do (when (if (>= (first q) 0) (%ip-t-matches? p (rest q)) #f) (file-write 1 (string-append (%ip-t-text f (rest q)) "\n")))

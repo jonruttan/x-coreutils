@@ -32,8 +32,8 @@
 (import cu/prims append byte-at byte-len cu-heap-collect cu-int->str cu-nth
   cu-stdin-to-command! file-read-fd file-write filter host-args host-cpu
   host-cpus host-load-fixed host-maps host-memory host-processes host-tasks
-  host-threads length map ps-div reverse string-append string-concat substring
-  sys-poll sys-user-name sys-usleep)
+  host-threads length map ps-div reverse string-append substring sys-poll
+  sys-user-name sys-usleep)
 (import cu/procps ps-args ps-four ps-sorted ps-stat)
 (import cu/strings cu-range-number)
 (import cu/text cu-msort cu-pad-left cu-pad-right cu-pad-zero)
@@ -85,7 +85,7 @@
     ; -d is read before -n, as busybox reads them: a bad -d is the one named
     (match
       ((not (null? unknown)) (cu-refuse-option "top" unknown))
-      ((null? interval) (do (file-write 2 (string-concat (list "top: invalid number '" d "'\n"))) 1))
+      ((null? interval) (do (file-write 2 (%str-concat (list "top: invalid number '" d "'\n"))) 1))
       (#t (let ((iterations (if (null? n) 0 (cu-range-number "top" n 0 2147483647))))
             (if (null? iterations) 1
               (%top-main (Opts on? o "-b") (Opts on? o "-m") (Opts on? o "-H") interval iterations)))))))
@@ -312,16 +312,16 @@
         (def b (lead (% (ps-div u 100) 10) (str=? a " ")))
         (def c (lead (% (ps-div u 10) 10) (str=? b " ")))
         (def d (lead (% u 10) (str=? c " ")))
-        (string-concat (list a b c d (digit v))))
+        (%str-concat (list a b c d (digit v))))
       (let ((r (up (ps-div (* n 10) 1024) 1)))
         (def u (ps-div (first r) 10))
         (def unit (substring " mgtpezy" (rest r) (+ (rest r) 1)))
         (if (>= u 100)
           (let ((a (lead (ps-div u 1000) #t)))
             (def b (lead (% (ps-div u 100) 10) (str=? a " ")))
-            (string-concat (list a b (lead (% (ps-div u 10) 10) (str=? b " ")) (digit (% u 10)) unit)))
+            (%str-concat (list a b (lead (% (ps-div u 10) 10) (str=? b " ")) (digit (% u 10)) unit)))
           (let ((a (lead (ps-div u 10) #t)))
-            (string-concat (list a (lead (% u 10) (str=? a " ")) "." (digit (% (first r) 10)) unit))))))))
+            (%str-concat (list a (lead (% u 10) (str=? a " ")) "." (digit (% (first r) 10)) unit))))))))
 
 ; fmt_100percent_8: VALUE of TOTAL as " NN.N% ", seven characters
 (def top-percent
@@ -330,14 +330,14 @@
       (let ((v (ps-div (%top-u32 (* 1000 value)) total)))
         (def t (ps-div v 100))
         (def r (% v 100))
-        (string-concat (list " " (if (= t 0) " " (cu-int->str t)) (cu-int->str (ps-div r 10))
+        (%str-concat (list " " (if (= t 0) " " (cu-int->str t)) (cu-int->str (ps-div r 10))
                              "." (cu-int->str (% r 10)) "% "))))))
 
 ; "%3u.%c": tenths, the last digit after the point
 (def %top-tenths
   (fn (_ v plus)
     (if plus (string-append (cu-pad-left "99" 3) ".+")
-      (string-concat (list (cu-pad-left (cu-int->str (ps-div v 10)) 3) "." (cu-int->str (% v 10)))))))
+      (%str-concat (list (cu-pad-left (cu-int->str (ps-div v 10)) 3) "." (cu-int->str (% v 10)))))))
 
 ; --- the screen ---------------------------------------------------------------
 
@@ -353,18 +353,18 @@
       (fn (_ l first?)
         (def text (cut (rest l)))
         (match
-          (first? (if %top-batch text (string-concat (list %top-esc "[H" text clr))))
-          ((if (first l) (not %top-batch) #f) (string-concat (list "\n" %top-esc "[7m" text %top-esc "[m" clr)))
-          (#t (string-concat (list "\n" text clr))))))
+          (first? (if %top-batch text (%str-concat (list %top-esc "[H" text clr))))
+          ((if (first l) (not %top-batch) #f) (%str-concat (list "\n" %top-esc "[7m" text %top-esc "[m" clr)))
+          (#t (%str-concat (list "\n" text clr))))))
     (def go (fn (self ls first? acc) (if (null? ls) (reverse acc) (self (rest ls) #f (pair (one (first ls) first?) acc)))))
-    (string-concat (append (go lines #t ()) (list (if %top-batch "\n" (string-append %top-esc "[J\r")))))))
+    (%str-concat (append (go lines #t ()) (list (if %top-batch "\n" (string-append %top-esc "[J\r")))))))
 
 ; the memory line and its total, busybox's /proc/meminfo figures in kilobytes
 (def %top-mem
   (fn (_)
     (def m (host-memory))
     (def kb (fn (_ k) (let ((v (Assoc get k m))) (if (null? v) 0 (ps-div v 1024)))))
-    (pair (string-concat
+    (pair (%str-concat
             (list "Mem: " (cu-int->str (- (kb (lit total)) (kb (lit free)))) "K used, "
                   (cu-int->str (kb (lit free))) "K free, "
                   (cu-int->str (kb (lit shared))) "K shrd, "
@@ -380,7 +380,7 @@
         (def d (fn (_ i) (%top-u32 (- (cu-nth i cur) (cu-nth i prev)))))
         (def total (let ((t (d 8))) (if (= t 0) 1 t)))
         (def p (fn (_ i) (top-percent (d i) total)))
-        (string-concat (list "CPU" name ":" (p 0) "usr" (p 2) "sys" (p 1) "nic" (p 3) "idle"
+        (%str-concat (list "CPU" name ":" (p 0) "usr" (p 2) "sys" (p 1) "nic" (p 3) "idle"
                              (p 4) "io" (p 5) "irq" (p 6) "sirq"))))
     (if (if %top-smp (not (null? %top-cpu-jif)) #f)
       (let ((n (if (> (length %top-cpu-jif) room) room (length %top-cpu-jif))))
@@ -401,13 +401,13 @@
     (def avg
       (fn (_ a)
         (def b (+ a 10))
-        (string-concat (list (cu-int->str (>> b 11)) "."
+        (%str-concat (list (cu-int->str (>> b 11)) "."
                              (cu-pad-zero (cu-int->str (>> (* (& b 2047) 100) 11)) 2)))))
     (def get (fn (_ k) (Assoc get k t)))
-    (string-concat
+    (%str-concat
       (list "Load average: " (Str8 join " " (map avg loads))
             (if (null? (get (lit running))) ""
-              (string-concat (list " " (cu-int->str (get (lit running))) "/" (cu-int->str (get (lit total)))
+              (%str-concat (list " " (cu-int->str (get (lit running))) "/" (cu-int->str (get (lit total)))
                                    " " (cu-int->str (get (lit last-pid))))))))))
 
 (def %top-user
@@ -424,7 +424,7 @@
 (def top-ppu
   (fn (_ pid ppid user)
     (def u (if (> (byte-len user) 8) (substring user 0 8) user))
-    (def s (string-concat (list (cu-pad-left (cu-int->str pid) 5) " "
+    (def s (%str-concat (list (cu-pad-left (cu-int->str pid) 5) " "
                                 (cu-pad-left (cu-int->str ppid) 5) " " (cu-pad-right u 8))))
     (def lead (fn (self s) (if (if (> (byte-len s) 20) (= (byte-at s 0) #\space) #f) (self (substring s 1 (byte-len s))) s)))
     (def t (lead s))
@@ -491,7 +491,7 @@
     (def pmem (first shares))
     (def pcpu (rest shares))
     (def cpu (cu-nth 7 e))
-    (def col (string-concat
+    (def col (%str-concat
                (list (top-ppu (first e) (cu-nth 1 e) (%top-user (cu-nth 4 e))) " "
                      (cu-nth 5 e) "  " (top-five (cu-nth 2 e))
                      (%top-tenths pmem (> (ps-div pmem 10) 99))
@@ -554,10 +554,10 @@
           (#t (pair (first bs) (self (rest bs) (+ i 1)))))))
     (def lines
       (append
-        (list (pair #f (string-concat (list "Mem total:" (n (lit total)) " anon:" (n (lit anon)) " map:" (n (lit mapped)) " free:" (n (lit free)))))
-              (pair #f (string-concat (list " slab:" (n (lit slab)) " buf:" (n (lit buffers)) " cache:" (n (lit cached))
+        (list (pair #f (%str-concat (list "Mem total:" (n (lit total)) " anon:" (n (lit anon)) " map:" (n (lit mapped)) " free:" (n (lit free)))))
+              (pair #f (%str-concat (list " slab:" (n (lit slab)) " buf:" (n (lit buffers)) " cache:" (n (lit cached))
                                             " dirty:" (n (lit dirty)) " write:" (n (lit writeback)))))
-              (pair #f (string-concat (list "Swap total:" (n (lit swap-total)) " free:" (n (lit swap-free)))))
+              (pair #f (%str-concat (list "Swap total:" (n (lit swap-total)) " free:" (n (lit swap-free)))))
               (pair #t (bytes->str (marked head 0))))))
     (def left (let ((room (- %top-lines (length lines))) (more (- (length %top-rows) %top-scroll)))
                 (if (> room more) more room)))
@@ -578,10 +578,10 @@
     (def p (string-append (cu-pad-left pid 5) " "))
     (def lead
       (match
-        ((> (byte-len p) 7) (string-concat (list p (four 2) (four 3))))
-        ((= (byte-len p) 7) (string-concat (list p (four 2) (five 3))))
-        (#t (string-concat (list p (five 2) (five 3))))))
-    (string-concat (list lead (five 4) (five 5) (five 6) (five 7) (five 8)
+        ((> (byte-len p) 7) (%str-concat (list p (four 2) (four 3))))
+        ((= (byte-len p) 7) (%str-concat (list p (four 2) (five 3))))
+        (#t (%str-concat (list p (five 2) (five 3))))))
+    (%str-concat (list lead (five 4) (five 5) (five 6) (five 7) (five 8)
                          (ps-args (host-args (first e)) (cu-nth 1 e))))))
 
 ; --- the keys -----------------------------------------------------------------

@@ -20,8 +20,8 @@
 
 (import cu/cli cu-opts cu-refuse-option cu-usage)
 (import cu/prims byte-at byte-len cu-stdin-to-command! cu-sweep-at
-  date-now-unix file-write string-append string-concat substring
-  sys-exec-or-err sys-exit sys-fork sys-getenv sys-signal sys-usleep sys-wait)
+  date-now-unix file-write string-append substring sys-exec-or-err sys-exit
+  sys-fork sys-getenv sys-signal sys-usleep sys-wait)
 (import cu/procps ps-boot-line)
 (import cu/text cu-pad-right)
 (import cu/vi vi-dim)
@@ -46,7 +46,7 @@
       ((not (null? (Opts unknown o))) (cu-refuse-option "watch" (Opts unknown o)))
       ((null? words) (cu-usage "watch"))
       ((eq? period (lit usage)) (cu-usage "watch"))
-      ((str? period) (do (file-write 2 (string-concat (list "watch: invalid number '" period "'\n"))) 1))
+      ((str? period) (do (file-write 2 (%str-concat (list "watch: invalid number '" period "'\n"))) 1))
       ; the engine keeps SIGINT to itself; busybox's watch dies of it
       (#t (do (%watch-signals! (Sys sig-dfl))
               (%watch-loop 0 words (Str8 join " " words) (Opts on? o "-x") (not (Opts on? o "-t")) period))))))
@@ -115,7 +115,7 @@
 (def %watch-decimal
   (fn (_ s)
     (def l (byte-len s))
-    (string-concat (list (if (= (byte-at s 0) #\.) "0" "") s (if (= (byte-at s (- l 1)) #\.) "0" "")))))
+    (%str-concat (list (if (= (byte-at s 0) #\.) "0" "") s (if (= (byte-at s (- l 1)) #\.) "0" "")))))
 
 ; the Float SECS, or S as no number when SECS is past 2^53 microseconds
 (def %watch-capped
@@ -128,7 +128,7 @@
 (def %watch-loop
   (fn (self round words cmd exec? header? period)
     (cu-sweep-at round 15)
-    (file-write 1 (string-concat (list %watch-esc "[H" %watch-esc "[J")))
+    (file-write 1 (%str-concat (list %watch-esc "[H" %watch-esc "[J")))
     (when header?
       (file-write 1 (string-append (%watch-header period cmd (%watch-width) (%watch-now)) "\n\n")))
     (if exec? (%watch-spawn words) (%watch-system cmd))
@@ -139,7 +139,7 @@
 ; one, the last 19 the local time
 (def %watch-header
   (fn (_ period cmd width now)
-    (def line (string-concat (list "Every " (vm-fixed period 1) "s: " (cu-pad-right cmd width))))
+    (def line (%str-concat (list "Every " (vm-fixed period 1) "s: " (cu-pad-right cmd width))))
     (if (> width 20)
       (string-append (substring line 0 (- width 20)) (substring (ps-boot-line now) 0 19))
       line)))

@@ -28,13 +28,13 @@
   file-open-read file-open-write file-read-run file-stat file-unlink
   file-write file-write-run length map net-close net-die net-recv-from-run
   net-resolve net-send-run net-send-to-run net-sock-addr net-sockaddr
-  net-stdin-socket net-udp-bind net-udp-open reverse string-append
-  string-concat string=? substring sys-chroot sys-close sys-poll
-  sys-user-group sys-user-id wget-digits wget-div wget-index)
+  net-stdin-socket net-udp-bind net-udp-open reverse string-append string=?
+  substring sys-chroot sys-close sys-poll sys-user-group sys-user-id
+  wget-digits wget-div wget-index)
 (import cu/session ss-call)
 
 (def %tftp-name "tftp")
-(def %tftp-say (fn (_ msg) (file-write 2 (string-concat (list %tftp-name ": " msg "\n")))))
+(def %tftp-say (fn (_ msg) (file-write 2 (%str-concat (list %tftp-name ": " msg "\n")))))
 
 (def %tftp-flags (list "-g" "-p"))
 (def %tftp-values (list "-l" "-r" "-b" "-m"))
@@ -58,7 +58,7 @@
   (fn (_ s max)
     (def n (wget-digits s))
     (if (if (null? n) #t (if (< n 24) #t (> n max)))
-      (do (%tftp-say (string-concat (list "bad blocksize '" s "'"))) ())
+      (do (%tftp-say (%str-concat (list "bad blocksize '" s "'"))) ())
       n)))
 
 ; --- packets ---------------------------------------------------------------------
@@ -211,7 +211,7 @@
     (def code (%tftp-word r 2))
     (def text (if (if (> (rest r) 4) (not (= (%tftp-at r 4) 0)) #f) (%tftp-text r 4)
                 (if (<= code 8) (cu-nth code %tftp-errors) "")))
-    (%tftp-say (string-concat (list "server error: (" (cu-int->str code) ") " text)))
+    (%tftp-say (%str-concat (list "server error: (" (cu-int->str code) ") " text)))
     #f))
 
 ; an OACK whose block size busybox refuses: error 8 to the server
@@ -295,7 +295,7 @@
         (let ((blksize (%tftp-blksize (let ((b (Opts value o "-b"))) (if (null? b) "512" b)) 65564)))
           (if (null? blksize) 1
             (guard (e (if (eq? (Err label e) (lit net))
-                        (do (file-write 2 (string-concat (list "tftp: " (e msg) "\n"))) 1)
+                        (do (file-write 2 (%str-concat (list "tftp: " (e msg) "\n"))) 1)
                         (error e)))
               (%tftp-run-applet get? blksize (Opts value o "-l") (Opts value o "-r") ops))))))))
 
@@ -312,7 +312,7 @@
 (def %tftp-start
   (fn (_ get? blksize remote local host port)
     (def ip (guard (_ ()) (net-resolve host)))
-    (when (null? ip) (net-die (string-concat (list "bad address '" host "'"))))
+    (when (null? ip) (net-die (%str-concat (list "bad address '" host "'"))))
     (set! %tftp-progress #f) (set! %tftp-pos 0) (set! %tftp-size 0)
     (set! %tftp-answered #f) (set! %tftp-peer (pair ip port)) (set! %tftp-local-fd -1)
     (unless get?
@@ -320,7 +320,7 @@
         (if (null? local) 0
           (let ((fd (file-open-or-err file-open-read local)))
             (if (Err err? fd)
-              (net-die (string-concat (list "can't open '" local "': " (file-err-text fd))))
+              (net-die (%str-concat (list "can't open '" local "': " (file-err-text fd))))
               fd)))))
     (unless (if get? #t (< %tftp-local-fd 1))
       (let ((size (Assoc get (lit size) (file-stat local))))
@@ -429,7 +429,7 @@
     (unless (null? dir)
       (let ((r (guard (e e) (sys-chroot dir))))
         (when (if (Err err? r) #t (if (number? r) (< r 0) #f))
-          (%tftpd-die (string-concat (list "can't change root directory to '" dir "': "
+          (%tftpd-die (%str-concat (list "can't change root directory to '" dir "': "
             (file-err-text (if (Err err? r) r (Err from-errno (Err errno-of r) (lit chroot) dir)))))))))
     (def got (net-recv-from-run fd 517))
     (def checked (%tftpd-check (first got) (Opts on? o "-r")))
@@ -451,7 +451,7 @@
     (def gid (sys-user-group user))
     (def fail? (fn (_ r what)
       (let ((e (ss-call r (lit call) what)))
-        (unless (null? e) (%tftpd-die (string-concat (list what ": " (file-err-text e))))))))
+        (unless (null? e) (%tftpd-die (%str-concat (list what ": " (file-err-text e))))))))
     (fail? (cu-ptr-call (cu-libc-sym "initgroups") user gid) "can't set groups")
     (fail? (cu-ptr-call (cu-libc-sym "setgid") gid) "setgid")
     (fail? (cu-ptr-call (cu-libc-sym "setuid") (sys-user-id user)) "setuid")))
@@ -471,7 +471,7 @@
                           (File open p (if create? (list (lit wronly) (lit trunc) (lit creat)) (list (lit wronly) (lit trunc))) 438)))
               file))
     (if (Err err? fd)
-      (do (%tftp-say (string-concat (list "can't open '" (%tftpd-sanitize file) "': " (file-err-text fd))))
+      (do (%tftp-say (%str-concat (list "can't open '" (%tftpd-sanitize file) "': " (file-err-text fd))))
           (%tftp-send (%tftpd-error-packet 1 "can't open file"))
           1)
       (do (set! %tftp-local-fd fd)

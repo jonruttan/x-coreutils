@@ -22,11 +22,11 @@
 (import cu/inetd in-call)
 (import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
   cu-ptr->str cu-ptr-call cu-str->ptr file-write libc-strerror map
-  string-append string-concat sys-geteuid sys-group-id sys-user-id)
+  string-append sys-geteuid sys-group-id sys-user-id)
 
 (def %tu-die
   (fn (_ msg)
-    (do (file-write 2 (string-concat (list "tunctl: " msg "\n")))
+    (do (file-write 2 (%str-concat (list "tunctl: " msg "\n")))
         (Err raise (lit tunctl) msg ()))))
 
 ; IOCTL: REQ on FD with ARG, its failure busybox's bare strerror
@@ -50,7 +50,7 @@
     (%tu-ioctl %tu-fd 1074025676 user)
     (%tu-ioctl %tu-fd 1074025675 1)
     (file-write 1 (if (Opts on? o "-b") (string-append made "\n")
-                    (string-concat (list "Set '" made "' persistent and owned by uid " (cu-int->str user)
+                    (%str-concat (list "Set '" made "' persistent and owned by uid " (cu-int->str user)
                                          (if (= group -1) "" (string-append " gid " (cu-int->str group))) "\n"))))))
 
 (def %tu-main
@@ -67,12 +67,12 @@
               (List range 0 (if (> (byte-len name) 15) 15 (byte-len name))))
     (inet-set! ifr 16 4098 2)
     (set! %tu-fd (in-call (cu-ptr-call (cu-libc-sym "open") dev 2)))
-    (when (< %tu-fd 0) (%tu-die (string-concat (list "can't open '" dev "': " (libc-strerror (Err errno-of %tu-fd))))))
+    (when (< %tu-fd 0) (%tu-die (%str-concat (list "can't open '" dev "': " (libc-strerror (Err errno-of %tu-fd))))))
     (%tu-ioctl %tu-fd 1074025674 (cu-str->ptr ifr))
     (def made (cu-ptr->str (cu-str->ptr ifr)))
     (if (null? d) (%tu-create o made)
       (do (%tu-ioctl %tu-fd 1074025675 0)
-          (file-write 1 (string-concat (list "Set '" made "' nonpersistent\n")))))
+          (file-write 1 (%str-concat (list "Set '" made "' nonpersistent\n")))))
     0))
 
 ; the device closed however the run ends, as busybox's exit closes it

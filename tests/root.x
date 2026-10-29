@@ -150,15 +150,14 @@
   net-send-to-run net-shutdown net-sock-addr net-sockaddr net-sockaddr-read
   net-stdin-socket net-udp-bind net-udp-connect net-udp-open proc-run ps-div
   re-compile re-search reverse rng-int rng-make set-first! str-make-raw
-  string-append string-concat string=? substring sys-chroot sys-close
-  sys-cpu-count sys-dup2 sys-environ sys-exec sys-exec-or-err sys-exit
-  sys-fork sys-fsync sys-getcwd sys-getegid sys-getenv sys-geteuid sys-getgid
-  sys-getgroups sys-getpid sys-getuid sys-group-id sys-group-name sys-isatty
-  sys-kill sys-nice sys-pipe sys-poll sys-setenv sys-signal sys-signals
-  sys-sleep sys-sync sys-time-ms sys-umask sys-uname sys-unsetenv
-  sys-user-group sys-user-groups sys-user-id sys-user-name sys-usleep sys-wait
-  vec-build vec-make vec-ref vec-set! vm-dash-number wget-digits wget-div
-  wget-err-text wget-index wget-memv)
+  string-append string=? substring sys-chroot sys-close sys-cpu-count sys-dup2
+  sys-environ sys-exec sys-exec-or-err sys-exit sys-fork sys-fsync sys-getcwd
+  sys-getegid sys-getenv sys-geteuid sys-getgid sys-getgroups sys-getpid
+  sys-getuid sys-group-id sys-group-name sys-isatty sys-kill sys-nice sys-pipe
+  sys-poll sys-setenv sys-signal sys-signals sys-sleep sys-sync sys-time-ms
+  sys-umask sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
+  sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!
+  vm-dash-number wget-digits wget-div wget-err-text wget-index wget-memv)
 (import cu/procps cu-free cu-kill cu-killall cu-lsof cu-minips cu-pgrep
   cu-pidof cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head
   ps-args ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o

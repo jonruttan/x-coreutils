@@ -76,11 +76,11 @@ busybox's ipcs.
           (sys-dup2 lx-o 1) (sys-dup2 lx-e 2)
           (def lx-st (cu-run (lx-words argv) ""))
           (sys-dup2 9 1) (sys-dup2 8 2) (file-close lx-o) (file-close lx-e)
-          (string-concat (list (lx-read "/tmp/lx-sv-xo") "stderr:\n" (lx-read "/tmp/lx-sv-xe") "status " (cu-int->str lx-st) "\n")))))
+          (%str-concat (list (lx-read "/tmp/lx-sv-xo") "stderr:\n" (lx-read "/tmp/lx-sv-xe") "status " (cu-int->str lx-st) "\n")))))
     (def lx-bb (fn (_ argv)
-      (do (lx-sh (string-concat (list "/bin/busybox " (Str8 join " " (map lx-q (lx-words argv))) " > /tmp/lx-sv-bo 2> /tmp/lx-sv-bx; echo $? > /tmp/lx-sv-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-sv-bx > /tmp/lx-sv-be")))
-          (string-concat (list (lx-read "/tmp/lx-sv-bo") "stderr:\n" (lx-read "/tmp/lx-sv-be") "status " (lx-read "/tmp/lx-sv-bs"))))))
-    (def lx-show (fn (_ a b) (display (if (string=? a b) "same\n" (string-concat (list "ours:\n" a "busybox:\n" b))))))
+      (do (lx-sh (%str-concat (list "/bin/busybox " (Str8 join " " (map lx-q (lx-words argv))) " > /tmp/lx-sv-bo 2> /tmp/lx-sv-bx; echo $? > /tmp/lx-sv-bs; sed '/^BusyBox v/{N;d;}' /tmp/lx-sv-bx > /tmp/lx-sv-be")))
+          (%str-concat (list (lx-read "/tmp/lx-sv-bo") "stderr:\n" (lx-read "/tmp/lx-sv-be") "status " (lx-read "/tmp/lx-sv-bs"))))))
+    (def lx-show (fn (_ a b) (display (if (string=? a b) "same\n" (%str-concat (list "ours:\n" a "busybox:\n" b))))))
     ; a listing, on the objects made once
     (def lx-case (fn (_ argv) (lx-show (lx-x argv) (lx-bb argv))))
     ; a removal: for each side a namespace made anew, the objects made in it,

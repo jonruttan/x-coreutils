@@ -24,8 +24,8 @@
   cu-libc-sym cu-ptr->str cu-ptr-call cu-ptr-set! cu-stat-get cu-str->ptr
   cu-sweep-lines cu-sweep-tick! file-chmod file-close file-err-text
   file-open-err file-rename file-stat-full file-unlink file-write
-  file-write-run length map reverse str-make-raw string-append string-concat
-  string=? substring vec-build vec-make vec-ref vec-set!)
+  file-write-run length map reverse str-make-raw string-append string=?
+  substring vec-build vec-make vec-ref vec-set!)
 (import cu/tar tar-last-slash)
 (import cu/text cu-fd-chunks cu-num-prefix cu-pieces cu-run-from cu-run-text)
 
@@ -38,7 +38,7 @@
   (fn (_ name flags)
     (let ((fd (File open name flags 438)))
       (if (< fd 0)
-        (%pt-die (string-concat (list "can't open '" name "': " (file-err-text (file-open-err fd name)))))
+        (%pt-die (%str-concat (list "can't open '" name "': " (file-err-text (file-open-err fd name)))))
         fd))))
 
 ; --- lines --------------------------------------------------------------------
@@ -59,13 +59,13 @@
             (let ((p ((vec-ref rd 0))))
               (if (if (Err err? p) #t (= (rest p) 0))
                 (do (vec-set! rd 1 ()) (vec-set! rd 2 ())
-                    (if (null? acc) () (string-concat (reverse acc))))
+                    (if (null? acc) () (%str-concat (reverse acc))))
                 (do (vec-set! rd 1 p) (vec-set! rd 2 (cu-run-text p)) (vec-set! rd 3 0) (self acc))))
             (let ((nl (dp-find text pos #\newline)))
               (if (< nl 0)
                 (do (vec-set! rd 3 (byte-len text)) (self (pair (substring text pos (byte-len text)) acc)))
                 (do (vec-set! rd 3 (+ nl 1))
-                    (string-concat (reverse (pair (substring text pos nl) acc))))))))))
+                    (%str-concat (reverse (pair (substring text pos nl) acc))))))))))
     (let ((back (vec-ref rd 4)))
       (if (null? back) (go ()) (do (vec-set! rd 4 ()) back)))))
 
@@ -114,7 +114,7 @@
 (def %pt-fail!
   (fn (_)
     (if (null? (%pg 11)) ()
-      (do (file-write 2 (string-concat (list "Hunk " (cu-int->str (%pg 5)) " FAILED "
+      (do (file-write 2 (%str-concat (list "Hunk " (cu-int->str (%pg 5)) " FAILED "
                                              (cu-int->str (%pg 6)) "/" (cu-int->str (%pg 7)) ".\n")))
           (%pg! 3 1)
           (map (fn (_ l) (file-write 2 (string-append (vec-ref l 0) "\n"))) (reverse (%pg 11)))
@@ -205,7 +205,7 @@
   (fn (_ s)
     (if (if (null? (vec-ref s 0)) (vec-ref s 4) #f) (lit out)
       (do (if (= (vec-ref s 2) 0) ()
-            (file-write 2 (string-concat (list "Possibly reversed hunk " (cu-int->str (%pg 5))
+            (file-write 2 (%str-concat (list "Possibly reversed hunk " (cu-int->str (%pg 5))
                                                " at " (cu-int->str (%pg 4)) "\n"))))
           (%pt-fail!)
           (lit failed)))))
@@ -264,7 +264,7 @@
     (do (map (fn (_ i) (cu-ptr-set! p i (byte-at t i) 1)) (List range 0 n))
         (cu-ptr-set! p n 0 1)
         (let ((fd (Sys %sign-fold (cu-ptr-call (cu-libc-sym "mkstemp") p))))
-          (if (< fd 0) (%pt-die (string-concat (list "can't create '" t "': " (%pt-why (lit mkstemp) t))))
+          (if (< fd 0) (%pt-die (%str-concat (list "can't create '" t "': " (%pt-why (lit mkstemp) t))))
             (pair fd (cu-ptr->str p)))))))
 
 ; the file a hunk's header names, opened at its first hunk: emptied,
@@ -280,13 +280,13 @@
     (def p (let ((v (Opts value o "-p"))) (if (null? v) (Opts value o "--strip") v)))
     (def cut (%pt-strip (if empty (if rev newname oldname) named) (if (null? p) () (cu-num-prefix p))))
     (def name (if (null? argv) (first cut) (first argv)))
-    (def say (fn (_ s) (file-write 1 (string-concat (list s " " name "\n")))))
+    (def say (fn (_ s) (file-write 1 (%str-concat (list s " " name "\n")))))
     (match
       (empty
         (do (if (if (Opts on? o "-E") #t (Opts on? o "--remove-empty-files"))
               (do (say "removing")
                   (if dry () (if (guard (e #f) (do (file-unlink name) #t)) ()
-                               (%pt-die (string-concat (list "can't remove file '" name "': " (%pt-why (lit unlink) name)))))))
+                               (%pt-die (%str-concat (list "can't remove file '" name "': " (%pt-why (lit unlink) name)))))))
               (do (say "patching file")
                   (if dry () (file-close (%pt-open name (list (lit wronly) (lit trunc)))))))
             0))
@@ -329,7 +329,7 @@
     (def rev (on "-R" "--reverse"))
     (do (set! %pt-g (vec-build 15 (fn (_ i) (match ((= i 3) 0) ((= i 12) (if rev 1 0)) ((= i 13) (on "-N" "--forward"))
                                                     ((= i 14) (Opts on? o "--dry-run")) (#t ())))))
-        (if (Err err? src) (%pt-die (string-concat (list "can't open '" diff "': " (file-err-text src))))
+        (if (Err err? src) (%pt-die (%str-concat (list "can't open '" diff "': " (file-err-text src))))
           (%pt-lines o ops (%pt-reader src) rev)))))
 
 ; busybox's patch_main loop over the diff's lines: STATE 0 looks for +++, 1

@@ -28,7 +28,7 @@ got, in hex.
   (def tn-prep (fn (_ args server input port)
     (sys-setenv "TN_ARGS" args) (sys-setenv "TN_SERVER" server) (sys-setenv "TN_IN" input)
     (sys-setenv "TN_PORT" (cu-int->str port))
-    (tn-sh (string-concat (list
+    (tn-sh (%str-concat (list
       "d=/tmp/x-cu-telnet; rm -f $d/p* $d/got $d/out $d/err; printf '%b' \"$TN_SERVER\" > $d/sbytes; "
       "n=0; printf '%s\\n' \"$TN_IN\" | tr '|' '\\n' | while IFS= read -r part; do n=$((n+1)); printf '%b' \"$part\" > $d/p$n; done; "
       "eval \"set -- $(printf ' %s ' \"$TN_ARGS\" | sed \"s/ P / $TN_PORT /g\")\"; for a; do printf '%s\\n' \"$a\"; done > $d/argv")))
@@ -92,7 +92,7 @@ got, in hex.
     (tn-serve l (rest p))
     (unless (null? l) (Socket close l))
     (def st (sys-wait pid))
-    (tn-sh (string-concat (list
+    (tn-sh (%str-concat (list
       "d=/tmp/x-cu-telnet; { LC_ALL=C cat -v $d/out; echo \"[status " (cu-int->str st) "]\"; LC_ALL=C cat -v $d/err; "
       (if (null? l) ""
         "echo '--- server got'; od -An -tx1 -v $d/got | tr -s ' \\n' ' ' | sed 's/^ //; s/ $//'; echo; ")

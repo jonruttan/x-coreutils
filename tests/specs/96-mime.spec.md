@@ -34,7 +34,7 @@ and its pid) as UNIQ.
           (sys-dup2 (file-open-write (mm-f ".so")) 1) (sys-dup2 (file-open-write (mm-f ".se")) 2)
           (sys-exit (cu-run argv in))))
     (def st (sys-wait pid))
-    (mm-sh (string-concat (list
+    (mm-sh (%str-concat (list
       "cd /tmp/x-cu-mime; norm() { LC_ALL=C sed -E -e 's/[0-9]+-[0-9]+-[0-9]+/BOUNDARY/g' -e 's/[0-9]{6,}\\.[0-9]+/UNIQ/g'; }; "
       "{ LC_ALL=C cat -v .so | norm; echo \"[status " (cu-int->str st) "]\"; norm < .se; "
       "for f in $(ls out | sort); do echo \"--- $f\" | norm; LC_ALL=C cat -v out/$f | norm; echo; done; } > .report")))

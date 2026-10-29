@@ -19,7 +19,7 @@ tested as root in the Linux leg.
             (do (sys-dup2 sp-o 1) (sys-dup2 sp-e 2) (sys-exit (cu-run argv ""))))
           (file-close sp-o) (file-close sp-e)
           (def sp-st (sys-wait sp-child))
-          (display (string-concat (list (file-read-all (sp-f "out")) "stderr:\n"
+          (display (%str-concat (list (file-read-all (sp-f "out")) "stderr:\n"
                                         (file-read-all (sp-f "err")) "status " (cu-int->str sp-st) "\n")))
           ())))
     (display "made"))

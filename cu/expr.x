@@ -26,8 +26,7 @@
 (module cu/expr)
 
 (import cu/prims append byte-at byte-len cu-err-label cu-int->str cu-last
-  cu-nth file-write length reverse string-append string-concat string=?
-  substring)
+  cu-nth file-write length reverse string-append string=? substring)
 (import cu/text cu-num-prefix cu-str<)
 
 (def %cu-re-label (fn (_ a) (cu-nth 0 a)))
@@ -391,7 +390,7 @@
       ((null? (rest r)) (%cu-expr-at-end "expecting ')'"))
       ((string=? (first (rest r)) ")") (pair (first r) (rest (rest r))))
       (#t (%cu-expr-syntax
-            (string-concat
+            (%str-concat
               (list "expecting ')' instead of '" (first (rest r)) "'")))))))
 
 (def %cu-expr-match-op
@@ -446,7 +445,7 @@
     (def said
       (fn (_ e end?)
         (do (file-write 2
-              (string-concat
+              (%str-concat
                 (list (e msg)
                       (if end? (string-append " after '" (cu-last argv)) "")
                       (if end? "'\n" "\n"))))
@@ -460,7 +459,7 @@
         (let ((r (%cu-expr-or argv)))
           (if (pair? (rest r))
             (%cu-expr-syntax
-              (string-concat
+              (%str-concat
                 (list "unexpected argument '" (first (rest r)) "'")))
             (do (display (string-append (first r) "\n"))
                 (if (%cu-expr-true? (first r)) 0 1))))))))

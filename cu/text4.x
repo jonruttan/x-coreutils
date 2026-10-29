@@ -21,8 +21,7 @@
 (import cu/cli cu-opts)
 (import cu/prims byte-len cu-int->str cu-lines cu-nth cu-sweep-at
   cu-sweep-lines cu-words-line file-close file-err-text file-open-or-err
-  file-open-write file-write length reverse string-append string-concat
-  string=? substring)
+  file-open-write file-write length reverse string-append string=? substring)
 (import cu/sort sort-fold)
 (import cu/text cu-first-unopened cu-fold-lines-said cu-num-prefix cu-pad-left
   cu-pad-zero cu-say cu-says cu-says-read)
@@ -72,7 +71,7 @@
     (match
       ((> (length ops) 2)
         (do (file-write 2
-              (string-concat (list "uniq: extra operand '" (cu-nth 2 ops) "'\n")))
+              (%str-concat (list "uniq: extra operand '" (cu-nth 2 ops) "'\n")))
             1))
       ((null? ops) (%uniq-into o "-" "-" stdin-thunk))
       ((null? (rest ops)) (%uniq-into o (first ops) "-" stdin-thunk))
@@ -82,7 +81,7 @@
 (def %uniq-says
   (cu-says-read "uniq"
     (fn (_ name err)
-      (string-concat
+      (%str-concat
         (list "uniq: error reading '" name "': " (file-err-text err))))))
 
 ; IN checked, OUT opened, then IN read a block of whole lines at a time and its
@@ -117,7 +116,7 @@
         (if (not (%uniq-show? n dups? singles?)) ()
           (file-write fd
             (if count?
-              (string-concat
+              (%str-concat
                 (list (cu-pad-left (cu-int->str n) 7) " " line "\n"))
               (string-append line "\n"))))))
     (def go
@@ -179,10 +178,10 @@
           (do (cu-sweep-at i cu-sweep-lines)
             (if (numbered? (first ls))
               (do (display
-                    (string-concat
+                    (%str-concat
                       (list (layout n) sep (first ls) "\n")))
                   (self (rest ls) (+ n step) (+ i 1)))
-              (do (display (string-concat (list blank sep (first ls) "\n")))
+              (do (display (%str-concat (list blank sep (first ls) "\n")))
                   (self (rest ls) n (+ i 1))))))))
     ; each block of whole lines numbered and put out as it is read, the
     ; numbering going on from one block to the next

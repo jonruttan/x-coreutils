@@ -36,8 +36,8 @@
   cu-sweep-lines cu-sweep-tick! date-now-unix file-close file-err-sym
   file-exists? file-read-all file-read-run file-write filter length map
   net-aton net-peer net-send-run net-sockaddr net-stdin-socket reverse
-  str-make-raw string-append string-concat substring sys-close sys-exit
-  sys-fork sys-poll sys-signal sys-time-ms sys-uname vec-make vec-ref vec-set!)
+  str-make-raw string-append substring sys-close sys-exit sys-fork sys-poll
+  sys-signal sys-time-ms sys-uname vec-make vec-ref vec-set!)
 (import cu/session hd-daemonize)
 (import cu/signal ts-signal-number)
 (import cu/telnet tn-run)
@@ -62,7 +62,7 @@
   (fn (_ msg)
     (if %td-syslog?
       (cu-ptr-call (cu-libc-sym "syslog") 3 (in-percent msg))
-      (file-write 2 (string-concat (list "telnetd: " msg "\n"))))))
+      (file-write 2 (%str-concat (list "telnetd: " msg "\n"))))))
 
 (def %td-die (fn (_ msg) (Err raise (lit net) msg ())))
 
@@ -145,7 +145,7 @@
                ((= c #\l) tty)
                (#t (bytes->str (list c))))))
     (let go ((i 0) (acc ()))
-      (if (>= i n) (string-concat (reverse acc))
+      (if (>= i n) (%str-concat (reverse acc))
         (let ((c (byte-at text i)))
           (match
             ((= c #\newline) (go (+ i 1) (pair "\n\r" acc)))
@@ -341,7 +341,7 @@
                             (do (when (if (> (first w) 0) (> (cu-nth 1 w) 0) #f)
                                   (Pty window! pty (first w) (cu-nth 1 w)))
                                 (when (> %td-verbose 0)
-                                  (%td-say (string-concat (list "pfd:" (cu-int->str pty) " window size:"
+                                  (%td-say (%str-concat (list "pfd:" (cu-int->str pty) " window size:"
                                                                 (cu-int->str (cu-nth 1 w)) "x" (cu-int->str (first w))))))
                                 (go (List drop (cu-nth 2 w) l) out))))))
                     (#t (go (rest (rest (rest l))) out))))))))))
@@ -483,7 +483,7 @@
     (def host (if (null? colon) addr (substring addr 0 colon)))
     (def p (if (null? colon) port (%td-port (substring addr (+ colon 1) (byte-len addr)))))
     (def sa (if (if (null? host) #t (= (byte-len host) 0)) (in-sockaddr6 () p)
-              (if (null? (net-aton host)) (%td-die (string-concat (list "bad address '" host "'")))
+              (if (null? (net-aton host)) (%td-die (%str-concat (list "bad address '" host "'")))
                 (pair (net-sockaddr host p) 16))))
     (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") (if (= (rest sa) 16) 2 (in-af (lit inet6))) 1 0)))
     (when (< fd 0) (%td-die (string-append "socket: " (in-errtext fd))))
@@ -497,8 +497,8 @@
 (def %td-port
   (fn (_ s)
     (let ((n (in-strtou s)))
-      (match ((null? n) (%td-die (string-concat (list "invalid number '" s "'"))))
-             ((> n 65535) (%td-die (string-concat (list "number " s " is not in 0..65535 range"))))
+      (match ((null? n) (%td-die (%str-concat (list "invalid number '" s "'"))))
+             ((> n 65535) (%td-die (%str-concat (list "number " s " is not in 0..65535 range"))))
              (#t n)))))
 
 (def %td-main

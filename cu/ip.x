@@ -34,22 +34,22 @@
 (import cu/prims append byte-at byte-len char->integer cu-err-label
   cu-int->ptr cu-int->str cu-libc-sym cu-lines cu-nth cu-ptr-call cu-ptr-ref
   cu-str->ptr cu-string-type cvt file-or-err file-read-unsized file-write
-  filter length libc-strerror map reverse str-make-raw string-append
-  string-concat string=? substring)
+  filter length libc-strerror map reverse str-make-raw string-append string=?
+  substring)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-zero)
 
 (def ip-get (fn (_ f k) (rest (Assoc entry k f))))
 (def ip-put (fn (_ f k v) (pair (pair k v) f)))
 
-(def ip-say (fn (_ f msg) (file-write 2 (string-concat (list (ip-get f (lit name)) ": " msg "\n")))))
+(def ip-say (fn (_ f msg) (file-write 2 (%str-concat (list (ip-get f (lit name)) ": " msg "\n")))))
 
 ; an error that ends the run, as bb_error_msg_and_die
 (def ip-die (fn (_ f msg) (do (ip-say f msg) (Err raise (lit ip) msg ()))))
 (def ip-die-usage (fn (_) (Err raise (lit ip-usage) "usage" ())))
 
 (def ip-invarg
-  (fn (_ f arg opt) (ip-die f (string-concat (list "invalid argument '" arg "' to '" opt "'")))))
+  (fn (_ f arg opt) (ip-die f (%str-concat (list "invalid argument '" arg "' to '" opt "'")))))
 
 ; the words after the first of WS, or the run ended as NEXT_ARG ends it
 (def ip-next
@@ -135,7 +135,7 @@
 (def %ip-link-type
   (fn (_ type)
     (let ((e (List find (fn (_ e) (= (first e) type)) %ip-link-types)))
-      (if (null? e) (string-concat (list "[" (cu-int->str type) "]")) (rest e)))))
+      (if (null? e) (%str-concat (list "[" (cu-int->str type) "]")) (rest e)))))
 
 ; ll_addr_n2a: a link-layer address, hex pairs, or dotted for a tunnel's four bytes
 (def ip-ll-addr
@@ -171,7 +171,7 @@
             (if (null? (if (null? ws) () (rest ws))) (go (rest lines) (+ no 1) acc)
               (let ((id (%ip-strtou (first ws))))
                 (if (if (null? id) #t (> (first id) 1023))
-                  (do (ip-say f (string-concat (list "database " file " is corrupted at line " (cu-int->str no)))) acc)
+                  (do (ip-say f (%str-concat (list "database " file " is corrupted at line " (cu-int->str no)))) acc)
                   (go (rest lines) (+ no 1) (pair (pair (first id) (first (rest ws))) acc)))))))))))
 
 ; rtnl_*_n2a: ID's name in TAB, else its number
@@ -249,7 +249,7 @@
   (fn (_ f arg s family bits)
     (def n (%ip-strtou s))
     ; busybox has cut ARG at its slash by then
-    (def bad (fn (_) (ip-die f (string-concat (list "an inet prefix is expected rather than \"" (substring arg 0 (dp-find arg 0 #\/)) "\"")))))
+    (def bad (fn (_) (ip-die f (%str-concat (list "an inet prefix is expected rather than \"" (substring arg 0 (dp-find arg 0 #\/)) "\"")))))
     (if (if (null? n) #f (if (rest n) (<= (first n) bits) #f)) (first n)
       (let ((m (ip-addr1 s family)))
         (match
@@ -392,7 +392,7 @@
 (def ip-dev-index
   (fn (_ f name)
     (let ((i (in-call (cu-ptr-call (cu-libc-sym "if_nametoindex") name))))
-      (if (<= i 0) (ip-die f (string-concat (list "can't find device '" name "'"))) i))))
+      (if (<= i 0) (ip-die f (%str-concat (list "can't find device '" name "'"))) i))))
 
 (def ip-sl (fn (_ f) (if (ip-get f (lit oneline)) "\\" "\n")))
 
@@ -406,7 +406,7 @@
     (def f (& flags (^ 64 4294967295)))
     (def on (filter (fn (_ e) (not (= (& f (first e)) 0))) %ip-flag-labels))
     (def left (List fold (fn (_ n e) (& n (^ (first e) 4294967295))) f on))
-    (string-concat
+    (%str-concat
       (list "<" (if (if (= (& flags 1) 0) #f (= (& flags 64) 0)) "NO-CARRIER," "")
             (Str8 join "," (map rest on)) (if (= left 0) "" (cvt left cu-string-type 16))
             (if mdown ",M-DOWN" "") "> "))))
@@ -434,7 +434,7 @@
         ((null? e) (pair ": " #f))
         ((= (ip-num (rest e)) 0) (pair "@NONE: " #f))
         (#t (let ((i (inet-int32 (ip-num (rest e)))))
-              (pair (string-concat (list "@" (ip-index-name f i) ": ")) (= (& (%ip-index-flags f i) 1) 0))))))))
+              (pair (%str-concat (list "@" (ip-index-name f i) ": ")) (= (& (%ip-index-flags f i) 1) 0))))))))
 
 ; what an attribute adds to a line where the link has it
 (def ip-some
@@ -445,7 +445,7 @@
   (fn (_ f l)
     (def attrs (cu-nth 4 l))
     (def type (cu-nth 2 l))
-    (string-concat
+    (%str-concat
       (list (ip-sl f) "    link/" (%ip-link-type type) " "
             (ip-some attrs 1 (fn (_ b) (ip-ll-addr b type)))
             (ip-some attrs 2 (fn (_ b) (string-append (if (= (& (%ip-l-flags l) 16) 0) " brd " " peer ") (ip-ll-addr b type))))))))
@@ -456,13 +456,13 @@
     (def attrs (cu-nth 4 l))
     (def at (%ip-iflink f attrs))
     (def family (ip-get f (lit family)))
-    (string-concat
+    (%str-concat
       (list (if (= (first l) 17) "Deleted " "") (cu-int->str (%ip-l-index l)) ": " (%ip-l-name l) (first at)
             (%ip-link-flags (%ip-l-flags l) (rest at))
-            (ip-some attrs 4 (fn (_ b) (string-concat (list "mtu " (cu-int->str (ip-num b)) " "))))
-            (ip-some attrs 6 (fn (_ b) (string-concat (list "qdisc " (ip-cstr b) " "))))
-            (ip-some attrs 10 (fn (_ b) (string-concat (list "master " (ip-index-name f (inet-int32 (ip-num b))) " "))))
-            (ip-some attrs 16 (fn (_ b) (string-concat (list "state " (if (< (first b) 7) (cu-nth (first b) %ip-operstates) "") " "))))
+            (ip-some attrs 4 (fn (_ b) (%str-concat (list "mtu " (cu-int->str (ip-num b)) " "))))
+            (ip-some attrs 6 (fn (_ b) (%str-concat (list "qdisc " (ip-cstr b) " "))))
+            (ip-some attrs 10 (fn (_ b) (%str-concat (list "master " (ip-index-name f (inet-int32 (ip-num b))) " "))))
+            (ip-some attrs 16 (fn (_ b) (%str-concat (list "state " (if (< (first b) 7) (cu-nth (first b) %ip-operstates) "") " "))))
             (%ip-qlen f (%ip-l-name l))
             (if (if (= family 0) #t (= family 17)) (%ip-ll-line f l) "")
             "\n"))))
@@ -527,14 +527,14 @@
     (def named (filter (fn (_ e) (not (= (& flags (first e)) 0)))
                        (list (pair 1 "secondary ") (pair 64 "tentative ") (pair 8 "dadfailed ") (pair 32 "deprecated "))))
     (def left (& flags (^ 745 4294967295)))
-    (string-concat
-      (list (string-concat (map rest named))
+    (%str-concat
+      (list (%str-concat (map rest named))
             (if (= (& flags 128) 0) "dynamic " "")
             (if (= (& flags 512) 0) "" "noprefixroute ")
-            (if (= left 0) "" (string-concat (list "flags " (%ip-hex2 left) " ")))))))
+            (if (= left 0) "" (%str-concat (list "flags " (%ip-hex2 left) " ")))))))
 
 (def %ip-lft
-  (fn (_ word n) (string-append word (if (= n 4294967295) " forever" (string-concat (list " " (cu-int->str (inet-int32 n)) "sec"))))))
+  (fn (_ word n) (string-append word (if (= n 4294967295) " forever" (%str-concat (list " " (cu-int->str (inet-int32 n)) "sec"))))))
 
 ; whether two addresses' first four bytes are the same, as busybox's memcmp asks
 (def %ip-same4?
@@ -547,11 +547,11 @@
   (fn (_ a local peer)
     (def family (%ip-a-family a))
     (def len (string-append "/" (cu-int->str (cu-nth 2 a))))
-    (string-concat
+    (%str-concat
       (list (ip-ntoa family (rest local))
             (if (if (null? peer) #t (%ip-same4? (rest peer) (rest local)))
               (string-append len " ")
-              (string-concat (list " peer " (ip-ntoa family (rest peer)) len " ")))))))
+              (%str-concat (list " peer " (ip-ntoa family (rest peer)) len " ")))))))
 
 ; print_addrinfo's line for A
 (def %ip-addr-text
@@ -560,17 +560,17 @@
     (def family (%ip-a-family a))
     (def local (%ip-a-either a 2 1))
     (def fl (ip-attr attrs 8))
-    (string-concat
+    (%str-concat
       (list (if (= (first a) 21) "Deleted " "")
-            (if (ip-get f (lit oneline)) (string-concat (list (cu-int->str (%ip-a-index a)) ": " (ip-index-name f (%ip-a-index a)))) "")
-            (match ((= family 2) "    inet ") ((= family 10) "    inet6 ") (#t (string-concat (list "    family " (cu-int->str family) " "))))
+            (if (ip-get f (lit oneline)) (%str-concat (list (cu-int->str (%ip-a-index a)) ": " (ip-index-name f (%ip-a-index a)))) "")
+            (match ((= family 2) "    inet ") ((= family 10) "    inet6 ") (#t (%str-concat (list "    family " (cu-int->str family) " "))))
             (if (null? local) "" (%ip-addr-local a local (%ip-a-either a 1 2)))
-            (ip-some attrs 4 (fn (_ b) (string-concat (list "brd " (ip-ntoa family b) " "))))
-            (ip-some attrs 5 (fn (_ b) (string-concat (list "any " (ip-ntoa family b) " "))))
+            (ip-some attrs 4 (fn (_ b) (%str-concat (list "brd " (ip-ntoa family b) " "))))
+            (ip-some attrs 5 (fn (_ b) (%str-concat (list "any " (ip-ntoa family b) " "))))
             "scope " (ip-scope-name f (%ip-a-scope a)) " "
             (%ip-addr-flags (if (null? fl) (cu-nth 3 a) (ip-num (rest fl))))
             (ip-some attrs 3 ip-cstr)
-            (ip-some attrs 6 (fn (_ b) (string-concat (list (ip-sl f) "       " (%ip-lft "valid_lft" (ip-num (List take 4 (List drop 4 b))))
+            (ip-some attrs 6 (fn (_ b) (%str-concat (list (ip-sl f) "       " (%ip-lft "valid_lft" (ip-num (List take 4 (List drop 4 b))))
                                                             " " (%ip-lft "preferred_lft" (ip-num (List take 4 b)))))))
             "\n"))))
 
@@ -612,13 +612,13 @@
       (#t (let ((a (if (string=? w "dev") (ip-next f ws) ws)))
             (if (null? (ip-get f (lit dev)))
               (pair (ip-put f (lit dev) (first a)) (rest a))
-              (ip-die f (string-concat (list "either \"dev\" is duplicate, or \"" (first a) "\" is garbage")))))))))
+              (ip-die f (%str-concat (list "either \"dev\" is duplicate, or \"" (first a) "\" is garbage")))))))))
 
 (def %ip-to
   (fn (_ f arg)
     (def family (ip-get f (lit family)))
     (when (= family 17)
-      (ip-die f (string-concat (list "\"" arg "\" may be inet prefix, but it is not allowed in this context"))))
+      (ip-die f (%str-concat (list "\"" arg "\" may be inet prefix, but it is not allowed in this context"))))
     (let ((p (ip-prefix f arg family)))
       (ip-put (ip-put f (lit pfx) p) (lit family) (if (= family 0) (first p) family)))))
 

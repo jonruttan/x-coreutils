@@ -30,8 +30,7 @@
 (import cu/cal cal-sum)
 (import cu/prims append byte-at byte-len cal/ cu-nth cu-stat-get
   cu-sweep-tick! file-err-text file-stat-full file-write file-write-run map
-  reverse string-append string-concat string=? substring vec-build vec-ref
-  vec-set!)
+  reverse string-append string=? substring vec-build vec-ref vec-set!)
 (import cu/text cu-pad-left cu-pad-zero cu-pieces cu-pieces-past)
 (import cu/tsort ts-space?)
 
@@ -106,7 +105,7 @@
   (fn (_ msg)
     (if (null? %dp-error)
       (do (set! %dp-error msg)
-          (file-write 2 (string-concat (list %dp-applet ": " msg "\n"))))
+          (file-write 2 (%str-concat (list %dp-applet ": " msg "\n"))))
       ())))
 
 ; --- the output -----------------------------------------------------------------
@@ -125,9 +124,9 @@
     (def go
       (fn (self ps acc)
         (match
-          ((null? ps) (if (null? acc) () (file-write 1 (string-concat (reverse acc)))))
+          ((null? ps) (if (null? acc) () (file-write 1 (%str-concat (reverse acc)))))
           ((eq? (first ps) (lit nul))
-            (do (if (null? acc) () (file-write 1 (string-concat (reverse acc))))
+            (do (if (null? acc) () (file-write 1 (%str-concat (reverse acc))))
                 (file-write-run 1 %dp-nul-run)
                 (self (rest ps) ())))
           (#t (self (rest ps) (pair (first ps) acc))))))
@@ -235,7 +234,7 @@
 (def cu-dump-add
   (fn (_ fmt)
     (def n (byte-len fmt))
-    (def bad (fn (_) (do (%dp-fail! (string-concat (list "bad format {" fmt "}"))) ())))
+    (def bad (fn (_) (do (%dp-fail! (%str-concat (list "bad format {" fmt "}"))) ())))
     (def unit
       (fn (_ p)
         ; a unit from P: (FU . NEXT), or nil once refused
@@ -407,7 +406,7 @@
 ; the refusal of the conversion character at AT of FMT
 (def %dp-bad
   (fn (_ fmt at)
-    (do (%dp-fail! (string-concat
+    (do (%dp-fail! (%str-concat
                      (list "bad conversion character %" (substring fmt at (byte-len fmt)))))
         ())))
 
@@ -417,7 +416,7 @@
 (def %dp-counted
   (fn (_ fmt pct fbcnt kind counts at conv end)
     (if (if (> fbcnt 0) (not (%dp-member? fbcnt counts)) #f)
-      (do (%dp-fail! (string-concat
+      (do (%dp-fail! (%str-concat
                        (list "bad byte count for conversion character "
                              (substring fmt at (byte-len fmt)))))
           ())
@@ -467,7 +466,7 @@
           (%dp-int-conv fmt pct fbcnt q)))
       ((dp-in? c "diouxX") (%dp-int-conv fmt pct fbcnt p1))
       ((dp-in? c "eEfgG")
-        (do (%dp-fail! (string-concat
+        (do (%dp-fail! (%str-concat
                          (list "floating-point conversion %" (bytes->str (list c))
                                " is not supported")))
             ()))
@@ -681,7 +680,7 @@
 
 (def %dp-say
   (fn (_ name err)
-    (file-write 2 (string-concat (list %dp-applet ": " name ": " (file-err-text err) "\n")))))
+    (file-write 2 (%str-concat (list %dp-applet ": " name ": " (file-err-text err) "\n")))))
 
 ; the next file, opened, and the skip taken out of it: #f when there is none
 (def %dp-next!

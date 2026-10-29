@@ -26,7 +26,7 @@ leg compares the bytes with busybox's own, on a tree and on the kernel's
     ; the trees' owner and group, as tar lists them (a new file takes its
     ; directory's group on Darwin)
     (def ids (let ((st (file-stat-full (nf "a/meminfo"))))
-               (string-concat (list (cu-int->str (cu-stat-get st (lit uid))) "/" (cu-int->str (cu-stat-get st (lit gid)))))))
+               (%str-concat (list (cu-int->str (cu-stat-get st (lit uid))) "/" (cu-int->str (cu-stat-get st (lit gid)))))))
     ; ARGV's run with stdout in the file OUT, its stderr and status shown;
     ; ROOT the /proc it reads
     (def cap (fn (_ root argv out)
@@ -37,13 +37,13 @@ leg compares the bytes with busybox's own, on a tree and on the kernel's
                 (def st (cu-run argv ""))
                 (Host proc-root "/proc")
                 (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
-                (string-concat (list "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))
+                (%str-concat (list "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))
     (def fsize (fn (_ p) (cu-stat-get (file-stat-full p) (lit size))))
     (def show (fn (_ root argv) (do (display (cap root argv "out")) ())))
     ; the archive's listing, and its size in bytes
     (def tv (fn (_)
       (do (def r (cap "/proc" (list "tar" "tvf" (nf "out")) ".tv"))
-          (display (string-concat (list (Str8 replace ids "U/G" (file-read-all (nf ".tv"))) r
+          (display (%str-concat (list (Str8 replace ids "U/G" (file-read-all (nf ".tv"))) r
                                         "bytes " (cu-int->str (fsize (nf "out"))) "\n")))
           ())))
     ; the member NAME's bytes against the tree's file PATH
