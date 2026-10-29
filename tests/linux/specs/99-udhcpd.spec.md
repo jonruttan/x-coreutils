@@ -27,29 +27,29 @@ run of that side left; its times are written as tens of seconds.
       "ip2 -n ud link set ud0 up; ip2 -n ud link set lo up; ip2 -n udc link set ud1 up; ip2 -n udc link set lo up"
       "printf '#!/bin/sh\\necho \"notify ${1%%.*}\" >> /tmp/ud-notify.log\\n' > /tmp/ud-notify.sh"
       "chmod +x /tmp/ud-notify.sh")))
-    (def lx-ns (fn (_ name) (in-call (cu-ptr-call (in-c "open") (string-append "/var/run/netns/" name) 0))))
+    (def lx-ns (fn (_ name) (in-call (cu-ptr-call (cu-libc-sym "open") (string-append "/var/run/netns/" name) 0))))
     (def lx-srv-ns (lx-ns "ud"))
-    (def lx-in (= (in-call (cu-ptr-call (in-c "setns") (lx-ns "udc") 1073741824)) 0))
-    (def lx-if1 (cu-ptr-call (in-c "if_nametoindex") "ud1"))
-    (def lx-cap (in-call (cu-ptr-call (in-c "socket") 17 3 768)))
+    (def lx-in (= (in-call (cu-ptr-call (cu-libc-sym "setns") (lx-ns "udc") 1073741824)) 0))
+    (def lx-if1 (cu-ptr-call (cu-libc-sym "if_nametoindex") "ud1"))
+    (def lx-cap (in-call (cu-ptr-call (cu-libc-sym "socket") 17 3 768)))
     (def lx-sll (inet-zeros 20))
     (inet-set! lx-sll 0 17 2) (inet-set! lx-sll 2 0 1) (inet-set! lx-sll 3 3 1)
     (inet-set! lx-sll 4 lx-if1 4)
-    (def lx-bound (= (in-call (cu-ptr-call (in-c "bind") lx-cap (cu-str->ptr lx-sll) 20)) 0))
+    (def lx-bound (= (in-call (cu-ptr-call (cu-libc-sym "bind") lx-cap (cu-str->ptr lx-sll) 20)) 0))
     (def lx-buf (inet-zeros 2048))
     (def lx-b (fn (_ k) (& (byte-at lx-buf k) 255)))
     ; ud0's frames, IPv4 and ARP; an IPv4 frame's id and header sum are
     ; the kernel's own, so they are written as x
     (def lx-frame (fn (_ n)
       (def ip? (if (= (lx-b 12) 8) (= (lx-b 13) 0) #f))
-      (string-concat (list "frame "
+      (%str-concat (list "frame "
         (Str8 join " " (map (fn (_ k) (if (if ip? (if (>= k 18) (if (< k 20) #t (if (>= k 24) (< k 26) #f)) #f) #f) "x"
                                        (ud-hex2 (lx-b k))))
                             (List range 0 n)))
         "\n"))))
     (def lx-drain (fn (_)
       (let go ((acc ""))
-        (let ((r (in-call (cu-ptr-call (in-c "recv") lx-cap (cu-str->ptr lx-buf) 2048 64))))
+        (let ((r (in-call (cu-ptr-call (cu-libc-sym "recv") lx-cap (cu-str->ptr lx-buf) 2048 64))))
           (match ((< r 0) acc)
                  ((if (= (lx-b 6) 2) (= (lx-b 11) 2) #f) (go acc))
                  ((if (= (lx-b 12) 8) (if (= (lx-b 13) 0) #t (= (lx-b 13) 6)) #f)
@@ -70,7 +70,7 @@ run of that side left; its times are written as tens of seconds.
                   (lx-sh "sleep 1")
                   (lx-drain)))))
     (def lx-conf (fn (_ side extra)
-      (string-concat (list "interface ud0\nstart 10.9.0.20\nend 10.9.0.30\n"
+      (%str-concat (list "interface ud0\nstart 10.9.0.20\nend 10.9.0.30\n"
                            "lease_file /tmp/ud-leases." side "\npidfile /tmp/ud.pid\n"
                            "notify_file /tmp/ud-notify.sh\n" extra))))
     (def lx-start (fn (_ side)
@@ -79,7 +79,7 @@ run of that side left; its times are written as tens of seconds.
             (guard (e (sys-exit 99))
               (let ((ee (file-open-write "/tmp/ud-err")))
                 (do (sys-dup2 ee 1) (sys-dup2 ee 2)
-                    (cu-ptr-call (in-c "setns") lx-srv-ns 1073741824)
+                    (cu-ptr-call (cu-libc-sym "setns") lx-srv-ns 1073741824)
                     (if (string=? side "ours")
                       (sys-exit (cu-run (list "udhcpd" "-f" "-v" "-a" "300" "/tmp/ud.conf") ""))
                       (do (sys-exec "/usr/local/bin/busybox-extra" (list "udhcpd" "-f" "-v" "-a" "300" "/tmp/ud.conf"))
@@ -96,7 +96,7 @@ run of that side left; its times are written as tens of seconds.
                 (let go ((at 8) (acc ""))
                   (if (> (+ at 36) n) acc
                     (go (+ at 36)
-                        (string-concat (list acc (ud-dotted (ud-be32 b (+ at 4))) " "
+                        (%str-concat (list acc (ud-dotted (ud-be32 b (+ at 4))) " "
                           (Str8 join ":" (map ud-hex2 (ud-bytes b (+ at 8) 6))) " '"
                           (list->string (map integer->char
                                              (let cut ((l (ud-bytes b (+ at 14) 20)) (k ()))
@@ -108,17 +108,17 @@ run of that side left; its times are written as tens of seconds.
           (file-write-all "/tmp/ud.conf" (lx-conf side extra))
           (lx-drain)
           (def pid (lx-start side))
-          (def frames (string-concat (map (fn (_ s) (s)) steps)))
+          (def frames (%str-concat (map (fn (_ s) (s)) steps)))
           (sys-kill pid 15)
           (def st (sys-wait pid))
           (lx-sh "sed 's/^udhcpd: started, v.*/udhcpd: started/; s/ud-leases[.][a-z]*/ud-leases/g' /tmp/ud-err > /tmp/ud-err2")
-          (string-concat (list frames "stderr:\n" (file-read-all "/tmp/ud-err2") "status " (cu-int->str st) "\n"
+          (%str-concat (list frames "stderr:\n" (file-read-all "/tmp/ud-err2") "status " (cu-int->str st) "\n"
                                "pidfile " (if (file-exists? "/tmp/ud.pid") "left" "gone") "\n"
                                "leases:\n" (lx-leases (string-append "/tmp/ud-leases." side))
                                "notify:\n" (file-read-all "/tmp/ud-notify.log"))))))
     (def lx-case (fn (_ extra steps fresh)
       (do (def lx-a (lx-side "ours" extra steps fresh)) (def lx-b2 (lx-side "bb" extra steps fresh))
-          (display (if (string=? lx-a lx-b2) "same\n" (string-concat (list "ours:\n" lx-a "busybox:\n" lx-b2)))))))
+          (display (if (string=? lx-a lx-b2) "same\n" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b2)))))))
     (def lx-mac (list 2 0 0 0 12 1))
     (def lx-opts "option subnet 255.255.255.0\nopt router 10.9.0.1\noption dns 10.9.0.1 10.9.0.2\noption domain example.org\noption lease 1000\n")
     (display (if lx-in (if lx-bound "made" "no capture") "no namespace")))

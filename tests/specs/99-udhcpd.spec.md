@@ -17,7 +17,7 @@ the lease file are tested as root in the Linux leg, against busybox's own.
             (do (sys-dup2 oo 1) (sys-dup2 ee 2)
                 (def st (cu-run argv ""))
                 (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
-                (display (string-concat (list (file-read-all (ud-f "out")) "stderr:\n"
+                (display (%str-concat (list (file-read-all (ud-f "out")) "stderr:\n"
                                               (file-read-all (ud-f "err")) "status " (cu-int->str st) "\n")))
                 ())))))
     (def ud-conf (fn (_ text) (do (file-write-all (ud-f "conf") text) (ud-f "conf"))))
@@ -67,7 +67,7 @@ so and puts the keyword back to its default, then the range is checked.
 
 ```cu
 (do (ud-show (list "udhcpd" "-f"
-               (ud-conf (string-concat (list
+               (ud-conf (%str-concat (list
                  "# a comment\n"
                  "start\n"
                  "max_leases 12x\n"

@@ -31,14 +31,13 @@
 (module cu/udhcpd)
 
 (import cu/cli cu-opts)
-(import cu/inetd in-c in-lines in-tokens-max)
+(import cu/inetd in-lines in-tokens-max)
 (import cu/nc nc-count)
 (import cu/prims append byte-at byte-len cu-err-label cu-hexs cu-int->str
-  cu-nth cu-ptr-call cu-stat-get cu-stdin-to-command! file-close
+  cu-libc-sym cu-nth cu-ptr-call cu-stat-get cu-stdin-to-command! file-close
   file-fstat-full file-open-read file-read-all file-unlink file-write filter
-  length libc-strerror map reverse string-append string-concat string=?
-  substring sys-dup2 sys-exec sys-exit sys-fork sys-getpid sys-wait vec-make
-  vec-ref vec-set! wget-lower)
+  length libc-strerror map reverse string-append string=? substring sys-dup2
+  sys-exec sys-exit sys-fork sys-getpid sys-wait vec-make vec-ref vec-set!)
 (import cu/udhcp ud-ack ud-add-option! ud-add-simple! ud-arpping ud-be32
   ud-be32! ud-byte ud-bytes ud-catch! ud-chaddr ud-ciaddr ud-decline ud-die
   ud-discover ud-dotted ud-end ud-error ud-file ud-find-option ud-flags
@@ -92,7 +91,7 @@
                                           (let ((h (ud-str-bytes (first (rest (rest words))))))
                                             (let ((h (if (> (length h) 120) (List take 120 h) h)))
                                               (pair 12 (pair (length h) h)))))))))
-                  (ud-log2 (string-concat (list "static lease: mac:" (ud-mac-text mac)
+                  (ud-log2 (%str-concat (list "static lease: mac:" (ud-mac-text mac)
                                                 " nip:" (cu-hexs (%dd-swap nip)))))
                   #t))))))))
 
@@ -163,11 +162,11 @@
                  (let ((ts (in-tokens-max (rest line) 2)))
                    (match ((null? ts) ())
                           ((null? (rest ts))
-                           (ud-error (string-concat (list "bad line " (cu-int->str (first line)) ": 1 tokens found, 2 needed"))))
-                          (#t (let ((k (List find (fn (_ k) (string=? (first k) (wget-lower (first ts)))) %dd-keywords)))
+                           (ud-error (%str-concat (list "bad line " (cu-int->str (first line)) ": 1 tokens found, 2 needed"))))
+                          (#t (let ((k (List find (fn (_ k) (string=? (first k) (Str8 downcase (first ts)))) %dd-keywords)))
                                 (unless (null? k)
                                   (unless ((first (rest k)) (first (rest ts)))
-                                    (do (ud-error (string-concat (list "can't parse line " (cu-int->str (first line)) " in " file)))
+                                    (do (ud-error (%str-concat (list "can't parse line " (cu-int->str (first line)) " in " file)))
                                         (unless (null? (cu-nth 2 k)) ((first (rest k)) (cu-nth 2 k)))))))))))
                (in-lines (file-read-all file)))))
     (when (> %dd-start %dd-end) (ud-die (string-append "bad start/end IP range in " file)))))
@@ -242,7 +241,7 @@
   (fn (_ nip safe)
     (let ((r (ud-arpping nip safe %dd-server %dd-mac %dd-interface %dd-arp-ms)))
       (if (not (= r 0)) #t
-        (do (ud-info (string-concat (list (ud-dotted nip) " belongs to someone, reserving it for "
+        (do (ud-info (%str-concat (list (ud-dotted nip) " belongs to someone, reserving it for "
                                           (cu-int->str %dd-conflict-time) " seconds")))
             (%dd-add-lease! () nip %dd-conflict-time ())
             #f)))))
@@ -264,7 +263,7 @@
 (def %dd-write-leases
   (fn (_)
     (def fd (File open %dd-lease-file (list (lit wronly) (lit creat) (lit trunc)) 438))
-    (if (< fd 0) (ud-perror (string-concat (list "can't open '" %dd-lease-file "'")) (Err errno-of fd))
+    (if (< fd 0) (ud-perror (%str-concat (list "can't open '" %dd-lease-file "'")) (Err errno-of fd))
       (let ((curr (ud-now)))
         (def used (let go ((i (- %dd-max-leases 1)) (acc ()))
                     (if (< i 0) acc
@@ -297,7 +296,7 @@
 (def %dd-read-leases
   (fn (_ file)
     (def fd (file-open-read file))
-    (if (< fd 0) (ud-perror (string-concat (list "can't open '" file "'")) (Err errno-of fd))
+    (if (< fd 0) (ud-perror (%str-concat (list "can't open '" file "'")) (Err errno-of fd))
       (let ((head (ud-zeros 8)))
         (if (not (= (File read fd head 8) 8))
           (file-close fd)
@@ -310,13 +309,13 @@
   (fn (self fd passed n)
     (def b (ud-zeros 36))
     (if (not (= (File read fd b 36) 36))
-      (ud-log1 (string-concat (list "read " (cu-int->str n) " leases")))
+      (ud-log1 (%str-concat (list "read " (cu-int->str n) " leases")))
       (let ((nip (ud-be32 b 4)) (mac (ud-bytes b 8 6)))
         (if (if (< nip %dd-start) #t (> nip %dd-end)) (self fd passed n)
           (let ((left (let ((e (- (%dd-signed (ud-be32 b 0)) passed))) (if (<= e 0) 0 e))))
             (if (if (not (= (%dd-static-of mac) 0)) #t (%dd-static-nip? nip)) (self fd passed n)
               (if (null? (%dd-add-lease! mac nip left (ud-bytes b 14 20)))
-                (ud-error (string-concat (list "too many leases while loading " %dd-lease-file)))
+                (ud-error (%str-concat (list "too many leases while loading " %dd-lease-file)))
                 (self fd passed (+ n 1))))))))))
 
 (def %dd-signed (fn (_ n) (if (>= n 2147483648) (- n 4294967296) n)))
@@ -488,7 +487,7 @@
     (when (> pid 0) (ud-end 0))
     (set! %dd-child #t)
     (cu-stdin-to-command!)
-    (cu-ptr-call (in-c "setsid"))
+    (cu-ptr-call (cu-libc-sym "setsid"))
     (let ((fd (File open "/dev/null" (lit rdwr))))
       (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
           (when (> fd 2) (file-close fd))))))
@@ -511,7 +510,7 @@
     (def fg (Opts on? o "-f"))
     (unless fg (%dd-daemonize))
     (def syslog (Opts on? o "-S"))
-    (when syslog (cu-ptr-call (in-c "openlog") "udhcpd" 1 24))
+    (when syslog (cu-ptr-call (cu-libc-sym "openlog") "udhcpd" 1 24))
     (ud-logging! "udhcpd" verbose fg syslog)
     (set! %dd-server 0)
     (let ((i (Opts value o "-I")))
@@ -519,7 +518,7 @@
         (let ((n (ud-str2nip i))) (if (null? n) (ud-end 1) (set! %dd-server n)))))
     (let ((a (Opts value o "-a" "2000")))
       (let ((r (ud-strtou a 10)))
-        (if (rest r) (set! %dd-arp-ms (first r)) (ud-die (string-concat (list "invalid number '" a "'"))))))
+        (if (rest r) (set! %dd-arp-ms (first r)) (ud-die (%str-concat (list "invalid number '" a "'"))))))
     (set! %dd-options ())
     (set! %dd-statics ())
     (set! %dd-notify ())
@@ -534,7 +533,7 @@
         (if (null? l) 864000 (%dd-bytes-be (rest (rest l))))))
     (let ((n (+ (- %dd-end %dd-start) 1)))
       (when (> %dd-max-leases n)
-        (do (ud-error (string-concat (list "max_leases=" (cu-int->str %dd-max-leases) " is too big, setting to " (cu-int->str n))))
+        (do (ud-error (%str-concat (list "max_leases=" (cu-int->str %dd-max-leases) " is too big, setting to " (cu-int->str n))))
             (set! %dd-max-leases n))))
     (set! %dd-leases (vec-make %dd-max-leases %dd-empty))
     (%dd-read-leases %dd-lease-file)
@@ -571,7 +570,7 @@
            (let ((p (ud-recv-kernel fd)))
              (match ((not (number? p)) (do (%dd-handle p) (self fd deadline)))
                     ((= p -1)
-                     (do (ud-log1 (string-concat (list "read error: " (libc-strerror (Err errno-of -1)) ", reopening socket")))
+                     (do (ud-log1 (%str-concat (list "read error: " (libc-strerror (Err errno-of -1)) ", reopening socket")))
                          (file-close fd)
                          (self -1 deadline)))
                     (#t (self fd deadline))))))))))

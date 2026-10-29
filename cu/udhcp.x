@@ -22,12 +22,12 @@
 (module cu/udhcp)
 
 (import cu/inet inet-host-addr inet-set!)
-(import cu/inetd in-c in-call in-percent)
+(import cu/inetd in-call in-percent)
 (import cu/ping pn-be16 pn-byte pn-div pn-fold pn-now pn-setopt pn-sol-socket
   pn-sum)
-(import cu/prims append byte-at byte-len cu-hexs cu-int->str cu-nth
-  cu-ptr-call cu-ptr-ref cu-str->ptr file-write filter hx-strtoul length
-  libc-strerror map reverse str-make-raw string-append string-concat string=?
+(import cu/prims append byte-at byte-len cu-hexs cu-int->str cu-libc-sym
+  cu-nth cu-ptr-call cu-ptr-ref cu-str->ptr file-write filter hx-strtoul
+  length libc-strerror map reverse str-make-raw string-append string=?
   substring)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-zero)
@@ -47,11 +47,11 @@
 
 (def ud-log!
   (fn (_ level msg)
-    (do (when %ud-stdio (file-write 2 (string-concat (list %ud-name ": " msg "\n"))))
-        (when %ud-syslog (cu-ptr-call (in-c "syslog") level (in-percent msg))))))
+    (do (when %ud-stdio (file-write 2 (%str-concat (list %ud-name ": " msg "\n"))))
+        (when %ud-syslog (cu-ptr-call (cu-libc-sym "syslog") level (in-percent msg))))))
 (def ud-info (fn (_ msg) (ud-log! 6 msg)))
 (def ud-error (fn (_ msg) (ud-log! 3 msg)))
-(def ud-perror (fn (_ msg err) (ud-error (string-concat (list msg ": " (libc-strerror err))))))
+(def ud-perror (fn (_ msg err) (ud-error (%str-concat (list msg ": " (libc-strerror err))))))
 (def ud-log1 (fn (_ msg) (when (>= %ud-verbose 1) (ud-info msg))))
 (def ud-log2 (fn (_ msg) (when (>= %ud-verbose 2) (ud-info msg))))
 
@@ -70,7 +70,7 @@
 (def ud-zeros
   (fn (_ n)
     (let ((b (str-make-raw n)))
-      (do (cu-ptr-call (in-c "memset") (cu-str->ptr b) 0 n) b))))
+      (do (cu-ptr-call (cu-libc-sym "memset") (cu-str->ptr b) 0 n) b))))
 (def ud-byte (fn (_ b i) (pn-byte (cu-str->ptr b) i)))
 (def ud-set! (fn (_ b i v) (inet-set! b i (& v 255) 1)))
 (def ud-be32
@@ -93,7 +93,7 @@
 ; inet_ntoa
 (def ud-dotted
   (fn (_ n)
-    (string-concat (list (cu-int->str (& (>> n 24) 255)) "." (cu-int->str (& (>> n 16) 255)) "."
+    (%str-concat (list (cu-int->str (& (>> n 24) 255)) "." (cu-int->str (& (>> n 16) 255)) "."
                          (cu-int->str (& (>> n 8) 255)) "." (cu-int->str (& n 255))))))
 
 (def ud-hex2 (fn (_ b) (cu-pad-zero (cu-hexs b) 2)))
@@ -103,7 +103,7 @@
 ; looked up, a :PORT after it passed over; nil where it is not one, said
 (def ud-str2nip
   (fn (_ s)
-    (def bad (fn (_ what w) (do (ud-error (string-concat (list "bad " what " '" w "'"))) ())))
+    (def bad (fn (_ what w) (do (ud-error (%str-concat (list "bad " what " '" w "'"))) ())))
     (def colon (fn (_ from) (let go ((i (- (byte-len s) 1))) (match ((< i from) ()) ((= (byte-at s i) #\:) i) (#t (go (- i 1)))))))
     (def bracket (if (> (byte-len s) 0) (= (byte-at s 0) #\[) #f))
     (def close (if bracket (let go ((i 1)) (match ((>= i (byte-len s)) ()) ((= (byte-at s i) #\]) i) (#t (go (+ i 1))))) ()))
@@ -132,7 +132,7 @@
 (def %ud-aton
   (fn (_ s)
     (let ((buf (ud-zeros 4)))
-      (if (= (in-call (cu-ptr-call (in-c "inet_aton") s (cu-str->ptr buf))) 0) ()
+      (if (= (in-call (cu-ptr-call (cu-libc-sym "inet_aton") s (cu-str->ptr buf))) 0) ()
         (ud-be32 buf 0)))))
 
 ; bb_strtou32 and bb_strtoi32 from BASE: (VALUE . OK), not OK where S does
@@ -213,7 +213,7 @@
     (def named (filter (fn (_ f) (not (null? (%ud-name-of f)))) ud-optflags))
     (def f (List find (fn (_ f) (string=? (%ud-name-of f) name)) named))
     (if (null? f)
-      (ud-die (string-concat (list "unknown option '" name "', known options: "
+      (ud-die (%str-concat (list "unknown option '" name "', known options: "
                                    (Str8 join " " (map %ud-name-of named)))))
       f)))
 
@@ -279,7 +279,7 @@
     (def type (& (first flag) 15))
     (def bytes (match ((= type ud-bin)
                        (let ((b (%ud-hex2bin value)))
-                         (if (null? b) (ud-die (string-concat (list "malformed hex string '" value "'"))) b)))
+                         (if (null? b) (ud-die (%str-concat (list "malformed hex string '" value "'"))) b)))
                       ((= type ud-dns-string) (%ud-dname value))
                       (#t value)))
     (def code (first (rest flag)))
@@ -428,18 +428,18 @@
     (def end (ud-end-option p))
     (def len (+ 2 (first (rest opt))))
     (if (>= (+ end len 1) ud-options-size)
-      (ud-error (string-concat (list "option 0x" (ud-hex2 (first opt)) " did not fit into the packet")))
-      (do (ud-log2 (string-concat (list "adding option: 0x" (ud-hex2 (first opt)) " " (%ud-hex-text (rest (rest opt))))))
+      (ud-error (%str-concat (list "option 0x" (ud-hex2 (first opt)) " did not fit into the packet")))
+      (do (ud-log2 (%str-concat (list "adding option: 0x" (ud-hex2 (first opt)) " " (%ud-hex-text (rest (rest opt))))))
           (ud-put! p (+ ud-options end) opt)
           (ud-set! p (+ ud-options end len) 255)))))
 
-(def %ud-hex-text (fn (_ l) (string-concat (map ud-hex2 l))))
+(def %ud-hex-text (fn (_ l) (%str-concat (map ud-hex2 l))))
 
 ; udhcp_add_simple_option: CODE's value N, as many bytes as its type has
 (def ud-add-simple!
   (fn (_ p code n)
     (def f (ud-optflag-of code))
-    (if (null? f) (ud-error (string-concat (list "can't add option 0x" (ud-hex2 code))))
+    (if (null? f) (ud-error (%str-concat (list "can't add option 0x" (ud-hex2 code))))
       (let ((len (ud-type-length (first f))))
         (ud-add-option! p (pair code (pair len (List drop (- 4 len) (ud-be32-bytes n)))))))))
 
@@ -475,7 +475,7 @@
              ((eq? (first l) (lit malformed)) ())
              ((= (first (first l)) code)
               (let ((at (cu-nth 1 (first l))) (len (cu-nth 2 (first l))))
-                (do (ud-log2 (string-concat (list "option found: 0x" (ud-hex2 code) " " (%ud-hex-text (ud-bytes p at len)))))
+                (do (ud-log2 (%str-concat (list "option found: 0x" (ud-hex2 code) " " (%ud-hex-text (ud-bytes p at len)))))
                     (pair at len))))
              (#t (go (rest l)))))))
 
@@ -489,14 +489,14 @@
 (def ud-dump
   (fn (_ p)
     (when (>= %ud-verbose 2)
-      (do (ud-info (string-concat (list " op " (cu-hexs (ud-byte p ud-op)) " htype " (cu-hexs (ud-byte p ud-htype))
+      (do (ud-info (%str-concat (list " op " (cu-hexs (ud-byte p ud-op)) " htype " (cu-hexs (ud-byte p ud-htype))
                                         " hlen " (cu-hexs (ud-byte p ud-hlen)) " hops " (cu-hexs (ud-byte p 3))
                                         " xid " (cu-hexs (%ud-le32 p ud-xid))
                                         " secs " (cu-hexs (pn-be16 (cu-str->ptr p) ud-secs))
                                         " flags " (cu-hexs (pn-be16 (cu-str->ptr p) ud-flags))
                                         " ciaddr " (cu-hexs (%ud-le32 p ud-ciaddr)) " yiaddr " (cu-hexs (%ud-le32 p ud-yiaddr))
                                         " siaddr " (cu-hexs (%ud-le32 p ud-siaddr)) " giaddr " (cu-hexs (%ud-le32 p ud-giaddr)))))
-          (ud-info (string-concat (list " chaddr " (%ud-hex-text (ud-bytes p ud-chaddr 16)))))))))
+          (ud-info (%str-concat (list " chaddr " (%ud-hex-text (ud-bytes p ud-chaddr 16)))))))))
 
 ; a field as this machine's memory holds it, which is how busybox prints it
 (def %ud-le32 (fn (_ p i) (cu-ptr-ref (cu-str->ptr p) i 4)))
@@ -505,7 +505,7 @@
 (def ud-recv-kernel
   (fn (_ fd)
     (def p (ud-zeros ud-packet-size))
-    (def n (in-call (cu-ptr-call (in-c "read") fd (cu-str->ptr p) ud-packet-size)))
+    (def n (in-call (cu-ptr-call (cu-libc-sym "read") fd (cu-str->ptr p) ud-packet-size)))
     (match ((< n 0) (do (ud-log1 "packet read error, ignoring") n))
            ((if (< n ud-options) #t (not (= (ud-be32 p ud-cookie) 1669485411)))
             (do (ud-info "packet with bad magic, ignoring") -2))
@@ -520,7 +520,7 @@
 ; to DST:DPORT at hardware address DMAC, through IFINDEX
 (def ud-send-raw
   (fn (_ p src sport dst dport dmac ifindex)
-    (def fd (in-call (cu-ptr-call (in-c "socket") 17 2 8)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 17 2 8)))
     (if (< fd 0) (do (ud-perror "socket(PACKET)" (ud-errno fd)) -1)
       (let ((sll (ud-zeros 20)))
         (inet-set! sll 0 17 2)
@@ -528,12 +528,12 @@
         (inet-set! sll 4 ifindex 4)
         (ud-set! sll 11 6)
         (ud-put! sll 12 dmac)
-        (if (< (in-call (cu-ptr-call (in-c "bind") fd (cu-str->ptr sll) 20)) 0)
-          (let ((e (Err errno-of -1))) (do (cu-ptr-call (in-c "close") fd) (ud-perror "bind(PACKET)" e) -1))
+        (if (< (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr sll) 20)) 0)
+          (let ((e (Err errno-of -1))) (do (cu-ptr-call (cu-libc-sym "close") fd) (ud-perror "bind(PACKET)" e) -1))
           (let ((pad (%ud-padding p)))
             (def size (- (+ 28 ud-dhcp-size) pad))
             (def b (ud-zeros (+ 28 ud-packet-size)))
-            (cu-ptr-call (in-c "memcpy") (+ (td-ptr->int (cu-str->ptr b)) 28) (cu-str->ptr p) ud-dhcp-size)
+            (cu-ptr-call (cu-libc-sym "memcpy") (+ (td-ptr->int (cu-str->ptr b)) 28) (cu-str->ptr p) ud-dhcp-size)
             (ud-set! b 9 17)
             (ud-be32! b 12 src)
             (ud-be32! b 16 dst)
@@ -547,9 +547,9 @@
             (ud-set! b 8 64)
             (ud-be16! b 10 (%ud-cksum b 0 20))
             (ud-dump p)
-            (let ((r (in-call (cu-ptr-call (in-c "sendto") fd (cu-str->ptr b) size 0 (cu-str->ptr sll) 20))))
+            (let ((r (in-call (cu-ptr-call (cu-libc-sym "sendto") fd (cu-str->ptr b) size 0 (cu-str->ptr sll) 20))))
               (let ((e (Err errno-of r)))
-                (do (cu-ptr-call (in-c "close") fd)
+                (do (cu-ptr-call (cu-libc-sym "close") fd)
                     (when (< r 0) (ud-perror "sendto" e))
                     r)))))))))
 
@@ -561,22 +561,22 @@
 ; DST:DPORT, bound to IFNAME
 (def ud-send-kernel
   (fn (_ p src sport dst dport ifname)
-    (def fd (in-call (cu-ptr-call (in-c "socket") 2 2 17)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 2 17)))
     (def fail
       (fn (_ what r)
-        (let ((e (Err errno-of r))) (do (cu-ptr-call (in-c "close") fd) (ud-perror what e) -1))))
+        (let ((e (Err errno-of r))) (do (cu-ptr-call (cu-libc-sym "close") fd) (ud-perror what e) -1))))
     (if (< fd 0) (do (ud-perror "socket(UDP)" (ud-errno fd)) -1)
       (do (pn-setopt fd pn-sol-socket 2 1)
           (let ((r (ud-bind-device fd ifname)))
             (if (< r 0) (fail "bindtodevice" r)
-              (let ((rb (in-call (cu-ptr-call (in-c "bind") fd (cu-str->ptr (ud-sin src sport)) 16))))
+              (let ((rb (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (ud-sin src sport)) 16))))
                 (if (< rb 0) (fail "bind(UDP)" rb)
-                  (let ((rc (in-call (cu-ptr-call (in-c "connect") fd (cu-str->ptr (ud-sin dst dport)) 16))))
+                  (let ((rc (in-call (cu-ptr-call (cu-libc-sym "connect") fd (cu-str->ptr (ud-sin dst dport)) 16))))
                     (if (< rc 0) (fail "connect" rc)
                       (do (ud-dump p)
-                          (let ((rw (in-call (cu-ptr-call (in-c "write") fd (cu-str->ptr p) (- ud-dhcp-size (%ud-padding p))))))
+                          (let ((rw (in-call (cu-ptr-call (cu-libc-sym "write") fd (cu-str->ptr p) (- ud-dhcp-size (%ud-padding p))))))
                             (if (< rw 0) (fail "write" rw)
-                              (do (cu-ptr-call (in-c "close") fd) rw))))))))))))))
+                              (do (cu-ptr-call (cu-libc-sym "close") fd) rw))))))))))))))
 
 ; a sockaddr_in for N and PORT
 (def ud-sin
@@ -588,22 +588,22 @@
 (def ud-bind-device
   (fn (_ fd name)
     (let ((b (ud-zeros 16)))
-      (do (cu-ptr-call (in-c "memcpy") (cu-str->ptr b) name (if (> (byte-len name) 15) 15 (byte-len name)))
-          (in-call (cu-ptr-call (in-c "setsockopt") fd pn-sol-socket 25 (cu-str->ptr b) 16))))))
+      (do (cu-ptr-call (cu-libc-sym "memcpy") (cu-str->ptr b) name (if (> (byte-len name) 15) 15 (byte-len name)))
+          (in-call (cu-ptr-call (cu-libc-sym "setsockopt") fd pn-sol-socket 25 (cu-str->ptr b) 16))))))
 
 ; udhcp_listen_socket: UDP on PORT, broadcasts let in, bound to INF -- an
 ; alias's colon and what follows dropped
 (def ud-listen
   (fn (_ port inf)
-    (ud-log2 (string-concat (list "opening listen socket on *:" (cu-int->str port) " " inf)))
-    (def fd (in-call (cu-ptr-call (in-c "socket") 2 2 17)))
+    (ud-log2 (%str-concat (list "opening listen socket on *:" (cu-int->str port) " " inf)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 2 17)))
     (when (< fd 0) (ud-die (string-append "socket: " (libc-strerror (ud-errno fd)))))
     (pn-setopt fd pn-sol-socket 2 1)
     (when (< (pn-setopt fd pn-sol-socket 6 1) 0) (ud-die (string-append "SO_BROADCAST: " (libc-strerror (Err errno-of -1)))))
     (def dev (let go ((i (- (byte-len inf) 1))) (match ((< i 0) inf) ((= (byte-at inf i) #\:) (substring inf 0 i)) (#t (go (- i 1))))))
     (let ((r (ud-bind-device fd dev)))
-      (when (< r 0) (ud-die (string-concat (list "can't bind to interface " dev ": " (libc-strerror (ud-errno r)))))))
-    (let ((r (in-call (cu-ptr-call (in-c "bind") fd (cu-str->ptr (ud-sin 0 port)) 16))))
+      (when (< r 0) (ud-die (%str-concat (list "can't bind to interface " dev ": " (libc-strerror (ud-errno r)))))))
+    (let ((r (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (ud-sin 0 port)) 16))))
       (when (< r 0) (ud-die (string-append "bind: " (libc-strerror (ud-errno r))))))
     fd))
 
@@ -611,18 +611,18 @@
 ; where WANT-ADDR; nil where an ioctl fails, said
 (def ud-read-interface
   (fn (_ name want-addr)
-    (def fd (in-call (cu-ptr-call (in-c "socket") 2 3 255)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 3 255)))
     (when (< fd 0) (ud-die (string-append "socket: " (libc-strerror (ud-errno fd)))))
     (def ifr (ud-zeros 40))
     (inet-set! ifr 16 2 2)
-    (cu-ptr-call (in-c "memcpy") (cu-str->ptr ifr) name (if (> (byte-len name) 15) 15 (byte-len name)))
-    (def ioctl (fn (_ req) (in-call (cu-ptr-call (in-c "ioctl") fd req (cu-str->ptr ifr)))))
-    (def fail (fn (_ msg r) (let ((e (ud-errno r))) (do (cu-ptr-call (in-c "close") fd) (ud-perror msg e) ()))))
+    (cu-ptr-call (cu-libc-sym "memcpy") (cu-str->ptr ifr) name (if (> (byte-len name) 15) 15 (byte-len name)))
+    (def ioctl (fn (_ req) (in-call (cu-ptr-call (cu-libc-sym "ioctl") fd req (cu-str->ptr ifr)))))
+    (def fail (fn (_ msg r) (let ((e (ud-errno r))) (do (cu-ptr-call (cu-libc-sym "close") fd) (ud-perror msg e) ()))))
     (def addr
       (if (not want-addr) 0
         (let ((r (ioctl 35093)))
           (if (< r 0) (lit failed) (ud-be32 ifr 20)))))
-    (if (eq? addr (lit failed)) (fail (string-concat (list "is interface " name " up and configured?")) -1)
+    (if (eq? addr (lit failed)) (fail (%str-concat (list "is interface " name " up and configured?")) -1)
       (do (when want-addr (ud-log1 (string-append "IP " (ud-dotted addr))))
           (let ((r (ioctl 35123)))
             (if (< r 0) (fail "ioctl 0x8933 failed" r)
@@ -632,7 +632,7 @@
                   (if (< rh 0) (fail "ioctl 0x8927 failed" rh)
                     (let ((mac (ud-bytes ifr 18 6)))
                       (ud-log2 (string-append "MAC " (ud-mac-text mac)))
-                      (cu-ptr-call (in-c "close") fd)
+                      (cu-ptr-call (cu-libc-sym "close") fd)
                       (list index addr mac)))))))))))
 
 ; arpping: 1 where no host answers for TEST within MS milliseconds, 0 where
@@ -641,10 +641,10 @@
 (def ud-arpping
   (fn (_ test safe from from-mac ifname ms)
     (if (= ms 0) 1
-      (let ((s (in-call (cu-ptr-call (in-c "socket") 17 10 1544))))
+      (let ((s (in-call (cu-ptr-call (cu-libc-sym "socket") 17 10 1544))))
         (if (< s 0) (do (ud-perror "can't create raw socket" (ud-errno s)) -1)
           (let ((rv (%ud-arp s test safe from from-mac ifname ms)))
-            (do (cu-ptr-call (in-c "close") s)
+            (do (cu-ptr-call (cu-libc-sym "close") s)
                 (ud-log1 (if (= rv 0) "ARP reply received for this address" "no ARP reply received for this address"))
                 rv)))))))
 
@@ -664,8 +664,8 @@
         (ud-put! a 22 from-mac)
         (ud-be32! a 28 from)
         (ud-be32! a 38 test)
-        (cu-ptr-call (in-c "memcpy") (+ (td-ptr->int (cu-str->ptr addr)) 2) ifname (if (> (byte-len ifname) 13) 13 (byte-len ifname)))
-        (if (< (in-call (cu-ptr-call (in-c "sendto") s (cu-str->ptr a) 60 0 (cu-str->ptr addr) 16)) 0) 1
+        (cu-ptr-call (cu-libc-sym "memcpy") (+ (td-ptr->int (cu-str->ptr addr)) 2) ifname (if (> (byte-len ifname) 13) 13 (byte-len ifname)))
+        (if (< (in-call (cu-ptr-call (cu-libc-sym "sendto") s (cu-str->ptr a) 60 0 (cu-str->ptr addr) 16)) 0) 1
           (%ud-arp-wait s test safe ms ms))))))
 
 (def %ud-arp-wait
@@ -675,7 +675,7 @@
     (def got
       (if (null? r) ()
         (let ((b (ud-zeros 60)))
-          (let ((n (in-call (cu-ptr-call (in-c "read") s (cu-str->ptr b) 60))))
+          (let ((n (in-call (cu-ptr-call (cu-libc-sym "read") s (cu-str->ptr b) 60))))
             (if (< n 0) (lit stop) (pair n b))))))
     (match ((eq? got (lit stop)) 1)
            ((if (pair? got)
