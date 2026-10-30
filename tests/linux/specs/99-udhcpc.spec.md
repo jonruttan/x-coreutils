@@ -156,7 +156,14 @@ status and the script's log are compared.
           (sys-kill srv 9)
           (sys-wait srv)
           (lc-sh "sed 's/^udhcpc: started, v.*/udhcpc: started/; s/xid [0-9a-f]* (our is [0-9a-f]*)/xid x (our is x)/; /waiting [0-9]* seconds/d' /tmp/uc-err > /tmp/uc-err2")
-          (%str-concat (list (lc-drain) "stderr:\n" (file-read-all "/tmp/uc-err2") "status " (cu-int->str st) "\n"
+          ; a client in the background tries again a second after its second
+          ; leasefail, so a late kill sees a third DISCOVER; two are compared
+          (def fr (lc-drain))
+          (when (not (string=? bg ""))
+            (do (file-write-all "/tmp/uc-frames" fr)
+                (lc-sh "head -n 2 /tmp/uc-frames > /tmp/uc-frames2")
+                (set! fr (file-read-all "/tmp/uc-frames2"))))
+          (%str-concat (list fr "stderr:\n" (file-read-all "/tmp/uc-err2") "status " (cu-int->str st) "\n"
                                bg "script:\n" (file-read-all "/tmp/uc-script.log"))))))
     (def lc-case (fn (_ servers args steps)
       (map (fn (_ server)
