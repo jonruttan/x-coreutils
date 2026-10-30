@@ -47,7 +47,9 @@ from busybox in Podman.
                       (cu-run (append (list "dnsd" "-c" (dn-f "conf") "-i" "127.0.0.1" "-p" (cu-int->str port))
                                       (filter (fn (_ w) (> (byte-len w) 0)) (Str8 split " " args)))
                               "")))))
-    (sys-usleep 400000)
+    ; dnsd says it is accepting once its socket is bound; a query sent before
+    ; then is lost
+    (proc-run (list "/bin/sh" "-c" "i=0; until grep -q accepting /tmp/x-cu-dn/err || [ $i -ge 200 ]; do sleep 0.05; i=$((i+1)); done"))
     (def s (net-udp-bind 0))
     (def answers (map (fn (_ q) (string-append (dn-ask s port q) "\n")) (Str8 split ";" queries)))
     (net-close s)
