@@ -34,19 +34,19 @@
 (import cu/inetd in-lines in-tokens-max)
 (import cu/nc nc-count)
 (import cu/prims append byte-at byte-len cu-err-label cu-hexs cu-int->str
-  cu-libc-sym cu-nth cu-ptr-call cu-stat-get cu-stdin-to-command! file-close
-  file-fstat-full file-open-read file-read-all file-unlink file-write filter
-  length libc-strerror map reverse string-append string=? substring sys-dup2
-  sys-exec sys-exit sys-fork sys-getpid sys-wait vec-make vec-ref vec-set!)
+  cu-libc-sym cu-nth cu-ptr-call file-close file-open-read file-read-all
+  filter length libc-strerror map reverse string-append string=? substring
+  sys-exit vec-make vec-ref vec-set!)
 (import cu/udhcp ud-ack ud-add-option! ud-add-simple! ud-arpping ud-be32
-  ud-be32! ud-byte ud-bytes ud-catch! ud-chaddr ud-ciaddr ud-decline ud-die
-  ud-discover ud-dotted ud-end ud-error ud-file ud-find-option ud-flags
-  ud-get-option ud-get-option32 ud-giaddr ud-hlen ud-info ud-inform ud-listen
-  ud-log1 ud-log2 ud-logging! ud-mac-text ud-nak ud-now ud-offer ud-op
-  ud-packet ud-perror ud-put! ud-read-interface ud-recv-kernel ud-release
-  ud-request ud-same? ud-send-kernel ud-send-raw ud-siaddr ud-sname ud-status
-  ud-str-bytes ud-str2nip ud-str2optset ud-strtou ud-taken ud-xid ud-yiaddr
-  ud-zeros)
+  ud-be32! ud-byte ud-bytes ud-catch! ud-chaddr ud-child? ud-ciaddr
+  ud-daemonize! ud-decline ud-die ud-discover ud-dotted ud-end ud-error
+  ud-file ud-find-option ud-flags ud-get-option ud-get-option32 ud-giaddr
+  ud-hlen ud-info ud-inform ud-listen ud-log1 ud-log2 ud-logging! ud-mac-text
+  ud-nak ud-now ud-offer ud-op ud-packet ud-perror ud-process-reset! ud-put!
+  ud-read-interface ud-recv-kernel ud-release ud-remove-pidfile ud-request
+  ud-same? ud-send-kernel ud-send-raw ud-siaddr ud-sname ud-spawn ud-status
+  ud-str-bytes ud-str2nip ud-str2optset ud-strtou ud-taken ud-write-pidfile
+  ud-xid ud-yiaddr ud-zeros)
 (import cu/vi vi-bundle-version)
 
 ; --- the configuration ------------------------------------------------------------------
@@ -281,15 +281,7 @@
                   (go (rest l) (+ at 36))))))
         (File write fd b (+ 8 (* 36 (length used))))
         (file-close fd)
-        (unless (null? %dd-notify) (%dd-spawn (list %dd-notify %dd-lease-file)))))))
-
-; spawn_and_wait
-(def %dd-spawn
-  (fn (_ argv)
-    (let ((pid (sys-fork)))
-      (if (= pid 0)
-        (do (guard (_ (sys-exit 127)) (sys-exec (first argv) (rest argv))) (sys-exit 127))
-        (sys-wait pid)))))
+        (unless (null? %dd-notify) (ud-spawn (list %dd-notify %dd-lease-file) ()))))))
 
 ; read_leases: those written in the last twelve hours, in the range and
 ; not another's static address
@@ -478,37 +470,12 @@
 
 ; --- the run ----------------------------------------------------------------------------
 
-(def %dd-child #f)
-(def %dd-wrote-pid #f)
-
-(def %dd-daemonize
-  (fn (_)
-    (def pid (sys-fork))
-    (when (> pid 0) (ud-end 0))
-    (set! %dd-child #t)
-    (cu-stdin-to-command!)
-    (cu-ptr-call (cu-libc-sym "setsid"))
-    (let ((fd (File open "/dev/null" (lit rdwr))))
-      (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
-          (when (> fd 2) (file-close fd))))))
-
-; write_pidfile: a regular file only gets the number, and is removed at the end
-(def %dd-write-pidfile
-  (fn (_ path)
-    (def fd (File open path (list (lit wronly) (lit creat) (lit trunc)) 438))
-    (unless (< fd 0)
-      (do (let ((st (file-fstat-full fd)))
-            (when (if (null? st) #f (= (& (cu-stat-get st (lit mode)) 61440) 32768))
-              (do (set! %dd-wrote-pid #t)
-                  (file-write fd (string-append (cu-int->str (sys-getpid)) "\n")))))
-          (file-close fd)))))
-
 (def %dd-main
   (fn (_ argv)
     (def o (cu-opts "udhcpd" argv))
     (def verbose (nc-count o "-v"))
     (def fg (Opts on? o "-f"))
-    (unless fg (%dd-daemonize))
+    (unless fg (ud-daemonize!))
     (def syslog (Opts on? o "-S"))
     (when syslog (cu-ptr-call (cu-libc-sym "openlog") "udhcpd" 1 24))
     (ud-logging! "udhcpd" verbose fg syslog)
@@ -526,7 +493,7 @@
     (set! %dd-boot-file ())
     (%dd-read-config (let ((ops (Opts operands o))) (if (null? ops) "/etc/udhcpd.conf" (first ops))))
     (when (> %dd-auto-time 2147483) (set! %dd-auto-time 2147483))
-    (%dd-write-pidfile %dd-pidfile)
+    (ud-write-pidfile %dd-pidfile)
     (ud-info (string-append "started, v" (vi-bundle-version)))
     (set! %dd-max-lease-sec
       (let ((l (ud-find-option %dd-options 51)))
@@ -546,7 +513,7 @@
               (ud-catch!)
               (%dd-loop -1 (+ (ud-now) %dd-auto-time))))))
     ; remove_pidfile, on the two ways out that are not a death
-    (when %dd-wrote-pid (guard (_ ()) (file-unlink %dd-pidfile)))
+    (ud-remove-pidfile %dd-pidfile)
     status))
 
 (def %dd-bytes-be (fn (_ l) (List fold (fn (_ acc x) (+ (* acc 256) x)) 0 (if (> (length l) 4) (List take 4 l) l))))
@@ -577,13 +544,12 @@
 
 (def cu-udhcpd
   (fn (_ argv stdin-thunk)
-    (set! %dd-child #f)
-    (set! %dd-wrote-pid #f)
+    (ud-process-reset!)
     (def status
       (guard (e (match ((eq? (cu-err-label e) (lit udhcp)) (ud-status))
-                       (#t (do (when %dd-child (sys-exit 1)) (error e)))))
+                       (#t (do (when (ud-child?) (sys-exit 1)) (error e)))))
         (%dd-main argv)))
-    (when %dd-child (sys-exit status))
+    (when (ud-child?) (sys-exit status))
     status))
 
 (provide cu/udhcpd cu-udhcpd)

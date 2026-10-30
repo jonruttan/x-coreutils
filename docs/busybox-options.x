@@ -35,6 +35,11 @@
     (list "ether-wake" (%letters "bip"))
     (list "zcip" (%letters "fqrlv"))
     (list "udhcpd" (%letters "fSIva"))
+    (list "udhcpc" (append (%letters "CVFinpqRrsTtSAOoxfBbav")
+                     (list "--clientid-none" "--vendorclass" "--fqdn" "--interface" "--now" "--pidfile"
+                           "--quit" "--release" "--request" "--script" "--timeout" "--retries"
+                           "--tryagain" "--syslog" "--request-option" "--no-default-options"
+                           "--foreground" "--background" "--broadcast" "--arping")))
     (list "ascii" ())
     (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))

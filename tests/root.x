@@ -224,15 +224,22 @@
 (import cu/tree cu-tree)
 (import cu/tsort cu-tsort ts-space?)
 (import cu/tunctl cu-tunctl)
-(import cu/udhcp ud-ack ud-add-option! ud-add-simple! ud-arpping ud-be32
-  ud-be32! ud-byte ud-bytes ud-catch! ud-chaddr ud-ciaddr ud-decline ud-die
-  ud-discover ud-dotted ud-end ud-error ud-file ud-find-option ud-flags
-  ud-get-option ud-get-option32 ud-giaddr ud-hex2 ud-hlen ud-info ud-inform
-  ud-listen ud-log1 ud-log2 ud-logging! ud-mac-text ud-nak ud-now ud-offer
-  ud-op ud-packet ud-perror ud-put! ud-read-interface ud-recv-kernel
-  ud-release ud-request ud-same? ud-send-kernel ud-send-raw ud-set! ud-siaddr
-  ud-sname ud-status ud-str-bytes ud-str2nip ud-str2optset ud-strtou ud-taken
-  ud-xid ud-yiaddr ud-zeros)
+(import cu/udhcp ud-6rd ud-ack ud-add-option! ud-add-simple! ud-arpping
+  ud-be16! ud-be32 ud-be32! ud-byte ud-bytes ud-bytes-be ud-catch! ud-chaddr
+  ud-child? ud-ciaddr ud-cksum ud-daemonize! ud-decline ud-die ud-discover
+  ud-dns-string ud-dotted ud-dump ud-end ud-end-option ud-errno ud-error
+  ud-file ud-find-option ud-flags ud-get-option ud-get-option32 ud-giaddr
+  ud-hex2 ud-hlen ud-info ud-inform ud-insert ud-ip ud-ip-pair ud-listen
+  ud-log1 ud-log2 ud-logging! ud-mac-text ud-ms ud-nak ud-now ud-offer ud-op
+  ud-optflag-named ud-optflag-of ud-optflags ud-options ud-packet
+  ud-packet-size ud-perror ud-process-reset! ud-put! ud-read-interface
+  ud-recv-kernel ud-release ud-remove-pidfile ud-req ud-request ud-s32
+  ud-same? ud-scan-overload ud-secs ud-send-kernel ud-send-raw ud-set!
+  ud-siaddr ud-sin ud-sip-servers ud-sname ud-spawn ud-static-routes ud-status
+  ud-str-bytes ud-str2nip ud-str2optset ud-string ud-string-host ud-strtok
+  ud-strtou ud-taken ud-type-length ud-u16 ud-u32 ud-u8 ud-verbose
+  ud-write-pidfile ud-xid ud-yiaddr ud-zeros)
+(import cu/udhcpc cu-udhcpc)
 (import cu/udhcpd cu-udhcpd)
 (import cu/unshare cu-unshare)
 (import cu/unzip cu-unzip)

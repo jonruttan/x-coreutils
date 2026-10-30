@@ -26,9 +26,10 @@
 (import cu/ping pn-be16 pn-byte pn-div pn-fold pn-now pn-setopt pn-sol-socket
   pn-sum)
 (import cu/prims append byte-at byte-len cu-hexs cu-int->str cu-libc-sym
-  cu-nth cu-ptr-call cu-ptr-ref cu-str->ptr file-write filter hx-strtoul
-  length libc-strerror map reverse str-make-raw string-append string=?
-  substring)
+  cu-nth cu-ptr-call cu-ptr-ref cu-stat-get cu-stdin-to-command! cu-str->ptr
+  file-close file-fstat-full file-unlink file-write filter hx-strtoul length
+  libc-strerror map reverse str-make-raw string-append string=? substring
+  sys-dup2 sys-exec sys-exit sys-fork sys-getpid sys-setenv sys-wait)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-zero)
 
@@ -227,6 +228,10 @@
 
 ; udhcp_insert_new_option: SET with OPT placed before the first of a code
 ; not lower
+(def ud-insert
+  (fn (_ set opt)
+    (ud-log2 (%str-concat (list "attaching option " (ud-hex2 (first opt)) " to list")))
+    (%ud-insert set opt)))
 (def %ud-insert
   (fn (_ set opt)
     (if (if (null? set) #t (>= (first (first set)) (first opt))) (pair opt set)
@@ -284,11 +289,13 @@
                       (#t value)))
     (def code (first (rest flag)))
     (def existing (ud-find-option set code))
-    (match ((null? existing) (%ud-insert set (pair code (pair (length bytes) bytes))))
+    (match ((null? existing) (ud-insert set (pair code (pair (length bytes) bytes))))
            ((= (& (first flag) ud-list) 0) set)
-           ((< (+ (first (rest existing)) (length bytes)) 255)
-            (%ud-replace set existing (pair code (pair (+ (first (rest existing)) (length bytes)) (append (rest (rest existing)) bytes)))))
-           (#t set))))
+           (#t
+            (do (ud-log2 (%str-concat (list "attaching option " (ud-hex2 code) " to existing member of list")))
+                (if (< (+ (first (rest existing)) (length bytes)) 255)
+                  (%ud-replace set existing (pair code (pair (+ (first (rest existing)) (length bytes)) (append (rest (rest existing)) bytes))))
+                  set))))))
 
 ; udhcp_str2optset: LINE, "NAME VALUE..." or "CODE VALUE", added to SET;
 ; (OK . SET), the values read before one not read kept
@@ -443,29 +450,32 @@
       (let ((len (ud-type-length (first f))))
         (ud-add-option! p (pair code (pair len (List drop (- 4 len) (ud-be32-bytes n)))))))))
 
-; udhcp_scan_options, all of them: each option's (CODE START LEN), START
-; where its data begins; nil past a malformed one, said
-(def ud-scan
+; udhcp_scan_options, all of them: (OVERLOAD . OPTIONS), each option's
+; (CODE START LEN), START where its data begins, and OVERLOAD the fields
+; option 52 lent; the options end with malformed past a malformed one, said
+(def ud-scan-overload
   (fn (_ p)
     (let go ((at ud-options) (rem (- ud-packet-size ud-options)) (overload 0) (acc ()))
-      (if (<= rem 0) (%ud-malformed acc)
+      (if (<= rem 0) (%ud-malformed overload acc)
         (let ((c (ud-byte p at)))
           (match
             ((= c 0) (go (+ at 1) (- rem 1) overload acc))
             ((= c 255)
              (match ((= (& overload 257) 1) (go ud-file 128 (| overload 257) acc))
                     ((= (& overload 514) 2) (go ud-sname 64 (| overload 514) acc))
-                    (#t (reverse acc))))
-            ((<= rem 1) (%ud-malformed acc))
+                    (#t (pair overload (reverse acc)))))
+            ((<= rem 1) (%ud-malformed overload acc))
             (#t
              (let ((len (ud-byte p (+ at 1))))
                (match ((= len 0) (go (+ at 2) (- rem 2) overload acc))
-                      ((< (- rem (+ len 2)) 0) (%ud-malformed acc))
+                      ((< (- rem (+ len 2)) 0) (%ud-malformed overload acc))
                       ((= c 52) (go (+ at len 2) (- rem (+ len 2)) (| overload (ud-byte p (+ at 2))) acc))
                       (#t (go (+ at len 2) (- rem (+ len 2)) overload (pair (list c (+ at 2) len) acc))))))))))))
+(def ud-scan (fn (_ p) (rest (ud-scan-overload p))))
 
 (def %ud-malformed
-  (fn (_ acc) (do (ud-error "bad packet, malformed option field") (reverse (pair (lit malformed) acc)))))
+  (fn (_ overload acc)
+    (do (ud-error "bad packet, malformed option field") (pair overload (reverse (pair (lit malformed) acc))))))
 
 ; udhcp_get_option: (START . LEN) of CODE's data, or nil
 (def ud-get-option
@@ -541,11 +551,11 @@
             (ud-be16! b 22 dport)
             (ud-be16! b 24 (- size 20))
             (ud-be16! b 2 (- size 20))
-            (ud-be16! b 26 (%ud-cksum b 0 size))
+            (ud-be16! b 26 (ud-cksum b 0 size))
             (ud-be16! b 2 size)
             (ud-set! b 0 69)
             (ud-set! b 8 64)
-            (ud-be16! b 10 (%ud-cksum b 0 20))
+            (ud-be16! b 10 (ud-cksum b 0 20))
             (ud-dump p)
             (let ((r (in-call (cu-ptr-call (cu-libc-sym "sendto") fd (cu-str->ptr b) size 0 (cu-str->ptr sll) 20))))
               (let ((e (Err errno-of r)))
@@ -554,7 +564,7 @@
                     r)))))))))
 
 ; inet_cksum: pn-fold answers the complement
-(def %ud-cksum
+(def ud-cksum
   (fn (_ b from end) (pn-fold (pn-sum (cu-str->ptr b) from end))))
 
 ; udhcp_send_kernel_packet: P through the kernel's UDP, from SRC:SPORT to
@@ -691,12 +701,64 @@
 (def ud-catch! (fn (_) (map (fn (_ n) (Sys catch-signal n)) ud-signals)))
 (def ud-taken (fn (_) (List find (fn (_ n) (Sys take-signal n)) ud-signals)))
 
-(provide cu/udhcp ud-ack ud-add-option! ud-add-simple! ud-arpping ud-be32
-  ud-be32! ud-byte ud-bytes ud-catch! ud-chaddr ud-ciaddr ud-decline ud-die
-  ud-discover ud-dotted ud-end ud-error ud-file ud-find-option ud-flags
-  ud-get-option ud-get-option32 ud-giaddr ud-hex2 ud-hlen ud-info ud-inform
-  ud-listen ud-log1 ud-log2 ud-logging! ud-mac-text ud-nak ud-now ud-offer
-  ud-op ud-packet ud-perror ud-put! ud-read-interface ud-recv-kernel
-  ud-release ud-request ud-same? ud-send-kernel ud-send-raw ud-set! ud-siaddr
-  ud-sname ud-status ud-str-bytes ud-str2nip ud-str2optset ud-strtou ud-taken
-  ud-xid ud-yiaddr ud-zeros)
+; --- the process ----------------------------------------------------------------------
+
+(def %ud-child #f)
+(def %ud-wrote-pid #f)
+(def ud-child? (fn (_) %ud-child))
+(def ud-process-reset! (fn (_) (do (set! %ud-child #f) (set! %ud-wrote-pid #f))))
+
+; bb_daemonize: the parent's run ends at 0, its pidfile left; the child
+; leads a session of its own, the standard streams on /dev/null
+(def ud-daemonize!
+  (fn (_)
+    (def pid (sys-fork))
+    (when (> pid 0) (do (set! %ud-wrote-pid #f) (ud-end 0)))
+    (set! %ud-child #t)
+    (cu-stdin-to-command!)
+    (cu-ptr-call (cu-libc-sym "setsid"))
+    (let ((fd (File open "/dev/null" (lit rdwr))))
+      (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
+          (when (> fd 2) (file-close fd))))))
+
+; write_pidfile: a regular file only gets the number; nil PATH, no file
+(def ud-write-pidfile
+  (fn (_ path)
+    (def fd (if (null? path) -1 (File open path (list (lit wronly) (lit creat) (lit trunc)) 438)))
+    (unless (< fd 0)
+      (do (let ((st (file-fstat-full fd)))
+            (set! %ud-wrote-pid (if (null? st) #f (= (& (cu-stat-get st (lit mode)) 61440) 32768)))
+            (when %ud-wrote-pid (file-write fd (string-append (cu-int->str (sys-getpid)) "\n"))))
+          (file-close fd)))))
+
+; remove_pidfile, on the ways out that are not a death
+(def ud-remove-pidfile
+  (fn (_ path) (when %ud-wrote-pid (guard (_ ()) (file-unlink path)))))
+
+; spawn_and_wait: ARGV run, looked for on PATH, with ENV's (NAME . VALUE)s
+; set; its status, 127 where it could not be run
+(def ud-spawn
+  (fn (_ argv env)
+    (let ((pid (sys-fork)))
+      (if (= pid 0)
+        (do (guard (_ (sys-exit 127))
+              (do (map (fn (_ e) (sys-setenv (first e) (rest e))) env)
+                  (sys-exec (first argv) (rest argv))))
+            (sys-exit 127))
+        (sys-wait pid)))))
+
+(provide cu/udhcp ud-6rd ud-ack ud-add-option! ud-add-simple! ud-arpping
+  ud-be16! ud-be32 ud-be32! ud-byte ud-bytes ud-bytes-be ud-catch! ud-chaddr
+  ud-child? ud-ciaddr ud-cksum ud-daemonize! ud-decline ud-die ud-discover
+  ud-dns-string ud-dotted ud-dump ud-end ud-end-option ud-errno ud-error
+  ud-file ud-find-option ud-flags ud-get-option ud-get-option32 ud-giaddr
+  ud-hex2 ud-hlen ud-info ud-inform ud-insert ud-ip ud-ip-pair ud-listen
+  ud-log1 ud-log2 ud-logging! ud-mac-text ud-ms ud-nak ud-now ud-offer ud-op
+  ud-optflag-named ud-optflag-of ud-optflags ud-options ud-packet
+  ud-packet-size ud-perror ud-process-reset! ud-put! ud-read-interface
+  ud-recv-kernel ud-release ud-remove-pidfile ud-req ud-request ud-s32
+  ud-same? ud-scan-overload ud-secs ud-send-kernel ud-send-raw ud-set!
+  ud-siaddr ud-sin ud-sip-servers ud-sname ud-spawn ud-static-routes ud-status
+  ud-str-bytes ud-str2nip ud-str2optset ud-string ud-string-host ud-strtok
+  ud-strtou ud-taken ud-type-length ud-u16 ud-u32 ud-u8 ud-verbose
+  ud-write-pidfile ud-xid ud-yiaddr ud-zeros)
