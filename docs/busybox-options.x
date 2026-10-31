@@ -40,6 +40,7 @@
                            "--quit" "--release" "--request" "--script" "--timeout" "--retries"
                            "--tryagain" "--syslog" "--request-option" "--no-default-options"
                            "--foreground" "--background" "--broadcast" "--arping")))
+    (list "dhcprelay" ())
     (list "ascii" ())
     (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))

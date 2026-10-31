@@ -122,7 +122,7 @@
             (port (if (null? cut) () (substring s (+ cut 1) (byte-len s)))))
         (def p (if (null? port) (pair 0 #t) (ud-strtou port 10)))
         (if (if (rest p) (> (first p) 65535) #t) (bad "port" port)
-          (let ((a (%ud-aton host)))
+          (let ((a (ud-aton host)))
             (if (null? a)
               (let ((h (inet-host-addr host))) (if (null? h) (bad "address" s) (%ud-swap h)))
               a)))))))
@@ -130,7 +130,8 @@
 (def %ud-swap
   (fn (_ n)
     (+ (<< (& n 255) 24) (<< (& (>> n 8) 255) 16) (<< (& (>> n 16) 255) 8) (& (>> n 24) 255))))
-(def %ud-aton
+; inet_aton: the address S names, or nil
+(def ud-aton
   (fn (_ s)
     (let ((buf (ud-zeros 4)))
       (if (= (in-call (cu-ptr-call (cu-libc-sym "inet_aton") s (cu-str->ptr buf))) 0) ()
@@ -513,13 +514,17 @@
 
 ; udhcp_recv_kernel_packet: a packet read from FD, or a number below 0
 (def ud-recv-kernel
+  (fn (_ fd) (let ((r (ud-recv-kernel-sized fd))) (if (number? r) r (first r)))))
+
+; the same, the packet paired with the bytes read
+(def ud-recv-kernel-sized
   (fn (_ fd)
     (def p (ud-zeros ud-packet-size))
     (def n (in-call (cu-ptr-call (cu-libc-sym "read") fd (cu-str->ptr p) ud-packet-size)))
     (match ((< n 0) (do (ud-log1 "packet read error, ignoring") n))
            ((if (< n ud-options) #t (not (= (ud-be32 p ud-cookie) 1669485411)))
             (do (ud-info "packet with bad magic, ignoring") -2))
-           (#t (do (ud-log2 "received a packet") (ud-dump p) p)))))
+           (#t (do (ud-log2 "received a packet") (ud-dump p) (pair p n))))))
 
 ; how much of the options' room is left unsent: what follows the end
 ; option, at most enough to leave 300 bytes of packet
@@ -619,8 +624,15 @@
 
 ; udhcp_read_interface: (IFINDEX ADDRESS MAC) of NAME, ADDRESS asked only
 ; where WANT-ADDR; nil where an ioctl fails, said
-(def ud-read-interface
-  (fn (_ name want-addr)
+(def ud-read-interface (fn (_ name want-addr) (%ud-interface name want-addr #t)))
+
+; udhcp_read_interface asked for the address alone: it, or nil
+(def ud-interface-address
+  (fn (_ name) (let ((r (%ud-interface name #t #f))) (if (null? r) () (cu-nth 1 r)))))
+
+; IFINDEX and MAC are asked where WANT-REST, nil in the answer where not
+(def %ud-interface
+  (fn (_ name want-addr want-rest)
     (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 3 255)))
     (when (< fd 0) (ud-die (string-append "socket: " (libc-strerror (ud-errno fd)))))
     (def ifr (ud-zeros 40))
@@ -634,16 +646,17 @@
           (if (< r 0) (lit failed) (ud-be32 ifr 20)))))
     (if (eq? addr (lit failed)) (fail (%str-concat (list "is interface " name " up and configured?")) -1)
       (do (when want-addr (ud-log1 (string-append "IP " (ud-dotted addr))))
-          (let ((r (ioctl 35123)))
-            (if (< r 0) (fail "ioctl 0x8933 failed" r)
-              (let ((index (cu-ptr-ref (cu-str->ptr ifr) 16 4)))
-                (ud-log2 (string-append "ifindex " (cu-int->str index)))
-                (let ((rh (ioctl 35111)))
-                  (if (< rh 0) (fail "ioctl 0x8927 failed" rh)
-                    (let ((mac (ud-bytes ifr 18 6)))
-                      (ud-log2 (string-append "MAC " (ud-mac-text mac)))
-                      (cu-ptr-call (cu-libc-sym "close") fd)
-                      (list index addr mac)))))))))))
+          (if (not want-rest) (do (cu-ptr-call (cu-libc-sym "close") fd) (list () addr ()))
+            (let ((r (ioctl 35123)))
+              (if (< r 0) (fail "ioctl 0x8933 failed" r)
+                (let ((index (cu-ptr-ref (cu-str->ptr ifr) 16 4)))
+                  (ud-log2 (string-append "ifindex " (cu-int->str index)))
+                  (let ((rh (ioctl 35111)))
+                    (if (< rh 0) (fail "ioctl 0x8927 failed" rh)
+                      (let ((mac (ud-bytes ifr 18 6)))
+                        (ud-log2 (string-append "MAC " (ud-mac-text mac)))
+                        (cu-ptr-call (cu-libc-sym "close") fd)
+                        (list index addr mac))))))))))))
 
 ; arpping: 1 where no host answers for TEST within MS milliseconds, 0 where
 ; one does whose hardware address is not SAFE, -1 where the probe could not
@@ -748,17 +761,17 @@
         (sys-wait pid)))))
 
 (provide cu/udhcp ud-6rd ud-ack ud-add-option! ud-add-simple! ud-arpping
-  ud-be16! ud-be32 ud-be32! ud-byte ud-bytes ud-bytes-be ud-catch! ud-chaddr
-  ud-child? ud-ciaddr ud-cksum ud-daemonize! ud-decline ud-die ud-discover
-  ud-dns-string ud-dotted ud-dump ud-end ud-end-option ud-errno ud-error
-  ud-file ud-find-option ud-flags ud-get-option ud-get-option32 ud-giaddr
-  ud-hex2 ud-hlen ud-info ud-inform ud-insert ud-ip ud-ip-pair ud-listen
-  ud-log1 ud-log2 ud-logging! ud-mac-text ud-ms ud-nak ud-now ud-offer ud-op
-  ud-optflag-named ud-optflag-of ud-optflags ud-options ud-packet
-  ud-packet-size ud-perror ud-process-reset! ud-put! ud-read-interface
-  ud-recv-kernel ud-release ud-remove-pidfile ud-req ud-request ud-s32
-  ud-same? ud-scan-overload ud-secs ud-send-kernel ud-send-raw ud-set!
-  ud-siaddr ud-sin ud-sip-servers ud-sname ud-spawn ud-static-routes ud-status
-  ud-str-bytes ud-str2nip ud-str2optset ud-string ud-string-host ud-strtok
-  ud-strtou ud-taken ud-type-length ud-u16 ud-u32 ud-u8 ud-verbose
-  ud-write-pidfile ud-xid ud-yiaddr ud-zeros)
+  ud-aton ud-be16! ud-be32 ud-be32! ud-byte ud-bytes ud-bytes-be ud-catch!
+  ud-chaddr ud-child? ud-ciaddr ud-cksum ud-daemonize! ud-decline ud-die
+  ud-discover ud-dns-string ud-dotted ud-dump ud-end ud-end-option ud-errno
+  ud-error ud-file ud-find-option ud-flags ud-get-option ud-get-option32
+  ud-giaddr ud-hex2 ud-hlen ud-info ud-inform ud-insert ud-interface-address
+  ud-ip ud-ip-pair ud-listen ud-log1 ud-log2 ud-logging! ud-mac-text ud-ms
+  ud-nak ud-now ud-offer ud-op ud-optflag-named ud-optflag-of ud-optflags
+  ud-options ud-packet ud-packet-size ud-perror ud-process-reset! ud-put!
+  ud-read-interface ud-recv-kernel ud-recv-kernel-sized ud-release
+  ud-remove-pidfile ud-req ud-request ud-s32 ud-same? ud-scan-overload ud-secs
+  ud-send-kernel ud-send-raw ud-set! ud-siaddr ud-sin ud-sip-servers ud-sname
+  ud-spawn ud-static-routes ud-status ud-str-bytes ud-str2nip ud-str2optset
+  ud-string ud-string-host ud-strtok ud-strtou ud-taken ud-type-length ud-u16
+  ud-u32 ud-u8 ud-verbose ud-write-pidfile ud-xid ud-yiaddr ud-zeros)
