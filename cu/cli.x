@@ -30,8 +30,9 @@
 (def cu-find-applet
   (fn (_ name) (class-static-ref (first %cu-applets) (Str8 ->sym name))))
 
-; An applet's row in cu/options.x: (DECLARATION) or (DECLARATION LABEL), or
-; nil for an applet with no row.
+; An applet's row in cu/options.x: (DECLARATION), (DECLARATION LABEL) or, for
+; the optional label, (DECLARATION LABEL SPELLINGS); nil for an applet with no
+; row.
 (def %cu-row-of
   (fn (_ applet)
     (def go (fn (self es)
@@ -40,7 +41,13 @@
                   (self (rest es))))))
     (go cu-option-spec)))
 
-; The row as the parse reads it: (FLAGS VALUES) or (FLAGS VALUES LABEL), the
+; APPLET's declaration, as its row in cu/options.x makes it, or nil: parsed
+; with (Opts parse DECLARATION ARGV), an option is read by any of its spellings
+(def cu-declaration
+  (fn (_ applet)
+    (let ((row (%cu-row-of applet))) (if (null? row) () (first row)))))
+
+; The row as the parse reads it: (FLAGS VALUES) or (FLAGS VALUES LABEL ...), the
 ; spellings its declaration lists, hidden or not.
 (def cu-spec-of
   (fn (_ applet)
@@ -108,6 +115,9 @@
       ((eq? label (lit known))
         (let ((split (%cu-known-flags flags argv ())))
           (Opts parse flags values (append (first split) (pair "--" (rest split))))))
+      ; one option whose value is attached or not given, cut off before the
+      ; parse sees the word, as cu-optional cuts it
+      ((eq? label (lit optional)) (Opts parse flags values (first (cu-optional applet argv))))
       ; no options at all: a first -- goes, as getopt's would, and the rest
       ; reach the parse behind a -- of its own, so each is an operand
       ((eq? label (lit none))
@@ -172,6 +182,46 @@
   (fn (_ values)
     (map (fn (_ v) (byte-at v 1))
          (filter (fn (_ v) (if (= (byte-len v) 2) (= (byte-at v 0) #\-) #f)) values))))
+
+; APPLET's ARGV with the value of its optional option cut off, and that value:
+; (ARGV . VALUE), VALUE nil where none was given.  The row's optional label
+; names the option's spellings, -X and --NAME; as getopt's X:: reads it, its
+; value is attached or nothing, -XVALUE or --NAME=VALUE, never the next word.
+(def cu-optional
+  (fn (_ applet argv)
+    (def spec (cu-spec-of applet))
+    (def flags (first spec))
+    (def values (first (rest spec)))
+    (def names (List ref 3 spec))
+    (def short (first names))
+    (def long (string-append (first (rest names)) "="))
+    (def k (byte-len long))
+    (let go ((l argv) (acc ()) (value ()))
+      (if (null? l) (pair (reverse acc) value)
+        (let ((w (first l)))
+          (def n (byte-len w))
+          (match
+            ((if (< n 2) #t (if (not (= (byte-at w 0) #\-)) #t (string=? w "--")))
+             (pair (append (reverse acc) l) value))
+            ((if (> n k) (string=? (substring w 0 k) long) #f)
+             (go (rest l) (pair (substring w 0 (- k 1)) acc) (substring w k n)))
+            ((= (byte-at w 1) #\-)
+             (if (if (cu-member-s? w values) (pair? (rest l)) #f)
+               (go (rest (rest l)) (pair (first (rest l)) (pair w acc)) value)
+               (go (rest l) (pair w acc) value)))
+            (#t
+             (let walk ((i 1))
+               (let ((opt (bytes->str (list 45 (byte-at w i)))))
+                 (match
+                   ((string=? opt short)
+                    (if (= (+ i 1) n) (go (rest l) (pair w acc) value)
+                      (go (rest l) (pair (substring w 0 (+ i 1)) acc) (substring w (+ i 1) n))))
+                   ((cu-member-s? opt values)
+                    (if (if (= (+ i 1) n) (pair? (rest l)) #f)
+                      (go (rest (rest l)) (pair (first (rest l)) (pair w acc)) value)
+                      (go (rest l) (pair w acc) value)))
+                   ((if (cu-member-s? opt flags) (< (+ i 1) n) #f) (walk (+ i 1)))
+                   (#t (go (rest l) (pair w acc) value))))))))))))
 
 ; the 4s and 6s APPLET's ARGV gives, as the families label parses them
 (def cu-families
@@ -402,7 +452,7 @@
           (sys-exit (cu-run argv ""))
           (sys-exit (cu-dispatch h (first argv) (rest argv) stdin-thunk)))))))
 
-(provide cu/cli cu-applets! cu-dispatch cu-extra-operand cu-families
-  cu-find-applet cu-last-given cu-last-valued cu-main cu-missing-file-operand
-  cu-missing-operand cu-operands cu-opts cu-refuse-option cu-run cu-spec-of
-  cu-string-stdin cu-usage)
+(provide cu/cli cu-applets! cu-declaration cu-dispatch cu-extra-operand
+  cu-families cu-find-applet cu-last-given cu-last-valued cu-main
+  cu-missing-file-operand cu-missing-operand cu-operands cu-optional cu-opts
+  cu-refuse-option cu-run cu-spec-of cu-string-stdin cu-usage)

@@ -198,6 +198,7 @@ a line:**
     tty
     ttysize
     tunctl
+    udhcpc
     udhcpd
     udpsvd
     unexpand
@@ -387,6 +388,7 @@ The applets tested there so far:
 - `taskset`
 - `traceroute`
 - `tunctl`
+- `udhcpc`
 - `udhcpd`
 - `unshare`
 - `vconfig`
@@ -507,7 +509,8 @@ The applets tested there so far:
     cu/tree.x         tree: the directories drawn, as busybox draws them
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
-    cu/udhcp.x        the DHCP layer udhcpd shares: options, packets, sockets, the ARP probe
+    cu/udhcp.x        the DHCP layer udhcpd and udhcpc share: options, packets, sockets, the ARP probe
+    cu/udhcpc.x       udhcpc: busybox's DHCP client, a lease asked for, bound, renewed and released
     cu/udhcpd.x       udhcpd: busybox's DHCP server, leases offered, ACKed and written out
     cu/unshare.x      unshare: PROG run in new namespaces, bound to files, as root in a user namespace
     cu/unzip.x        unzip: ZIP archives listed, tested and extracted, deflate through Zlib's streams

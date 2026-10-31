@@ -201,6 +201,7 @@ the work.  Applet parity is the other axis: see the README.
 | `tty` | -s | -s |  | 100% |
 | `ttysize` |  |  |  | - |
 | `tunctl` | -f -t -d -u -g -b | -b -f -t -d -u -g |  | 100% |
+| `udhcpc` | -C -V -F -i -n -p -q -R -r -s -T -t -S -A -O -o -x -f -B -b -a -v --clientid-none --vendorclass --fqdn --interface --now --pidfile --quit --release --request --script --timeout --retries --tryagain --syslog --request-option --no-default-options --foreground --background --broadcast --arping | -C --clientid-none -n --now -q --quit -R --release -S --syslog -o --no-default-options -f --foreground -b --background -B --broadcast -a --arping -v -V --vendorclass -F --fqdn -i --interface -p --pidfile -r --request -s --script -T --timeout -t --retries -A --tryagain -O --request-option -x |  | 100% |
 | `udhcpd` | -f -S -I -v -a | -f -S -v -I -a |  | 100% |
 | `udpsvd` | -h -E -v -c -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -m -n -r -s -p -v -i -o |  | 100% |
