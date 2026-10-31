@@ -38,6 +38,7 @@ the work.  Applet parity is the other axis: see the README.
 | `dc` | -x -e -f | -x -e -f |  | 100% |
 | `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= ibs= obs= count= skip= seek= status= conv= iflag= oflag= |  | 100% |
 | `df` | -P -k -m -h -T -a -i -B | -P -k -m -h -T -a -i -B |  | 100% |
+| `dhcprelay` |  |  |  | - |
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -a -b -B -d -i -N -q -r -T -s -t -w -U -L -S |  | 100% |
 | `dirname` |  |  |  | - |
 | `dnsd` | -d -v -s -c -t -p -i | -d -v -s -c -t -p -i |  | 100% |

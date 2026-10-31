@@ -27,6 +27,7 @@
 (import cu/date cu-date cu-date-fmt cu-date-moment cu-date-mon-abbr cu-date-of
   cu-date-split cu-date-today)
 (import cu/dc cu-dc)
+(import cu/dhcprelay cu-dhcprelay)
 (import cu/diff cu-diff cu-diff-dir cu-diff-str)
 (import cu/diff-lex cu-dl-lines)
 (import cu/dns cu-nslookup ns-bytes ns-drop ns-hex ns-name ns-u16)
