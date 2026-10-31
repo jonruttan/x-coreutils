@@ -93,7 +93,11 @@
 ; on the byte doors (x-lang#1124), at about a twentieth of the cost a call the
 ; walkers (du, find, ls -R, cp -r, chmod -R, chown -R, diff -r) paid.
 ;
+; v0.43.0: Syntax for-file reads a modeline or a #! line in the text it is
+; given, and a lang bundle's lang.xon grammars are x/tool/syntax's catalogue
+; (x-lang#1129), which vi's syntax option draws with (cu/vi-syntax.x).
+;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.42.0")
+(requires-release "v0.43.0")
 
 (entry "run.x")

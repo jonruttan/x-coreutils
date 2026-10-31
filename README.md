@@ -328,7 +328,7 @@ Self-contained: no `(requires-lang ...)`.
     bundle will not invent; and `sha3sum`, which needs no door and is
     not written.
 
-Paired with x-lang v0.42.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.43.0 (`lang.xon` is the checkable row).
 
 ## Try it
 

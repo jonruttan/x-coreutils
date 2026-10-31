@@ -164,6 +164,123 @@ status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8 synta
 colours 3
 ```
 
+## The file's grammar
+
+### a #! line names the grammar when the name does not
+
+```cu
+(vi-case "build" "#!/usr/bin/env x\n(def x 1)\n" (list (string-append ":set sy" cr)))
+```
+---
+```output
+|#!/usr/bin/env x
+|(def x 1)
+|~
+|~
+|~
+:IIIIIIIIIIIIII I
+:JEEE I DJ
+:
+:
+:
+status - /tmp/x-cu-vsy/build 1/2 50%
+colours 5
+```
+
+### a modeline names the grammar over the name
+
+```cu
+(vi-case "f.txt" "(def x 1)\n; vi: set ft=x:\n" (list (string-append ":set sy" cr)))
+```
+---
+```output
+|(def x 1)
+|; vi: set ft=x:
+|~
+|~
+|~
+:JEEE I DJ
+:AAAAAAAAAAAAAAA
+:
+:
+:
+status - /tmp/x-cu-vsy/f.txt 1/2 50%
+colours 4
+```
+
+### syntax=NAME draws in that grammar, and :set lists its name
+
+```cu
+(vi-case "f.txt" "(def x 1)\n" (list (string-append ":set syntax=x" cr) (string-append ":set" cr)) 80)
+```
+---
+```output
+|(def x 1)
+|~
+|~
+|~
+|~
+:JEEE I DJ
+:
+:
+:
+:
+status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8 syntax=x
+colours 5
+```
+
+### syntax goes back to the file's grammar, nosyntax turns colour off
+
+```cu
+(vi-case "f.txt" "(def x 1)\n" (list (string-append ":set sy=x" cr) (string-append ":set sy" cr)))
+(vi-case "f.txt" "(def x 1)\n" (list (string-append ":set sy=x" cr) (string-append ":set nosy" cr) (string-append ":set" cr)) 80)
+```
+---
+```output
+|(def x 1)
+|~
+|~
+|~
+|~
+no cells
+status - /tmp/x-cu-vsy/f.txt 1/1 100%
+colours 3
+|(def x 1)
+|~
+|~
+|~
+|~
+no cells
+status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8
+colours 5
+```
+
+### a grammar no one knows, or nosyntax with a name, is a bad option
+
+```cu
+(vi-case "f.x" "x\n" (list (string-append ":set syntax=nope" cr)))
+(vi-case "f.x" "x\n" (list (string-append ":set nosy=x" cr)))
+```
+---
+```output
+|x
+|~
+|~
+|~
+|~
+no cells
+status bad option: syntax=nope
+colours 2
+|x
+|~
+|~
+|~
+|~
+no cells
+status bad option: nosy=x
+colours 2
+```
+
 ## :set theme
 
 ### theme=NAME draws the screen again in that theme

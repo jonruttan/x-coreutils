@@ -76,7 +76,13 @@
       (list (%vi-no %vi-ai) "autoindent " (%vi-no %vi-et) "expandtab "
             (%vi-no %vi-fl) "flash " (%vi-no %vi-ic) "ignorecase "
             (%vi-no %vi-sm) "showmatch tabstop=" (%vi-num->str %vi-tabstop)
-            (if (%vi-opt? %vi-sy) (string-append " syntax" (%vi-theme-shown)) "")))))
+            (if (%vi-opt? %vi-sy) (string-append " syntax" (%vi-grammar-shown) (%vi-theme-shown)) "")))))
+; =NAME, only for a grammar syntax=NAME named
+(def %vi-grammar-shown
+  (fn (_)
+    (def g %vi-grammar-set)
+    (def name (if (null? g) () (g name)))
+    (if (null? name) "" (string-append "=" (cvt name cu-string-type)))))
 ; theme=NAME, only for a theme other than the default
 (def %vi-theme-shown
   (fn (_)
@@ -93,7 +99,7 @@
       ())))
 
 ; busybox's setops: WORD names an option, with `no` before it to clear it;
-; only tabstop and theme take =
+; only tabstop, syntax and theme take =
 (def %vi-setops!
   (fn (_ word)
     (def no (if (vi< 1 (byte-len word)) (string=? (vi-bsub word 0 2) "no") #f))
@@ -105,6 +111,7 @@
       ((= bit 0) (%vi-bad-option word))
       ((= bit %vi-ts) (%vi-set-tabstop word (if no -1 eq)))
       ((= bit %vi-th) (%vi-set-theme word (if no -1 eq)))
+      ((= bit %vi-sy) (%vi-set-syntax word no eq))
       ((vi< -1 eq) (%vi-bad-option word))
       (no (set! %vi-setops (if (%vi-opt? bit) (vi- %vi-setops bit) %vi-setops)))
       (#t (set! %vi-setops (if (%vi-opt? bit) %vi-setops (vi+ %vi-setops bit)))))))
@@ -135,6 +142,19 @@
                                %vi-symbol-type))))
     (if (null? t) (%vi-bad-option word) (Theme use! t))))
 (def %vi-symbol-type (Type named SYMBOL))
+
+; sy colours by the file's grammar, sy=NAME by the grammar of that name
+; x/tool/syntax knows, its own or a lang bundle's; nosy turns colour off
+(def %vi-set-syntax
+  (fn (_ word no eq)
+    (def g (if (vi< eq 0) ()
+             (Syntax named (cvt (vi-bsub word (vi+ eq 1) (vi- (byte-len word) (vi+ eq 1)))
+                                %vi-symbol-type))))
+    (match
+      ((if (vi< eq 0) #f (if no #t (null? g))) (%vi-bad-option word))
+      (#t (do (set! %vi-grammar-set g)
+              (set! %vi-setops (vi- %vi-setops (vi& %vi-setops %vi-sy)))
+              (if no () (set! %vi-setops (vi+ %vi-setops %vi-sy))))))))
 
 ; the number at I of S as busybox's bb_strtou reads it: a digit or a letter
 ; first, and no digit or letter after the digits; -1 when it is not one.
