@@ -7,8 +7,9 @@
 ; @license MIT No Attribution (MIT-0)
 ;
 ; With the option syntax (sy) set, the screen is drawn in the colours of the
-; grammar x/tool/syntax has for the file's name.  Each row on the screen has a
-; row of cells beside its text, one a column: 64 plus the index of the
+; grammar x/tool/syntax has for the file: the one its modeline names, else its
+; #! line's, else its name's; syntax=NAME names one.  Each row on the screen
+; has a row of cells beside its text, one a column: 64 plus the index of the
 ; column's class, or a space for none (Syntax cells).  A row is written again
 ; where its text or its cells differ from what the screen shows, an SGR
 ; sequence before each run of one class and a reset after it.
@@ -29,6 +30,7 @@
 ; The grammar for the file being edited, found again when the name changes.
 (def %vi-grammar-name ())
 (def %vi-grammar ())
+(def %vi-grammar-set ())   ; the grammar :set syntax=NAME names, nil for the file's
 
 ; A run starts in the theme the user's theme file names, whatever an earlier
 ; run set with :set theme=NAME.
@@ -40,6 +42,7 @@
     (set! %vi-drawn-theme ())
     (set! %vi-grammar-name ())
     (set! %vi-grammar ())
+    (set! %vi-grammar-set ())
     (Theme forget!)))
 
 ; Whether the colours on the screen are not the ones SY would draw: syntax
@@ -52,16 +55,28 @@
       (#t (not (eq? %vi-drawn-theme (Theme current)))))))
 
 ; the grammar to draw with, or nil when the option is off or none is the
-; file's
+; file's: the one :set syntax=NAME names, else the one for the file's name and
+; its first and last lines, where a modeline or a #! line is
 (def %vi-syntax
   (fn (_)
     (match
       ((not (%vi-opt? %vi-sy)) ())
+      ((not (null? %vi-grammar-set)) %vi-grammar-set)
       ((null? %vi-filename) ())
       ((eq? %vi-filename %vi-grammar-name) %vi-grammar)
       (#t (do (set! %vi-grammar-name %vi-filename)
-              (set! %vi-grammar (Syntax for-file %vi-filename))
+              (set! %vi-grammar (Syntax for-file %vi-filename (%vi-text-ends)))
               %vi-grammar)))))
+
+; The text's first five lines and its last five, all of it when they meet:
+; the lines vi reads a modeline in.
+(def %vi-text-ends
+  (fn (_)
+    (def head (if (vi< 0 %vi-end) (vi+ (%vi-end-line (%vi-next-lines 0 4)) 1) 0))
+    (def tail (if (vi< 0 %vi-end) (%vi-prev-lines (%vi-begin-line (vi- %vi-end 1)) 4) 0))
+    (if (vi< head tail)
+      (string-append (vi-bsub %vi-text 0 head) (vi-bsub %vi-text tail (vi- %vi-end tail)))
+      (vi-bsub %vi-text 0 %vi-end))))
 
 ; --- the cells --------------------------------------------------------------
 
