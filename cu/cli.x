@@ -110,7 +110,7 @@
         (Opts parse flags values (List ref 2 (fu-args argv #f (cu-value-letters values)))))
       ; options up to the first word that is not a cluster of the flags; each
       ; letter reaches the parse as a word of its own, so the flags are listed
-      ; in the order given (the parse reverses a cluster's), and the rest come
+      ; in the order given, and the rest come
       ; behind a -- of its own
       ((eq? label (lit known))
         (let ((split (%cu-known-flags flags argv ())))
@@ -261,8 +261,7 @@
 
 ; Of FLAGS, the one given last, or nil: for flags where a later one overrides an
 ; earlier, as chmod's -v overrides -c.  The parse lists the flags it saw in the
-; order given, except that it reverses the letters of one cluster, so -cv reads
-; as -vc.
+; order given, a cluster's letters left to right.
 (def cu-last-given
   (fn (_ o flags)
     (%cu-last-given-in (Assoc get (lit on) o) flags ())))
