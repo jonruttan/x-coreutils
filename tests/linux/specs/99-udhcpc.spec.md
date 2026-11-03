@@ -84,16 +84,25 @@ status and the script's log are compared.
           (inet-set! sll 0 17 2) (inet-set! sll 2 8 1) (inet-set! sll 4 if0 4)
           (cu-ptr-call (cu-libc-sym "bind") s (cu-str->ptr sll) 20)
           (def b (inet-zeros 2048))
-          (let go ((as answers))
+          ; on a slow machine an answer takes longer to make than the
+          ; client's -T, and a copy of the request waits behind it; read
+          ; within half a second of the answer, the copy is passed over, as
+          ; answering it would hand the client the next answer.  LAST is
+          ; (XID TYPE MS) of the request last answered
+          (let go ((as answers) (last (list -1 -1 0)))
             (unless (null? as)
               (let ((n (in-call (cu-ptr-call (cu-libc-sym "recv") s (cu-str->ptr b) 2048 0))))
                 (if (if (>= n 28) (if (= (& (byte-at b 9) 255) 17) (= (pn-be16 (cu-str->ptr b) 22) 67) #f) #f)
                   (let ((req (ud-zeros 628)))
                     (do (cu-ptr-call (cu-libc-sym "memcpy") (cu-str->ptr req) (+ (td-ptr->int (cu-str->ptr b)) 28) (- n 28))
-                        (map (fn (_ p) (ud-send-raw p (lc-ip "10.11.0.1") 67 4294967295 68 (list 255 255 255 255 255 255) if0))
-                             ((first as) req))
-                        (go (rest as))))
-                  (go as)))))
+                        (def rx (ud-be32 req ud-xid))
+                        (def rt (let ((o (ud-get-option req 53))) (if (null? o) 0 (ud-byte req (first o)))))
+                        (if (if (= rx (first last)) (if (= rt (cu-nth 1 last)) (< (- (ud-ms) (cu-nth 2 last)) 500) #f) #f)
+                          (go as last)
+                          (do (map (fn (_ p) (ud-send-raw p (lc-ip "10.11.0.1") 67 4294967295 68 (list 255 255 255 255 255 255) if0))
+                                   ((first as) req))
+                              (go (rest as) (list rx rt (ud-ms)))))))
+                  (go as last)))))
           (let forever () (do (sys-usleep 1000000) (forever))))))
     (def lc-conf (fn (_ extra)
       (%str-concat (list "interface uc0\nstart 10.11.0.20\nend 10.11.0.30\nlease_file /tmp/uc-leases\n"
@@ -151,6 +160,10 @@ status and the script's log are compared.
           (def srv (lc-server server))
           (def pid (lc-client side (append (list "-i" "uc1" "-s" "/tmp/uc-script.sh" "-T" "1") args)))
           (map (fn (_ s) (s pid)) steps)
+          ; a client still running after a minute is killed, so a run that
+          ; went wrong fails in its own case
+          (lc-sh (%str-concat (list "p=" (cu-int->str pid) "; i=0; while [ -e /proc/$p ] && ! grep -q ') Z' /proc/$p/stat"
+                                    " && [ $i -lt 600 ]; do sleep 0.1; i=$((i+1)); done; [ $i -lt 600 ] || kill -9 $p")))
           (def st (sys-wait pid))
           (def bg (lc-background))
           (sys-kill srv 9)
