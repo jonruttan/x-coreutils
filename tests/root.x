@@ -241,6 +241,7 @@
   ud-strtou ud-taken ud-type-length ud-u16 ud-u32 ud-u8 ud-verbose
   ud-write-pidfile ud-xid ud-yiaddr ud-zeros)
 (import cu/udhcpc cu-udhcpc)
+(import cu/udhcpc6 cu-udhcpc6)
 (import cu/udhcpd cu-udhcpd)
 (import cu/unshare cu-unshare)
 (import cu/unzip cu-unzip)

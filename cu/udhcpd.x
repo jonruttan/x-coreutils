@@ -42,7 +42,7 @@
   ud-daemonize! ud-decline ud-die ud-discover ud-dotted ud-end ud-error
   ud-file ud-find-option ud-flags ud-get-option ud-get-option32 ud-giaddr
   ud-hlen ud-info ud-inform ud-listen ud-log1 ud-log2 ud-logging! ud-mac-text
-  ud-nak ud-now ud-offer ud-op ud-packet ud-perror ud-process-reset! ud-put!
+  ud-nak ud-now ud-offer ud-op ud-optflags ud-packet ud-perror ud-process-reset! ud-put!
   ud-read-interface ud-recv-kernel ud-release ud-remove-pidfile ud-request
   ud-same? ud-send-kernel ud-send-raw ud-siaddr ud-sname ud-spawn ud-status
   ud-str-bytes ud-str2nip ud-str2optset ud-strtou ud-taken ud-write-pidfile
@@ -121,7 +121,7 @@
                        (#t ()))))))))))
 
 (def %dd-optset
-  (fn (_ v) (let ((r (ud-str2optset v %dd-options))) (do (set! %dd-options (rest r)) (first r)))))
+  (fn (_ v) (let ((r (ud-str2optset v %dd-options ud-optflags #f))) (do (set! %dd-options (rest r)) (first r)))))
 
 ; the keywords: (NAME SETTER DEFAULT), the ones with a default first
 (def %dd-keywords
