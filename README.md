@@ -38,6 +38,7 @@ a line:**
     dc
     dd
     df
+    dhcprelay
     diff
     dirname
     dnsd
@@ -369,6 +370,7 @@ The applets tested there so far:
 - `arping`
 - `brctl`
 - `chrt`
+- `dhcprelay`
 - `ether-wake`
 - `ifconfig`
 - `ionice`
@@ -412,6 +414,7 @@ The applets tested there so far:
     cu/crypt.x        cryptpw and mkpasswd, and the pw_encrypt httpd's passwords go through, over x-lang's Crypt
     cu/date.x         date, and the strftime it needs
     cu/dc.x           dc: the arbitrary-precision stack calculator, on bc's numbers
+    cu/dhcprelay.x    dhcprelay: busybox's DHCP relay, requests to a server and its replies back by xid
     cu/diff-lex.x     which lines diff counts the same under -i -b -w
     cu/diff.x         diff, normal and unified formats (LCS by DP)
     cu/dns.x          nslookup: busybox's DNS client, its queries and replies in x
@@ -509,7 +512,7 @@ The applets tested there so far:
     cu/tree.x         tree: the directories drawn, as busybox draws them
     cu/tsort.x        tsort: Kahn's algorithm over busybox's array of nodes
     cu/tunctl.x       tunctl: TAP interfaces made persistent, owned and taken back through /dev/net/tun
-    cu/udhcp.x        the DHCP layer udhcpd and udhcpc share: options, packets, sockets, the ARP probe
+    cu/udhcp.x        the DHCP layer udhcpd, udhcpc and dhcprelay share: options, packets, sockets, the ARP probe
     cu/udhcpc.x       udhcpc: busybox's DHCP client, a lease asked for, bound, renewed and released
     cu/udhcpd.x       udhcpd: busybox's DHCP server, leases offered, ACKed and written out
     cu/unshare.x      unshare: PROG run in new namespaces, bound to files, as root in a user namespace

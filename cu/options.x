@@ -2660,6 +2660,14 @@
             (Opts hidden (Opts flag "-v" ""))))
         (lit optional)
         (list "-a" "--arping")))
+    ; busybox's dhcprelay reads no options: every word is an interface or
+    ; the server's address
+    (pair "dhcprelay"
+      (list
+        (Opts declare "dhcprelay" "CLIENT_IFACE[,CLIENT_IFACE2]... SERVER_IFACE [SERVER_IP]"
+          "Relay DHCP requests between clients and server.\nWithout SERVER_IP, requests are broadcast on SERVER_IFACE."
+          (list))
+        (lit none)))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list
