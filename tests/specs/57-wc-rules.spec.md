@@ -13,7 +13,7 @@ expected output is GNU's wc's for the same files.
 ### separators, bytes that do not print, tabs, and a NUL
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-wcr && mkdir -p /tmp/x-cu-wcr && cd /tmp/x-cu-wcr && printf 'a\\rb\\nab\\rc\\nabc\\fd\\na\\vb\\n' > seps && printf '\\001\\002 a\\001b \\377\\n' > unprint && printf 'a\\tb\\n\\tx\\nabcdefgh\\ty\\n' > tabs && printf 'x\\000y z\\n' > nul && printf 'a\\240b \\240c\\240\\n' > nbsp")) (display (map (fn (_ n) (%cu-stat-get (file-stat-full (string-append "/tmp/x-cu-wcr/" n)) (lit size))) (list "seps" "unprint" "tabs" "nul" "nbsp"))))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-wcr && mkdir -p /tmp/x-cu-wcr && cd /tmp/x-cu-wcr && printf 'a\\rb\\nab\\rc\\nabc\\fd\\na\\vb\\n' > seps && printf '\\001\\002 a\\001b \\377\\n' > unprint && printf 'a\\tb\\n\\tx\\nabcdefgh\\ty\\n' > tabs && printf 'x\\000y z\\n' > nul && printf 'a\\240b \\240c\\240\\n' > nbsp")) (display (map (fn (_ n) (cu-stat-get (file-stat-full (string-append "/tmp/x-cu-wcr/" n)) (lit size))) (list "seps" "unprint" "tabs" "nul" "nbsp"))))
 ```
 ---
     (19 9 18 6 8)

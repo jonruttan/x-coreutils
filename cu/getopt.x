@@ -25,18 +25,26 @@
 
 ; ARG quoted for the shell: in single quotes, a quote as '\''; for tcsh a
 ; newline as \n and a ! or blank backslashed outside the quotes too
+(module cu/getopt)
+
+(import cu/cli cu-opts)
+(import cu/dump dp-find dp-in? dp-skip-in)
+(import cu/prims append byte-at byte-len cu-member-s? cu-nth file-write filter
+  map reverse string-append string=? substring sys-getenv vec-build vec-ref)
+(import cu/tsort ts-space?)
+
 (def %go-quote
   (fn (_ arg tcsh)
     (def n (byte-len arg))
     (def go
       (fn (self i acc)
-        (if (>= i n) (string-concat (reverse (pair "'" acc)))
+        (if (>= i n) (%str-concat (reverse (pair "'" acc)))
           (let ((c (byte-at arg i)))
             (self (+ i 1)
               (pair (match
                       ((if tcsh (= c #\newline) #f) "\\n")
-                      ((if (= c #\') #t (if tcsh (if (= c #\!) #t (%ts-space? c)) #f))
-                        (string-concat (list "'\\" (bytes->str (list c)) "'")))
+                      ((if (= c #\') #t (if tcsh (if (= c #\!) #t (ts-space? c)) #f))
+                        (%str-concat (list "'\\" (bytes->str (list c)) "'")))
                       (#t (bytes->str (list c))))
                     acc))))))
     (go 0 (list "'"))))
@@ -67,7 +75,7 @@
 (def %go-say
   (fn (_ g msg what)
     (if (%go-say? g)
-      (file-write 2 (string-concat (list (%go-name g) msg what "\n")))
+      (file-write 2 (%str-concat (list (%go-name g) msg what "\n")))
       ())))
 
 ; C's place in the short options: (TAKES . OPTIONAL?), or nil where it is
@@ -76,7 +84,7 @@
   (fn (_ g c)
     (def body (%go-body g))
     (def n (byte-len body))
-    (def at (%dp-find body 0 c))
+    (def at (dp-find body 0 c))
     (if (if (< at 0) #t (= c #\:)) ()
       (let ((takes (if (< (+ at 1) n) (= (byte-at body (+ at 1)) #\:) #f)))
         (pair takes (if takes (if (< (+ at 2) n) (= (byte-at body (+ at 2)) #\:) #f) #f))))))
@@ -146,20 +154,20 @@
         (if (= (- (rest m) dashes) 1) (not (null? (%go-short g (byte-at token 1)))) #f) #f))
     (match
       ((if one (not short-too) #f)
-        (let ((opt (%cu-nth (first m) (%go-longs g))) (at (rest m)))
+        (let ((opt (cu-nth (first m) (%go-longs g))) (at (rest m)))
           (let ((name (first opt)) (has (rest opt)) (eq (< at (byte-len token))))
             (match
               ((if eq (= has 0) #f)
                 (do (if (%go-colon g) () (%go-say g ": option does not take an argument: " name))
                     (list () 1 more)))
-              (eq (list (list (string-concat (list " --" name " " (%go-norm g (substring token (+ at 1) (byte-len token))))))
+              (eq (list (list (%str-concat (list " --" name " " (%go-norm g (substring token (+ at 1) (byte-len token))))))
                         0 more))
               ((= has 1)
                 (if (null? more)
                   (do (if (%go-colon g) () (%go-say g ": option requires an argument: " name))
                       (list () 1 more))
-                  (list (list (string-concat (list " --" name " " (%go-norm g (first more))))) 0 (rest more))))
-              ((= has 2) (list (list (string-concat (list " --" name " ''"))) 0 more))
+                  (list (list (%str-concat (list " --" name " " (%go-norm g (first more))))) 0 (rest more))))
+              ((= has 2) (list (list (%str-concat (list " --" name " ''"))) 0 more))
               (#t (list (list (string-append " --" name)) 0 more))))))
       ((= dashes 2)
         (do (if (%go-colon g) ()
@@ -191,11 +199,82 @@
                 (let ((r (if (if longs? (if (%go-alt g) #t (if (> (byte-len a) 2) (= (byte-at a 1) #\-) #f)) #f)
                            (%go-long g a (rest args)) ())))
                   (let ((r2 (if (null? r) (%go-cluster g a (rest args)) r)))
-                    (if (eq? (%cu-nth 2 r2) (lit stop))
+                    (if (eq? (cu-nth 2 r2) (lit stop))
                       (list (append (first r2) out) 1 ())
-                      (self (%cu-nth 2 r2) skipped (append (first r2) out)
-                        (if (= (%cu-nth 1 r2) 0) code 1)))))))))))
+                      (self (cu-nth 2 r2) skipped (append (first r2) out)
+                        (if (= (cu-nth 1 r2) 0) code 1)))))))))))
     (go params () () 0)))
+
+; --- busybox's getopt32long -------------------------------------------------------
+
+; A cluster TOKEN of short options, its later words MORE, as an applet reads
+; it: (TAKEN MORE-AFTER REFUSAL), TAKEN its (KEY . VALUE)s newest first
+(def %go-take-cluster
+  (fn (_ g token more)
+    (def n (byte-len token))
+    (def go
+      (fn (self i taken)
+        (if (>= i n) (list taken more ())
+          (let ((c (byte-at token i)) (s (%go-short g (byte-at token i))))
+            (let ((key (bytes->str (list c))))
+              (match
+                ((null? s) (list taken more (string-append "unrecognized option: " key)))
+                ((not (first s)) (self (+ i 1) (pair (pair key ()) taken)))
+                ((< (+ i 1) n) (list (pair (pair key (substring token (+ i 1) n)) taken) more ()))
+                ((rest s) (list (pair (pair key ()) taken) more ()))
+                ((null? more) (list taken more (string-append "option requires an argument: " key)))
+                (#t (list (pair (pair key (first more)) taken) (rest more) ()))))))))
+    (go 1 ())))
+
+; A long option TOKEN, LONGS its (NAME HAS KEY)s: as %go-take-cluster answers
+(def %go-take-long
+  (fn (_ g longs token more)
+    (def n (byte-len token))
+    (def m (%go-long-match g token 2))
+    (match
+      ((if (pair? m) (null? (rest m)) #t)
+        (list () more
+          (string-append (if (if (pair? m) (> (first m) 0) #f) "option is ambiguous: " "unrecognized option: ")
+            (substring token 2 n))))
+      (#t
+        (let ((opt (cu-nth (first m) longs)) (at (rest m)))
+          (let ((name (first opt)) (has (cu-nth 1 opt)) (key (cu-nth 2 opt)))
+            (match
+              ((if (< at n) (= has 0) #f)
+                (list () more (string-append "option does not take an argument: " name)))
+              ((< at n) (list (list (pair key (substring token (+ at 1) n))) more ()))
+              ((not (= has 1)) (list (list (pair key ())) more ()))
+              ((null? more) (list () more (string-append "option requires an argument: " name)))
+              (#t (list (list (pair key (first more))) (rest more) ())))))))))
+
+; ARGV read as busybox's getopt32long reads it, through musl's getopt_long:
+; OPTSTRING's short options, a : after a letter for an argument and :: for
+; one that may only follow it in its word, and LONGS, (NAME HAS KEY) each,
+; HAS 0 none, 1 an argument and 2 one only after a =, KEY what it reads as.
+; A + before OPTSTRING stops at the first operand.  Answers (TAKEN OPERANDS
+; REFUSAL): TAKEN the (KEY . VALUE)s in the order given, a short option's KEY
+; its letter, VALUE nil where none came; REFUSAL nil, or musl's words for
+; the option that stopped the reading, those before it taken.
+(def cu-getopt-long
+  (fn (_ optstr longs argv)
+    (def g (%go-settings optstr (map (fn (_ l) (pair (first l) (cu-nth 1 l))) longs) #f "" #f (lit none)))
+    (def go
+      (fn (self args taken skipped)
+        (def done (fn (_ ops why) (list (reverse taken) (append (reverse skipped) ops) why)))
+        (if (null? args) (done () ())
+          (let ((a (first args)))
+            (match
+              ((not (%go-option? a))
+                (if (eq? (%go-mode g) (lit stop)) (done args ()) (self (rest args) taken (pair a skipped))))
+              ((string=? a "--") (done (rest args) ()))
+              (#t
+                (let ((r (if (if (> (byte-len a) 2) (= (byte-at a 1) #\-) #f)
+                           (%go-take-long g longs a (rest args))
+                           (%go-take-cluster g a (rest args)))))
+                  (if (null? (cu-nth 2 r))
+                    (self (cu-nth 1 r) (append (first r) taken) skipped)
+                    (list (reverse (append (first r) taken)) () (cu-nth 2 r))))))))))
+    (go argv () ())))
 
 ; --- the applet -------------------------------------------------------------------
 
@@ -225,7 +304,7 @@
       (fn (self i start acc)
         (match
           ((>= i n) (reverse (pair (substring s start n) acc)))
-          ((%dp-in? (byte-at s i) seps) (self (+ i 1) (+ i 1) (pair (substring s start i) acc)))
+          ((dp-in? (byte-at s i) seps) (self (+ i 1) (+ i 1) (pair (substring s start i) acc)))
           (#t (self (+ i 1) start acc)))))
     (go 0 0 ())))
 
@@ -252,15 +331,15 @@
     (let ((r (%go-parse g params)))
       (do (if quiet ()
             (file-write 1
-              (string-concat
+              (%str-concat
                 (append (reverse (first r))
                   (pair " --"
-                    (append (map (fn (_ a) (string-append " " (%go-norm g a))) (%cu-nth 2 r))
+                    (append (map (fn (_ a) (string-append " " (%go-norm g a))) (cu-nth 2 r))
                             (list "\n")))))))
-          (%cu-nth 1 r)))))
+          (cu-nth 1 r)))))
 
 ; getopt [OPTIONS] [--] OPTSTRING PARAMS
-(def %cu-getopt
+(def cu-getopt
   (fn (_ argv stdin-thunk)
     (def compatible (not (null? (sys-getenv "GETOPT_COMPATIBLE"))))
     (match
@@ -271,18 +350,18 @@
       ((if compatible #t (not (if (> (byte-len (first argv)) 0) (= (byte-at (first argv) 0) #\-) #f)))
         (let ((s (first argv)))
           (%go-output
-            (%go-settings (substring s (%dp-skip-in s 0 "-+") (byte-len s)) () #f "getopt" #t (lit none))
+            (%go-settings (substring s (dp-skip-in s 0 "-+") (byte-len s)) () #f "getopt" #t (lit none))
             (rest argv) #f)))
       (#t (%go-main argv)))))
 
 (def %go-main
   (fn (_ argv)
-    (def o (%cu-opts "getopt" argv))
+    (def o (cu-opts "getopt" argv))
     (def on (fn (_ a b) (if (Opts on? o a) #t (Opts on? o b))))
     (def val (fn (_ a b) (let ((v (Opts value o a))) (if (null? v) (Opts value o b) v))))
     (def ops (Opts operands o))
     (def shell (val "-s" "--shell"))
-    (def tcsh (if (null? shell) #f (%cu-member-s? shell (list "tcsh" "csh"))))
+    (def tcsh (if (null? shell) #f (cu-member-s? shell (list "tcsh" "csh"))))
     (def longs
       (let ((go (fn (self ls acc)
                   (if (null? ls) acc
@@ -290,8 +369,8 @@
                       (if (null? r) (lit empty) (self (rest ls) r)))))))
         (go (append (Opts values o "-l") (Opts values o "--longoptions")) ())))
     (def optstr (val "-o" "--options"))
-    (do (if (if (null? shell) #f (not (%cu-member-s? shell (list "bash" "sh" "tcsh" "csh"))))
-          (file-write 2 (string-concat (list "getopt: unknown shell '" shell "', assuming bash\n")))
+    (do (if (if (null? shell) #f (not (cu-member-s? shell (list "bash" "sh" "tcsh" "csh"))))
+          (file-write 2 (%str-concat (list "getopt: unknown shell '" shell "', assuming bash\n")))
           ())
         (match
           ((eq? longs (lit empty)) (do (file-write 2 "getopt: empty long option specified\n") 1))
@@ -306,3 +385,5 @@
                 (match ((on "-u" "--unquoted") (lit none)) (tcsh (lit tcsh)) (#t (lit sh))))
               (if (null? optstr) (rest ops) ops)
               (on "-Q" "--quiet-output")))))))
+
+(provide cu/getopt cu-getopt cu-getopt-long)

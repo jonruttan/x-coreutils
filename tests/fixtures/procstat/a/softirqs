@@ -1,0 +1,5 @@
+                    CPU0       CPU1       
+          HI:          1          2
+       TIMER:     300000     200000
+      NET_RX:      50000      40000
+BLOCK_IOPOLL:          0          0

@@ -21,7 +21,7 @@ refuses it.
 ### a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-refuse && mkdir -p /tmp/x-cu-refuse")) (def nf (fn (_ n) (string-append "/tmp/x-cu-refuse/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n")))))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-refuse && mkdir -p /tmp/x-cu-refuse")) (def nf (fn (_ n) (string-append "/tmp/x-cu-refuse/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (%str-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
 ```
 ---
     made
@@ -3660,6 +3660,360 @@ Decompress to stdout
 status 1
 ```
 
+### unzip -~
+
+```cu
+(run (list "unzip" "-~") "")
+```
+---
+```output
+stderr:
+unzip: unrecognized option: ~
+Usage: unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]
+
+Extract FILEs from ZIP archive
+
+	-l	List contents (with -q for short form)
+	-n	Never overwrite files (default: ask)
+	-o	Overwrite
+	-j	Do not restore paths
+	-p	Write to stdout
+	-t	Test
+	-q	Quiet
+	-K	Do not clear SUID bit
+	-x FILE	Exclude FILEs
+	-d DIR	Extract into DIR
+status 1
+```
+
+### unzip --nope
+
+```cu
+(run (list "unzip" "--nope") "")
+```
+---
+```output
+stderr:
+unzip: unrecognized option: -
+Usage: unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]
+
+Extract FILEs from ZIP archive
+
+	-l	List contents (with -q for short form)
+	-n	Never overwrite files (default: ask)
+	-o	Overwrite
+	-j	Do not restore paths
+	-p	Write to stdout
+	-t	Test
+	-q	Quiet
+	-K	Do not clear SUID bit
+	-x FILE	Exclude FILEs
+	-d DIR	Extract into DIR
+status 1
+```
+
+### unzip -d
+
+```cu
+(run (list "unzip" "-d") "")
+```
+---
+```output
+stderr:
+unzip: option requires an argument: d
+Usage: unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]
+
+Extract FILEs from ZIP archive
+
+	-l	List contents (with -q for short form)
+	-n	Never overwrite files (default: ask)
+	-o	Overwrite
+	-j	Do not restore paths
+	-p	Write to stdout
+	-t	Test
+	-q	Quiet
+	-K	Do not clear SUID bit
+	-x FILE	Exclude FILEs
+	-d DIR	Extract into DIR
+status 1
+```
+
+### cpio -~
+
+```cu
+(run (list "cpio" "-~") "")
+```
+---
+```output
+stderr:
+cpio: unrecognized option: ~
+Usage: cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...
+
+Extract (-i) or list (-t) files from a cpio archive on stdin, or
+take file list from stdin and create an archive (-o) or copy files (-p)
+
+Main operation mode:
+	-t	List
+	-i	Extract EXTR_FILEs (or all)
+	-o	Create (requires -H newc)
+	-p DIR	Copy files to DIR
+Options:
+	-H newc	Archive format
+	-d	Make leading directories
+	-m	Restore mtime
+	-v	Verbose
+	-u	Overwrite
+	-F FILE	Input (-t,-i,-p) or output (-o) file
+	-R USER[:GRP]	Set owner of created files
+	-L	Dereference symlinks
+	-0	NUL terminated input
+	--ignore-devno
+	--renumber-inodes
+status 1
+```
+
+### cpio --nope
+
+```cu
+(run (list "cpio" "--nope") "")
+```
+---
+```output
+stderr:
+cpio: unrecognized option: nope
+Usage: cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...
+
+Extract (-i) or list (-t) files from a cpio archive on stdin, or
+take file list from stdin and create an archive (-o) or copy files (-p)
+
+Main operation mode:
+	-t	List
+	-i	Extract EXTR_FILEs (or all)
+	-o	Create (requires -H newc)
+	-p DIR	Copy files to DIR
+Options:
+	-H newc	Archive format
+	-d	Make leading directories
+	-m	Restore mtime
+	-v	Verbose
+	-u	Overwrite
+	-F FILE	Input (-t,-i,-p) or output (-o) file
+	-R USER[:GRP]	Set owner of created files
+	-L	Dereference symlinks
+	-0	NUL terminated input
+	--ignore-devno
+	--renumber-inodes
+status 1
+```
+
+### cpio -F
+
+```cu
+(run (list "cpio" "-F") "")
+```
+---
+```output
+stderr:
+cpio: option requires an argument: F
+Usage: cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...
+
+Extract (-i) or list (-t) files from a cpio archive on stdin, or
+take file list from stdin and create an archive (-o) or copy files (-p)
+
+Main operation mode:
+	-t	List
+	-i	Extract EXTR_FILEs (or all)
+	-o	Create (requires -H newc)
+	-p DIR	Copy files to DIR
+Options:
+	-H newc	Archive format
+	-d	Make leading directories
+	-m	Restore mtime
+	-v	Verbose
+	-u	Overwrite
+	-F FILE	Input (-t,-i,-p) or output (-o) file
+	-R USER[:GRP]	Set owner of created files
+	-L	Dereference symlinks
+	-0	NUL terminated input
+	--ignore-devno
+	--renumber-inodes
+status 1
+```
+
+### patch -~
+
+```cu
+(run (list "patch" "-~") "")
+```
+---
+```output
+stderr:
+patch: unrecognized option: ~
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
+### patch --nope
+
+```cu
+(run (list "patch" "--nope") "")
+```
+---
+```output
+stderr:
+patch: unrecognized option: nope
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
+### patch -p
+
+```cu
+(run (list "patch" "-p") "")
+```
+---
+```output
+stderr:
+patch: option requires an argument: p
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]
+
+	-p N	Strip N leading components from file names
+	-i DIFF	Read DIFF instead of stdin
+	-R	Reverse patch
+	-N	Ignore already applied patches
+	-E	Remove output files if they become empty
+	--dry-run	Don't actually change files
+status 1
+```
+
+### ed -~
+
+```cu
+(run (list "ed" "-~") "")
+```
+---
+```output
+stderr:
+ed: unrecognized option: ~
+Usage: ed [-p PROMPT] [-s] [FILE]
+status 1
+```
+
+### ed --nope
+
+```cu
+(run (list "ed" "--nope") "")
+```
+---
+```output
+stderr:
+ed: unrecognized option: nope
+Usage: ed [-p PROMPT] [-s] [FILE]
+status 1
+```
+
+### ed -p
+
+```cu
+(run (list "ed" "-p") "")
+```
+---
+```output
+stderr:
+ed: option requires an argument: p
+Usage: ed [-p PROMPT] [-s] [FILE]
+status 1
+```
+
+### dc -~
+
+```cu
+(run (list "dc" "-~") "")
+```
+---
+```output
+stderr:
+dc: unrecognized option: ~
+Usage: dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...
+
+Tiny RPN calculator. Operations:
+Arithmetic: + - * / % ^
+~ - divide with remainder
+| - modular exponentiation
+v - square root
+p - print top of the stack without popping
+f - print entire stack
+k - pop the value and set precision
+i - pop the value and set input radix
+o - pop the value and set output radix
+Examples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16
+status 1
+```
+
+### dc --nope
+
+```cu
+(run (list "dc" "--nope") "")
+```
+---
+```output
+stderr:
+dc: unrecognized option: -
+Usage: dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...
+
+Tiny RPN calculator. Operations:
+Arithmetic: + - * / % ^
+~ - divide with remainder
+| - modular exponentiation
+v - square root
+p - print top of the stack without popping
+f - print entire stack
+k - pop the value and set precision
+i - pop the value and set input radix
+o - pop the value and set output radix
+Examples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16
+status 1
+```
+
+### dc -e
+
+```cu
+(run (list "dc" "-e") "")
+```
+---
+```output
+stderr:
+dc: option requires an argument: e
+Usage: dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...
+
+Tiny RPN calculator. Operations:
+Arithmetic: + - * / % ^
+~ - divide with remainder
+| - modular exponentiation
+v - square root
+p - print top of the stack without popping
+f - print entire stack
+k - pop the value and set precision
+i - pop the value and set input radix
+o - pop the value and set output radix
+Examples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16
+status 1
+```
+
 ### hostname -~
 
 ```cu
@@ -3939,6 +4293,122 @@ Print or check SHA384 checksums
 	-c	Check sums against list in FILEs
 	-s	Don't output anything, status code shows success
 	-w	Warn about improperly formatted checksum lines
+status 1
+```
+
+### sha3sum -~
+
+```cu
+(run (list "sha3sum" "-~") "")
+```
+---
+```output
+stderr:
+sha3sum: unrecognized option: ~
+Usage: sha3sum [-c[sw]] [-a BITS] [FILE]...
+
+Print or check SHA3 checksums
+
+	-c	Check sums against list in FILEs
+	-s	Don't output anything, status code shows success
+	-w	Warn about improperly formatted checksum lines
+	-a BITS	224 (default), 256, 384, 512
+status 1
+```
+
+### sha3sum --nope
+
+```cu
+(run (list "sha3sum" "--nope") "")
+```
+---
+```output
+stderr:
+sha3sum: unrecognized option: nope
+Usage: sha3sum [-c[sw]] [-a BITS] [FILE]...
+
+Print or check SHA3 checksums
+
+	-c	Check sums against list in FILEs
+	-s	Don't output anything, status code shows success
+	-w	Warn about improperly formatted checksum lines
+	-a BITS	224 (default), 256, 384, 512
+status 1
+```
+
+### cryptpw -~
+
+```cu
+(run (list "cryptpw" "-~") "")
+```
+---
+```output
+stderr:
+cryptpw: unrecognized option: ~
+Usage: cryptpw [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]
+
+Print crypt(3) hashed PASSWORD
+
+	-P N	Read password from fd N
+	-m TYPE	des,md5,sha256/512 (default sha512)
+	-S SALT
+status 1
+```
+
+### cryptpw --nope
+
+```cu
+(run (list "cryptpw" "--nope") "")
+```
+---
+```output
+stderr:
+cryptpw: unrecognized option: nope
+Usage: cryptpw [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]
+
+Print crypt(3) hashed PASSWORD
+
+	-P N	Read password from fd N
+	-m TYPE	des,md5,sha256/512 (default sha512)
+	-S SALT
+status 1
+```
+
+### mkpasswd -~
+
+```cu
+(run (list "mkpasswd" "-~") "")
+```
+---
+```output
+stderr:
+mkpasswd: unrecognized option: ~
+Usage: mkpasswd [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]
+
+Print crypt(3) hashed PASSWORD
+
+	-P N	Read password from fd N
+	-m TYPE	des,md5,sha256/512 (default sha512)
+	-S SALT
+status 1
+```
+
+### mkpasswd --nope
+
+```cu
+(run (list "mkpasswd" "--nope") "")
+```
+---
+```output
+stderr:
+mkpasswd: unrecognized option: nope
+Usage: mkpasswd [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]
+
+Print crypt(3) hashed PASSWORD
+
+	-P N	Read password from fd N
+	-m TYPE	des,md5,sha256/512 (default sha512)
+	-S SALT
 status 1
 ```
 
@@ -5535,6 +6005,710 @@ UDPREMOTEHOST='hostname'
 status 1
 ```
 
+### tftpd -~
+
+```cu
+(run (list "tftpd" "-~") "")
+```
+---
+```output
+stderr:
+Usage: tftpd [-crl] [-u USER] [DIR]
+
+Transfer a file on tftp client's request
+
+tftpd is an inetd service, inetd.conf line:
+	69 dgram udp nowait root tftpd tftpd -l /files/to/serve
+Can be run from udpsvd:
+	udpsvd -vE 0.0.0.0 69 tftpd /files/to/serve
+
+	-r	Prohibit upload
+	-c	Allow file creation via upload
+	-u USER	Access files as USER
+	-l	Log to syslog (inetd mode requires this)
+status 1
+```
+
+### tftpd --nope
+
+```cu
+(run (list "tftpd" "--nope") "")
+```
+---
+```output
+stderr:
+Usage: tftpd [-crl] [-u USER] [DIR]
+
+Transfer a file on tftp client's request
+
+tftpd is an inetd service, inetd.conf line:
+	69 dgram udp nowait root tftpd tftpd -l /files/to/serve
+Can be run from udpsvd:
+	udpsvd -vE 0.0.0.0 69 tftpd /files/to/serve
+
+	-r	Prohibit upload
+	-c	Allow file creation via upload
+	-u USER	Access files as USER
+	-l	Log to syslog (inetd mode requires this)
+status 1
+```
+
+### dnsd -~
+
+```cu
+(run (list "dnsd" "-~") "")
+```
+---
+```output
+stderr:
+dnsd: unrecognized option: ~
+Usage: dnsd [-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]
+
+Small static DNS server daemon
+
+	-c FILE	Config file
+	-t SEC	TTL
+	-p PORT	Listen on PORT
+	-i ADDR	Listen on ADDR
+	-d	Daemonize
+	-v	Verbose
+	-s	Send successful replies only. Use this if you want
+		to use /etc/resolv.conf with two nameserver lines:
+			nameserver DNSD_SERVER
+			nameserver NORMAL_DNS_SERVER
+status 1
+```
+
+### dnsd --nope
+
+```cu
+(run (list "dnsd" "--nope") "")
+```
+---
+```output
+stderr:
+dnsd: unrecognized option: nope
+Usage: dnsd [-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]
+
+Small static DNS server daemon
+
+	-c FILE	Config file
+	-t SEC	TTL
+	-p PORT	Listen on PORT
+	-i ADDR	Listen on ADDR
+	-d	Daemonize
+	-v	Verbose
+	-s	Send successful replies only. Use this if you want
+		to use /etc/resolv.conf with two nameserver lines:
+			nameserver DNSD_SERVER
+			nameserver NORMAL_DNS_SERVER
+status 1
+```
+
+### inetd -~
+
+```cu
+(run (list "inetd" "-~") "")
+```
+---
+```output
+stderr:
+inetd: unrecognized option: ~
+Usage: inetd [-fe] [-q N] [-R N] [CONFFILE]
+
+Listen for network connections and launch programs
+
+	-f	Run in foreground
+	-e	Log to stderr
+	-q N	Socket listen queue (default 128)
+	-R N	Pause services after N connects/min
+		(default 0 - disabled)
+	Default CONFFILE is /etc/inetd.conf
+status 1
+```
+
+### inetd --nope
+
+```cu
+(run (list "inetd" "--nope") "")
+```
+---
+```output
+stderr:
+inetd: unrecognized option: nope
+Usage: inetd [-fe] [-q N] [-R N] [CONFFILE]
+
+Listen for network connections and launch programs
+
+	-f	Run in foreground
+	-e	Log to stderr
+	-q N	Socket listen queue (default 128)
+	-R N	Pause services after N connects/min
+		(default 0 - disabled)
+	Default CONFFILE is /etc/inetd.conf
+status 1
+```
+
+### fakeidentd -~
+
+```cu
+(run (list "fakeidentd" "-~") "")
+```
+---
+```output
+stderr:
+fakeidentd: unrecognized option: ~
+Usage: fakeidentd [-fiw] [-b ADDR] [STRING]
+
+Provide fake ident (auth) service
+
+	-f	Run in foreground
+	-i	Inetd mode
+	-w	Inetd 'wait' mode
+	-b ADDR	Bind to specified address
+	STRING	Ident answer string (default: nobody)
+status 1
+```
+
+### fakeidentd --nope
+
+```cu
+(run (list "fakeidentd" "--nope") "")
+```
+---
+```output
+stderr:
+fakeidentd: unrecognized option: nope
+Usage: fakeidentd [-fiw] [-b ADDR] [STRING]
+
+Provide fake ident (auth) service
+
+	-f	Run in foreground
+	-i	Inetd mode
+	-w	Inetd 'wait' mode
+	-b ADDR	Bind to specified address
+	STRING	Ident answer string (default: nobody)
+status 1
+```
+
+### telnet -~
+
+```cu
+(run (list "telnet" "-~") "")
+```
+---
+```output
+stderr:
+telnet: unrecognized option: ~
+Usage: telnet [-a] [-l USER] HOST [PORT]
+
+Connect to telnet server
+
+	-a	Automatic login with $USER envvar
+	-l USER	Automatic login as USER
+status 1
+```
+
+### telnet --nope
+
+```cu
+(run (list "telnet" "--nope") "")
+```
+---
+```output
+stderr:
+telnet: unrecognized option: nope
+Usage: telnet [-a] [-l USER] HOST [PORT]
+
+Connect to telnet server
+
+	-a	Automatic login with $USER envvar
+	-l USER	Automatic login as USER
+status 1
+```
+
+### telnetd -~
+
+```cu
+(run (list "telnetd" "-~") "")
+```
+---
+```output
+stderr:
+telnetd: unrecognized option: ~
+Usage: telnetd [OPTIONS]
+
+Handle incoming telnet connections
+
+	-l LOGIN	Exec LOGIN on connect (default /bin/login)
+	-f ISSUE_FILE	Display ISSUE_FILE instead of /etc/issue.net
+	-K		Close connection as soon as login exits
+			(normally wait until all programs close slave pty)
+	-p PORT		Port to listen on. Default 23
+	-b ADDR[:PORT]	Address to bind to
+	-F		Run in foreground
+	-i		Inetd mode
+	-w SEC		Inetd 'wait' mode, linger time SEC
+		inetd.conf line: 23 stream tcp wait root telnetd telnetd -w10
+	-S		Log to syslog (implied by -i or without -F and -w)
+	-v		Verbose
+status 1
+```
+
+### telnetd --nope
+
+```cu
+(run (list "telnetd" "--nope") "")
+```
+---
+```output
+stderr:
+telnetd: unrecognized option: nope
+Usage: telnetd [OPTIONS]
+
+Handle incoming telnet connections
+
+	-l LOGIN	Exec LOGIN on connect (default /bin/login)
+	-f ISSUE_FILE	Display ISSUE_FILE instead of /etc/issue.net
+	-K		Close connection as soon as login exits
+			(normally wait until all programs close slave pty)
+	-p PORT		Port to listen on. Default 23
+	-b ADDR[:PORT]	Address to bind to
+	-F		Run in foreground
+	-i		Inetd mode
+	-w SEC		Inetd 'wait' mode, linger time SEC
+		inetd.conf line: 23 stream tcp wait root telnetd telnetd -w10
+	-S		Log to syslog (implied by -i or without -F and -w)
+	-v		Verbose
+status 1
+```
+
+### makemime -~
+
+```cu
+(run (list "makemime" "-~") "")
+```
+---
+```output
+stderr:
+makemime: unrecognized option: ~
+Usage: makemime [OPTIONS] [FILE]...
+
+Create multipart MIME-encoded message from FILEs
+
+	-o FILE	Output. Default: stdout
+	-a HDR	Add header(s). Examples:
+		"From: user@host.org", "Date: `date -R`"
+	-c CT	Content type. Default: application/octet-stream
+	-C CS	Charset. Default: us-ascii
+
+Other options are silently ignored
+status 1
+```
+
+### makemime --nope
+
+```cu
+(run (list "makemime" "--nope") "")
+```
+---
+```output
+stderr:
+makemime: unrecognized option: nope
+Usage: makemime [OPTIONS] [FILE]...
+
+Create multipart MIME-encoded message from FILEs
+
+	-o FILE	Output. Default: stdout
+	-a HDR	Add header(s). Examples:
+		"From: user@host.org", "Date: `date -R`"
+	-c CT	Content type. Default: application/octet-stream
+	-C CS	Charset. Default: us-ascii
+
+Other options are silently ignored
+status 1
+```
+
+### reformime -~
+
+```cu
+(run (list "reformime" "-~") "")
+```
+---
+```output
+stderr:
+reformime: unrecognized option: ~
+Usage: reformime [OPTIONS]
+
+Parse MIME-encoded message on stdin
+
+	-x PREFIX	Extract content of MIME sections to files
+	-X PROG ARGS	Filter content of MIME sections through PROG
+			Must be the last option
+
+Other options are silently ignored
+status 1
+```
+
+### reformime --nope
+
+```cu
+(run (list "reformime" "--nope") "")
+```
+---
+```output
+stderr:
+reformime: unrecognized option: nope
+Usage: reformime [OPTIONS]
+
+Parse MIME-encoded message on stdin
+
+	-x PREFIX	Extract content of MIME sections to files
+	-X PROG ARGS	Filter content of MIME sections through PROG
+			Must be the last option
+
+Other options are silently ignored
+status 1
+```
+
+### sendmail -~
+
+```cu
+(run (list "sendmail" "-~") "")
+```
+---
+```output
+stderr:
+sendmail: unrecognized option: ~
+Usage: sendmail [-tv] [-f SENDER] [-amLOGIN 4<user_pass.txt | -auUSER -apPASS]
+		[-w SECS] [-H 'PROG ARGS' | -S HOST] [RECIPIENT_EMAIL]...
+
+Read email from stdin and send it
+
+Standard options:
+	-t		Read additional recipients from message body
+	-f SENDER	For use in MAIL FROM:<sender>. Can be empty string
+			Default: -auUSER, or username of current UID
+	-o OPTIONS	Various options. -oi implied, others are ignored
+	-i		-oi synonym, implied and ignored
+
+Busybox specific options:
+	-v		Verbose
+	-w SECS		Network timeout
+	-H 'PROG ARGS'	Run connection helper. Examples:
+		openssl s_client -quiet -tls1 -starttls smtp -connect smtp.gmail.com:25
+		openssl s_client -quiet -tls1 -connect smtp.gmail.com:465
+			$SMTP_ANTISPAM_DELAY: seconds to wait after helper connect
+	-S HOST[:PORT]	Server (default $SMTPHOST or 127.0.0.1)
+	-amLOGIN	Log in using AUTH LOGIN
+	-amPLAIN	or AUTH PLAIN
+			(-amCRAM-MD5 not supported)
+	-auUSER		Username for AUTH
+	-apPASS 	Password for AUTH
+
+If no -a options are given, authentication is not done.
+If -amLOGIN is given but no -au/-ap, user/password is read from fd #4.
+Other options are silently ignored; -oi is implied.
+Use makemime to create emails with attachments.
+status 1
+```
+
+### sendmail --nope
+
+```cu
+(run (list "sendmail" "--nope") "")
+```
+---
+```output
+stderr:
+sendmail: unrecognized option: nope
+Usage: sendmail [-tv] [-f SENDER] [-amLOGIN 4<user_pass.txt | -auUSER -apPASS]
+		[-w SECS] [-H 'PROG ARGS' | -S HOST] [RECIPIENT_EMAIL]...
+
+Read email from stdin and send it
+
+Standard options:
+	-t		Read additional recipients from message body
+	-f SENDER	For use in MAIL FROM:<sender>. Can be empty string
+			Default: -auUSER, or username of current UID
+	-o OPTIONS	Various options. -oi implied, others are ignored
+	-i		-oi synonym, implied and ignored
+
+Busybox specific options:
+	-v		Verbose
+	-w SECS		Network timeout
+	-H 'PROG ARGS'	Run connection helper. Examples:
+		openssl s_client -quiet -tls1 -starttls smtp -connect smtp.gmail.com:25
+		openssl s_client -quiet -tls1 -connect smtp.gmail.com:465
+			$SMTP_ANTISPAM_DELAY: seconds to wait after helper connect
+	-S HOST[:PORT]	Server (default $SMTPHOST or 127.0.0.1)
+	-amLOGIN	Log in using AUTH LOGIN
+	-amPLAIN	or AUTH PLAIN
+			(-amCRAM-MD5 not supported)
+	-auUSER		Username for AUTH
+	-apPASS 	Password for AUTH
+
+If no -a options are given, authentication is not done.
+If -amLOGIN is given but no -au/-ap, user/password is read from fd #4.
+Other options are silently ignored; -oi is implied.
+Use makemime to create emails with attachments.
+status 1
+```
+
+### popmaildir -~
+
+```cu
+(run (list "popmaildir" "-~") "")
+```
+---
+```output
+stderr:
+popmaildir: unrecognized option: ~
+Usage: popmaildir [OPTIONS] MAILDIR [CONN_HELPER ARGS]
+
+Fetch content of remote mailbox to local maildir
+
+	-s		Skip authorization
+	-T		Get messages with TOP instead of RETR
+	-k		Keep retrieved messages on the server
+	-t SEC		Network timeout
+	-F 'PROG ARGS'	Filter program (may be repeated)
+	-M 'PROG ARGS'	Delivery program
+
+Fetch from plain POP3 server:
+popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt
+Fetch from SSLed POP3 server and delete fetched emails:
+popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt
+status 1
+```
+
+### popmaildir --nope
+
+```cu
+(run (list "popmaildir" "--nope") "")
+```
+---
+```output
+stderr:
+popmaildir: unrecognized option: nope
+Usage: popmaildir [OPTIONS] MAILDIR [CONN_HELPER ARGS]
+
+Fetch content of remote mailbox to local maildir
+
+	-s		Skip authorization
+	-T		Get messages with TOP instead of RETR
+	-k		Keep retrieved messages on the server
+	-t SEC		Network timeout
+	-F 'PROG ARGS'	Filter program (may be repeated)
+	-M 'PROG ARGS'	Delivery program
+
+Fetch from plain POP3 server:
+popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt
+Fetch from SSLed POP3 server and delete fetched emails:
+popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt
+status 1
+```
+
+### ntpd -~
+
+```cu
+(run (list "ntpd" "-~") "")
+```
+---
+```output
+stderr:
+ntpd: unrecognized option: ~
+Usage: ntpd [-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]...
+
+NTP client/server
+
+	-d[d]	Verbose
+	-n	Run in foreground
+	-q	Quit after clock is set
+	-N	Run at high priority
+	-w	Do not set time (only query peers), implies -n
+	-S PROG	Run PROG after stepping time, stratum change, and every 11 min
+	-k FILE	Key file (ntp.keys compatible)
+	-p [keyno:NUM:]PEER
+		Obtain time from PEER (may be repeated)
+		Use key NUM for authentication
+		If -p is not given, 'server HOST' lines
+		from /etc/ntp.conf are used
+	-l	Also run as server on port 123
+	-I IFACE Bind server to IFACE, implies -l
+status 1
+```
+
+### ntpd --nope
+
+```cu
+(run (list "ntpd" "--nope") "")
+```
+---
+```output
+stderr:
+ntpd: unrecognized option: nope
+Usage: ntpd [-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]...
+
+NTP client/server
+
+	-d[d]	Verbose
+	-n	Run in foreground
+	-q	Quit after clock is set
+	-N	Run at high priority
+	-w	Do not set time (only query peers), implies -n
+	-S PROG	Run PROG after stepping time, stratum change, and every 11 min
+	-k FILE	Key file (ntp.keys compatible)
+	-p [keyno:NUM:]PEER
+		Obtain time from PEER (may be repeated)
+		Use key NUM for authentication
+		If -p is not given, 'server HOST' lines
+		from /etc/ntp.conf are used
+	-l	Also run as server on port 123
+	-I IFACE Bind server to IFACE, implies -l
+status 1
+```
+
+### dumpleases -~
+
+```cu
+(run (list "dumpleases" "-~") "")
+```
+---
+```output
+stderr:
+dumpleases: unrecognized option: ~
+Usage: dumpleases [-r|-a] [-d] [-f LEASEFILE]
+
+Display DHCP leases granted by udhcpd
+
+	-f FILE	Lease file
+	-r	Show remaining time
+	-a	Show expiration time
+	-d	Show time in seconds
+status 1
+```
+
+### dumpleases --nope
+
+```cu
+(run (list "dumpleases" "--nope") "")
+```
+---
+```output
+stderr:
+dumpleases: unrecognized option: nope
+Usage: dumpleases [-r|-a] [-d] [-f LEASEFILE]
+
+Display DHCP leases granted by udhcpd
+
+	-f FILE	Lease file
+	-r	Show remaining time
+	-a	Show expiration time
+	-d	Show time in seconds
+status 1
+```
+
+### ssl_client -~
+
+```cu
+(run (list "ssl_client" "-~") "")
+```
+---
+```output
+stderr:
+ssl_client: unrecognized option: ~
+Usage: ssl_client [-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }
+status 1
+```
+
+### ssl_client --nope
+
+```cu
+(run (list "ssl_client" "--nope") "")
+```
+---
+```output
+stderr:
+ssl_client: unrecognized option: nope
+Usage: ssl_client [-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }
+status 1
+```
+
+### ssl_server -~
+
+```cu
+(run (list "ssl_server" "-~") "")
+```
+---
+```output
+stderr:
+ssl_server: unrecognized option: ~
+Usage: ssl_server -f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server
+
+	-f PEMFILE	HAProxy-style CRT file
+status 1
+```
+
+### ssl_server --nope
+
+```cu
+(run (list "ssl_server" "--nope") "")
+```
+---
+```output
+stderr:
+ssl_server: unrecognized option: nope
+Usage: ssl_server -f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server
+
+	-f PEMFILE	HAProxy-style CRT file
+status 1
+```
+
+### pscan -~
+
+```cu
+(run (list "pscan" "-~") "")
+```
+---
+```output
+stderr:
+pscan: unrecognized option: ~
+Usage: pscan [-cb] [-p MIN_PORT] [-P MAX_PORT] [-t TIMEOUT] [-T MIN_RTT] HOST
+
+Scan HOST, print all open ports
+
+	-c	Show closed ports too
+	-b	Show blocked ports too
+	-p PORT	Scan from this port (default 1)
+	-P PORT	Scan up to this port (default 1024)
+	-t MS	Timeout (default 5000 ms)
+	-T MS	Minimum rtt (default 5 ms)
+status 1
+```
+
+### pscan --nope
+
+```cu
+(run (list "pscan" "--nope") "")
+```
+---
+```output
+stderr:
+pscan: unrecognized option: nope
+Usage: pscan [-cb] [-p MIN_PORT] [-P MAX_PORT] [-t TIMEOUT] [-T MIN_RTT] HOST
+
+Scan HOST, print all open ports
+
+	-c	Show closed ports too
+	-b	Show blocked ports too
+	-p PORT	Scan from this port (default 1)
+	-P PORT	Scan up to this port (default 1024)
+	-t MS	Timeout (default 5000 ms)
+	-T MS	Minimum rtt (default 5 ms)
+status 1
+```
+
 ### httpd -c
 
 ```cu
@@ -5662,6 +6836,101 @@ nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen
 	-v	Verbose
 	-o FILE	Hex dump traffic
 	-z	Zero-I/O mode (scanning)
+status 1
+```
+
+### netcat -~
+
+```cu
+(run (list "netcat" "-~") "")
+```
+---
+```output
+stderr:
+netcat: unrecognized option: ~
+Usage: netcat [OPTIONS] HOST PORT  - connect
+nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen
+
+	-e PROG	Run PROG after connect (must be last)
+	-l	Listen mode, for inbound connects
+	-lk	With -e, provides persistent server
+	-p PORT	Local port
+	-s ADDR	Local address
+	-w SEC	Timeout for connects and final net reads
+	-i SEC	Delay interval for lines sent
+	-n	Don't do DNS resolution
+	-u	UDP mode
+	-b	Allow broadcasts
+	-v	Verbose
+	-o FILE	Hex dump traffic
+	-z	Zero-I/O mode (scanning)
+status 1
+```
+
+### netcat --nope
+
+```cu
+(run (list "netcat" "--nope") "")
+```
+---
+```output
+stderr:
+netcat: unrecognized option: nope
+Usage: netcat [OPTIONS] HOST PORT  - connect
+nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen
+
+	-e PROG	Run PROG after connect (must be last)
+	-l	Listen mode, for inbound connects
+	-lk	With -e, provides persistent server
+	-p PORT	Local port
+	-s ADDR	Local address
+	-w SEC	Timeout for connects and final net reads
+	-i SEC	Delay interval for lines sent
+	-n	Don't do DNS resolution
+	-u	UDP mode
+	-b	Allow broadcasts
+	-v	Verbose
+	-o FILE	Hex dump traffic
+	-z	Zero-I/O mode (scanning)
+status 1
+```
+
+### dnsdomainname -~
+
+```cu
+(run (list "dnsdomainname" "-~") "")
+```
+---
+```output
+stderr:
+dnsdomainname: unrecognized option: ~
+No help available
+status 1
+```
+
+### dnsdomainname --nope
+
+```cu
+(run (list "dnsdomainname" "--nope") "")
+```
+---
+```output
+stderr:
+dnsdomainname: unrecognized option: nope
+No help available
+status 1
+```
+
+### dnsdomainname -F
+
+```cu
+(run (list "dnsdomainname" "-F") "")
+```
+---
+```output
+stderr:
+dnsdomainname: option requires an argument: F
+No help available
 status 1
 ```
 
@@ -6286,6 +7555,66 @@ and will not be affected by keyboard signals (^C etc).
 status 1
 ```
 
+### setpriv -~
+
+```cu
+(run (list "setpriv" "-~") "")
+```
+---
+```output
+stderr:
+setpriv: unrecognized option: ~
+Usage: setpriv [OPTIONS] PROG ARGS
+
+Run PROG with different privilege settings
+
+-d,--dump		Show current capabilities
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities
+--inh-caps CAP,CAP	Set inheritable capabilities
+--ambient-caps CAP,CAP	Set ambient capabilities
+status 1
+```
+
+### setpriv --nope
+
+```cu
+(run (list "setpriv" "--nope") "")
+```
+---
+```output
+stderr:
+setpriv: unrecognized option: nope
+Usage: setpriv [OPTIONS] PROG ARGS
+
+Run PROG with different privilege settings
+
+-d,--dump		Show current capabilities
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities
+--inh-caps CAP,CAP	Set inheritable capabilities
+--ambient-caps CAP,CAP	Set ambient capabilities
+status 1
+```
+
+### setpriv --inh-caps
+
+```cu
+(run (list "setpriv" "--inh-caps") "")
+```
+---
+```output
+stderr:
+setpriv: option requires an argument: inh-caps
+Usage: setpriv [OPTIONS] PROG ARGS
+
+Run PROG with different privilege settings
+
+-d,--dump		Show current capabilities
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities
+--inh-caps CAP,CAP	Set inheritable capabilities
+--ambient-caps CAP,CAP	Set ambient capabilities
+status 1
+```
+
 ### pipe_progress -~
 
 ```cu
@@ -6680,6 +8009,57 @@ Show list of processes
 status 1
 ```
 
+### minips -~
+
+```cu
+(run (list "minips" "-~") "")
+```
+---
+```output
+stderr:
+minips: unrecognized option: ~
+Usage: minips [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
+### minips --nope
+
+```cu
+(run (list "minips" "--nope") "")
+```
+---
+```output
+stderr:
+minips: unrecognized option: nope
+Usage: minips [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
+### minips -o
+
+```cu
+(run (list "minips" "-o") "")
+```
+---
+```output
+stderr:
+minips: option requires an argument: o
+Usage: minips [-o COL1,COL2=HEADER]
+
+Show list of processes
+
+	-o COL1,COL2=HEADER	Select columns for display
+status 1
+```
+
 ### pidof -~
 
 ```cu
@@ -6884,6 +8264,804 @@ Send signal to processes selected by regex PATTERN
 	-n	Signal the newest process only
 	-o	Signal the oldest process only
 	-e	Display name and PID of the process being killed
+status 1
+```
+
+### kill -~
+
+kill reads its own words: a first word with a dash is a signal, so busybox
+names the signal it could not read.
+
+```cu
+(run (list "kill" "-~") "")
+```
+---
+```output
+stderr:
+kill: bad signal name '~'
+status 1
+```
+
+### kill --nope
+
+```cu
+(run (list "kill" "--nope") "")
+```
+---
+```output
+stderr:
+kill: bad signal name '-nope'
+status 1
+```
+
+### kill -s
+
+```cu
+(run (list "kill" "-s") "")
+```
+---
+```output
+stderr:
+kill: bad signal name 's'
+status 1
+```
+
+### killall -~
+
+```cu
+(run (list "killall" "-~") "")
+```
+---
+```output
+stderr:
+killall: bad signal name '~'
+status 1
+```
+
+### killall --nope
+
+```cu
+(run (list "killall" "--nope") "")
+```
+---
+```output
+stderr:
+killall: bad signal name '-nope'
+status 1
+```
+
+### killall -s
+
+```cu
+(run (list "killall" "-s") "")
+```
+---
+```output
+stderr:
+killall: bad signal name 's'
+status 1
+```
+
+### pwdx -~
+
+```cu
+(run (list "pwdx" "-~") "")
+```
+---
+```output
+stderr:
+pwdx: unrecognized option: ~
+Usage: pwdx PID...
+
+Show current directory for PIDs
+status 1
+```
+
+### pwdx --nope
+
+```cu
+(run (list "pwdx" "--nope") "")
+```
+---
+```output
+stderr:
+pwdx: unrecognized option: nope
+Usage: pwdx PID...
+
+Show current directory for PIDs
+status 1
+```
+
+### sysctl -~
+
+```cu
+(run (list "sysctl" "-~") "")
+```
+---
+```output
+stderr:
+sysctl: unrecognized option: ~
+Usage: sysctl [-enq] { -a | -p [FILE]... | [-w] [KEY[=VALUE]]... }
+
+Show/set kernel parameters
+
+	-e	Don't warn about unknown keys
+	-n	Don't show key names
+	-q      Quiet
+	-a	Show all values
+	-p	Set values from FILEs (default /etc/sysctl.conf)
+	-w	Set values
+status 1
+```
+
+### sysctl --nope
+
+```cu
+(run (list "sysctl" "--nope") "")
+```
+---
+```output
+stderr:
+sysctl: unrecognized option: nope
+Usage: sysctl [-enq] { -a | -p [FILE]... | [-w] [KEY[=VALUE]]... }
+
+Show/set kernel parameters
+
+	-e	Don't warn about unknown keys
+	-n	Don't show key names
+	-q      Quiet
+	-a	Show all values
+	-p	Set values from FILEs (default /etc/sysctl.conf)
+	-w	Set values
+status 1
+```
+
+### route -~
+
+```cu
+(run (list "route" "-~") "")
+```
+---
+```output
+stderr:
+route: unrecognized option: ~
+Usage: route [-ne] [-A inet[6]] [{add|del} [-net|-host] TARGET [netmask MASK]
+	[gw GATEWAY] [metric N] [mss BYTES] [window BYTES] [reject] [IFACE]]
+
+Show or edit kernel routing tables
+
+	-n	Don't resolve names
+	-e	Display other/more information
+	-A inet[6]	Select address family
+status 1
+```
+
+### route --nope
+
+```cu
+(run (list "route" "--nope") "")
+```
+---
+```output
+stderr:
+route: unrecognized option: nope
+Usage: route [-ne] [-A inet[6]] [{add|del} [-net|-host] TARGET [netmask MASK]
+	[gw GATEWAY] [metric N] [mss BYTES] [window BYTES] [reject] [IFACE]]
+
+Show or edit kernel routing tables
+
+	-n	Don't resolve names
+	-e	Display other/more information
+	-A inet[6]	Select address family
+status 1
+```
+
+### arp -~
+
+```cu
+(run (list "arp" "-~") "")
+```
+---
+```output
+stderr:
+arp: unrecognized option: ~
+Usage: arp
+[-vn]	[-H HWTYPE] [-i IF] -a [HOSTNAME]
+[-v]		    [-i IF] -d HOSTNAME [pub]
+[-v]	[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [temp]
+[-v]	[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [netmask MASK] pub
+[-v]	[-H HWTYPE] [-i IF] -Ds HOSTNAME IFACE [netmask MASK] pub
+
+Manipulate ARP cache
+
+	-a		Display (all) hosts
+	-d		Delete ARP entry
+	-s		Set new entry
+	-v		Verbose
+	-n		Don't resolve names
+	-i IF		Network interface
+	-D		Read HWADDR from IFACE
+	-A,-p AF	Protocol family
+	-H HWTYPE	Hardware address type
+status 1
+```
+
+### arp --nope
+
+```cu
+(run (list "arp" "--nope") "")
+```
+---
+```output
+stderr:
+arp: unrecognized option: nope
+Usage: arp
+[-vn]	[-H HWTYPE] [-i IF] -a [HOSTNAME]
+[-v]		    [-i IF] -d HOSTNAME [pub]
+[-v]	[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [temp]
+[-v]	[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [netmask MASK] pub
+[-v]	[-H HWTYPE] [-i IF] -Ds HOSTNAME IFACE [netmask MASK] pub
+
+Manipulate ARP cache
+
+	-a		Display (all) hosts
+	-d		Delete ARP entry
+	-s		Set new entry
+	-v		Verbose
+	-n		Don't resolve names
+	-i IF		Network interface
+	-D		Read HWADDR from IFACE
+	-A,-p AF	Protocol family
+	-H HWTYPE	Hardware address type
+status 1
+```
+
+### netstat -~
+
+```cu
+(run (list "netstat" "-~") "")
+```
+---
+```output
+stderr:
+netstat: unrecognized option: ~
+Usage: netstat [-ral] [-tuwx] [-enWp]
+
+Display networking information
+
+	-r	Routing table
+	-a	All sockets
+	-l	Listening sockets
+		Else: connected sockets
+	-t	TCP sockets
+	-u	UDP sockets
+	-w	Raw sockets
+	-x	Unix sockets
+		Else: all socket types
+	-e	Other/more information
+	-n	Don't resolve names
+	-W	Wide display
+	-p	Show PID/program name for sockets
+status 1
+```
+
+### netstat --nope
+
+```cu
+(run (list "netstat" "--nope") "")
+```
+---
+```output
+stderr:
+netstat: unrecognized option: nope
+Usage: netstat [-ral] [-tuwx] [-enWp]
+
+Display networking information
+
+	-r	Routing table
+	-a	All sockets
+	-l	Listening sockets
+		Else: connected sockets
+	-t	TCP sockets
+	-u	UDP sockets
+	-w	Raw sockets
+	-x	Unix sockets
+		Else: all socket types
+	-e	Other/more information
+	-n	Don't resolve names
+	-W	Wide display
+	-p	Show PID/program name for sockets
+status 1
+```
+
+### top -~
+
+```cu
+(run (list "top" "-~") "")
+```
+---
+```output
+stderr:
+top: unrecognized option: ~
+Usage: top [-bmH] [-n COUNT] [-d SECONDS]
+
+Show a view of process activity in real time.
+Read the status of all processes from /proc each SECONDS
+and show a screenful of them.
+Keys:
+	N/M/P/T: show CPU usage, sort by pid/mem/cpu/time
+	S: show memory
+	R: reverse sort
+	H: toggle threads, 1: toggle SMP
+	Q,^C: exit
+Options:
+	-b	Batch mode
+	-n N	Exit after N iterations
+	-d SEC	Delay between updates
+	-m	Same as 's' key
+	-H	Show threads
+status 1
+```
+
+### top --nope
+
+```cu
+(run (list "top" "--nope") "")
+```
+---
+```output
+stderr:
+top: unrecognized option: nope
+Usage: top [-bmH] [-n COUNT] [-d SECONDS]
+
+Show a view of process activity in real time.
+Read the status of all processes from /proc each SECONDS
+and show a screenful of them.
+Keys:
+	N/M/P/T: show CPU usage, sort by pid/mem/cpu/time
+	S: show memory
+	R: reverse sort
+	H: toggle threads, 1: toggle SMP
+	Q,^C: exit
+Options:
+	-b	Batch mode
+	-n N	Exit after N iterations
+	-d SEC	Delay between updates
+	-m	Same as 's' key
+	-H	Show threads
+status 1
+```
+
+### top -n
+
+```cu
+(run (list "top" "-n") "")
+```
+---
+```output
+stderr:
+top: option requires an argument: n
+Usage: top [-bmH] [-n COUNT] [-d SECONDS]
+
+Show a view of process activity in real time.
+Read the status of all processes from /proc each SECONDS
+and show a screenful of them.
+Keys:
+	N/M/P/T: show CPU usage, sort by pid/mem/cpu/time
+	S: show memory
+	R: reverse sort
+	H: toggle threads, 1: toggle SMP
+	Q,^C: exit
+Options:
+	-b	Batch mode
+	-n N	Exit after N iterations
+	-d SEC	Delay between updates
+	-m	Same as 's' key
+	-H	Show threads
+status 1
+```
+
+### vmstat -~
+
+```cu
+(run (list "vmstat" "-~") "")
+```
+---
+```output
+stderr:
+vmstat: unrecognized option: ~
+Usage: vmstat [-n] [INTERVAL [COUNT]]
+
+Show virtual memory statistics
+
+	-n	Show header once
+status 1
+```
+
+### vmstat --nope
+
+```cu
+(run (list "vmstat" "--nope") "")
+```
+---
+```output
+stderr:
+vmstat: unrecognized option: nope
+Usage: vmstat [-n] [INTERVAL [COUNT]]
+
+Show virtual memory statistics
+
+	-n	Show header once
+status 1
+```
+
+### iostat -~
+
+```cu
+(run (list "iostat" "-~") "")
+```
+---
+```output
+stderr:
+iostat: unrecognized option: ~
+Usage: iostat [-c] [-d] [-t] [-z] [-k|-m] [ALL|BLOCKDEV...] [INTERVAL [COUNT]]
+
+Report CPU and I/O statistics
+
+	-c	Show CPU utilization
+	-d	Show device utilization
+	-t	Print current time
+	-z	Omit devices with no activity
+	-k	Use kb/s
+	-m	Use Mb/s
+status 1
+```
+
+### iostat --nope
+
+```cu
+(run (list "iostat" "--nope") "")
+```
+---
+```output
+stderr:
+iostat: unrecognized option: nope
+Usage: iostat [-c] [-d] [-t] [-z] [-k|-m] [ALL|BLOCKDEV...] [INTERVAL [COUNT]]
+
+Report CPU and I/O statistics
+
+	-c	Show CPU utilization
+	-d	Show device utilization
+	-t	Print current time
+	-z	Omit devices with no activity
+	-k	Use kb/s
+	-m	Use Mb/s
+status 1
+```
+
+### mpstat -~
+
+```cu
+(run (list "mpstat" "-~") "")
+```
+---
+```output
+stderr:
+mpstat: unrecognized option: ~
+Usage: mpstat [-A] [-I SUM|CPU|ALL|SCPU] [-u] [-P num|ALL] [INTERVAL [COUNT]]
+
+Per-processor statistics
+
+	-A			Same as -I ALL -u -P ALL
+	-I SUM|CPU|ALL|SCPU	Report interrupt statistics
+	-P num|ALL		Processor to monitor
+	-u			Report CPU utilization
+status 1
+```
+
+### mpstat --nope
+
+```cu
+(run (list "mpstat" "--nope") "")
+```
+---
+```output
+stderr:
+mpstat: unrecognized option: nope
+Usage: mpstat [-A] [-I SUM|CPU|ALL|SCPU] [-u] [-P num|ALL] [INTERVAL [COUNT]]
+
+Per-processor statistics
+
+	-A			Same as -I ALL -u -P ALL
+	-I SUM|CPU|ALL|SCPU	Report interrupt statistics
+	-P num|ALL		Processor to monitor
+	-u			Report CPU utilization
+status 1
+```
+
+### mpstat -I
+
+```cu
+(run (list "mpstat" "-I") "")
+```
+---
+```output
+stderr:
+mpstat: option requires an argument: I
+Usage: mpstat [-A] [-I SUM|CPU|ALL|SCPU] [-u] [-P num|ALL] [INTERVAL [COUNT]]
+
+Per-processor statistics
+
+	-A			Same as -I ALL -u -P ALL
+	-I SUM|CPU|ALL|SCPU	Report interrupt statistics
+	-P num|ALL		Processor to monitor
+	-u			Report CPU utilization
+status 1
+```
+
+### nmeter -~
+
+```cu
+(run (list "nmeter" "-~") "")
+```
+---
+```output
+stderr:
+nmeter: unrecognized option: ~
+Usage: nmeter [-d MSEC] FORMAT_STRING
+
+Monitor system in real time
+
+ -d MSEC	Milliseconds between updates, default:1000, none:-1
+
+Format specifiers:
+ %Nc or %[cN]	CPU. N - bar size (default 10)
+		(displays: S:system U:user N:niced D:iowait I:irq i:softirq)
+ %[nINTERFACE]	Network INTERFACE
+ %m		Allocated memory
+ %[md]		Dirty file-backed memory
+ %[mw]		Memory being written to storage
+ %[mf]		Free memory
+ %[mt]		Total memory
+ %s		Allocated swap
+ %f		Number of used file descriptors
+ %Ni		Total/specific IRQ rate
+ %x		Context switch rate
+ %p		Forks
+ %[pn]		# of processes
+ %b		Block io
+ %Nt		Time (with N decimal points)
+ %NT		Zero-based timestamp (with N decimal points)
+ %r		Print <cr> instead of <lf> at EOL
+status 1
+```
+
+### nmeter --nope
+
+```cu
+(run (list "nmeter" "--nope") "")
+```
+---
+```output
+stderr:
+nmeter: unrecognized option: nope
+Usage: nmeter [-d MSEC] FORMAT_STRING
+
+Monitor system in real time
+
+ -d MSEC	Milliseconds between updates, default:1000, none:-1
+
+Format specifiers:
+ %Nc or %[cN]	CPU. N - bar size (default 10)
+		(displays: S:system U:user N:niced D:iowait I:irq i:softirq)
+ %[nINTERFACE]	Network INTERFACE
+ %m		Allocated memory
+ %[md]		Dirty file-backed memory
+ %[mw]		Memory being written to storage
+ %[mf]		Free memory
+ %[mt]		Total memory
+ %s		Allocated swap
+ %f		Number of used file descriptors
+ %Ni		Total/specific IRQ rate
+ %x		Context switch rate
+ %p		Forks
+ %[pn]		# of processes
+ %b		Block io
+ %Nt		Time (with N decimal points)
+ %NT		Zero-based timestamp (with N decimal points)
+ %r		Print <cr> instead of <lf> at EOL
+status 1
+```
+
+### nmeter -d
+
+```cu
+(run (list "nmeter" "-d") "")
+```
+---
+```output
+stderr:
+nmeter: option requires an argument: d
+Usage: nmeter [-d MSEC] FORMAT_STRING
+
+Monitor system in real time
+
+ -d MSEC	Milliseconds between updates, default:1000, none:-1
+
+Format specifiers:
+ %Nc or %[cN]	CPU. N - bar size (default 10)
+		(displays: S:system U:user N:niced D:iowait I:irq i:softirq)
+ %[nINTERFACE]	Network INTERFACE
+ %m		Allocated memory
+ %[md]		Dirty file-backed memory
+ %[mw]		Memory being written to storage
+ %[mf]		Free memory
+ %[mt]		Total memory
+ %s		Allocated swap
+ %f		Number of used file descriptors
+ %Ni		Total/specific IRQ rate
+ %x		Context switch rate
+ %p		Forks
+ %[pn]		# of processes
+ %b		Block io
+ %Nt		Time (with N decimal points)
+ %NT		Zero-based timestamp (with N decimal points)
+ %r		Print <cr> instead of <lf> at EOL
+status 1
+```
+
+### watch -~
+
+```cu
+(run (list "watch" "-~") "")
+```
+---
+```output
+stderr:
+watch: unrecognized option: ~
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
+status 1
+```
+
+### watch --nope
+
+```cu
+(run (list "watch" "--nope") "")
+```
+---
+```output
+stderr:
+watch: unrecognized option: nope
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
+status 1
+```
+
+### watch -n
+
+```cu
+(run (list "watch" "-n") "")
+```
+---
+```output
+stderr:
+watch: option requires an argument: n
+Usage: watch [-n SEC] [-tx] PROG ARGS
+
+Run PROG periodically
+
+	-n SEC	Period (default 2)
+	-t	Don't print header
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'
+status 1
+```
+
+### pmap -~
+
+```cu
+(run (list "pmap" "-~") "")
+```
+---
+```output
+stderr:
+pmap: unrecognized option: ~
+Usage: pmap [-xq] PID...
+
+Display process memory usage
+
+	-x	Show details
+	-q	Quiet
+status 1
+```
+
+### pmap --nope
+
+```cu
+(run (list "pmap" "--nope") "")
+```
+---
+```output
+stderr:
+pmap: unrecognized option: nope
+Usage: pmap [-xq] PID...
+
+Display process memory usage
+
+	-x	Show details
+	-q	Quiet
+status 1
+```
+
+### fuser -~
+
+```cu
+(run (list "fuser" "-~") "")
+```
+---
+```output
+stderr:
+fuser: unrecognized option: ~
+Usage: fuser [-msk46] [-SIGNAL] FILE or PORT/PROTO
+
+Find processes which use FILEs or PORTs
+
+	-m	Find processes which use same fs as FILEs
+	-4,-6	Search only IPv4/IPv6 space
+	-s	Don't display PIDs
+	-k	Kill found processes
+	-SIGNAL	Signal to send (default: KILL)
+status 1
+```
+
+### fuser --nope
+
+```cu
+(run (list "fuser" "--nope") "")
+```
+---
+```output
+stderr:
+fuser: unrecognized option: nope
+Usage: fuser [-msk46] [-SIGNAL] FILE or PORT/PROTO
+
+Find processes which use FILEs or PORTs
+
+	-m	Find processes which use same fs as FILEs
+	-4,-6	Search only IPv4/IPv6 space
+	-s	Don't display PIDs
+	-k	Kill found processes
+	-SIGNAL	Signal to send (default: KILL)
+status 1
+```
+
+### fuser with no operand
+
+```cu
+(run (list "fuser" "-m") "")
+```
+---
+```output
+stderr:
+Usage: fuser [-msk46] [-SIGNAL] FILE or PORT/PROTO
+
+Find processes which use FILEs or PORTs
+
+	-m	Find processes which use same fs as FILEs
+	-4,-6	Search only IPv4/IPv6 space
+	-s	Don't display PIDs
+	-k	Kill found processes
+	-SIGNAL	Signal to send (default: KILL)
 status 1
 ```
 

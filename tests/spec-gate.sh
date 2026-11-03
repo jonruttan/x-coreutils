@@ -15,4 +15,10 @@ KIT="${X_LANG_KIT:-$("$X" --share-dir)/tools/lang-kit}"
 	exit 2
 }
 
+# The kit's sed reads the run's whole output, where a case may print bytes that
+# are not UTF-8; in a UTF-8 locale macOS's sed stops on them and the gate ends
+# without naming what failed.  Its sed reads bytes instead -- only the kit's,
+# as a function, so the specs themselves run in the locale they are given.
+sed() { LC_ALL=C command sed "$@"; }
+
 BUNDLE="$BUNDLE" X="$X" . "$KIT/spec-gate.sh"

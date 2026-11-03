@@ -30,6 +30,18 @@
 ; ARGV split at -e: (ARGS . PROG), PROG the program and its arguments or nil.
 ; busybox also reads -e at the end of a cluster of flags that take no value,
 ; as -lve PROG
+(module cu/nc)
+
+(import cu/cli cu-refuse-option)
+(import cu/net wget-times)
+(import cu/options nc-flags nc-values)
+(import cu/prims append byte-at byte-len cu-int->str cu-sig-ign file-close
+  file-err-sym file-open-write file-read-run file-write file-write-run filter
+  integer->char length list->string map net-accept net-close net-connect
+  net-die net-listen net-resolve net-shutdown reverse string=? substring
+  sys-dup2 sys-exec sys-exit sys-poll sys-signal sys-sleep wget-digits
+  wget-div wget-err-text wget-memv)
+
 (def %nc-split-exec
   (fn (_ argv)
     (let go ((l argv) (acc ()))
@@ -49,17 +61,12 @@
       (let go ((i 1))
         (match
           ((= i (- n 1)) #t)
-          ((%wget-memv (byte-at s i) (list #\n #\u #\v #\l #\k #\z)) (go (+ i 1)))
+          ((wget-memv (byte-at s i) (list #\n #\u #\v #\l #\k #\z)) (go (+ i 1)))
           (#t #f)))
       #f)))
 
-; -u, -b (UDP's broadcasts) and -s are not here: refused, rather than read as
-; TCP or as no address at all.  -e is split off before the parse.
-(def %nc-flags (list "-n" "-v" "-l" "-k" "-z"))
-(def %nc-values (list "-p" "-w" "-i" "-o" "-e"))
-
 ; how many times FLAG was given: -vv is two
-(def %nc-count
+(def nc-count
   (fn (_ o flag)
     (length (filter (fn (_ f) (string=? f flag)) (rest (Assoc entry (lit on) o))))))
 
@@ -67,8 +74,8 @@
 (def %nc-usage
   (fn (_)
     (do (file-write 2
-          (string-concat
-            (list "Usage: nc [OPTIONS] HOST PORT  - connect\n"
+          (%str-concat
+            (list "Usage: " %nc-name " [OPTIONS] HOST PORT  - connect\n"
                   "nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen\n\n"
                   "\t-e PROG\tRun PROG after connect (must be last)\n"
                   "\t-l\tListen mode, for inbound connects\n"
@@ -87,11 +94,12 @@
 
 ; a port as busybox's bb_lookup_port reads one: digits, or nil
 (def %nc-port
-  (fn (_ s) (if (null? s) 0 (%wget-digits s))))
+  (fn (_ s) (if (null? s) 0 (wget-digits s))))
 
 ; --- the run's state -----------------------------------------------------------
 
 (def %nc-verbose 0)
+(def %nc-name "nc")            ; the name run as: nc, or netcat, busybox's other name for it
 (def %nc-hex-fd -1)       ; -o's file, -1 when none
 (def %nc-wrote-net 0)     ; bytes sent, for -o's offsets and -vv
 (def %nc-wrote-out 0)     ; bytes written to stdout
@@ -105,12 +113,12 @@
   (fn (_ dir off bs)
     (def hex (fn (_ n) (integer->char (if (< n 10) (+ n #\0) (+ n 87)))))
     (def h8 (let go ((v off) (k 8) (acc ()))
-              (if (= k 0) acc (go (%wget-div v 16) (- k 1) (pair (hex (% v 16)) acc)))))
-    (string-concat
+              (if (= k 0) acc (go (wget-div v 16) (- k 1) (pair (hex (% v 16)) acc)))))
+    (%str-concat
       (list (bytes->str (list dir)) " " (list->string h8) " "
-            (string-concat
-              (map (fn (_ b) (list->string (list (hex (%wget-div b 16)) (hex (% b 16)) #\space))) bs))
-            (%wget-times (* 3 (- 16 (length bs))) #\space)
+            (%str-concat
+              (map (fn (_ b) (list->string (list (hex (wget-div b 16)) (hex (% b 16)) #\space))) bs))
+            (wget-times (* 3 (- 16 (length bs))) #\space)
             "# "
             (list->string (map (fn (_ b) (if (if (> b 31) (< b 127) #f) (integer->char b) #\.)) bs))
             "\n"))))
@@ -201,7 +209,7 @@
     (do (sys-dup2 net 0)
         (sys-dup2 0 1)
         (sys-exec (first prog) (rest prog))
-        (file-write 2 (string-concat (list "nc: can't execute '" (first prog) "'\n")))
+        (file-write 2 (%str-concat (list %nc-name ": can't execute '" (first prog) "'\n")))
         (sys-exit 1))))
 
 ; --- the applet ----------------------------------------------------------------
@@ -210,8 +218,8 @@
   (fn (_ host ip port)
     (guard (e (do (when (if (> %nc-verbose 1) #t
                           (if (> %nc-verbose 0) (not (eq? (file-err-sym e) (lit econnrefused))) #f))
-                    (file-write 2 (string-concat
-                      (list "nc: " host " (" ip ":" (%cu-int->str port) "): " (%wget-err-text e) "\n"))))
+                    (file-write 2 (%str-concat
+                      (list %nc-name ": " host " (" ip ":" (cu-int->str port) "): " (wget-err-text e) "\n"))))
                   ()))
       (net-connect ip port))))
 
@@ -219,10 +227,10 @@
   (fn (_ o ops prog)
     (def listen? (Opts on? o "-l"))
     (def lport (%nc-port (Opts value o "-p")))
-    (def w (let ((v (Opts value o "-w"))) (if (null? v) 0 (%wget-digits v))))
-    (def interval (let ((v (Opts value o "-i"))) (if (null? v) 0 (%wget-digits v))))
+    (def w (let ((v (Opts value o "-w"))) (if (null? v) 0 (wget-digits v))))
+    (def interval (let ((v (Opts value o "-i"))) (if (null? v) 0 (wget-digits v))))
     (def wait-ms (if (> w 0) (* w 1000) -1))
-    (set! %nc-verbose (+ (%nc-count o "-v") 0))
+    (set! %nc-verbose (+ (nc-count o "-v") 0))
     (set! %nc-wrote-net 0)
     (set! %nc-wrote-out 0)
     (sys-signal 13 cu-sig-ign)                    ; SIGPIPE, as busybox ignores it
@@ -235,13 +243,13 @@
             (do (net-close lfd) c)))
         (let ((host (first ops)) (port (%nc-port (if (null? (rest ops)) () (first (rest ops))))))
           (do (when (null? port)
-                (%net-die (string-concat (list "bad port '" (first (rest ops)) "'"))))
+                (net-die (%str-concat (list "bad port '" (first (rest ops)) "'"))))
               (let ((ip (guard (_ ()) (net-resolve host))))
-                (do (when (null? ip) (%net-die (string-concat (list "bad address '" host "'"))))
+                (do (when (null? ip) (net-die (%str-concat (list "bad address '" host "'"))))
                     (let ((fd (%nc-connect-or-fail host ip port)))
                       (do (when (if (> %nc-verbose 0) (not (null? fd)) #f)
-                            (file-write 2 (string-concat
-                              (list host " (" ip ":" (%cu-int->str port) ") open\n"))))
+                            (file-write 2 (%str-concat
+                              (list host " (" ip ":" (cu-int->str port) ") open\n"))))
                           fd))))))))
     (def st
       (match
@@ -252,22 +260,28 @@
                 (let ((r (%nc-copy net #t #t () wait-ms 2 interval)))
                   (do (net-close net) r))))))
     (when (> %nc-verbose 1)
-      (file-write 2 (string-concat
-        (list "sent " (%cu-int->str %nc-wrote-net) ", rcvd " (%cu-int->str %nc-wrote-out) "\n"))))
+      (file-write 2 (%str-concat
+        (list "sent " (cu-int->str %nc-wrote-net) ", rcvd " (cu-int->str %nc-wrote-out) "\n"))))
     (unless (< %nc-hex-fd 0) (do (file-close %nc-hex-fd) (set! %nc-hex-fd -1)))
     st))
 
-(def %cu-nc
-  (fn (_ argv stdin-thunk)
+(def cu-nc (fn (_ argv stdin-thunk) (%nc-main "nc" argv)))
+(def cu-netcat (fn (_ argv stdin-thunk) (%nc-main "netcat" argv)))
+
+(def %nc-main
+  (fn (_ name argv)
+    (set! %nc-name name)
     (def split (%nc-split-exec argv))
-    (def o (Opts parse %nc-flags %nc-values (first split)))
+    (def o (Opts parse nc-flags nc-values (first split)))
     (def ops (Opts operands o))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option "nc" (Opts unknown o)))
+      ((not (null? (Opts unknown o))) (cu-refuse-option name (Opts unknown o)))
       ((if (null? ops) (not (Opts on? o "-l")) #f) (%nc-usage))
       ((> (length ops) 2) (%nc-usage))
       (#t
         (guard (e (if (eq? (Err label e) (lit net))
-                    (do (file-write 2 (string-concat (list "nc: " (e msg) "\n"))) 1)
+                    (do (file-write 2 (%str-concat (list name ": " (e msg) "\n"))) 1)
                     (error e)))
           (%nc-run o ops (rest split)))))))
+
+(provide cu/nc cu-nc cu-netcat nc-count)

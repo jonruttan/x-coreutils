@@ -263,7 +263,7 @@ same
 With neither OpenMP variable set, which is why the case clears them first.
 
 ```cu
-(do (Sys unsetenv "OMP_NUM_THREADS") (Sys unsetenv "OMP_THREAD_LIMIT") (def n (sys-cpu-count)) (display (if (= (%cu-num-prefix (cu-cap (list "nproc" "--ignore=1"))) (- n 1)) "one held" "wrong")) (newline) (display (cu-cap (list "nproc" "--ignore=9999"))) (display (if (string=? (cu-cap (list "nproc" "--all")) (cu-cap (list "nproc"))) "agree" "differ")))
+(do (Sys unsetenv "OMP_NUM_THREADS") (Sys unsetenv "OMP_THREAD_LIMIT") (def n (sys-cpu-count)) (display (if (= (cu-num-prefix (cu-cap (list "nproc" "--ignore=1"))) (- n 1)) "one held" "wrong")) (newline) (display (cu-cap (list "nproc" "--ignore=9999"))) (display (if (string=? (cu-cap (list "nproc" "--all")) (cu-cap (list "nproc"))) "agree" "differ")))
 ```
 ---
 ```output
@@ -281,8 +281,8 @@ before its last line, since the cases of a file share one process.
 ```cu
 (do (Sys unsetenv "OMP_THREAD_LIMIT")
     (Sys setenv "OMP_NUM_THREADS" "2") (def np-two (cu-cap (list "nproc")))
-    (Sys setenv "OMP_NUM_THREADS" (%cu-int->str (+ (sys-cpu-count) 5)))
-    (def np-above (%cu-num-prefix (cu-cap (list "nproc"))))
+    (Sys setenv "OMP_NUM_THREADS" (cu-int->str (+ (sys-cpu-count) 5)))
+    (def np-above (cu-num-prefix (cu-cap (list "nproc"))))
     (Sys setenv "OMP_NUM_THREADS" "2,4") (def np-list (cu-cap (list "nproc")))
     (Sys setenv "OMP_NUM_THREADS" " 3 ") (def np-spaced (cu-cap (list "nproc")))
     (Sys setenv "OMP_NUM_THREADS" "2 ,4") (def np-gap (cu-cap (list "nproc")))
@@ -345,7 +345,7 @@ unset
 
 ```cu
 (do (Sys setenv "OMP_NUM_THREADS" "5") (Sys setenv "OMP_THREAD_LIMIT" "3")
-    (def np-all (%cu-num-prefix (cu-cap (list "nproc" "--all"))))
+    (def np-all (cu-num-prefix (cu-cap (list "nproc" "--all"))))
     (Sys unsetenv "OMP_THREAD_LIMIT")
     (def np-held (cu-cap (list "nproc" "--ignore=2")))
     (Sys setenv "OMP_NUM_THREADS" "2") (def np-lowest (cu-cap (list "nproc" "--ignore=5")))
@@ -385,7 +385,7 @@ absolute
 ### which -a is accepted and finds what the plain form finds first
 
 ```cu
-(display (if (string=? (first (%cu-lines (cu-cap (list "which" "-a" "sh")))) (first (%cu-lines (cu-cap (list "which" "sh"))))) "same first" "differ"))
+(display (if (string=? (first (cu-lines (cu-cap (list "which" "-a" "sh")))) (first (cu-lines (cu-cap (list "which" "sh"))))) "same first" "differ"))
 ```
 ---
     same first
@@ -454,7 +454,7 @@ abc
 ## tail -f
 
 The loop itself never returns, so the specs drive one ROUND of it at a
-time through %cu-tail-round with the offsets stated, which is what the
+time through cu-tail-round with the offsets stated, which is what the
 applet does between sleeps.
 
 ### fixtures
@@ -480,7 +480,7 @@ l3
 ### a round prints what grew past the offset, and moves the offset to the end
 
 ```cu
-(do (grow! "/tmp/x-cu-tl/f" "l4\nl5\n") (def r (cu-cap (fn (_) (write (%cu-tail-round (list "/tmp/x-cu-tl/f") (list 9) #f ""))))) (display r))
+(do (grow! "/tmp/x-cu-tl/f" "l4\nl5\n") (def r (cu-cap (fn (_) (write (cu-tail-round (list "/tmp/x-cu-tl/f") (list 9) #f ""))))) (display r))
 ```
 ---
 ```output
@@ -492,7 +492,7 @@ l5
 ### nothing grew, nothing printed, the offset stays
 
 ```cu
-(write (%cu-tail-round (list "/tmp/x-cu-tl/f") (list 15) #f "/tmp/x-cu-tl/f"))
+(write (cu-tail-round (list "/tmp/x-cu-tl/f") (list 15) #f "/tmp/x-cu-tl/f"))
 ```
 ---
     ((15) . "/tmp/x-cu-tl/f")
@@ -500,7 +500,7 @@ l5
 ### a file that shrank was truncated: it is read again from its start
 
 ```cu
-(do (file-write-all "/tmp/x-cu-tl/f" "n1\n") (display (cu-cap (fn (_) (write (%cu-tail-round (list "/tmp/x-cu-tl/f") (list 15) #f "/tmp/x-cu-tl/f"))))))
+(do (file-write-all "/tmp/x-cu-tl/f" "n1\n") (display (cu-cap (fn (_) (write (cu-tail-round (list "/tmp/x-cu-tl/f") (list 15) #f "/tmp/x-cu-tl/f"))))))
 ```
 ---
 ```output
@@ -511,7 +511,7 @@ n1
 ### growth on another file re-emits its header
 
 ```cu
-(do (grow! "/tmp/x-cu-tl/a" "a2\n") (grow! "/tmp/x-cu-tl/b" "b2\n") (display (cu-cap (fn (_) (%cu-tail-round (list "/tmp/x-cu-tl/a" "/tmp/x-cu-tl/b") (list 3 3) #t "/tmp/x-cu-tl/b")))))
+(do (grow! "/tmp/x-cu-tl/a" "a2\n") (grow! "/tmp/x-cu-tl/b" "b2\n") (display (cu-cap (fn (_) (cu-tail-round (list "/tmp/x-cu-tl/a" "/tmp/x-cu-tl/b") (list 3 3) #t "/tmp/x-cu-tl/b")))))
 ```
 ---
 ```output
@@ -526,7 +526,7 @@ b2
 ### the file printed last needs no header again
 
 ```cu
-(do (grow! "/tmp/x-cu-tl/b" "b3\n") (display (cu-cap (fn (_) (%cu-tail-round (list "/tmp/x-cu-tl/a" "/tmp/x-cu-tl/b") (list 6 6) #t "/tmp/x-cu-tl/b")))))
+(do (grow! "/tmp/x-cu-tl/b" "b3\n") (display (cu-cap (fn (_) (cu-tail-round (list "/tmp/x-cu-tl/a" "/tmp/x-cu-tl/b") (list 6 6) #t "/tmp/x-cu-tl/b")))))
 ```
 ---
     b3
@@ -534,7 +534,7 @@ b2
 ### a bounded follow starts where the initial read ended, so growth in between is not lost
 
 ```cu
-(do (def at (byte-len (file-read-all "/tmp/x-cu-tl/f"))) (grow! "/tmp/x-cu-tl/f" "n2\n") (display (cu-cap (fn (_) (%cu-tail-follow (list "/tmp/x-cu-tl/f") (list at) #f "" "0" 1)))) (display "|"))
+(do (def at (byte-len (file-read-all "/tmp/x-cu-tl/f"))) (grow! "/tmp/x-cu-tl/f" "n2\n") (display (cu-cap (fn (_) (cu-tail-follow (list "/tmp/x-cu-tl/f") (list at) #f "" "0" 1)))) (display "|"))
 ```
 ---
 ```output

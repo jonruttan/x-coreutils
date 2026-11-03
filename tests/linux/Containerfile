@@ -1,0 +1,37 @@
+# The Linux leg: x built at the release lang.xon declares, beside busybox, in
+# a container the specs under tests/linux/specs run in as root.  Those are the
+# applets whose work is the kernel's -- dmesg, sysctl, mount, ifconfig and the
+# rest -- which the macOS suite cannot exercise.
+#
+# Alpine, so the engine links against musl and busybox is the oracle's own.
+FROM alpine:3.20
+RUN apk add --no-cache build-base git curl
+# socat holds a listening unix socket for netstat's cases, which busybox's nc cannot
+RUN apk add --no-cache socat
+# iproute2, as ip2, builds the namespaces and veth pairs traceroute's hops run
+# over; /sbin/ip stays busybox's, the oracle the ip specs compare against
+RUN apk add --no-cache iproute2 && mv /sbin/ip /usr/sbin/ip2 && ln -sf /bin/busybox /sbin/ip
+# Alpine builds its busybox without some applets -- taskset, chrt, powertop,
+# smemcap, minips -- so busybox 1.36.1 is built here with every applet on
+# (tc off: it does not build against these headers; minips on: defconfig
+# leaves it off), as busybox-extra, the oracle for those; /bin/busybox stays
+# Alpine's
+RUN apk add --no-cache linux-headers \
+ && curl -fsSL https://github.com/mirror/busybox/archive/refs/tags/1_36_1.tar.gz | tar xz -C /tmp \
+ && cd /tmp/busybox-1_36_1 && make defconfig >/dev/null \
+ && sed -i 's/^CONFIG_TC=y/# CONFIG_TC is not set/' .config \
+ && sed -i 's/^# CONFIG_MINIPS is not set/CONFIG_MINIPS=y/' .config \
+ && make -j"$(nproc)" busybox >/dev/null && cp busybox /usr/local/bin/busybox-extra \
+ && cd / && rm -rf /tmp/busybox-1_36_1
+# The platform's tools call `shasum`; Alpine has the digests under their own
+# names.
+COPY shasum /usr/local/bin/shasum
+ARG X_LANG_REF
+RUN test -n "$X_LANG_REF" \
+ && git clone --depth 1 --branch "$X_LANG_REF" https://github.com/jonruttan/x-lang.git /x-lang
+WORKDIR /x-lang
+# The engine is built from source: the published linux artifact is glibc, and
+# there is none for arm64.
+RUN make engine-source && make && make boot
+ENV X=/x-lang/x.sh
+WORKDIR /x-coreutils

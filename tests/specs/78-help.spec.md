@@ -12,7 +12,7 @@ it, and busybox has no help text for ascii, tree and pipe_progress.
 ### a run of an applet, with its stdout, stderr and status
 
 ```cu
-(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-help && mkdir -p /tmp/x-cu-help")) (def nf (fn (_ n) (string-append "/tmp/x-cu-help/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (string-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (%cu-int->str st) "\n")))))))) (display "made"))
+(do (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-help && mkdir -p /tmp/x-cu-help")) (def nf (fn (_ n) (string-append "/tmp/x-cu-help/" n))) (def run (fn (_ argv in) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (nf ".out"))) (ee (file-open-write (nf ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def st (cu-run argv in)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (%str-concat (list (Str8 replace "\n" "|\n" (file-read-all (nf ".out"))) "stderr:\n" (file-read-all (nf ".err")) "status " (cu-int->str st) "\n")))))))) (display "made"))
 ```
 ---
     made
@@ -2102,6 +2102,383 @@ stderr:
 status 0
 ```
 
+### tftpd
+
+```cu
+(run (list "tftpd" "--help") "")
+```
+---
+```output
+Usage: tftpd [-crl] [-u USER] [DIR]|
+|
+Transfer a file on tftp client's request|
+|
+tftpd is an inetd service, inetd.conf line:|
+	69 dgram udp nowait root tftpd tftpd -l /files/to/serve|
+Can be run from udpsvd:|
+	udpsvd -vE 0.0.0.0 69 tftpd /files/to/serve|
+|
+	-r	Prohibit upload|
+	-c	Allow file creation via upload|
+	-u USER	Access files as USER|
+	-l	Log to syslog (inetd mode requires this)|
+stderr:
+status 0
+```
+
+### dnsd
+
+```cu
+(run (list "dnsd" "--help") "")
+```
+---
+```output
+Usage: dnsd [-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]|
+|
+Small static DNS server daemon|
+|
+	-c FILE	Config file|
+	-t SEC	TTL|
+	-p PORT	Listen on PORT|
+	-i ADDR	Listen on ADDR|
+	-d	Daemonize|
+	-v	Verbose|
+	-s	Send successful replies only. Use this if you want|
+		to use /etc/resolv.conf with two nameserver lines:|
+			nameserver DNSD_SERVER|
+			nameserver NORMAL_DNS_SERVER|
+stderr:
+status 0
+```
+
+### inetd
+
+```cu
+(run (list "inetd" "--help") "")
+```
+---
+```output
+Usage: inetd [-fe] [-q N] [-R N] [CONFFILE]|
+|
+Listen for network connections and launch programs|
+|
+	-f	Run in foreground|
+	-e	Log to stderr|
+	-q N	Socket listen queue (default 128)|
+	-R N	Pause services after N connects/min|
+		(default 0 - disabled)|
+	Default CONFFILE is /etc/inetd.conf|
+stderr:
+status 0
+```
+
+### fakeidentd
+
+```cu
+(run (list "fakeidentd" "--help") "")
+```
+---
+```output
+Usage: fakeidentd [-fiw] [-b ADDR] [STRING]|
+|
+Provide fake ident (auth) service|
+|
+	-f	Run in foreground|
+	-i	Inetd mode|
+	-w	Inetd 'wait' mode|
+	-b ADDR	Bind to specified address|
+	STRING	Ident answer string (default: nobody)|
+stderr:
+status 0
+```
+
+### telnet
+
+```cu
+(run (list "telnet" "--help") "")
+```
+---
+```output
+Usage: telnet [-a] [-l USER] HOST [PORT]|
+|
+Connect to telnet server|
+|
+	-a	Automatic login with $USER envvar|
+	-l USER	Automatic login as USER|
+stderr:
+status 0
+```
+
+### telnetd
+
+```cu
+(run (list "telnetd" "--help") "")
+```
+---
+```output
+Usage: telnetd [OPTIONS]|
+|
+Handle incoming telnet connections|
+|
+	-l LOGIN	Exec LOGIN on connect (default /bin/login)|
+	-f ISSUE_FILE	Display ISSUE_FILE instead of /etc/issue.net|
+	-K		Close connection as soon as login exits|
+			(normally wait until all programs close slave pty)|
+	-p PORT		Port to listen on. Default 23|
+	-b ADDR[:PORT]	Address to bind to|
+	-F		Run in foreground|
+	-i		Inetd mode|
+	-w SEC		Inetd 'wait' mode, linger time SEC|
+		inetd.conf line: 23 stream tcp wait root telnetd telnetd -w10|
+	-S		Log to syslog (implied by -i or without -F and -w)|
+	-v		Verbose|
+stderr:
+status 0
+```
+
+### makemime
+
+```cu
+(run (list "makemime" "--help") "")
+```
+---
+```output
+Usage: makemime [OPTIONS] [FILE]...|
+|
+Create multipart MIME-encoded message from FILEs|
+|
+	-o FILE	Output. Default: stdout|
+	-a HDR	Add header(s). Examples:|
+		"From: user@host.org", "Date: `date -R`"|
+	-c CT	Content type. Default: application/octet-stream|
+	-C CS	Charset. Default: us-ascii|
+|
+Other options are silently ignored|
+stderr:
+status 0
+```
+
+### reformime
+
+```cu
+(run (list "reformime" "--help") "")
+```
+---
+```output
+Usage: reformime [OPTIONS]|
+|
+Parse MIME-encoded message on stdin|
+|
+	-x PREFIX	Extract content of MIME sections to files|
+	-X PROG ARGS	Filter content of MIME sections through PROG|
+			Must be the last option|
+|
+Other options are silently ignored|
+stderr:
+status 0
+```
+
+### sendmail
+
+```cu
+(run (list "sendmail" "--help") "")
+```
+---
+```output
+Usage: sendmail [-tv] [-f SENDER] [-amLOGIN 4<user_pass.txt | -auUSER -apPASS]|
+		[-w SECS] [-H 'PROG ARGS' | -S HOST] [RECIPIENT_EMAIL]...|
+|
+Read email from stdin and send it|
+|
+Standard options:|
+	-t		Read additional recipients from message body|
+	-f SENDER	For use in MAIL FROM:<sender>. Can be empty string|
+			Default: -auUSER, or username of current UID|
+	-o OPTIONS	Various options. -oi implied, others are ignored|
+	-i		-oi synonym, implied and ignored|
+|
+Busybox specific options:|
+	-v		Verbose|
+	-w SECS		Network timeout|
+	-H 'PROG ARGS'	Run connection helper. Examples:|
+		openssl s_client -quiet -tls1 -starttls smtp -connect smtp.gmail.com:25|
+		openssl s_client -quiet -tls1 -connect smtp.gmail.com:465|
+			$SMTP_ANTISPAM_DELAY: seconds to wait after helper connect|
+	-S HOST[:PORT]	Server (default $SMTPHOST or 127.0.0.1)|
+	-amLOGIN	Log in using AUTH LOGIN|
+	-amPLAIN	or AUTH PLAIN|
+			(-amCRAM-MD5 not supported)|
+	-auUSER		Username for AUTH|
+	-apPASS 	Password for AUTH|
+|
+If no -a options are given, authentication is not done.|
+If -amLOGIN is given but no -au/-ap, user/password is read from fd #4.|
+Other options are silently ignored; -oi is implied.|
+Use makemime to create emails with attachments.|
+stderr:
+status 0
+```
+
+### popmaildir
+
+```cu
+(run (list "popmaildir" "--help") "")
+```
+---
+```output
+Usage: popmaildir [OPTIONS] MAILDIR [CONN_HELPER ARGS]|
+|
+Fetch content of remote mailbox to local maildir|
+|
+	-s		Skip authorization|
+	-T		Get messages with TOP instead of RETR|
+	-k		Keep retrieved messages on the server|
+	-t SEC		Network timeout|
+	-F 'PROG ARGS'	Filter program (may be repeated)|
+	-M 'PROG ARGS'	Delivery program|
+|
+Fetch from plain POP3 server:|
+popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt|
+Fetch from SSLed POP3 server and delete fetched emails:|
+popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt|
+stderr:
+status 0
+```
+
+### ntpd
+
+```cu
+(run (list "ntpd" "--help") "")
+```
+---
+```output
+Usage: ntpd [-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]...|
+|
+NTP client/server|
+|
+	-d[d]	Verbose|
+	-n	Run in foreground|
+	-q	Quit after clock is set|
+	-N	Run at high priority|
+	-w	Do not set time (only query peers), implies -n|
+	-S PROG	Run PROG after stepping time, stratum change, and every 11 min|
+	-k FILE	Key file (ntp.keys compatible)|
+	-p [keyno:NUM:]PEER|
+		Obtain time from PEER (may be repeated)|
+		Use key NUM for authentication|
+		If -p is not given, 'server HOST' lines|
+		from /etc/ntp.conf are used|
+	-l	Also run as server on port 123|
+	-I IFACE Bind server to IFACE, implies -l|
+stderr:
+status 0
+```
+
+### dumpleases
+
+```cu
+(run (list "dumpleases" "--help") "")
+```
+---
+```output
+Usage: dumpleases [-r|-a] [-d] [-f LEASEFILE]|
+|
+Display DHCP leases granted by udhcpd|
+|
+	-f FILE	Lease file|
+	-r	Show remaining time|
+	-a	Show expiration time|
+	-d	Show time in seconds|
+stderr:
+status 0
+```
+
+### ssl_client
+
+```cu
+(run (list "ssl_client" "--help") "")
+```
+---
+```output
+Usage: ssl_client [-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }|
+stderr:
+status 0
+```
+
+### ssl_server
+
+```cu
+(run (list "ssl_server" "--help") "")
+```
+---
+```output
+Usage: ssl_server -f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server|
+|
+	-f PEMFILE	HAProxy-style CRT file|
+stderr:
+status 0
+```
+
+### pscan
+
+```cu
+(run (list "pscan" "--help") "")
+```
+---
+```output
+Usage: pscan [-cb] [-p MIN_PORT] [-P MAX_PORT] [-t TIMEOUT] [-T MIN_RTT] HOST|
+|
+Scan HOST, print all open ports|
+|
+	-c	Show closed ports too|
+	-b	Show blocked ports too|
+	-p PORT	Scan from this port (default 1)|
+	-P PORT	Scan up to this port (default 1024)|
+	-t MS	Timeout (default 5000 ms)|
+	-T MS	Minimum rtt (default 5 ms)|
+stderr:
+status 0
+```
+
+### netcat
+
+```cu
+(run (list "netcat" "--help") "")
+```
+---
+```output
+Usage: netcat [OPTIONS] HOST PORT  - connect|
+nc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen|
+|
+	-e PROG	Run PROG after connect (must be last)|
+	-l	Listen mode, for inbound connects|
+	-lk	With -e, provides persistent server|
+	-p PORT	Local port|
+	-s ADDR	Local address|
+	-w SEC	Timeout for connects and final net reads|
+	-i SEC	Delay interval for lines sent|
+	-n	Don't do DNS resolution|
+	-u	UDP mode|
+	-b	Allow broadcasts|
+	-v	Verbose|
+	-o FILE	Hex dump traffic|
+	-z	Zero-I/O mode (scanning)|
+stderr:
+status 0
+```
+
+### dnsdomainname
+
+```cu
+(run (list "dnsdomainname" "--help") "")
+```
+---
+```output
+No help available|
+stderr:
+status 0
+```
+
 ### xargs
 
 ```cu
@@ -2352,6 +2729,25 @@ stderr:
 status 0
 ```
 
+### setpriv
+
+```cu
+(run (list "setpriv" "--help") "")
+```
+---
+```output
+Usage: setpriv [OPTIONS] PROG ARGS|
+|
+Run PROG with different privilege settings|
+|
+-d,--dump		Show current capabilities|
+--nnp,--no-new-privs	Ignore setuid/setgid bits and file capabilities|
+--inh-caps CAP,CAP	Set inheritable capabilities|
+--ambient-caps CAP,CAP	Set ambient capabilities|
+stderr:
+status 0
+```
+
 ### ttysize
 
 ```cu
@@ -2541,6 +2937,119 @@ stderr:
 status 0
 ```
 
+### unzip
+
+```cu
+(run (list "unzip" "--help") "")
+```
+---
+```output
+Usage: unzip [-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]|
+|
+Extract FILEs from ZIP archive|
+|
+	-l	List contents (with -q for short form)|
+	-n	Never overwrite files (default: ask)|
+	-o	Overwrite|
+	-j	Do not restore paths|
+	-p	Write to stdout|
+	-t	Test|
+	-q	Quiet|
+	-K	Do not clear SUID bit|
+	-x FILE	Exclude FILEs|
+	-d DIR	Extract into DIR|
+stderr:
+status 0
+```
+
+### cpio
+
+```cu
+(run (list "cpio" "--help") "")
+```
+---
+```output
+Usage: cpio [-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]...|
+|
+Extract (-i) or list (-t) files from a cpio archive on stdin, or|
+take file list from stdin and create an archive (-o) or copy files (-p)|
+|
+Main operation mode:|
+	-t	List|
+	-i	Extract EXTR_FILEs (or all)|
+	-o	Create (requires -H newc)|
+	-p DIR	Copy files to DIR|
+Options:|
+	-H newc	Archive format|
+	-d	Make leading directories|
+	-m	Restore mtime|
+	-v	Verbose|
+	-u	Overwrite|
+	-F FILE	Input (-t,-i,-p) or output (-o) file|
+	-R USER[:GRP]	Set owner of created files|
+	-L	Dereference symlinks|
+	-0	NUL terminated input|
+	--ignore-devno|
+	--renumber-inodes|
+stderr:
+status 0
+```
+
+### patch
+
+```cu
+(run (list "patch" "--help") "")
+```
+---
+```output
+Usage: patch [-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]|
+|
+	-p N	Strip N leading components from file names|
+	-i DIFF	Read DIFF instead of stdin|
+	-R	Reverse patch|
+	-N	Ignore already applied patches|
+	-E	Remove output files if they become empty|
+	--dry-run	Don't actually change files|
+stderr:
+status 0
+```
+
+### ed
+
+```cu
+(run (list "ed" "--help") "")
+```
+---
+```output
+Usage: ed [-p PROMPT] [-s] [FILE]|
+stderr:
+status 0
+```
+
+### dc
+
+```cu
+(run (list "dc" "--help") "")
+```
+---
+```output
+Usage: dc [-x] [-eSCRIPT]... [-fFILE]... [FILE]...|
+|
+Tiny RPN calculator. Operations:|
+Arithmetic: + - * / % ^|
+~ - divide with remainder|
+| - modular exponentiation|
+v - square root|
+p - print top of the stack without popping|
+f - print entire stack|
+k - pop the value and set precision|
+i - pop the value and set input radix|
+o - pop the value and set output radix|
+Examples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16|
+stderr:
+status 0
+```
+
 ### hostname
 
 ```cu
@@ -2685,6 +3194,61 @@ stderr:
 status 0
 ```
 
+### sha3sum
+
+```cu
+(run (list "sha3sum" "--help") "")
+```
+---
+```output
+Usage: sha3sum [-c[sw]] [-a BITS] [FILE]...|
+|
+Print or check SHA3 checksums|
+|
+	-c	Check sums against list in FILEs|
+	-s	Don't output anything, status code shows success|
+	-w	Warn about improperly formatted checksum lines|
+	-a BITS	224 (default), 256, 384, 512|
+stderr:
+status 0
+```
+
+### cryptpw
+
+```cu
+(run (list "cryptpw" "--help") "")
+```
+---
+```output
+Usage: cryptpw [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]|
+|
+Print crypt(3) hashed PASSWORD|
+|
+	-P N	Read password from fd N|
+	-m TYPE	des,md5,sha256/512 (default sha512)|
+	-S SALT|
+stderr:
+status 0
+```
+
+### mkpasswd
+
+```cu
+(run (list "mkpasswd" "--help") "")
+```
+---
+```output
+Usage: mkpasswd [-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]|
+|
+Print crypt(3) hashed PASSWORD|
+|
+	-P N	Read password from fd N|
+	-m TYPE	des,md5,sha256/512 (default sha512)|
+	-S SALT|
+stderr:
+status 0
+```
+
 ### tree
 
 ```cu
@@ -2821,6 +3385,24 @@ stderr:
 status 0
 ```
 
+### minips
+
+ps under another name, as busybox's is.
+
+```cu
+(run (list "minips" "--help") "")
+```
+---
+```output
+Usage: minips [-o COL1,COL2=HEADER]|
+|
+Show list of processes|
+|
+	-o COL1,COL2=HEADER	Select columns for display|
+stderr:
+status 0
+```
+
 ### pidof
 
 ```cu
@@ -2883,6 +3465,574 @@ Send signal to processes selected by regex PATTERN|
 	-n	Signal the newest process only|
 	-o	Signal the oldest process only|
 	-e	Display name and PID of the process being killed|
+stderr:
+status 0
+```
+
+### kill
+
+```cu
+(run (list "kill" "--help") "")
+```
+---
+```output
+Usage: kill [-l] [-SIG] PID...|
+|
+Send a signal (default: TERM) to given PIDs|
+|
+	-l	List all signal names and numbers|
+stderr:
+status 0
+```
+
+### killall
+
+```cu
+(run (list "killall" "--help") "")
+```
+---
+```output
+Usage: killall [-lq] [-SIG] PROCESS_NAME...|
+|
+Send a signal (default: TERM) to given processes|
+|
+	-l	List all signal names and numbers|
+	-q	Don't complain if no processes were killed|
+stderr:
+status 0
+```
+
+### pwdx
+
+```cu
+(run (list "pwdx" "--help") "")
+```
+---
+```output
+Usage: pwdx PID...|
+|
+Show current directory for PIDs|
+stderr:
+status 0
+```
+
+### smemcap
+
+```cu
+(run (list "smemcap" "--help") "")
+```
+---
+```output
+Usage: smemcap >SMEMDATA.TAR|
+|
+Collect memory usage data in /proc and write it to stdout|
+stderr:
+status 0
+```
+
+### sysctl
+
+```cu
+(run (list "sysctl" "--help") "")
+```
+---
+```output
+Usage: sysctl [-enq] { -a | -p [FILE]... | [-w] [KEY[=VALUE]]... }|
+|
+Show/set kernel parameters|
+|
+	-e	Don't warn about unknown keys|
+	-n	Don't show key names|
+	-q      Quiet|
+	-a	Show all values|
+	-p	Set values from FILEs (default /etc/sysctl.conf)|
+	-w	Set values|
+stderr:
+status 0
+```
+
+### lsmod
+
+```cu
+(run (list "lsmod" "--help") "")
+```
+---
+```output
+Usage: lsmod|
+|
+List loaded kernel modules|
+stderr:
+status 0
+```
+
+### route
+
+```cu
+(run (list "route" "--help") "")
+```
+---
+```output
+Usage: route [-ne] [-A inet[6]] [{add|del} [-net|-host] TARGET [netmask MASK]|
+	[gw GATEWAY] [metric N] [mss BYTES] [window BYTES] [reject] [IFACE]]|
+|
+Show or edit kernel routing tables|
+|
+	-n	Don't resolve names|
+	-e	Display other/more information|
+	-A inet[6]	Select address family|
+stderr:
+status 0
+```
+
+### arp
+
+```cu
+(run (list "arp" "--help") "")
+```
+---
+```output
+Usage: arp|
+[-vn]	[-H HWTYPE] [-i IF] -a [HOSTNAME]|
+[-v]		    [-i IF] -d HOSTNAME [pub]|
+[-v]	[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [temp]|
+[-v]	[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [netmask MASK] pub|
+[-v]	[-H HWTYPE] [-i IF] -Ds HOSTNAME IFACE [netmask MASK] pub|
+|
+Manipulate ARP cache|
+|
+	-a		Display (all) hosts|
+	-d		Delete ARP entry|
+	-s		Set new entry|
+	-v		Verbose|
+	-n		Don't resolve names|
+	-i IF		Network interface|
+	-D		Read HWADDR from IFACE|
+	-A,-p AF	Protocol family|
+	-H HWTYPE	Hardware address type|
+stderr:
+status 0
+```
+
+### netstat
+
+```cu
+(run (list "netstat" "--help") "")
+```
+---
+```output
+Usage: netstat [-ral] [-tuwx] [-enWp]|
+|
+Display networking information|
+|
+	-r	Routing table|
+	-a	All sockets|
+	-l	Listening sockets|
+		Else: connected sockets|
+	-t	TCP sockets|
+	-u	UDP sockets|
+	-w	Raw sockets|
+	-x	Unix sockets|
+		Else: all socket types|
+	-e	Other/more information|
+	-n	Don't resolve names|
+	-W	Wide display|
+	-p	Show PID/program name for sockets|
+stderr:
+status 0
+```
+
+### ifconfig
+
+```cu
+(run (list "ifconfig" "--help") "")
+```
+---
+```output
+Usage: ifconfig [-a] [IFACE] [ADDRESS]|
+|
+Configure a network interface|
+|
+	[add ADDRESS[/PREFIXLEN]]|
+	[del ADDRESS[/PREFIXLEN]]|
+	[[-]broadcast [ADDRESS]] [[-]pointopoint [ADDRESS]]|
+	[netmask ADDRESS] [dstaddr ADDRESS]|
+	[outfill NN] [keepalive NN]|
+	[hw ether|infiniband ADDRESS] [metric NN] [mtu NN]|
+	[[-]trailers] [[-]arp] [[-]allmulti]|
+	[multicast] [[-]promisc] [txqueuelen NN] [[-]dynamic]|
+	[mem_start NN] [io_addr NN] [irq NN]|
+	[up|down] ...|
+stderr:
+status 0
+```
+
+### ip
+
+```cu
+(run (list "ip" "--help") "")
+```
+---
+```output
+Usage: ip [OPTIONS] address|route|link|tunnel|neigh|rule [ARGS]|
+|
+OPTIONS := -f[amily] inet|inet6|link | -o[neline]|
+|
+ip addr add|del IFADDR dev IFACE | show|flush [dev IFACE] [to PREFIX]|
+ip route list|flush|add|del|change|append|replace|test ROUTE|
+ip link set IFACE [up|down] [arp on|off] [multicast on|off]|
+	[promisc on|off] [mtu NUM] [name NAME] [qlen NUM] [address MAC]|
+	[master IFACE | nomaster] [netns PID]|
+ip tunnel add|change|del|show [NAME]|
+	[mode ipip|gre|sit] [remote ADDR] [local ADDR] [ttl TTL]|
+ip neigh show|flush [to PREFIX] [dev DEV] [nud STATE]|
+ip rule [list] | add|del SELECTOR ACTION|
+stderr:
+status 0
+```
+
+### ipaddr
+
+```cu
+(run (list "ipaddr" "--help") "")
+```
+---
+```output
+Usage: ipaddr add|del IFADDR dev IFACE | show|flush [dev IFACE] [to PREFIX]|
+|
+ipaddr add|change|replace|delete dev IFACE [CONFFLAG-LIST] IFADDR|
+	IFADDR := PREFIX | ADDR peer PREFIX [broadcast ADDR|+|-]|
+		[anycast ADDR] [label STRING] [scope SCOPE]|
+	PREFIX := ADDR[/MASK]|
+	SCOPE := [host|link|global|NUMBER]|
+	CONFFLAG-LIST := [CONFFLAG-LIST] CONFFLAG|
+	CONFFLAG := [noprefixroute]|
+ipaddr show|flush [dev IFACE] [scope SCOPE] [to PREFIX] [label PATTERN]|
+stderr:
+status 0
+```
+
+### iplink
+
+```cu
+(run (list "iplink" "--help") "")
+```
+---
+```output
+Usage: iplink set IFACE [up|down] [arp on|off] [multicast on|off]|
+	[promisc on|off] [mtu NUM] [name NAME] [qlen NUM] [address MAC]|
+	[master IFACE | nomaster] [netns PID]|
+iplink add [link IFACE] IFACE [address MAC] type TYPE [ARGS]|
+iplink delete IFACE type TYPE [ARGS]|
+	TYPE ARGS := vlan VLANARGS | vrf table NUM|
+	VLANARGS := id VLANID [protocol 802.1q|802.1ad] [reorder_hdr on|off]|
+		[gvrp on|off] [mvrp on|off] [loose_binding on|off]|
+iplink show [IFACE]|
+stderr:
+status 0
+```
+
+### iproute
+
+```cu
+(run (list "iproute" "--help") "")
+```
+---
+```output
+Usage: iproute list|flush|add|del|change|append|replace|test ROUTE|
+|
+iproute list|flush SELECTOR|
+	SELECTOR := [root PREFIX] [match PREFIX] [proto RTPROTO]|
+	PREFIX := default|ADDR[/MASK]|
+iproute get ADDR [from ADDR iif IFACE]|
+	[oif IFACE] [tos TOS]|
+iproute add|del|change|append|replace|test ROUTE|
+	ROUTE := NODE_SPEC [INFO_SPEC]|
+	NODE_SPEC := PREFIX [table TABLE_ID] [proto RTPROTO] [scope SCOPE] [metric METRIC]|
+	INFO_SPEC := NH OPTIONS|
+	NH := [via [inet|inet6] ADDR] [dev IFACE] [src ADDR] [onlink]|
+	OPTIONS := [mtu [lock] NUM] [advmss [lock] NUM]|
+stderr:
+status 0
+```
+
+### ipneigh
+
+```cu
+(run (list "ipneigh" "--help") "")
+```
+---
+```output
+Usage: ipneigh show|flush [to PREFIX] [dev DEV] [nud STATE]|
+stderr:
+status 0
+```
+
+### iprule
+
+```cu
+(run (list "iprule" "--help") "")
+```
+---
+```output
+Usage: iprule [list] | add|del SELECTOR ACTION|
+|
+	SELECTOR := [from PREFIX] [to PREFIX] [tos TOS] [fwmark FWMARK[/MASK]]|
+			[dev IFACE] [pref NUMBER]|
+	ACTION := [table TABLE_ID] [nat ADDR]|
+			[prohibit|reject|unreachable]|
+			[realms [SRCREALM/]DSTREALM]|
+	TABLE_ID := [local|main|default|NUMBER]|
+stderr:
+status 0
+```
+
+### iptunnel
+
+```cu
+(run (list "iptunnel" "--help") "")
+```
+---
+```output
+Usage: iptunnel add|change|del|show [NAME]|
+	[mode ipip|gre|sit] [remote ADDR] [local ADDR] [ttl TTL]|
+|
+iptunnel add|change|del|show [NAME]|
+	[mode ipip|gre|sit] [remote ADDR] [local ADDR]|
+	[[i|o]seq] [[i|o]key KEY] [[i|o]csum]|
+	[ttl TTL] [tos TOS] [[no]pmtudisc] [dev PHYS_DEV]|
+stderr:
+status 0
+```
+
+### top
+
+```cu
+(run (list "top" "--help") "")
+```
+---
+```output
+Usage: top [-bmH] [-n COUNT] [-d SECONDS]|
+|
+Show a view of process activity in real time.|
+Read the status of all processes from /proc each SECONDS|
+and show a screenful of them.|
+Keys:|
+	N/M/P/T: show CPU usage, sort by pid/mem/cpu/time|
+	S: show memory|
+	R: reverse sort|
+	H: toggle threads, 1: toggle SMP|
+	Q,^C: exit|
+Options:|
+	-b	Batch mode|
+	-n N	Exit after N iterations|
+	-d SEC	Delay between updates|
+	-m	Same as 's' key|
+	-H	Show threads|
+stderr:
+status 0
+```
+
+### lsof
+
+```cu
+(run (list "lsof" "--help") "")
+```
+---
+```output
+Usage: lsof|
+|
+Show all open files|
+stderr:
+status 0
+```
+
+### vmstat
+
+```cu
+(run (list "vmstat" "--help") "")
+```
+---
+```output
+Usage: vmstat [-n] [INTERVAL [COUNT]]|
+|
+Show virtual memory statistics|
+|
+	-n	Show header once|
+stderr:
+status 0
+```
+
+### iostat
+
+```cu
+(run (list "iostat" "--help") "")
+```
+---
+```output
+Usage: iostat [-c] [-d] [-t] [-z] [-k|-m] [ALL|BLOCKDEV...] [INTERVAL [COUNT]]|
+|
+Report CPU and I/O statistics|
+|
+	-c	Show CPU utilization|
+	-d	Show device utilization|
+	-t	Print current time|
+	-z	Omit devices with no activity|
+	-k	Use kb/s|
+	-m	Use Mb/s|
+stderr:
+status 0
+```
+
+### mpstat
+
+```cu
+(run (list "mpstat" "--help") "")
+```
+---
+```output
+Usage: mpstat [-A] [-I SUM|CPU|ALL|SCPU] [-u] [-P num|ALL] [INTERVAL [COUNT]]|
+|
+Per-processor statistics|
+|
+	-A			Same as -I ALL -u -P ALL|
+	-I SUM|CPU|ALL|SCPU	Report interrupt statistics|
+	-P num|ALL		Processor to monitor|
+	-u			Report CPU utilization|
+stderr:
+status 0
+```
+
+### nmeter
+
+```cu
+(run (list "nmeter" "--help") "")
+```
+---
+```output
+Usage: nmeter [-d MSEC] FORMAT_STRING|
+|
+Monitor system in real time|
+|
+ -d MSEC	Milliseconds between updates, default:1000, none:-1|
+|
+Format specifiers:|
+ %Nc or %[cN]	CPU. N - bar size (default 10)|
+		(displays: S:system U:user N:niced D:iowait I:irq i:softirq)|
+ %[nINTERFACE]	Network INTERFACE|
+ %m		Allocated memory|
+ %[md]		Dirty file-backed memory|
+ %[mw]		Memory being written to storage|
+ %[mf]		Free memory|
+ %[mt]		Total memory|
+ %s		Allocated swap|
+ %f		Number of used file descriptors|
+ %Ni		Total/specific IRQ rate|
+ %x		Context switch rate|
+ %p		Forks|
+ %[pn]		# of processes|
+ %b		Block io|
+ %Nt		Time (with N decimal points)|
+ %NT		Zero-based timestamp (with N decimal points)|
+ %r		Print <cr> instead of <lf> at EOL|
+stderr:
+status 0
+```
+
+### watch
+
+```cu
+(run (list "watch" "--help") "")
+```
+---
+```output
+Usage: watch [-n SEC] [-tx] PROG ARGS|
+|
+Run PROG periodically|
+|
+	-n SEC	Period (default 2)|
+	-t	Don't print header|
+	-x	exec(PROG,ARGS) instead of sh -c 'PROG ARGS'|
+stderr:
+status 0
+```
+
+### pmap
+
+```cu
+(run (list "pmap" "--help") "")
+```
+---
+```output
+Usage: pmap [-xq] PID...|
+|
+Display process memory usage|
+|
+	-x	Show details|
+	-q	Quiet|
+stderr:
+status 0
+```
+
+### fuser
+
+```cu
+(run (list "fuser" "--help") "")
+```
+---
+```output
+Usage: fuser [-msk46] [-SIGNAL] FILE or PORT/PROTO|
+|
+Find processes which use FILEs or PORTs|
+|
+	-m	Find processes which use same fs as FILEs|
+	-4,-6	Search only IPv4/IPv6 space|
+	-s	Don't display PIDs|
+	-k	Kill found processes|
+	-SIGNAL	Signal to send (default: KILL)|
+stderr:
+status 0
+```
+
+### ipcs
+
+```cu
+(run (list "ipcs" "--help") "")
+```
+---
+```output
+Usage: ipcs [[-smq] -i SHMID] | [[-asmq] [-tcplu]]|
+|
+	-i ID	Show specific resource|
+Resource specification:|
+	-m	Shared memory segments|
+	-q	Message queues|
+	-s	Semaphore arrays|
+	-a	All (default)|
+Output format:|
+	-t	Time|
+	-c	Creator|
+	-p	Pid|
+	-l	Limits|
+	-u	Summary|
+stderr:
+status 0
+```
+
+### ipcrm
+
+```cu
+(run (list "ipcrm" "--help") "")
+```
+---
+```output
+Usage: ipcrm [-MQS key] [-mqs id]|
+|
+Upper-case options MQS remove an object by shmkey value.|
+Lower-case options remove an object by shmid value.|
+|
+	-mM	Remove memory segment after last detach|
+	-qQ	Remove message queue|
+	-sS	Remove semaphore|
 stderr:
 status 0
 ```

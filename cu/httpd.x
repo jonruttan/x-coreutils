@@ -36,6 +36,28 @@
 
 ; --- the state a run sets --------------------------------------------------------
 
+(module cu/httpd)
+
+(import cu/cli cu-opts)
+(import cu/crypt cu-pw-encrypt hd-salt)
+(import cu/date cu-date-fmt cu-date-split)
+(import cu/nc nc-count)
+(import cu/net wget-last-part)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-lines
+  cu-member-s? cu-ptr-call cu-ptr-set! cu-sig-ign cu-str->ptr cu-sweep!
+  date-now-unix file-close file-dir? file-err-text file-exists? file-open-read
+  file-read-all file-read-run file-seek file-stat file-write file-write-run
+  map net-accept net-close net-connect net-listen net-listen-on net-peer
+  net-resolve net-shutdown net-stdin-socket reverse set-first! str-make-raw
+  string-append string=? substring sys-dup2 sys-exec-or-err sys-exit sys-fork
+  sys-getcwd sys-group-id sys-kill sys-pipe sys-setenv sys-signal
+  sys-user-group sys-user-id sys-user-name sys-wait wget-digits wget-div
+  wget-err-text wget-index wget-memv)
+(import cu/session hd-daemonize ss-call)
+(import cu/test t-permitted?)
+(import cu/text3 cu-b64-decode-to)
+(import cu/tftp tftp-bytes)
+
 (def %hd-verbose 0)
 (def %hd-name "httpd")        ; the prefix of a message: the peer's IP:PORT with -v
 (def %hd-index "index.html")
@@ -77,7 +99,7 @@
 (def %hd-done (fn (_) (Err raise (lit httpd-done) "" ())))
 
 (def %hd-log
-  (fn (_ msg) (file-write 2 (string-concat (list %hd-name ": " msg "\n")))))
+  (fn (_ msg) (file-write 2 (%str-concat (list %hd-name ": " msg "\n")))))
 
 ; a fatal error before any request: the message, status 1
 (def %hd-die (fn (_ msg) (Err raise (lit net) msg ())))
@@ -90,20 +112,20 @@
       (let go ((n n) (acc ""))
         (let ((d (% n 16)))
           (let ((s (string-append (substring "0123456789abcdef" d (+ d 1)) acc)))
-            (if (< n 16) s (go (%wget-div n 16) s))))))))
+            (if (< n 16) s (go (wget-div n 16) s))))))))
 
 (def %hd-http-date
-  (fn (_ secs) (%cu-date-fmt "%a, %d %b %Y %H:%M:%S GMT" (%cu-date-split secs #t) secs)))
+  (fn (_ secs) (cu-date-fmt "%a, %d %b %Y %H:%M:%S GMT" (cu-date-split secs #t) secs)))
 
 ; S starts with P, letters compared without case
 (def %hd-prefix-ci?
   (fn (_ s p)
     (if (< (byte-len s) (byte-len p)) #f
-      (string=? (%wget-lower (substring s 0 (byte-len p))) (%wget-lower p)))))
+      (string=? (Str8 downcase (substring s 0 (byte-len p))) (Str8 downcase p)))))
 
 (def %hd-skip-blanks
   (fn (_ s i)
-    (if (if (< i (byte-len s)) (%wget-memv (byte-at s i) (list #\space #\tab)) #f)
+    (if (if (< i (byte-len s)) (wget-memv (byte-at s i) (list #\space #\tab)) #f)
       (%hd-skip-blanks s (+ i 1)) i)))
 
 (def %hd-after-header
@@ -123,7 +145,7 @@
 ; byte other than a tab, or a line of 8192 bytes, is a 400
 (def %hd-line
   (fn (self)
-    (def nl (%wget-index %hd-in #\newline 0))
+    (def nl (wget-index %hd-in #\newline 0))
     (if (if (null? nl) (> (byte-len %hd-in) 8192) #f) (%hd-fail 400)
       (if (null? nl)
         (let ((r (%hd-read)))
@@ -168,45 +190,45 @@
     (def row (let go ((rs %hd-reasons)) (if (null? rs) (list code "" ()) (if (= (first (first rs)) code) (first rs) (go (rest rs))))))
     (def reason (first (rest row)))
     (def info (first (rest (rest row))))
-    (when (> %hd-verbose 0) (%hd-log (string-append "response:" (%cu-int->str code))))
+    (when (> %hd-verbose 0) (%hd-log (string-append "response:" (cu-int->str code))))
     (def now (date-now-unix))
     (def head
-      (string-concat
-        (list "HTTP/1.1 " (%cu-int->str code) " " reason "\r\n"
+      (%str-concat
+        (list "HTTP/1.1 " (cu-int->str code) " " reason "\r\n"
               "Date: " (%hd-http-date now) "\r\n"
               "Connection: close\r\n"
               (if (if (= code 200) (null? %hd-mime-found) #f) ""
-                (string-concat (list "Content-type: " (if (= code 200) %hd-mime-found "text/html") "\r\n")))
-              (if (= code 401) (string-concat (list "WWW-Authenticate: Basic realm=\"" %hd-realm "\"\r\n")) "")
+                (%str-concat (list "Content-type: " (if (= code 200) %hd-mime-found "text/html") "\r\n")))
+              (if (= code 401) (%str-concat (list "WWW-Authenticate: Basic realm=\"" %hd-realm "\"\r\n")) "")
               (if (= code 302)
-                (string-concat (list "Location: " %hd-moved "/" (if (null? %hd-query) "" (string-append "?" %hd-query)) "\r\n"))
+                (%str-concat (list "Location: " %hd-moved "/" (if (null? %hd-query) "" (string-append "?" %hd-query)) "\r\n"))
                 ""))))
     (def page (let ((p (Assoc find code %hd-errpages))) (if (null? p) () (rest p))))
-    (if (if (null? page) #f (%t-permitted? page 4))
+    (if (if (null? page) #f (t-permitted? page 4))
       (do (%hd-write-all (string-append head "\r\n"))
           (%hd-send-file page #f))
       (%hd-write-all
-        (string-concat
+        (%str-concat
           (list head
                 (if (= %hd-file-size -1) ""
                   (let ((size (if (= code 206)
                                 (- (+ %hd-range-end 1) %hd-range-start)
                                 %hd-file-size)))
-                    (string-concat
+                    (%str-concat
                       (list (if (= code 206)
-                              (string-concat (list "Content-Range: bytes " (%cu-int->str %hd-range-start) "-"
-                                                   (%cu-int->str %hd-range-end) "/" (%cu-int->str %hd-file-size) "\r\n"))
+                              (%str-concat (list "Content-Range: bytes " (cu-int->str %hd-range-start) "-"
+                                                   (cu-int->str %hd-range-end) "/" (cu-int->str %hd-file-size) "\r\n"))
                               "")
                             "Accept-Ranges: bytes\r\n"
                             "Last-Modified: " (%hd-http-date %hd-last-mod) "\r\n"
                             "ETag: " %hd-etag "\r\n"
-                            "Content-Length: " (%cu-int->str size) "\r\n"))))
+                            "Content-Length: " (cu-int->str size) "\r\n"))))
                 (if %hd-gzip "Content-Encoding: gzip\r\n" "")
                 "\r\n"
                 (if (null? info) ""
-                  (string-concat
-                    (list "<HTML><HEAD><TITLE>" (%cu-int->str code) " " reason "</TITLE></HEAD>\n"
-                          "<BODY><H1>" (%cu-int->str code) " " reason "</H1>\n"
+                  (%str-concat
+                    (list "<HTML><HEAD><TITLE>" (cu-int->str code) " " reason "</TITLE></HEAD>\n"
+                          "<BODY><H1>" (cu-int->str code) " " reason "</H1>\n"
                           info "\n"
                           "</BODY></HTML>\n")))))))))
 
@@ -239,7 +261,7 @@
 
 (def %hd-mime-of
   (fn (_ url)
-    (def dot (%wget-last-index url #\.))
+    (def dot (Str8 last-index-of "." url))
     (if (null? dot) ()
       (let ((suffix (substring url dot (byte-len url))))
         (let ((user (let go ((ms %hd-mime))
@@ -248,7 +270,7 @@
                              (#t (go (rest ms))))))
               (builtin (let go ((ts %hd-mime-table))
                          (if (null? ts) ()
-                           (let ((at (%wget-find (first (first ts)) suffix)))
+                           (let ((at (Str8 index-of suffix (first (first ts)))))
                              (if (null? at) (go (rest ts))
                                (let ((end (+ at (byte-len suffix))) (line (first (first ts))))
                                  (if (if (= end (byte-len line)) #t (= (byte-at line end) #\.))
@@ -273,8 +295,8 @@
     (def fd (%hd-open-maybe-gz url))
     (when (< fd 0) (if headers? (%hd-fail 404) (%hd-finish)))
     (when %hd-gzip (set! %hd-range-start -1))
-    (set! %hd-etag (string-concat (list "\"" (%hd-hex %hd-last-mod) "-" (%hd-hex %hd-file-size) "\"")))
-    (when (if (null? %hd-if-none-match) #f (not (null? (%wget-find %hd-if-none-match %hd-etag))))
+    (set! %hd-etag (%str-concat (list "\"" (%hd-hex %hd-last-mod) "-" (%hd-hex %hd-file-size) "\"")))
+    (when (if (null? %hd-if-none-match) #f (not (null? (Str8 index-of %hd-etag %hd-if-none-match))))
       (%hd-fail 304))
     (set! %hd-mime-found (%hd-mime-of url))
     (unless headers? (set! %hd-range-start -1))
@@ -296,7 +318,7 @@
           (when (> (rest r) 0)
             (let ((n (if (if (>= left 0) (< left (rest r)) #f) left (rest r))))
               (do (file-write-run 1 (pair (first r) n))
-                  (%cu-sweep! 1)
+                  (cu-sweep! 1)
                   (go (if (>= left 0) (- left n) -1))))))))
     (file-close fd)
     (%hd-finish)))
@@ -342,7 +364,7 @@
         ((if at-slash (= c #\/) #f) (go (+ t 1) out))
         ((if at-slash (if (= c #\.) (if (= c1 #\.) (if (= c2 #\/) #t (= c2 0)) #f) #f) #f)
           (if (= (byte-len out) 1) ()
-            (let ((cut (%wget-last-index (substring out 0 (- (byte-len out) 1)) #\/)))
+            (let ((cut (Str8 last-index-of "/" (substring out 0 (- (byte-len out) 1)))))
               (go (+ t 2) (substring out 0 (+ cut 1))))))
         ((if at-slash (if (= c #\.) (if (= c1 #\/) #t (= c1 0)) #f) #f) (go (+ t 1) out))
         ((= c 0) out)
@@ -397,7 +419,7 @@
   (fn (_ a b)
     (let go ((a a) (b b) (bit 1) (acc 0))
       (if (if (= a 0) #t (= b 0)) acc
-        (go (%wget-div a 2) (%wget-div b 2) (* bit 2)
+        (go (wget-div a 2) (wget-div b 2) (* bit 2)
             (if (if (= (% a 2) 1) (= (% b 2) 1) #f) (+ acc bit) acc))))))
 
 ; if_ip_denied_send_HTTP_FORBIDDEN_and_exit
@@ -411,7 +433,7 @@
             (go (rest as))))))))
 
 (def %hd-conf-error
-  (fn (_ line file) (%hd-log (string-concat (list "config error '" line "' in '" file "'")))))
+  (fn (_ line file) (%hd-log (%str-concat (list "config error '" line "' in '" file "'")))))
 
 ; parse_conf: PATH/httpd.conf, or -c's file for the first parse.  The first
 ; parse falls back to ./httpd.conf; a subdirectory's answers #f when it has
@@ -425,21 +447,21 @@
     (def name (if (if first? (not (null? %hd-conf)) #f) %hd-conf (string-append path "/httpd.conf")))
     (def found
       (match
-        ((%t-permitted? name 4) name)
+        ((t-permitted? name 4) name)
         ((not first?) ())
         ((not (null? %hd-conf)) (%hd-die (string-append %hd-conf ": No such file or directory")))
-        ((%t-permitted? "httpd.conf" 4) "httpd.conf")
+        ((t-permitted? "httpd.conf" 4) "httpd.conf")
         (#t ())))
     (if (null? found) #f
       (do (map (fn (_ l) (%hd-conf-line l found first? path))
-                    (%cu-lines (file-read-all found)))
+                    (cu-lines (file-read-all found)))
           #t))))
 
 (def %hd-conf-line
   (fn (_ raw file first? path)
     (def cut (let go ((i 0)) (if (if (< i (byte-len raw)) (not (= (byte-at raw i) #\#)) #f) (go (+ i 1)) i)))
     (def line (Str8 replace "\t" "" (Str8 replace " " "" (substring raw 0 cut))))
-    (def colon (%wget-index line #\: 0))
+    (def colon (wget-index line #\: 0))
     (def after (if (null? colon) "" (substring line (+ colon 1) (byte-len line))))
     (def ch (if (= (byte-len line) 0) 0 (byte-at line 0)))
     (def up (if (if (>= ch #\a) (<= ch #\z) #f) (- ch 32) ch))
@@ -449,7 +471,7 @@
       ((= up #\I) (set! %hd-index after))
       ((if first? (= up #\H) #f)
         (if (%hd-chdir after) (set! %hd-home after)
-          (%hd-die (string-concat (list "can't change directory to '" after "': No such file or directory")))))
+          (%hd-die (%str-concat (list "can't change directory to '" after "': No such file or directory")))))
       ((if (= up #\A) #t (= up #\D)) (%hd-conf-acl! up after))
       ((if first? (= up #\E) #f) (%hd-conf-errpage! line after file))
       ((if first? (= up #\P) #f) (%hd-conf-proxy! line after file))
@@ -475,7 +497,7 @@
 ; check_user_passwd: UP (user:pass) against the /path: lines whose path is a
 ; prefix of PATH at a slash.  Once one matches, only lines of the same path are
 ; asked.  A user of * matches anyone; a password of * is the user's in
-; /etc/passwd or /etc/shadow; one starting $1$ is compared as md5-crypt, any
+; /etc/passwd or /etc/shadow; one starting $ is hashed with itself as the salt, any
 ; other as plain text.  #t when one agrees -- the user then named -- or when no
 ; line's path matches at all
 (def %hd-check-auth
@@ -487,7 +509,7 @@
             ((if (null? prev) #f (not (string=? prev dir))) (go (rest as) prev))
             ((not (%hd-auth-prefix? dir path)) (go (rest as) prev))
             ((%hd-auth-entry-ok? entry up)
-              (do (set! %hd-remote-user (let ((c (%wget-index up #\: 0))) (if (null? c) up (substring up 0 c))))
+              (do (set! %hd-remote-user (let ((c (wget-index up #\: 0))) (if (null? c) up (substring up 0 c))))
                   #t))
             (#t (go (rest as) dir))))))))
 
@@ -501,8 +523,8 @@
 ; one user:pass line against UP
 (def %hd-auth-entry-ok?
   (fn (_ entry up)
-    (def uc (%wget-index up #\: 0))
-    (def ec (%wget-index entry #\: 0))
+    (def uc (wget-index up #\: 0))
+    (def ec (wget-index entry #\: 0))
     (match
       ((if (null? uc) #t (null? ec)) (string=? entry up))
       ((if (= (byte-at entry 0) #\*) #f (not (string=? (substring entry 0 (+ ec 1)) (substring up 0 (+ uc 1))))) #f)
@@ -513,23 +535,22 @@
   (fn (_ stored user given)
     (match
       ((Str8 starts? "*" stored)
-        (let ((sys (%hd-system-password user)))
-          (if (null? sys) #f (%hd-crypt-equal? given sys))))
+        (let ((sys (hd-system-password user)))
+          (if (null? sys) #f (hd-crypt-equal? given sys))))
       ((if (> (byte-len stored) 1) (if (= (byte-at stored 0) #\$)
                                      (if (= (byte-at stored 1) #\y) #t (%hd-alnum? (byte-at stored 1))) #f) #f)
-        (%hd-crypt-equal? given stored))
+        (hd-crypt-equal? given stored))
       (#t (string=? given stored)))))
 
-; pw_encrypt GIVEN with STORED's salt, compared: $1$ is md5-crypt; the other
-; hashes busybox reads ($5$, $6$, $y$, DES) never agree here
-(def %hd-crypt-equal?
+; pw_encrypt GIVEN with STORED as the salt, compared: STORED's prefix names
+; the method, as busybox's does.  A hash that failed, "*", agrees with
+; nothing, so a locked account's "*" is never a match.
+(def hd-crypt-equal?
   (fn (_ given stored)
-    (if (Str8 starts? "$1$" stored)
-      (string=? (%cu-md5-crypt given (substring stored 3 (byte-len stored))) stored)
-      #f)))
+    (let ((h (cu-pw-encrypt given stored))) (if (string=? h "*") #f (string=? h stored)))))
 
 ; USER's password field from /etc/passwd, or /etc/shadow's when that is x or *
-(def %hd-system-password
+(def hd-system-password
   (fn (_ user)
     (def pw (%hd-passwd-field "/etc/passwd" user))
     (if (if (null? pw) #f (if (string=? pw "x") #t (string=? pw "*")))
@@ -538,12 +559,12 @@
 
 (def %hd-passwd-field
   (fn (_ file user)
-    (if (not (%t-permitted? file 4)) ()
-      (let go ((ls (%cu-lines (file-read-all file))))
+    (if (not (t-permitted? file 4)) ()
+      (let go ((ls (cu-lines (file-read-all file))))
         (if (null? ls) ()
-          (let ((l (first ls)) (c (%wget-index (first ls) #\: 0)))
+          (let ((l (first ls)) (c (wget-index (first ls) #\: 0)))
             (if (if (null? c) #f (string=? (substring l 0 c) user))
-              (let ((c2 (%wget-index l #\: (+ c 1))))
+              (let ((c2 (wget-index l #\: (+ c 1))))
                 (substring l (+ c 1) (if (null? c2) (byte-len l) c2)))
               (go (rest ls)))))))))
 
@@ -565,18 +586,18 @@
     (let ((n (first (%hd-num-at line 1))))
       (match
         ((if (null? n) #t (< n 100)) (%hd-conf-error line file))
-        ((%wget-memv n (map first %hd-reasons))
+        ((wget-memv n (map first %hd-reasons))
           (set! %hd-errpages (pair (pair n after) %hd-errpages)))
         (#t ())))))
 
 ; P:/url:[http://]host[:port]/path, held for the proxy
 (def %hd-conf-proxy!
   (fn (_ line after file)
-    (let ((c2 (%wget-index after #\: 0)))
+    (let ((c2 (wget-index after #\: 0)))
       (if (null? c2) (%hd-conf-error line file)
         (let ((hp (let ((h (substring after (+ c2 1) (byte-len after))))
                     (if (Str8 starts? "http://" h) (substring h 7 (byte-len h)) h))))
-          (if (if (= (byte-len hp) 0) #t (null? (%wget-index hp #\/ 0))) (%hd-conf-error line file)
+          (if (if (= (byte-len hp) 0) #t (null? (wget-index hp #\/ 0))) (%hd-conf-error line file)
             (set! %hd-proxy (pair (list (substring after 0 c2) hp) %hd-proxy))))))))
 
 ; --- one request ------------------------------------------------------------------------
@@ -599,10 +620,10 @@
     (def line (%hd-line))
     (when (= (byte-len line) 0)
       (do (when (> %hd-verbose 2) (%hd-log "eof on read, closing")) (%hd-done)))
-    (def sp1 (%wget-index line #\space 0))
+    (def sp1 (wget-index line #\space 0))
     (when (null? sp1) (%hd-fail 400))
     (def method (substring line 0 sp1))
-    (def sp2 (%wget-index line #\space (+ sp1 1)))
+    (def sp2 (wget-index line #\space (+ sp1 1)))
     (when (if (null? sp2) #t (not (Str8 starts? "HTTP/" (substring line (+ sp2 1) (byte-len line)))))
       (%hd-fail 400))
     (def url0 (substring line (+ sp1 1) sp2))
@@ -611,17 +632,17 @@
     (when (if (= (byte-len url0) 0) #t (not (= (byte-at url0 0) #\/))) (%hd-fail 400))
     ; GET, HEAD and POST; any other method is a 400, as busybox's copy of it
     ; measures its length as nothing
-    (unless (%cu-member-s? method (list "GET" "HEAD" "POST")) (%hd-fail 400))
-    (def q (%wget-index url0 #\? 0))
+    (unless (cu-member-s? method (list "GET" "HEAD" "POST")) (%hd-fail 400))
+    (def q (wget-index url0 #\? 0))
     (set! %hd-query (if (null? q) () (substring url0 (+ q 1) (byte-len url0))))
     (def decoded (%hd-pct-decode (if (null? q) url0 (substring url0 0 q)) #t))
     (when (null? decoded) (%hd-fail 400))
     (when (eq? decoded (lit encoded)) (%hd-fail 404))
     (def url (%hd-canon decoded))
     (when (null? url) (%hd-fail 400))
-    (when (> %hd-verbose 1) (%hd-log (string-concat (list method " " url))))
+    (when (> %hd-verbose 1) (%hd-log (%str-concat (list method " " url))))
     (let go ((i 1))
-      (let ((s (%wget-index url #\/ i)))
+      (let ((s (wget-index url #\/ i)))
         (unless (null? s)
           (do (when (%hd-parse-conf (substring url 1 s) #f) (%hd-check-ip))
               (go (+ s 1))))))
@@ -634,14 +655,14 @@
     (def target (if (if dir-url? (not (Str8 starts? "cgi-bin/" rel)) #f) (string-append rel %hd-index) rel))
     (def cgi (%hd-locate url rel target dir-url?))
     (%hd-headers (string=? method "POST") (not (null? cgi)) url)
-    (when (string=? (%wget-last-part url) "httpd.conf") (%hd-fail 403))
+    (when (string=? (wget-last-part url) "httpd.conf") (%hd-fail 403))
     ; no Authorization: line: a path the /path: lines guard is refused
     (when (number? %hd-authorized) (set! %hd-authorized (%hd-check-auth url "")))
     (unless %hd-authorized (%hd-fail 401))
     (unless (null? %hd-moved) (%hd-fail 302))
     (unless (null? cgi)
       (%hd-send-cgi (if (eq? cgi (lit index)) "/cgi-bin/index.cgi" url) url method))
-    (unless (%cu-member-s? method (list "GET" "HEAD")) (%hd-fail 501))
+    (unless (cu-member-s? method (list "GET" "HEAD")) (%hd-fail 501))
     (%hd-send-file target #t)))
 
 ; the stat: the script to run -- normal under cgi-bin/, index for
@@ -657,13 +678,13 @@
           (if (if (not dir-url?) (eq? (Assoc get (lit file-type) st) (lit dir)) #f)
             (do (set! %hd-moved url) ())
             (do (%hd-stat! st) (%hd-interp-for target)))))
-      (dir-url? (if (%t-permitted? "cgi-bin/index.cgi" 1) (lit index) (%hd-fail 404)))
+      (dir-url? (if (t-permitted? "cgi-bin/index.cgi" 1) (lit index) (%hd-fail 404)))
       (#t ()))))
 
 ; interp when a *.ext: line names TARGET's suffix, its interpreter kept
 (def %hd-interp-for
   (fn (_ target)
-    (def dot (%wget-last-index target #\.))
+    (def dot (Str8 last-index-of "." target))
     (def hit (if (null? dot) ()
                (let ((suffix (substring target dot (byte-len target))))
                  (let go ((ss %hd-scripts))
@@ -688,7 +709,7 @@
               ((%hd-prefix-ci? h "Authorization:") (%hd-authorization! h url cgi?))
               ((%hd-prefix-ci? h "Range:") (%hd-range! (%hd-after-header h "Range:")))
               ((%hd-prefix-ci? h "Accept-Encoding:")
-                (unless (null? (%wget-find h "gzip")) (set! %hd-accept-gzip #t)))
+                (unless (null? (Str8 index-of "gzip" h)) (set! %hd-accept-gzip #t)))
               ((%hd-prefix-ci? h "If-None-Match:")
                 (set! %hd-if-none-match (%hd-after-header h "If-None-Match:")))
               (cgi? (%hd-cgi-header! h))
@@ -708,10 +729,10 @@
 ; over, the first = ending it
 (def %hd-b64-decode
   (fn (_ s)
-    (def eq (%wget-index s #\= 0))
+    (def eq (wget-index s #\= 0))
     (def body (if (null? eq) s (substring s 0 eq)))
     (def out (list ""))
-    (%cu-b64-decode-to body (fn (_ r) (set-first! out (string-append (first out) (substring (first r) 0 (rest r))))) #t)
+    (cu-b64-decode-to body (fn (_ r) (set-first! out (string-append (first out) (substring (first r) 0 (rest r))))) #t)
     (first out)))
 
 ; a POST's length: digits and nothing else, or a 400
@@ -726,13 +747,13 @@
 ; digit an underscore -- and Content-Type as CONTENT_TYPE
 (def %hd-cgi-header!
   (fn (_ h)
-    (def colon (%wget-index h #\: 0))
+    (def colon (wget-index h #\: 0))
     (unless (null? colon)
       (let ((name (bytes->str (map (fn (_ c) (match ((if (>= c #\a) (<= c #\z) #f) (- c 32))
                                                     ((if (>= c #\A) (<= c #\Z) #f) c)
                                                     ((if (>= c #\0) (<= c #\9) #f) c)
                                                     (#t #\_)))
-                                   (%tftp-bytes h 0 colon))))
+                                   (tftp-bytes h 0 colon))))
             (value (substring h (%hd-skip-blanks h (+ colon 1)) (byte-len h))))
         (set! %hd-cgi-env
           (pair (pair (if (%hd-prefix-ci? h "Content-Type:") name (string-append "HTTP_" name)) value)
@@ -774,17 +795,17 @@
   (fn (_ pe url method proto)
     (when (> %hd-verbose 1) (%hd-log (string-append "proxy:" url)))
     (def hp (first (rest pe)))
-    (def slash (%wget-index hp #\/ 0))
+    (def slash (wget-index hp #\/ 0))
     (def host-port (substring hp 0 slash))
-    (def colon (%wget-last-index host-port #\:))
+    (def colon (Str8 last-index-of ":" host-port))
     (def host (if (null? colon) host-port (substring host-port 0 colon)))
-    (def port (if (null? colon) 80 (%wget-digits (substring host-port (+ colon 1) (byte-len host-port)))))
+    (def port (if (null? colon) 80 (wget-digits (substring host-port (+ colon 1) (byte-len host-port)))))
     (def ip (if (null? port) () (guard (_ ()) (net-resolve host))))
     (when (null? ip)
-      (do (%hd-log (string-concat (list "bad address '" host "'"))) (%hd-fail 500)))
+      (do (%hd-log (%str-concat (list "bad address '" host "'"))) (%hd-fail 500)))
     (def fd (guard (_ ()) (net-connect ip port)))
     (when (null? fd) (%hd-fail 500))
-    (%hd-write-fd fd (string-concat
+    (%hd-write-fd fd (%str-concat
       (list method " " (substring hp slash (byte-len hp))
             (substring url (byte-len (first pe)) (byte-len url)) " " proto "\r\n")))
     (def writer (%hd-relay-client fd))
@@ -827,7 +848,7 @@
       (append (reverse %hd-cgi-env)
         (list (pair "PATH_INFO" (if (null? script-end) "" (substring url script-end (byte-len url))))
               (pair "REQUEST_METHOD" method)
-              (pair "REQUEST_URI" (if (null? %hd-query) orig (string-concat (list orig "?" %hd-query)))))
+              (pair "REQUEST_URI" (if (null? %hd-query) orig (%str-concat (list orig "?" %hd-query)))))
         (if (Str8 starts? "/" %hd-home)
           (list (pair "SCRIPT_FILENAME" (string-append (%hd-strip-slash %hd-home) script-url)))
           ())
@@ -837,7 +858,7 @@
               (pair "SERVER_PROTOCOL" "HTTP/1.1")
               (pair "GATEWAY_INTERFACE" "CGI/1.1"))
         (%hd-remote-env)
-        (if (> %hd-post-len 0) (list (pair "CONTENT_LENGTH" (%cu-int->str %hd-post-len))) ())
+        (if (> %hd-post-len 0) (list (pair "CONTENT_LENGTH" (cu-int->str %hd-post-len))) ())
         (if (null? %hd-remote-user) () (list (pair "REMOTE_USER" %hd-remote-user) (pair "AUTH_TYPE" "Basic")))))
     (def from (sys-pipe))
     (def to (sys-pipe))
@@ -856,7 +877,7 @@
 ; ITS-SLASH nil when every part is one
 (def %hd-cgi-split
   (fn (self url i last)
-    (let ((s (%wget-index url #\/ i)))
+    (let ((s (wget-index url #\/ i)))
       (match
         ((null? s) (pair () last))
         ((file-dir? (substring url 1 s)) (self url (+ s 1) s))
@@ -870,8 +891,8 @@
 (def %hd-remote-env
   (fn (_)
     (def p (if (null? %hd-rmt) "" %hd-rmt))
-    (def colon (%wget-last-index p #\:))
-    (def cut (if (if (null? colon) #f (null? (%wget-index p #\] colon))) colon ()))
+    (def colon (Str8 last-index-of ":" p))
+    (def cut (if (if (null? colon) #f (null? (wget-index p #\] colon))) colon ()))
     (if (null? cut) (list (pair "REMOTE_ADDR" p))
       (list (pair "REMOTE_ADDR" (substring p 0 cut))
             (pair "REMOTE_PORT" (substring p (+ cut 1) (byte-len p)))))))
@@ -890,15 +911,15 @@
     (def name (substring script-url (+ last-slash 1) (byte-len script-url)))
     (when (> %hd-verbose 2) (%hd-log (string-append "cd:" dir)))
     (if (if (> last-slash 0) (not (%hd-chdir dir)) #f)
-      (%hd-log (string-concat (list "can't change directory to '" dir "': No such file or directory")))
+      (%hd-log (%str-concat (list "can't change directory to '" dir "': No such file or directory")))
       (do (when (> %hd-verbose 1)
-            (%hd-log (string-concat (list "exec:" (if (null? %hd-interp) name %hd-interp) " "
+            (%hd-log (%str-concat (list "exec:" (if (null? %hd-interp) name %hd-interp) " "
                                           (if (null? %hd-interp) "(null)" name)))))
           (let ((e (if (null? %hd-interp)
                      (sys-exec-or-err (string-append "./" name) ())
                      (sys-exec-or-err %hd-interp (list name)))))
             (when (> %hd-verbose 0)
-              (%hd-log (string-concat (list "can't execute '" (if (null? %hd-interp) name %hd-interp) "': "
+              (%hd-log (%str-concat (list "can't execute '" (if (null? %hd-interp) name %hd-interp) "': "
                                             (file-err-text e))))))))
     (set! %hd-file-size -1)
     (%hd-send-headers 404)
@@ -944,12 +965,12 @@
       ((if (>= (byte-len h) 10) (Str8 starts? "Status: " h) #f)
         (let ((out (string-append "HTTP/1.1 " (substring h 8 (byte-len h)))))
           (do (when (> %hd-verbose 0)
-                (%hd-log (string-concat (list "cgi response:'" (%hd-printable out 9) "'"))))
+                (%hd-log (%str-concat (list "cgi response:'" (%hd-printable out 9) "'"))))
               (%hd-write-all out))))
       ((if (>= (byte-len h) 10) (Str8 starts? "Location: " h) #f)
         (do (%hd-write-all "HTTP/1.1 302 Found\r\n")
             (when (> %hd-verbose 0)
-              (%hd-log (string-concat (list "cgi redirect:'" (%hd-printable h 10) "'"))))
+              (%hd-log (%str-concat (list "cgi redirect:'" (%hd-printable h 10) "'"))))
             (%hd-write-all h)))
       ((if (>= (byte-len h) 10) (Str8 starts? "HTTP/1.1" h) #f) (%hd-write-all h))
       (#t (do (%hd-write-all "HTTP/1.1 200 OK\r\n")
@@ -960,7 +981,7 @@
   (fn (self fd)
     (let ((r (file-read-run fd 8192)))
       (when (> (rest r) 0)
-        (do (file-write-run 1 r) (%cu-sweep! 1) (self fd))))))
+        (do (file-write-run 1 r) (cu-sweep! 1) (self fd))))))
 
 ; S from I to its first byte that is not plain text
 (def %hd-printable
@@ -976,7 +997,7 @@
   (fn (_ st rel)
     (match
       ((not (eq? (Assoc get (lit file-type) st) (lit file))) (%hd-fail 403))
-      ((not (%t-permitted? rel 1)) (do (%hd-stat! st) ()))
+      ((not (t-permitted? rel 1)) (do (%hd-stat! st) ()))
       (#t (lit normal)))))
 
 (def %hd-stat!
@@ -992,16 +1013,6 @@
       (%hd-handle))))
 
 ; --- the listener ----------------------------------------------------------------------
-
-; bb_daemonize: the parent ends, the child leaves the terminal for /dev/null
-(def %hd-daemonize
-  (fn (_)
-    (when (> (sys-fork) 0) (sys-exit 0))
-    (%ss-resolve!)
-    (%cu-ptr-call %ss-c-setsid)
-    (let ((fd (File open "/dev/null" (lit rdwr))))
-      (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
-          (when (> fd 2) (file-close fd))))))
 
 ; mini_httpd: each connection answered in a grandchild, its socket stdin and
 ; stdout, its peer's IP:PORT the name its -v messages carry
@@ -1029,9 +1040,9 @@
       (if (null? p)
         (do (set! %hd-remote-ip 0) (set! %hd-rmt ()) (set! %hd-name "httpd"))
         (do (set! %hd-remote-ip (let ((r (%hd-scan-ip (first p) 0))) (if (null? r) 0 (first r))))
-            (set! %hd-rmt (string-concat
-              (list (if listener? (string-concat (list "[::ffff:" (first p) "]")) (first p))
-                    ":" (%cu-int->str (rest p)))))
+            (set! %hd-rmt (%str-concat
+              (list (if listener? (%str-concat (list "[::ffff:" (first p) "]")) (first p))
+                    ":" (cu-int->str (rest p)))))
             (when (> %hd-verbose 0)
               (set! %hd-name %hd-rmt)))))))
 
@@ -1040,10 +1051,10 @@
 ; encodeString: a letter or digit as itself, any other byte as &#N;
 (def %hd-encode
   (fn (_ s)
-    (string-concat
+    (%str-concat
       (map (fn (_ c)
-             (if (%hd-alnum? c) (bytes->str (list c)) (string-concat (list "&#" (%cu-int->str c) ";"))))
-           (%tftp-bytes s 0 (byte-len s))))))
+             (if (%hd-alnum? c) (bytes->str (list c)) (%str-concat (list "&#" (cu-int->str c) ";"))))
+           (tftp-bytes s 0 (byte-len s))))))
 
 (def %hd-alnum?
   (fn (_ c)
@@ -1052,24 +1063,24 @@
       ((if (>= c #\A) (<= c #\Z) #f) #t)
       (#t (if (>= c #\0) (<= c #\9) #f)))))
 
-(def %cu-httpd
+(def cu-httpd
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "httpd" argv))
+    (def o (cu-opts "httpd" argv))
     (guard (e (if (eq? (Err label e) (lit net))
-                (do (file-write 2 (string-concat (list "httpd: " (e msg) "\n"))) 1)
+                (do (file-write 2 (%str-concat (list "httpd: " (e msg) "\n"))) 1)
                 (error e)))
       (match
         ((not (null? (Opts value o "-d")))
           (let ((s (%hd-pct-decode (Opts value o "-d") #f)))
-            (do (file-write 1 (let ((z (%wget-index s 0 0))) (if (null? z) s (substring s 0 z)))) 0)))
+            (do (file-write 1 (let ((z (wget-index s 0 0))) (if (null? z) s (substring s 0 z)))) 0)))
         ((not (null? (Opts value o "-e"))) (do (file-write 1 (%hd-encode (Opts value o "-e"))) 0))
         ((not (null? (Opts value o "-m")))
-          (do (file-write 1 (string-append (%cu-md5-crypt (Opts value o "-m") (%hd-salt 8)) "\n")) 0))
+          (do (file-write 1 (string-append (Crypt md5 (Opts value o "-m") (hd-salt 8)) "\n")) 0))
         (#t (%hd-run o stdin-thunk))))))
 
 (def %hd-run
   (fn (_ o stdin-thunk)
-    (set! %hd-verbose (%nc-count o "-v"))
+    (set! %hd-verbose (nc-count o "-v"))
     (set! %hd-name "httpd")
     (set! %hd-index "index.html")
     (set! %hd-conf (Opts value o "-c"))
@@ -1077,12 +1088,12 @@
     (set! %hd-proxy ())
     (set! %hd-remote-ip 0)
     (let ((r (Opts value o "-r"))) (set! %hd-realm (if (null? r) "Web Server Authentication" r)))
-    (def ug (let ((u (Opts value o "-u"))) (if (null? u) () (%hd-ugid u))))
+    (def ug (let ((u (Opts value o "-u"))) (if (null? u) () (hd-ugid u))))
     (def home (Opts value o "-h"))
     (set! %hd-home (if (null? home) (sys-getcwd) home))
     (unless (null? home)
       (unless (%hd-chdir home)
-        (%hd-die (string-concat (list "can't change directory to '" home "': No such file or directory")))))
+        (%hd-die (%str-concat (list "can't change directory to '" home "': No such file or directory")))))
     (def inetd? (Opts on? o "-i"))
     (def lfd (if inetd? () (%hd-open-server (Opts value o "-p"))))
     (unless (if inetd? #t (null? ug)) (%hd-drop! ug))
@@ -1093,7 +1104,7 @@
           (%hd-serve (fn (_) (let ((p (stdin-thunk (lit chunk))))
                                (let ((r (if (pair? p) p (pair p (byte-len p)))))
                                  (if (= (rest r) 0) () r))))))
-      (do (unless (Opts on? o "-f") (%hd-daemonize))
+      (do (unless (Opts on? o "-f") (hd-daemonize))
           (%hd-listen lfd)))))
 
 ; openServer: -p's PORT on every address, or HOST[:PORT] (80 unless given) on
@@ -1101,22 +1112,22 @@
 ; resolve "bad address" naming the whole of -p's value
 (def %hd-open-server
   (fn (_ v)
-    (def n (if (null? v) 80 (%wget-digits v)))
-    (guard (e (if (eq? (Err label e) (lit io)) (%hd-die (string-append "bind: " (%wget-err-text e))) (error e)))
+    (def n (if (null? v) 80 (wget-digits v)))
+    (guard (e (if (eq? (Err label e) (lit io)) (%hd-die (string-append "bind: " (wget-err-text e))) (error e)))
       (if (if (null? n) #f (if (> n 0) (<= n 65535) #f))
         (net-listen n)
         (%hd-listen-on v)))))
 
 (def %hd-listen-on
   (fn (_ v)
-    (def colon (%wget-last-index v #\:))
+    (def colon (Str8 last-index-of ":" v))
     (def host (if (null? colon) v (substring v 0 colon)))
     (def pv (if (null? colon) () (substring v (+ colon 1) (byte-len v))))
-    (def port (if (null? pv) 80 (%wget-digits pv)))
+    (def port (if (null? pv) 80 (wget-digits pv)))
     (when (if (null? port) #t (> port 65535))
-      (%hd-die (string-concat (list "bad port '" pv "'"))))
+      (%hd-die (%str-concat (list "bad port '" pv "'"))))
     (def ip (if (= (byte-len host) 0) () (guard (_ ()) (net-resolve host))))
-    (when (null? ip) (%hd-die (string-concat (list "bad address '" v "'"))))
+    (when (null? ip) (%hd-die (%str-concat (list "bad address '" v "'"))))
     (net-listen-on ip port)))
 
 
@@ -1125,24 +1136,14 @@
   (fn (_ dir) (let ((r (guard (_ -1) (Sys chdir dir)))) (if (number? r) (>= r 0) #t))))
 
 
-; crypt_make_rand64encoded: N characters of crypt's base-64, from /dev/urandom
-(def %hd-salt
-  (fn (_ n)
-    (let ((fd (file-open-read "/dev/urandom")))
-      (let ((r (file-read-run fd n)))
-        (do (file-close fd)
-            (string-concat
-              (map (fn (_ b) (let ((v (bit-and b 63))) (substring %cu-crypt64 v (+ v 1))))
-                   (%cu-bytes (first r) 0 (rest r)))))))))
-
 ; --- -u ---------------------------------------------------------------------------
 
 ; get_uidgid: USER[:GROUP] as (UID . GID) -- a number, or a name the system
 ; knows; a user's GID its login group (the uid itself for a number no account
 ; has) unless GROUP names one -- or the run ends naming it unknown
-(def %hd-ugid
+(def hd-ugid
   (fn (_ spec)
-    (def colon (%wget-index spec #\: 0))
+    (def colon (wget-index spec #\: 0))
     (def user (if (null? colon) spec (substring spec 0 colon)))
     (def group (if (null? colon) () (substring spec (+ colon 1) (byte-len spec))))
     (def unknown (fn (_) (%hd-die (string-append "unknown user/group " spec))))
@@ -1168,12 +1169,13 @@
 ; setuid -- each failure the end of the run, named as busybox names it
 (def %hd-drop!
   (fn (_ ug)
-    (def lib (%cu-dlopen () 1))
     (def fail? (fn (_ r sym)
-      (let ((e (%ss-call r (lit call) sym)))
-        (unless (null? e) (%hd-die (string-concat (list sym ": " (file-err-text e))))))))
-    (def buf (%str-make-raw 4))
-    (%cu-ptr-set! (%cu-str->ptr buf) 0 (rest ug) 4)
-    (fail? (%cu-ptr-call (%cu-dlsym lib "setgroups") 1 (%cu-str->ptr buf)) "setgroups")
-    (fail? (%cu-ptr-call (%cu-dlsym lib "setgid") (rest ug)) "setgid")
-    (fail? (%cu-ptr-call (%cu-dlsym lib "setuid") (first ug)) "setuid")))
+      (let ((e (ss-call r (lit call) sym)))
+        (unless (null? e) (%hd-die (%str-concat (list sym ": " (file-err-text e))))))))
+    (def buf (str-make-raw 4))
+    (cu-ptr-set! (cu-str->ptr buf) 0 (rest ug) 4)
+    (fail? (cu-ptr-call (cu-libc-sym "setgroups") 1 (cu-str->ptr buf)) "setgroups")
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") (rest ug)) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") (first ug)) "setuid")))
+
+(provide cu/httpd cu-httpd hd-crypt-equal? hd-system-password hd-ugid)

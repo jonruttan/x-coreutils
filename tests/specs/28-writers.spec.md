@@ -13,7 +13,7 @@ text and statuses are GNU's for the same files.
 open.
 
 ```cu
-(do (def w (fn (_ n) (string-append "/tmp/x-cu-wr/" n))) (def mk (fn (_) (proc-run (list "/bin/sh" "-c" "chmod -R u+rwx /tmp/x-cu-wr 2>/dev/null; rm -rf /tmp/x-cu-wr && mkdir -p /tmp/x-cu-wr/ro && cd /tmp/x-cu-wr && printf 'b\\na\\n' > in && printf keep > a && printf keep > b && printf 'secret\\n' > s1 && printf 'secret\\n' > s2 && : > locked && chmod 000 locked && chmod 555 ro")))) (mk) (def run (fn (_ argv input) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (w ".out"))) (ee (file-open-write (w ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def run-st (cu-run argv input)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (file-read-all (w ".out"))) (display (Str8 replace "/tmp/x-cu-wr/" "" (file-read-all (w ".err")))) (display "status ") (display run-st) (newline)))))) (def holds (fn (_ p) (display (string-concat (list p " holds " (Str8 replace "\n" "|" (file-read-all (w p))) "\n"))))) (def there (fn (_ p) (display (string-append p (if (eq? (file-lstat-file-type (w p)) (lit none)) " gone\n" " there\n"))))) (def secret? (fn (_ p) (let ((t (file-read-all (w p)))) (display (string-append p (if (if (>= (byte-len t) 6) (string=? (substring t 0 6) "secret") #f) " still secret\n" " overwritten\n")))))) (display "made"))
+(do (def w (fn (_ n) (string-append "/tmp/x-cu-wr/" n))) (def mk (fn (_) (proc-run (list "/bin/sh" "-c" "chmod -R u+rwx /tmp/x-cu-wr 2>/dev/null; rm -rf /tmp/x-cu-wr && mkdir -p /tmp/x-cu-wr/ro && cd /tmp/x-cu-wr && printf 'b\\na\\n' > in && printf keep > a && printf keep > b && printf 'secret\\n' > s1 && printf 'secret\\n' > s2 && : > locked && chmod 000 locked && chmod 555 ro")))) (mk) (def run (fn (_ argv input) (do (sys-dup2 1 9) (sys-dup2 2 8) (let ((oo (file-open-write (w ".out"))) (ee (file-open-write (w ".err")))) (do (sys-dup2 oo 1) (sys-dup2 ee 2) (def run-st (cu-run argv input)) (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee) (display (file-read-all (w ".out"))) (display (Str8 replace "/tmp/x-cu-wr/" "" (file-read-all (w ".err")))) (display "status ") (display run-st) (newline)))))) (def holds (fn (_ p) (display (%str-concat (list p " holds " (Str8 replace "\n" "|" (file-read-all (w p))) "\n"))))) (def there (fn (_ p) (display (string-append p (if (eq? (file-lstat-file-type (w p)) (lit none)) " gone\n" " there\n"))))) (def secret? (fn (_ p) (let ((t (file-read-all (w p)))) (display (string-append p (if (if (>= (byte-len t) 6) (string=? (substring t 0 6) "secret") #f) " still secret\n" " overwritten\n")))))) (display "made"))
 ```
 ---
     made
@@ -122,7 +122,7 @@ status 1
 ### every pass writes over the same bytes, so three leave the size one does
 
 ```cu
-(do (mk) (run (list "shred" "-n" "1" (w "s1")) "") (run (list "shred" (w "s2")) "") (display (if (= (%cu-stat-get (file-stat-full (w "s1")) (lit size)) (%cu-stat-get (file-stat-full (w "s2")) (lit size))) "the same size\n" "a different size\n")))
+(do (mk) (run (list "shred" "-n" "1" (w "s1")) "") (run (list "shred" (w "s2")) "") (display (if (= (cu-stat-get (file-stat-full (w "s1")) (lit size)) (cu-stat-get (file-stat-full (w "s2")) (lit size))) "the same size\n" "a different size\n")))
 ```
 ---
 ```output

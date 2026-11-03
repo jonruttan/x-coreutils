@@ -197,7 +197,10 @@ busybox's help lists neither.  The expectations are busybox's.
 (do (display (cu-run (list "sha1sum" "-b") "abc\n"))
     (display (cu-run (list "sha256sum" "-b") "abc\n"))
     (display (cu-run (list "sha384sum" "-b") "abc\n"))
-    (display (cu-run (list "sha512sum" "-b") "abc\n")))
+    (display (cu-run (list "sha512sum" "-b") "abc\n"))
+    (display (cu-run (list "sha3sum" "-b") "abc\n"))
+    (display (cu-run (list "sha3sum" "-bt") "abc\n"))
+    (display (cu-run (list "sha3sum" "-b" "-a" "256") "abc\n")))
 ```
 ---
 ```output
@@ -205,6 +208,9 @@ busybox's help lists neither.  The expectations are busybox's.
 0edeaaff3f1774ad2888673770c6d64097e391bc362d7d6fb34982ddf0efd18cb *-
 0e8d1420b4ff41c3f12186d894a99e1c4aa681da79c47007e9dadecd9ecb0482ee1e224510e7484078c0289f34396b9c3 *-
 04f285d0c0cc77286d8731798b7aae2639e28270d4166f40d769cbbdca5230714d848483d364e2f39fe6cb9083c15229b39a33615ebc6d57605f7c43f6906739d *-
+0631e999b94a9ddcc67f343be0bcead5f050fa0ddafc259fef71154b9 *-
+0631e999b94a9ddcc67f343be0bcead5f050fa0ddafc259fef71154b9  -
+0855e77bb9d8fc068ca812a39d07bad50dc012d7f07c346d7e56a4f25075e4070 *-
 0
 ```
 

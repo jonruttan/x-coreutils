@@ -20,20 +20,20 @@ and ask it over a TCP connection.
   (def hd-w "/tmp/x-cu-hd/www")
   (def hd-home (sys-getcwd))
   (def hd-sh (fn (_ pre req)
-    (proc-run (list "/bin/sh" "-c" (string-concat (list
+    (proc-run (list "/bin/sh" "-c" (%str-concat (list
       "rm -rf /tmp/x-cu-hd && mkdir -p " hd-w "/sub && cd " hd-w
       " && printf 'hello\\n' > index.html && printf 'body{}\\n' > s.css && printf abcdefghij > r.txt"
       " && ( " pre " ) >/dev/null 2>&1; TZ=UTC find " hd-w " -type f -exec touch -t 202601020304.05 {} +"
       "; printf '%b' '" req "' > /tmp/x-cu-hd/req"))))))
   (def hd-lines (fn (_ s)
     (let go ((i 0) (acc ()))
-      (let ((nl (%wget-index s #\newline i)))
+      (let ((nl (wget-index s #\newline i)))
         (if (null? nl) (reverse (if (< i (byte-len s)) (pair (substring s i (byte-len s)) acc) acc))
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def hd-show (fn (_ out st err)
-    (def body (string-concat (filter (fn (_ l) (not (Str8 starts? "Date: " l)))
+    (def body (%str-concat (filter (fn (_ l) (not (Str8 starts? "Date: " l)))
                                      (map (fn (_ l) (string-append l "\n")) (hd-lines out)))))
-    (string-concat (list (Str8 replace "\r" "<CR>" body) "[status " (%cu-int->str st) "]\n" err))))
+    (%str-concat (list (Str8 replace "\r" "<CR>" body) "[status " (cu-int->str st) "]\n" err))))
   (def hd-run (fn (_ pre req args)
     (hd-sh pre req)
     (sys-dup2 1 9) (sys-dup2 2 8)
@@ -62,7 +62,7 @@ and ask it over a TCP connection.
     (def st (cu-run (pair "httpd" args) ""))
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (Sys chdir hd-home)
-    (display (string-concat (list (file-read-all "/tmp/x-cu-hd/out") "|status " (%cu-int->str st) "\n"
+    (display (%str-concat (list (file-read-all "/tmp/x-cu-hd/out") "|status " (cu-int->str st) "\n"
                                   (file-read-all "/tmp/x-cu-hd/err"))))))
   (display "made"))
 ```
@@ -1416,6 +1416,25 @@ abcdefghij
 [status 0]
 ```
 
+### a sha512-crypt password, right: any $ hash pw_encrypt knows
+
+```cu
+(hd-case "printf '/:bob:$6$saltsalt$TVLlQcbpFVof5W3Yz4DTP6gRstiNuHwwTt6GLc1E5n0U0aDehy0S5knV8wiOQSpT0Y77vwPZN.Pq.H91p5hVO1\\n' > c.conf" "GET /r.txt HTTP/1.0\\r\\nAuthorization: Basic Ym9iOnNlY3JldA==\\r\\n\\r\\n" (list "-c" "c.conf"))
+```
+---
+```output
+HTTP/1.1 200 OK<CR>
+Connection: close<CR>
+Content-type: text/plain<CR>
+Accept-Ranges: bytes<CR>
+Last-Modified: Fri, 02 Jan 2026 03:04:05 GMT<CR>
+ETag: "695735a5-a"<CR>
+Content-Length: 10<CR>
+<CR>
+abcdefghij
+[status 0]
+```
+
 ### an md5-crypt password, wrong
 
 ```cu
@@ -1571,18 +1590,26 @@ bob Basic
     (sys-dup2 9 1) (file-close hm-o)
     (def hm (file-read-all "/tmp/x-cu-hd/out"))
     (list hm-st (byte-len hm) (substring hm 0 3) (substring hm 11 12) (substring hm 34 35)
-          (string=? (%cu-md5-crypt "pass" (substring hm 3 11)) (substring hm 0 34))))
+          (string=? (cu-pw-encrypt "pass" (substring hm 0 11)) (substring hm 0 34))))
 ```
 ---
     (0 35 "$1$" "$" "\n" #t)
 
-### md5-crypt as busybox's cryptpw -m md5 writes it
+### pw_encrypt with a $1$ salt is md5-crypt, as busybox's cryptpw -m md5 writes it
 
 ```cu
-(list (%cu-md5-crypt "secret" "saltsalt") (%cu-md5-crypt "x" "ab") (%cu-md5-crypt "a-much-longer-password-than-16-bytes" "12345678") (%cu-md5-crypt "" "xyz"))
+(list (cu-pw-encrypt "secret" "$1$saltsalt") (cu-pw-encrypt "x" "$1$ab") (cu-pw-encrypt "a-much-longer-password-than-16-bytes" "$1$12345678") (cu-pw-encrypt "" "$1$xyz"))
 ```
 ---
     ("$1$saltsalt$9xy1btjgzLYfb7hivXtC//" "$1$ab$e2KlfqG5YBMTjSz7XF.Eu1" "$1$12345678$Wdd9w490ag62uQQwem2Yr0" "$1$xyz$kjXWClpYD0.j9bPLUk/Ii.")
+
+### a hash that failed is "*", and agrees with nothing, a locked account's "*" too
+
+```cu
+(list (cu-pw-encrypt "pw" "a") (hd-crypt-equal? "pw" "*") (hd-crypt-equal? "secret" "$1$saltsalt$9xy1btjgzLYfb7hivXtC//"))
+```
+---
+    ("*" #f #t)
 
 ## gzip and -u
 
@@ -1751,7 +1778,7 @@ The suite runs as a user who is not root, as busybox's own check of this does.
 
 ```cu
 (do (def hu-p0 (Socket tcp-listen 0)) (def hu-port (Socket local-port hu-p0)) (Socket close hu-p0)
-    (hd-str (list "-f" "-p" (%cu-int->str hu-port) "-u" "0")))
+    (hd-str (list "-f" "-p" (cu-int->str hu-port) "-u" "0")))
 ```
 ---
 ```output
@@ -1774,24 +1801,24 @@ name that does not resolve.
             (let loop ()
               (let ((c (Socket accept lfd)))
                 (do (let go ((acc ""))
-                      (let ((nl (%wget-index acc #\newline 0)))
+                      (let ((nl (wget-index acc #\newline 0)))
                         (if (null? nl)
                           (let ((r (Socket recv-run c 4096)))
                             (if (null? r) () (go (string-append acc (substring (first r) 0 (rest r))))))
-                          (Socket send c (string-concat (list "HTTP/1.0 200 OK\r\n\r\ngot: " (substring acc 0 nl) "\n"))))))
+                          (Socket send c (%str-concat (list "HTTP/1.0 200 OK\r\n\r\ngot: " (substring acc 0 nl) "\n"))))))
                     (Socket close c)
                     (loop)))))
           (sys-exec "/bin/sh" (list "-c" "exit 0")))))
   (def px-case (fn (_ req args)
     (def lfd (Socket tcp-listen 0))
-    (def port (%cu-int->str (Socket local-port lfd)))
+    (def port (cu-int->str (Socket local-port lfd)))
     (def rfd (Socket tcp-listen 0))
-    (def rport (%cu-int->str (Socket local-port rfd)))
+    (def rport (cu-int->str (Socket local-port rfd)))
     (Socket close rfd)
     (def pid (sys-fork))
     (when (= pid 0) (px-serve lfd))
     (Socket close lfd)
-    (hd-case (string-concat (list "printf 'P:/px/:127.0.0.1:" port "/back/\\nP:/bad/:127.0.0.1:" rport "/z/\\nP:/nohost/:nohost.invalid/z/\\n' > c.conf"))
+    (hd-case (%str-concat (list "printf 'P:/px/:127.0.0.1:" port "/back/\\nP:/bad/:127.0.0.1:" rport "/z/\\nP:/nohost/:nohost.invalid/z/\\n' > c.conf"))
              req (append (list "-c" "c.conf") args))
     (sys-kill pid 9) (sys-wait pid)
     ()))
@@ -1916,7 +1943,7 @@ PORT.
     (sys-dup2 a fd) (Socket close a)
     (def shown (hd-run pre req args))
     (if saved? (do (sys-dup2 7 fd) (file-close 7)) (sys-close fd))
-    (def port (string-concat (list "127.0.0.1:" (%cu-int->str (Socket local-port c)) ":")))
+    (def port (%str-concat (list "127.0.0.1:" (cu-int->str (Socket local-port c)) ":")))
     (Socket close c)
     (display (Str8 replace port "127.0.0.1:PORT:" shown))))
   (display "made"))
@@ -2019,7 +2046,7 @@ REMOTE_ADDR=127.0.0.1
   (def hd-pid (sys-fork))
   (when (= hd-pid 0)
     (do (sys-dup2 (file-open-write "/tmp/x-cu-hd/log") 2)
-        (cu-run (list "httpd" "-f" "-v" "-p" (%cu-int->str hd-port) "-h" hd-w) "")
+        (cu-run (list "httpd" "-f" "-v" "-p" (cu-int->str hd-port) "-h" hd-w) "")
         (sys-exit 0)))
   (def hd-ask (fn (_ req)
     (let ((c (let try ((n 0)) (let ((fd (guard (_ ()) (Socket tcp-connect "127.0.0.1" hd-port))))
@@ -2033,12 +2060,12 @@ REMOTE_ADDR=127.0.0.1
   (sys-usleep 200000)
   (sys-kill hd-pid 9) (sys-wait hd-pid)
   (Sys chdir hd-home)
-  (def hd-log (string-concat (map (fn (_ l) (let ((c (%wget-find l "]:")))
-                                              (string-concat (list (substring l 0 (+ c 2)) "PORT"
-                                                                   (substring l (%wget-index l #\: (+ c 2)) (byte-len l)) "\n"))))
+  (def hd-log (%str-concat (map (fn (_ l) (let ((c (Str8 index-of "]:" l)))
+                                              (%str-concat (list (substring l 0 (+ c 2)) "PORT"
+                                                                   (substring l (wget-index l #\: (+ c 2)) (byte-len l)) "\n"))))
                                   (hd-lines (file-read-all "/tmp/x-cu-hd/log")))))
-  (display (string-concat (list "=== GET /\n" (Str8 replace "\r" "<CR>" (string-concat (map (fn (_ l) (string-append l "\n")) (filter (fn (_ l) (not (Str8 starts? "Date: " l))) (hd-lines hd-a)))))
-                                "=== missing\n" (Str8 replace "\r" "<CR>" (string-concat (map (fn (_ l) (string-append l "\n")) (filter (fn (_ l) (not (Str8 starts? "Date: " l))) (hd-lines hd-b)))))
+  (display (%str-concat (list "=== GET /\n" (Str8 replace "\r" "<CR>" (%str-concat (map (fn (_ l) (string-append l "\n")) (filter (fn (_ l) (not (Str8 starts? "Date: " l))) (hd-lines hd-a)))))
+                                "=== missing\n" (Str8 replace "\r" "<CR>" (%str-concat (map (fn (_ l) (string-append l "\n")) (filter (fn (_ l) (not (Str8 starts? "Date: " l))) (hd-lines hd-b)))))
                                 "=== log\n" hd-log))))
 ```
 ---
@@ -2074,12 +2101,12 @@ The requested URL was not found
   (hd-sh ":" "")
   (def hb-pid (sys-fork))
   (when (= hb-pid 0)
-    (do (cu-run (list "httpd" "-f" "-p" (string-append "127.0.0.1:" (%cu-int->str hb-port)) "-h" hd-w) "")
+    (do (cu-run (list "httpd" "-f" "-p" (string-append "127.0.0.1:" (cu-int->str hb-port)) "-h" hd-w) "")
         (sys-exit 0)))
   (def hb-a (hd-ask-port hb-port "GET / HTTP/1.0\r\n\r\n"))
   (sys-kill hb-pid 9) (sys-wait hb-pid)
   (Sys chdir hd-home)
-  (display (Str8 replace "\r" "<CR>" (string-concat (map (fn (_ l) (string-append l "\n")) (filter (fn (_ l) (not (Str8 starts? "Date: " l))) (hd-lines hb-a)))))))
+  (display (Str8 replace "\r" "<CR>" (%str-concat (map (fn (_ l) (string-append l "\n")) (filter (fn (_ l) (not (Str8 starts? "Date: " l))) (hd-lines hb-a)))))))
 ```
 ---
 ```output

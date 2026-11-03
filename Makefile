@@ -52,4 +52,3 @@ help: ## Show targets
 .PHONY: options
 options: install ## Regenerate docs/options.md, the option-parity matrix against busybox
 	$(X) -l coreutils -f tools/options-matrix.x > docs/options.md
-	@tail -1 docs/options.md

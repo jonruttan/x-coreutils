@@ -18,6 +18,24 @@
 ; Packets are runs sent and read as datagrams with their sender
 ; (net-send-to-run, net-recv-from-run), so their NUL bytes cross.
 
+; the applet a message is said as: tftp, or tftpd, which shares the protocol
+(module cu/tftp)
+
+(import cu/cli cu-opts cu-refuse-option cu-usage)
+(import cu/net wget-pm-init! wget-pm-update!)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-nth
+  cu-ptr-call cu-str->ptr cu-sweep! file-close file-err-text file-open-or-err
+  file-open-read file-open-write file-read-run file-stat file-unlink
+  file-write file-write-run length map net-close net-die net-recv-from-run
+  net-resolve net-send-run net-send-to-run net-sock-addr net-sockaddr
+  net-stdin-socket net-udp-bind net-udp-open reverse string-append string=?
+  substring sys-chroot sys-close sys-poll sys-user-group sys-user-id
+  wget-digits wget-div wget-index)
+(import cu/session ss-call)
+
+(def %tftp-name "tftp")
+(def %tftp-say (fn (_ msg) (file-write 2 (%str-concat (list %tftp-name ": " msg "\n")))))
+
 (def %tftp-flags (list "-g" "-p"))
 (def %tftp-values (list "-l" "-r" "-b" "-m"))
 
@@ -28,7 +46,7 @@
     (match
       ((null? argv) ())
       ((if (if (> (byte-len (first argv)) 0) (= (byte-at (first argv) 0) #\-) #f)
-           (if (not (null? (%wget-index (first argv) #\c 0))) (not (null? (rest argv))) #f) #f)
+           (if (not (null? (wget-index (first argv) #\c 0))) (not (null? (rest argv))) #f) #f)
         (match
           ((string=? (first (rest argv)) "get") (pair "-g" (pair "-r" (rest (rest argv)))))
           ((string=? (first (rest argv)) "put") (pair "-p" (pair "-r" (rest (rest argv)))))
@@ -38,17 +56,17 @@
 ; busybox's tftp_blksize_check: 24 to MAX, or nil after "bad blocksize"
 (def %tftp-blksize
   (fn (_ s max)
-    (def n (%wget-digits s))
+    (def n (wget-digits s))
     (if (if (null? n) #t (if (< n 24) #t (> n max)))
-      (do (file-write 2 (string-concat (list "tftp: bad blocksize '" s "'\n"))) ())
+      (do (%tftp-say (%str-concat (list "bad blocksize '" s "'"))) ())
       n)))
 
 ; --- packets ---------------------------------------------------------------------
 
 ; S's bytes then a NUL
-(def %tftp-cstr (fn (_ s) (append (%tftp-bytes s 0 (byte-len s)) (list 0))))
+(def %tftp-cstr (fn (_ s) (append (tftp-bytes s 0 (byte-len s)) (list 0))))
 
-(def %tftp-u16 (fn (_ n) (list (% (%wget-div n 256) 256) (% n 256))))
+(def %tftp-u16 (fn (_ n) (list (% (wget-div n 256) 256) (% n 256))))
 
 (def %tftp-run (fn (_ bs) (pair (bytes->str bs) (length bs))))
 
@@ -59,8 +77,8 @@
     (append (%tftp-u16 op)
       (append (%tftp-cstr remote)
         (append (%tftp-cstr "octet")
-          (append (if (= blksize 512) () (append (%tftp-cstr "blksize") (%tftp-cstr (%cu-int->str blksize))))
-                  (append (%tftp-cstr "tsize") (%tftp-cstr (%cu-int->str size)))))))))
+          (append (if (= blksize 512) () (append (%tftp-cstr "blksize") (%tftp-cstr (cu-int->str blksize))))
+                  (append (%tftp-cstr "tsize") (%tftp-cstr (cu-int->str size)))))))))
 
 ; byte I of a run
 (def %tftp-at (fn (_ run i) (& (byte-at (first run) i) 255)))
@@ -82,7 +100,7 @@
           (let ((next (+ (+ i (byte-len s)) 1)))
             (match
               ((> next (rest run)) ())
-              (name? (go next #f (string=? (%wget-lower s) option)))
+              (name? (go next #f (string=? (Str8 downcase s) option)))
               (found s)
               (#t (go next #t #f)))))))))
 
@@ -101,19 +119,25 @@
 (def %tftp-size 0)
 (def %tftp-local-fd -1)    ; the file a get writes or a put reads
 
+(def %tftp-connected #f)   ; tftpd's socket is connected to its peer: send, not sendto
+
 (def %tftp-send
-  (fn (_ bs) (net-send-to-run %tftp-fd (%tftp-run bs) (first %tftp-peer) (rest %tftp-peer))))
+  (fn (_ bs)
+    (def run (%tftp-run bs))
+    (if %tftp-connected
+      (net-send-run %tftp-fd run)
+      (net-send-to-run %tftp-fd run (first %tftp-peer) (rest %tftp-peer)))))
 
 (def %tftp-progress-init!
   (fn (_ name)
     (do (set! %tftp-progress #t)
-        (%wget-pm-init! name)
-        (%wget-pm-update! 0 %tftp-pos %tftp-size #f))))
+        (wget-pm-init! name)
+        (wget-pm-update! 0 %tftp-pos %tftp-size #f))))
 
 (def %tftp-progress-done!
   (fn (_)
     (when %tftp-progress
-      (do (%wget-pm-update! 0 %tftp-pos %tftp-size #f)
+      (do (wget-pm-update! 0 %tftp-pos %tftp-size #f)
           (file-write 2 "\n")))))
 
 ; the next packet from the server, or nil once the wait has passed: the first
@@ -136,13 +160,13 @@
 (def %tftp-exchange
   (fn (_ bs bufsize)
     (do (%tftp-send bs)
-        (when %tftp-progress (%wget-pm-update! 0 %tftp-pos %tftp-size #f))
+        (when %tftp-progress (wget-pm-update! 0 %tftp-pos %tftp-size #f))
         (let wait ((ms 100) (left 12))
           (let ((r (%tftp-receive ms bufsize)))
             (match
               ((null? r)
                 (if (= left 1) ()
-                  (do (%tftp-send bs) (wait (if (> (+ ms (%wget-div ms 2)) 2000) 2000 (+ ms (%wget-div ms 2))) (- left 1)))))
+                  (do (%tftp-send bs) (wait (if (> (+ ms (wget-div ms 2)) 2000) 2000 (+ ms (wget-div ms 2))) (- left 1)))))
               ((< (rest r) 4) (wait ms left))
               (#t r)))))))
 
@@ -153,7 +177,7 @@
       (if (>= have n) (reverse acc)
         (let ((r (file-read-run fd (- n have))))
           (if (= (rest r) 0) (reverse acc)
-            (go (append (reverse (%tftp-bytes (first r) 0 (rest r))) acc) (+ have (rest r)))))))))
+            (go (append (reverse (tftp-bytes (first r) 0 (rest r))) acc) (+ have (rest r)))))))))
 
 ; the transfer, after the request: answers #t when it finished
 (def %tftp-transfer
@@ -166,14 +190,14 @@
 (def %tftp-after-request
   (fn (_ get? r blksize remote local)
     (match
-      ((null? r) (do (file-write 2 "tftp: timeout\n") #f))
+      ((null? r) (do (%tftp-say "timeout") #f))
       ((= (%tftp-word r 0) 5) (%tftp-error r))
       ((= (%tftp-word r 0) 6)
         (let ((b (%tftp-option r "blksize")) (t (%tftp-option r "tsize")))
           (let ((bs (if (null? b) blksize (%tftp-blksize b 65564))))
             (if (null? bs) (%tftp-fail-option)
               (do (when (if (not (null? t)) (= %tftp-size 0) #f)
-                    (let ((n (%wget-digits t)))
+                    (let ((n (wget-digits t)))
                       (when (if (null? n) #f (> n 0))
                         (do (set! %tftp-size n) (%tftp-progress-init! remote)))))
                   (if get? (%tftp-get-loop 0 bs local)
@@ -186,8 +210,8 @@
   (fn (_ r)
     (def code (%tftp-word r 2))
     (def text (if (if (> (rest r) 4) (not (= (%tftp-at r 4) 0)) #f) (%tftp-text r 4)
-                (if (<= code 8) (%cu-nth code %tftp-errors) "")))
-    (file-write 2 (string-concat (list "tftp: server error: (" (%cu-int->str code) ") " text "\n")))
+                (if (<= code 8) (cu-nth code %tftp-errors) "")))
+    (%tftp-say (%str-concat (list "server error: (" (cu-int->str code) ") " text)))
     #f))
 
 ; an OACK whose block size busybox refuses: error 8 to the server
@@ -202,7 +226,7 @@
   (fn (_ n blksize local)
     (def r (%tftp-exchange (append (%tftp-u16 4) (%tftp-u16 (% n 65536))) (+ blksize 4)))
     (match
-      ((null? r) (do (file-write 2 "tftp: timeout\n") #f))
+      ((null? r) (do (%tftp-say "timeout") #f))
       (#t (%tftp-get-data r (% (+ n 1) 65536) blksize local)))))
 
 ; a packet while DATA N is due: write it and ACK it, the last when it is short
@@ -216,11 +240,11 @@
             (file-write-run %tftp-local-fd
               (%tftp-run (let take ((k (- (rest r) 1)) (acc ())) (if (< k 4) acc (take (- k 1) (pair (%tftp-at r k) acc))))))
             (set! %tftp-pos (+ %tftp-pos (- (rest r) 4)))
-            (%cu-sweep! 1)
+            (cu-sweep! 1)
             (if (= (- (rest r) 4) blksize)
               (%tftp-get-loop n blksize local)
               (do (%tftp-send (append (%tftp-u16 4) (%tftp-u16 n)))
-                  (when %tftp-progress (%wget-pm-update! 0 %tftp-pos %tftp-size #f))
+                  (when %tftp-progress (wget-pm-update! 0 %tftp-pos %tftp-size #f))
                   #t))))
       (#t
         (let ((again (%tftp-receive 100 (+ blksize 4))))
@@ -234,7 +258,7 @@
   (fn (_ n blksize)
     (def block (%tftp-read-block %tftp-local-fd blksize))
     (set! %tftp-pos (+ %tftp-pos (length block)))
-    (%cu-sweep! 1)
+    (cu-sweep! 1)
     (%tftp-put-wait (append (%tftp-u16 3) (append (%tftp-u16 n) block)) n blksize
                     (< (length block) blksize))))
 
@@ -242,7 +266,7 @@
   (fn (self packet n blksize last?)
     (def r (%tftp-exchange packet 516))
     (match
-      ((null? r) (do (file-write 2 "tftp: timeout\n") #f))
+      ((null? r) (do (%tftp-say "timeout") #f))
       ((= (%tftp-word r 0) 5) (%tftp-error r))
       ((if (= (%tftp-word r 0) 4) (= (%tftp-word r 2) n) #f)
         (if last? #t (%tftp-put-loop (% (+ n 1) 65536) blksize)))
@@ -253,25 +277,25 @@
   (fn (_ r n blksize)
     (if (if (= (%tftp-word r 0) 4) (= (%tftp-word r 2) 0) #f)
       (%tftp-put-loop n blksize)
-      (do (file-write 2 "tftp: timeout\n") #f))))
+      (do (%tftp-say "timeout") #f))))
 
 ; --- the applet ------------------------------------------------------------------
 
-(def %cu-tftp
+(def cu-tftp
   (fn (_ argv stdin-thunk)
     (def o (Opts parse %tftp-flags %tftp-values (%tftp-hpa argv)))
     (def ops (Opts operands o))
     (def get? (Opts on? o "-g"))
     (def put? (Opts on? o "-p"))
     (match
-      ((not (null? (Opts unknown o))) (%cu-refuse-option "tftp" (Opts unknown o)))
-      ((if get? put? #f) (%cu-usage "tftp"))
-      ((not (if get? #t put?)) (%cu-usage "tftp"))
+      ((not (null? (Opts unknown o))) (cu-refuse-option "tftp" (Opts unknown o)))
+      ((if get? put? #f) (cu-usage "tftp"))
+      ((not (if get? #t put?)) (cu-usage "tftp"))
       (#t
         (let ((blksize (%tftp-blksize (let ((b (Opts value o "-b"))) (if (null? b) "512" b)) 65564)))
           (if (null? blksize) 1
             (guard (e (if (eq? (Err label e) (lit net))
-                        (do (file-write 2 (string-concat (list "tftp: " (e msg) "\n"))) 1)
+                        (do (file-write 2 (%str-concat (list "tftp: " (e msg) "\n"))) 1)
                         (error e)))
               (%tftp-run-applet get? blksize (Opts value o "-l") (Opts value o "-r") ops))))))))
 
@@ -280,15 +304,15 @@
     (def remote (if (null? r) l r))
     (def local
       (if (null? r) l
-        (if (null? l) (let ((s (%wget-last-index r #\/))) (if (null? s) r (substring r (+ s 1) (byte-len r)))) l)))
-    (if (if (null? remote) #t (null? ops)) (%cu-usage "tftp")
+        (if (null? l) (let ((s (Str8 last-index-of "/" r))) (if (null? s) r (substring r (+ s 1) (byte-len r)))) l)))
+    (if (if (null? remote) #t (null? ops)) (cu-usage "tftp")
       (%tftp-start get? blksize remote (if (string=? local "-") () local)
-                   (first ops) (if (null? (rest ops)) 69 (%wget-digits (first (rest ops))))))))
+                   (first ops) (if (null? (rest ops)) 69 (wget-digits (first (rest ops))))))))
 
 (def %tftp-start
   (fn (_ get? blksize remote local host port)
     (def ip (guard (_ ()) (net-resolve host)))
-    (when (null? ip) (%net-die (string-concat (list "bad address '" host "'"))))
+    (when (null? ip) (net-die (%str-concat (list "bad address '" host "'"))))
     (set! %tftp-progress #f) (set! %tftp-pos 0) (set! %tftp-size 0)
     (set! %tftp-answered #f) (set! %tftp-peer (pair ip port)) (set! %tftp-local-fd -1)
     (unless get?
@@ -296,7 +320,7 @@
         (if (null? local) 0
           (let ((fd (file-open-or-err file-open-read local)))
             (if (Err err? fd)
-              (%net-die (string-concat (list "can't open '" local "': " (file-err-text fd))))
+              (net-die (%str-concat (list "can't open '" local "': " (file-err-text fd))))
               fd)))))
     (unless (if get? #t (< %tftp-local-fd 1))
       (let ((size (Assoc get (lit size) (file-stat local))))
@@ -314,7 +338,158 @@
     (if ok 0 1)))
 
 ; S's bytes from A to B, as a list
-(def %tftp-bytes
+(def tftp-bytes
   (fn (_ s a b)
     (let go ((i (- b 1)) (acc ()))
       (if (< i a) acc (go (- i 1) (pair (& (byte-at s i) 255) acc))))))
+
+; --- tftpd ---------------------------------------------------------------------------
+;
+; busybox's tftpd: run from inetd or udpsvd with the request's socket on stdin.
+; The first datagram is the request -- RRQ or WRQ, a name with no dot at its
+; start or after a slash, mode octet, the blksize and (RRQ) tsize options --
+; and the answer comes from a socket of its own, bound to the address the
+; request came to and connected to the client.  A refused request is said on
+; stderr and answered with an ERROR packet; the transfer is the client's
+; protocol with the roles turned: an RRQ's file goes out as DATA, a WRQ's
+; comes in.  -l (syslog) is accepted and says nothing.
+
+; the answering socket: bound to OUR address, which the listener may hold too,
+; and connected to PEER -- xbind's failure the end of the run
+(def %tftpd-socket
+  (fn (_ our peer)
+    (def fd (net-udp-open (first our) (rest our) #t))
+    (when (Err err? fd) (%tftpd-die (string-append "bind: " (file-err-text fd))))
+    (cu-ptr-call (cu-libc-sym "connect") fd (cu-str->ptr (net-sockaddr (first peer) (rest peer))) 16)
+    fd))
+
+(def %tftpd-die (fn (_ msg) (Err raise (lit net) msg ())))
+
+; the request's checks, in busybox's order: (ERROR-CODE . TEXT) when it is
+; refused, else (FILE BLKSIZE TSIZE?) -- BLKSIZE nil after "bad blocksize"
+(def %tftpd-check
+  (fn (_ r write-refused?)
+    (def op (if (>= (rest r) 2) (%tftp-word r 0) 0))
+    (if (if (< (rest r) 4) #t (if (> (rest r) 516) #t (not (if (= op 1) #t (= op 2)))))
+      (pair 0 "malformed packet")
+      (%tftpd-check-name r op write-refused?))))
+
+(def %tftpd-check-name
+  (fn (_ r op write-refused?)
+    (def file (%tftp-text r 2))
+    (def mode-at (+ 3 (byte-len file)))
+    (def mode (if (< mode-at (rest r)) (%tftp-text r mode-at) ()))
+    (match
+      ((if (Str8 starts? "." file) #t (not (null? (Str8 index-of "/." file)))) (pair 0 "dot in file name"))
+      ((if (null? mode) #t (not (string=? (Str8 downcase mode) "octet"))) (pair 0 "mode is not 'octet'"))
+      (#t (%tftpd-check-options r op write-refused? file (+ mode-at (byte-len mode) 1))))))
+
+(def %tftpd-check-options
+  (fn (_ r op write-refused? file at)
+    (def b (%tftpd-option r at "blksize"))
+    (def blksize (if (null? b) 512 (%tftp-blksize b 65564)))
+    (match
+      ((null? blksize) (pair 8 ""))
+      ((if (= op 2) write-refused? #f) (pair 0 "write error"))
+      (#t (list file blksize (if (= op 1) (not (null? (%tftpd-option r at "tsize"))) #f))))))
+
+; tftp_get_option over the request's NAME\0VALUE\0 pairs from byte AT
+(def %tftpd-option
+  (fn (_ r at option)
+    (let go ((i at) (name? #t) (found #f))
+      (if (>= i (rest r)) ()
+        (let ((s (%tftp-text r i)))
+          (let ((next (+ (+ i (byte-len s)) 1)))
+            (match
+              ((> next (rest r)) ())
+              (name? (go next #f (string=? (Str8 downcase s) option)))
+              (found s)
+              (#t (go next #t #f)))))))))
+
+(def %tftpd-error-packet
+  (fn (_ code text) (append (%tftp-u16 5) (append (%tftp-u16 code) (%tftp-cstr text)))))
+
+(def cu-tftpd
+  (fn (_ argv stdin-thunk)
+    (def o (cu-opts "tftpd" argv))
+    (set! %tftp-name "tftpd")
+    (def fd (net-stdin-socket))
+    (if (null? fd) (cu-usage "tftpd")
+      (guard (e (if (eq? (Err label e) (lit net))
+                  (do (%tftp-say (e msg)) 1)
+                  (error e)))
+        (%tftpd-run o fd (net-sock-addr fd))))))
+
+(def %tftpd-run
+  (fn (_ o fd our)
+    (def user (Opts value o "-u"))
+    (when (if (null? user) #f (null? (sys-user-id user)))
+      (%tftpd-die (string-append "unknown user " user)))
+    (def dir (let ((ops (Opts operands o))) (if (null? ops) () (first ops))))
+    (unless (null? dir)
+      (let ((r (guard (e e) (sys-chroot dir))))
+        (when (if (Err err? r) #t (if (number? r) (< r 0) #f))
+          (%tftpd-die (%str-concat (list "can't change root directory to '" dir "': "
+            (file-err-text (if (Err err? r) r (Err from-errno (Err errno-of r) (lit chroot) dir)))))))))
+    (def got (net-recv-from-run fd 517))
+    (def checked (%tftpd-check (first got) (Opts on? o "-r")))
+    (set! %tftp-progress #f) (set! %tftp-pos 0) (set! %tftp-size 0) (set! %tftp-local-fd -1)
+    (sys-close fd)
+    (set! %tftp-fd (%tftpd-socket our (rest got)))
+    (set! %tftp-peer (rest got)) (set! %tftp-answered #t) (set! %tftp-connected #t)
+    (if (number? (first checked))
+      (do (unless (= (byte-len (rest checked)) 0) (%tftp-say (rest checked)))
+          (%tftp-send (%tftpd-error-packet (first checked) (rest checked)))
+          1)
+      (do (unless (null? user) (%tftpd-become user))
+          (%tftpd-serve (= (%tftp-word (first got) 0) 1) (first checked) (cu-nth 1 checked) (cu-nth 2 checked)
+                        (Opts on? o "-c"))))))
+
+; change_identity: initgroups, setgid, setuid -- each failure the end of the run
+(def %tftpd-become
+  (fn (_ user)
+    (def gid (sys-user-group user))
+    (def fail? (fn (_ r what)
+      (let ((e (ss-call r (lit call) what)))
+        (unless (null? e) (%tftpd-die (%str-concat (list what ": " (file-err-text e))))))))
+    (fail? (cu-ptr-call (cu-libc-sym "initgroups") user gid) "can't set groups")
+    (fail? (cu-ptr-call (cu-libc-sym "setgid") gid) "setgid")
+    (fail? (cu-ptr-call (cu-libc-sym "setuid") (sys-user-id user)) "setuid")))
+
+; FILE, a request's name, with each byte below a space as ?
+(def %tftpd-sanitize
+  (fn (_ file)
+    (bytes->str (map (fn (_ b) (if (< b 32) #\? b)) (tftp-bytes file 0 (byte-len file))))))
+
+; the file opened -- an RRQ's to read, a WRQ's truncated, created with -c --
+; then the transfer: 0 once it finished, 1 when it did not, a WRQ's file then
+; removed
+(def %tftpd-serve
+  (fn (_ rrq? file blksize tsize? create?)
+    (def fd (file-open-or-err
+              (fn (_ p) (if rrq? (file-open-read p)
+                          (File open p (if create? (list (lit wronly) (lit trunc) (lit creat)) (list (lit wronly) (lit trunc))) 438)))
+              file))
+    (if (Err err? fd)
+      (do (%tftp-say (%str-concat (list "can't open '" (%tftpd-sanitize file) "': " (file-err-text fd))))
+          (%tftp-send (%tftpd-error-packet 1 "can't open file"))
+          1)
+      (do (set! %tftp-local-fd fd)
+          (let ((ok (%tftpd-transfer rrq? file blksize tsize?)))
+            (do (file-close fd)
+                (if ok 0 (do (unless rrq? (file-unlink file)) 1))))))))
+
+; an OACK when the request asked a block size or the size, else the first
+; DATA (RRQ) or ACK 0 (WRQ) at once
+(def %tftpd-transfer
+  (fn (_ rrq? file blksize tsize?)
+    (if (if (= blksize 512) (not tsize?) #f)
+      (if rrq? (%tftp-put-loop 1 512) (%tftp-get-loop 0 512 file))
+      (let ((oack (append (%tftp-u16 6)
+                    (append (if (= blksize 512) () (append (%tftp-cstr "blksize") (%tftp-cstr (cu-int->str blksize))))
+                            (if tsize? (append (%tftp-cstr "tsize") (%tftp-cstr (cu-int->str (Assoc get (lit size) (file-stat file))))) ())))))
+        (if rrq? (%tftp-put-wait oack 0 blksize #f)
+          (let ((r (%tftp-exchange oack (+ blksize 4))))
+            (if (null? r) (do (%tftp-say "timeout") #f) (%tftp-get-data r 1 blksize file))))))))
+
+(provide cu/tftp cu-tftp cu-tftpd tftp-bytes)

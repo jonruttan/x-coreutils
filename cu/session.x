@@ -19,21 +19,35 @@
 ; makes setsid -c's terminal the controlling one is a system call, as ioctl
 ; must be (its third argument is variadic).
 
+(module cu/session)
+
+(import cu/cli cu-opts)
+(import cu/prims append byte-at byte-len cu-int->str cu-libc-sym cu-ptr-call
+  cu-stdin-to-command! file-close file-err-text file-exists? file-open-err
+  file-read-all file-write file-write-run length reverse string-append
+  string=? sys-dup2 sys-exec-or-err sys-exit sys-fork sys-fsync sys-getenv
+  sys-usleep sys-wait)
+(import cu/strings cu-range-number)
+(import cu/text cu-pieces)
+
 (import x/repl/term)
 
 (def %ss-c-flock ())
 (def %ss-c-setsid ())
 (def %ss-c-fdatasync ())
 
-(def %ss-resolve!
+(def ss-resolve!
   (fn (_)
-    (def lib (%cu-dlopen () 1))
-    (set! %ss-c-flock (%cu-dlsym lib "flock"))
-    (set! %ss-c-setsid (%cu-dlsym lib "setsid"))
-    (set! %ss-c-fdatasync (%cu-dlsym lib "fdatasync"))))
+    (set! %ss-c-flock (cu-libc-sym "flock"))
+    (set! %ss-c-setsid (cu-libc-sym "setsid"))
+    (set! %ss-c-fdatasync (cu-libc-sym "fdatasync"))))
+
+; libc's flock and setsid, once ss-resolve! has run
+(def ss-flock (fn (_ fd how) (cu-ptr-call %ss-c-flock fd how)))
+(def ss-setsid (fn (_) (cu-ptr-call %ss-c-setsid)))
 
 ; a libc call's result, and the io Err it failed with as OP on NAME, or nil
-(def %ss-call
+(def ss-call
   (fn (_ r op name)
     (let ((n (Sys %sign-fold r)))
       (if (< n 0) (Err from-errno (Err errno-of n) op name) ()))))
@@ -47,7 +61,7 @@
     (if (= pid 0)
       (do (cu-stdin-to-command!)
           (let ((err (sys-exec-or-err (first command) (rest command))))
-            (do (file-write 2 (string-concat (list applet ": " (first command) ": "
+            (do (file-write 2 (%str-concat (list applet ": " (first command) ": "
                                                    (file-err-text err) "\n")))
                 (sys-exit failed))))
       (sys-wait pid))))
@@ -60,25 +74,25 @@
         1)))
 
 ; fsync [-d] FILE...: each opened to read, without waiting on it, and flushed
-(def %cu-fsync
+(def cu-fsync
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "fsync" argv))
+    (def o (cu-opts "fsync" argv))
     (def data? (Opts on? o "-d"))
     (def one
       (fn (_ name)
         (let ((fd (File open name (list (lit rdonly) (lit nonblock) (lit noctty)))))
           (if (< fd 0)
-            (do (file-write 2 (string-concat
+            (do (file-write 2 (%str-concat
                                 (list "fsync: can't open '" name "': "
                                       (file-err-text (file-open-err fd name)) "\n")))
                 1)
             (let ((err (if (if data? (not (null? %ss-c-fdatasync)) #f)
-                         (%ss-call (%cu-ptr-call %ss-c-fdatasync fd) (lit fdatasync) name)
+                         (ss-call (cu-ptr-call %ss-c-fdatasync fd) (lit fdatasync) name)
                          (if (< (sys-fsync fd) 0)
                            (Err from-errno (Err errno-of -1) (lit fsync) name) ()))))
               (do (file-close fd)
                   (if (null? err) 0
-                    (do (file-write 2 (string-concat (list "fsync: " name ": "
+                    (do (file-write 2 (%str-concat (list "fsync: " name ": "
                                                            (file-err-text err) "\n")))
                         1))))))))
     (def each
@@ -86,14 +100,14 @@
         (if (null? names) st
           (self (rest names) (if (= (one (first names)) 0) st 1)))))
     (if (null? (Opts operands o)) (%fsync-usage)
-      (do (%ss-resolve!) (each (Opts operands o) 0)))))
+      (do (ss-resolve!) (each (Opts operands o) 0)))))
 
 ; --- flock -----------------------------------------------------------------------
 
 (def %flock-usage
   (fn (_)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list "Usage: flock [-sxun] FD | { FILE [-c] PROG ARGS }\n\n"
                   "[Un]lock file descriptor, or lock FILE, run PROG\n\n"
                   "\t-s\tShared lock\n"
@@ -127,9 +141,9 @@
   (fn (_) (let ((s (sys-getenv "SHELL"))) (if (if (null? s) #t (= (byte-len s) 0)) "/bin/sh" s))))
 
 ; flock [-sxun] FD | { FILE [-c] PROG ARGS }
-(def %cu-flock
+(def cu-flock
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "flock" argv))
+    (def o (cu-opts "flock" argv))
     (def ops (Opts operands o))
     (def cmd (if (pair? ops) (rest ops) ()))
     (def c? (if (pair? cmd) (if (string=? (first cmd) "-c") #t (string=? (first cmd) "--command")) #f))
@@ -137,19 +151,19 @@
       (match
         ((null? ops) ())
         ((pair? cmd) (%flock-open (first ops)))
-        (#t (%cu-range-number "flock" (first ops) 0 2147483647))))
+        (#t (cu-range-number "flock" (first ops) 0 2147483647))))
     (match
       ((null? ops) (%flock-usage))
       ((null? target) 1)
       ((Err err? target)
-        (do (file-write 2 (string-concat (list "flock: can't open '" (first ops) "': "
+        (do (file-write 2 (%str-concat (list "flock: can't open '" (first ops) "': "
                                                (file-err-text target) "\n")))
             1))
       ((if c? (> (length cmd) 2) #f)
         (do (file-write 2 "flock: -c takes only one argument\n") 1))
       (#t
-        (do (%ss-resolve!)
-            (let ((err (%ss-call (%cu-ptr-call %ss-c-flock target (%flock-mode o)) (lit flock) "")))
+        (do (ss-resolve!)
+            (let ((err (ss-call (ss-flock target (%flock-mode o)) (lit flock) "")))
               (match
                 ((null? err)
                   (match
@@ -161,7 +175,7 @@
                           (do (file-close target) st)))))
                 ; the lock is taken elsewhere, under -n: no word, status 1
                 ((string=? (file-err-text err) "Resource temporarily unavailable") 1)
-                (#t (do (file-write 2 (string-concat (list "flock: : " (file-err-text err) "\n")))
+                (#t (do (file-write 2 (%str-concat (list "flock: : " (file-err-text err) "\n")))
                         1)))))))))
 
 ; --- setsid ----------------------------------------------------------------------
@@ -169,7 +183,7 @@
 (def %setsid-usage
   (fn (_)
     (do (file-write 2
-          (string-concat
+          (%str-concat
             (list "Usage: setsid [-c] PROG ARGS\n\n"
                   "Run PROG in a new session. PROG will have no controlling terminal\n"
                   "and will not be affected by keyboard signals (^C etc).\n\n"
@@ -182,24 +196,24 @@
 ; setsid [-c] PROG ARGS.  A process group's leader cannot start a session,
 ; so where setsid fails it forks, the parent ending at once with 0 and the
 ; child starting the session.  Then PROG replaces it.
-(def %cu-setsid
+(def cu-setsid
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "setsid" argv))
+    (def o (cu-opts "setsid" argv))
     (def command (Opts operands o))
     (def exec!
       (fn (_)
         (do (if (Opts on? o "-c") ((syscall-door (lit ioctl)) 0 %setsid-tiocsctty 1) ())
             (cu-stdin-to-command!)
             (let ((err (sys-exec-or-err (first command) (rest command))))
-              (do (file-write 2 (string-concat (list "setsid: can't execute '" (first command)
+              (do (file-write 2 (%str-concat (list "setsid: can't execute '" (first command)
                                                      "': " (file-err-text err) "\n")))
                   (sys-exit (if (string=? (file-err-text err) "No such file or directory")
                               127 126)))))))
     (if (null? command) (%setsid-usage)
-      (do (%ss-resolve!)
-          (if (>= (Sys %sign-fold (%cu-ptr-call %ss-c-setsid)) 0) (exec!)
+      (do (ss-resolve!)
+          (if (>= (Sys %sign-fold (ss-setsid)) 0) (exec!)
             (if (= (sys-fork) 0)
-              (do (%cu-ptr-call %ss-c-setsid) (exec!))
+              (do (ss-setsid) (exec!))
               0))))))
 
 ; --- ttysize, nologin, pipe_progress ---------------------------------------------
@@ -207,7 +221,7 @@
 ; ttysize [w] [h]: the size of the first of standard input, output and error
 ; that is a terminal, or 80 by 24; with operands, each starting w or h its
 ; number, and the rest nothing
-(def %cu-ttysize
+(def cu-ttysize
   (fn (_ argv stdin-thunk)
     (def m (let ((a (Term measure 0)))
              (if (pair? a) a
@@ -220,18 +234,18 @@
           (let ((c (if (> (byte-len (first args)) 0) (byte-at (first args) 0) 0)))
             (self (rest args) " "
               (match
-                ((= c #\w) (pair (string-append sep (%cu-int->str w)) acc))
-                ((= c #\h) (pair (string-append sep (%cu-int->str h)) acc))
+                ((= c #\w) (pair (string-append sep (cu-int->str w)) acc))
+                ((= c #\h) (pair (string-append sep (cu-int->str h)) acc))
                 (#t acc)))))))
     (do (file-write 1
-          (string-concat
-            (append (if (null? argv) (list (%cu-int->str w) " " (%cu-int->str h)) (go argv "" ()))
+          (%str-concat
+            (append (if (null? argv) (list (cu-int->str w) " " (cu-int->str h)) (go argv "" ()))
                     (list "\n"))))
         0)))
 
 ; busybox's nologin script: /etc/nologin.txt, or the polite line; five
 ; seconds; and 1
-(def %cu-nologin
+(def cu-nologin
   (fn (_ argv stdin-thunk)
     (do (file-write 1 (if (file-exists? "/etc/nologin.txt") (file-read-all "/etc/nologin.txt")
                         "This account is not available\n"))
@@ -241,9 +255,9 @@
 ; pipe_progress: standard input to standard output a piece at a time, a dot
 ; on stderr each time the second has changed since the last, and a newline
 ; at the end
-(def %cu-pipe-progress
+(def cu-pipe-progress
   (fn (_ argv stdin-thunk)
-    (def src (%cu-pieces "-" stdin-thunk))
+    (def src (cu-pieces "-" stdin-thunk))
     (def go
       (fn (self t)
         (let ((p (src)))
@@ -255,3 +269,16 @@
     (do (go (Sys now))
         (file-write 2 "\n")
         0)))
+
+; bb_daemonize: the parent ends, the child leaves the terminal for /dev/null
+(def hd-daemonize
+  (fn (_)
+    (when (> (sys-fork) 0) (sys-exit 0))
+    (ss-resolve!)
+    (ss-setsid)
+    (let ((fd (File open "/dev/null" (lit rdwr))))
+      (do (sys-dup2 fd 0) (sys-dup2 fd 1) (sys-dup2 fd 2)
+          (when (> fd 2) (file-close fd))))))
+
+(provide cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
+  cu-ttysize hd-daemonize ss-call ss-flock ss-resolve!)

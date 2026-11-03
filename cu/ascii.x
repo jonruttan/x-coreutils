@@ -15,6 +15,15 @@
 
 ; --- ascii --------------------------------------------------------------------
 
+(module cu/ascii)
+
+(import cu/cli cu-opts)
+(import cu/dump dp-udigits)
+(import cu/prims cu-int->str cu-nth file-err-text file-write map string-append)
+(import cu/text cu-fold-pieces cu-pad-left cu-pad-zero cu-pieces)
+
+(import x/codec/crc32)
+
 (def %ascii-names
   (list "NUL" "SOH" "STX" "ETX" "EOT" "ENQ" "ACK" "BEL" "BS " "HT " "NL " "VT "
         "FF " "CR " "SO " "SI " "DLE" "DC1" "DC2" "DC3" "DC4" "NAK" "SYN" "ETB"
@@ -23,16 +32,16 @@
 ; a column: the number in decimal, WIDE wide, its hex in two, and what it is
 (def %ascii-cell
   (fn (_ n wide shown)
-    (string-concat
-      (list (%cu-pad-left (%cu-int->str n) wide) " "
-            (%cu-pad-zero (%dp-udigits n 16 #f) 2) " " shown))))
+    (%str-concat
+      (list (cu-pad-left (cu-int->str n) wide) " "
+            (cu-pad-zero (dp-udigits n 16 #f) 2) " " shown))))
 
 (def %ascii-row
   (fn (_ i)
     (def ch (fn (_ n) (bytes->str (list n))))
-    (string-concat
-      (list (%ascii-cell i 3 (%cu-nth i %ascii-names))
-            (%ascii-cell (+ i 16) 4 (%cu-nth (+ i 16) %ascii-names))
+    (%str-concat
+      (list (%ascii-cell i 3 (cu-nth i %ascii-names))
+            (%ascii-cell (+ i 16) 4 (cu-nth (+ i 16) %ascii-names))
             (%ascii-cell (+ i 32) 4 (ch (+ i 32)))
             (%ascii-cell (+ i 48) 4 (ch (+ i 48)))
             (%ascii-cell (+ i 64) 4 (ch (+ i 64)))
@@ -41,60 +50,42 @@
             (%ascii-cell (+ i 112) 5 (if (= i 15) "DEL" (ch (+ i 112))))
             "\n"))))
 
-(def %cu-ascii
+(def cu-ascii
   (fn (_ argv stdin-thunk)
     (do (file-write 1
-          (string-concat
+          (%str-concat
             (pair "Dec Hex    Dec Hex    Dec Hex  Dec Hex  Dec Hex  Dec Hex   Dec Hex   Dec Hex\n"
                   (map %ascii-row (List range 0 16)))))
         0)))
 
 ; --- crc32 --------------------------------------------------------------------
 
-; the table, computed: each byte's CRC under the reflected polynomial
-; 0xEDB88320, the low bit shifted out first
-(def %crc32-entry
-  (fn (self k c)
-    (if (= k 0) c
-      (self (- k 1) (if (= (& c 1) 0) (>> c 1) (^ (>> c 1) 3988292384))))))
-
-(def %crc32-table (vec-build 256 (fn (_ i) (%crc32-entry 8 i))))
-
-; a piece P folded into the CRC so far
+; a piece P folded into the CRC so far, by x/codec/crc32's
 (def %crc32-take
-  (fn (_ p crc)
-    (def text (first p))
-    (def n (rest p))
-    (def go
-      (fn (self i acc)
-        (if (= i n) acc
-          (do (if (= (& i %cu-sweep-steps) 0) (%cu-sweep! i) ())
-              (self (+ i 1)
-                (^ (vec-ref %crc32-table (& (^ acc (byte-at text i)) 255)) (>> acc 8)))))))
-    (go 0 crc)))
+  (fn (_ p crc) (Crc32 update crc (first p) 0 (rest p))))
 
 ; crc32 [FILE]...: each file's CRC, and its name; with none, standard
 ; input's, unnamed.  A file that will not open is said and passed; one that
 ; will not read ends the run.
-(def %cu-crc32
+(def cu-crc32
   (fn (_ argv stdin-thunk)
-    (def ops (Opts operands (%cu-opts "crc32" argv)))
+    (def ops (Opts operands (cu-opts "crc32" argv)))
     (def one
       (fn (_ name shown)
-        (let ((src (%cu-pieces name stdin-thunk)))
+        (let ((src (cu-pieces name stdin-thunk)))
           (if (Err err? src)
-            (do (file-write 2 (string-concat (list "crc32: can't open '" name "': "
+            (do (file-write 2 (%str-concat (list "crc32: can't open '" name "': "
                                                    (file-err-text src) "\n")))
                 (lit missing))
-            (let ((r (%cu-fold-pieces src %crc32-take 4294967295)))
+            (let ((r (cu-fold-pieces src %crc32-take 0)))
               (do (src (lit close))
                   (if (not (null? (rest r)))
-                    (do (file-write 2 (string-concat (list "crc32: " name ": "
+                    (do (file-write 2 (%str-concat (list "crc32: " name ": "
                                                            (file-err-text (rest r)) "\n")))
                         (lit fatal))
                     (do (file-write 1
-                          (string-concat
-                            (list (%cu-pad-zero (%dp-udigits (& (^ (first r) 4294967295) 4294967295) 16 #f) 8)
+                          (%str-concat
+                            (list (cu-pad-zero (dp-udigits (first r) 16 #f) 8)
                                   (if shown (string-append " " name) "") "\n")))
                         (lit ok)))))))))
     (def each
@@ -115,8 +106,10 @@
   (fn (_) (do (file-write 2 "Usage: uuidgen\n\nGenerate a random UUID\n") 1)))
 
 ; uuidgen [-r]: -r, a random UUID, is the only kind
-(def %cu-uuidgen
+(def cu-uuidgen
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "uuidgen" argv))
+    (def o (cu-opts "uuidgen" argv))
     (if (pair? (Opts operands o)) (%uuidgen-usage)
       (do (file-write 1 (string-append ((Random hw) uuid) "\n")) 0))))
+
+(provide cu/ascii cu-ascii cu-crc32 cu-uuidgen)

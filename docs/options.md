@@ -11,35 +11,48 @@ the work.  Applet parity is the other axis: see the README.
 | `[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `[[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `arch` |  |  |  | - |
+| `arp` | -a -d -s -v -n -i -D -A -p -H | -a -d -s -v -n -D -i -A -p -H -t |  | 100% |
+| `arping` | -f -q -b -D -U -A -c -w -I -s | -f -q -b -D -U -A -c -w -I -s |  | 100% |
 | `ascii` |  |  |  | - |
 | `base32` | -d -i -w | -d -i -w |  | 100% |
 | `base64` | -d -w | -d -w |  | 100% |
 | `basename` | -s | -s |  | 100% |
+| `brctl` |  |  |  | - |
 | `cal` | -j -m -y | -j -m -y |  | 100% |
 | `cat` | -n -b -v -t -e -A | -n -b -v -t -e -A |  | 100% |
 | `chgrp` | -R -h -L -H -P -c -v -f | -h -L -H -P -R -c -v -f |  | 100% |
 | `chmod` | -R -c -v -f | -R -c -v -f |  | 100% |
 | `chown` | -R -h -L -H -P -c -v -f | -h -L -H -P -R -c -v -f |  | 100% |
 | `chroot` |  |  |  | - |
+| `chrt` | -m -p -r -f -o -b -i | -m -p -r -f -o -b -i |  | 100% |
 | `cksum` |  |  |  | - |
 | `clear` |  |  |  | - |
 | `cmp` | -l -s -n | -l -s -n |  | 100% |
 | `comm` | -1 -2 -3 | -1 -2 -3 |  | 100% |
 | `cp` | -a -r -R -P -L -H -p -f -i -l -s -T -u | -a -R -r -L -H -p -f -i -l -s -T -u -P |  | 100% |
+| `cpio` | -t -i -o -p -H -d -m -v -u -F -R -L -0 --ignore-devno --renumber-inodes | -t -i -o -p -d -m -v -u -L -0 --extract --list --create --pass-through --verbose --null --quiet --to-stdout --ignore-devno --renumber-inodes -H -F -R --format --owner --file |  | 100% |
 | `crc32` |  |  |  | - |
+| `cryptpw` | -P -m -S | -s --stdin -P -m -a -S --password-fd --salt --method |  | 100% |
 | `cut` | -b -c -f -d -s -n | -s -n -b -c -d -f |  | 100% |
 | `date` | -u -d -D -s -r -R -I +FMT | -u -R -I -Idate -Ihours -Iminutes -Iseconds -Ins -d -D -r +FMT | -s | 87% |
+| `dc` | -x -e -f | -x -e -f |  | 100% |
 | `dd` | if= of= bs= ibs= obs= count= skip= seek= conv= status= iflag= oflag= | if= of= bs= ibs= obs= count= skip= seek= status= conv= iflag= oflag= |  | 100% |
 | `df` | -P -k -m -h -T -a -i -B | -P -k -m -h -T -a -i -B |  | 100% |
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -a -b -B -d -i -N -q -r -T -s -t -w -U -L -S |  | 100% |
 | `dirname` |  |  |  | - |
+| `dnsd` | -d -v -s -c -t -p -i | -d -v -s -c -t -p -i |  | 100% |
+| `dnsdomainname` |  | -s -i -d -f -v --domain --fqdn -F --file |  | - |
 | `dos2unix` | -u -d | -u -d |  | 100% |
 | `du` | -a -H -L -d -c -l -s -x -h -m -k | -a -L -H -c -l -s -x -h -m -k -P -d |  | 100% |
+| `dumpleases` | -a -r -f -d --absolute --remaining --file --decimal | -a --absolute -r --remaining -d --decimal -f --file |  | 100% |
 | `echo` | -n -e -E | -n -e -E |  | 100% |
+| `ed` | -p -s | -s -p |  | 100% |
 | `env` | -i -u -0 | -0 -i -u |  | 100% |
+| `ether-wake` | -b -i -p | -b -i -p |  | 100% |
 | `expand` | -i -t | -i -t |  | 100% |
 | `expr` |  |  |  | - |
 | `factor` |  | -h |  | - |
+| `fakeidentd` | -f -i -w -b | -f -i -w -b |  | 100% |
 | `false` |  |  |  | - |
 | `find` | _not a busybox applet_ | -empty -print -print0 -name -iname -path -type -size -newer -maxdepth -mindepth -exec -true -false -not -a -and -o -or ! ( ) | | - |
 | `flock` | -s -x -u -n | -s -x -u -n --shared --exclusive --unlock --nonblock |  | 100% |
@@ -49,6 +62,7 @@ the work.  Applet parity is the other axis: see the README.
 | `ftpd` | -w -A -a -v -S -t -T | -w -A -v -S -a -t -T |  | 100% |
 | `ftpget` | -c -v -u -p -P | -c -v --verbose -u -p -P --continue --username --password --port |  | 100% |
 | `ftpput` | -c -v -u -p -P | -v -c --verbose -u -p -P --continue --username --password --port |  | 100% |
+| `fuser` | -m -k -s -6 -4 | -m -s -k -6 -4 |  | 100% |
 | `getopt` | -o -n -q -Q -s -T -u -a -l | -a -q -Q -T -u --alternative --quiet --quiet-output --test --unquoted -l -n -o -s --longoptions --name --options --shell |  | 100% |
 | `groups` |  |  |  | - |
 | `gunzip` | -c -f -k -t | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | 100% |
@@ -58,75 +72,127 @@ the work.  Applet parity is the other axis: see the README.
 | `hexdump` | -b -c -d -o -x -C -e -f -n -s -v | -b -c -d -o -x -C -v -e -n -s -f |  | 100% |
 | `hostid` |  |  |  | - |
 | `hostname` | -s -i -d -f -F | -s -i -d -f -v --domain --fqdn -F --file |  | 100% |
-| `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -r -h -c -e -d | -m -u | 84% |
+| `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -u -r -h -c -m -e -d |  | 100% |
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
+| `ifconfig` |  |  |  | - |
+| `inetd` | -f -e -q -R | -f -e -q -R |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
+| `ionice` | -n -c -p -t | -t -n -c -p |  | 100% |
+| `iostat` | -c -d -t -z -k -m | -c -d -t -z -k -m |  | 100% |
+| `ip` |  |  |  | - |
+| `ipaddr` |  |  |  | - |
 | `ipcalc` | -b -n -m -p -h -s | -b -n -m -p -h -s --broadcast --network --netmask --prefix --hostname --silent |  | 100% |
+| `ipcrm` | -q -m -s -Q -M -S | -q -m -s -Q -M -S |  | 100% |
+| `ipcs` | -i -a -q -s -m -t -c -p -l -u | -a -q -s -m -t -c -p -l -u -i |  | 100% |
+| `iplink` |  |  |  | - |
+| `ipneigh` |  |  |  | - |
+| `iproute` |  |  |  | - |
+| `iprule` |  |  |  | - |
+| `iptunnel` |  |  |  | - |
 | `join` | _not a busybox applet_ | -t | | - |
+| `kill` | -l -s | -l -s |  | 100% |
+| `killall` | -l -q -s | -l -q -s |  | 100% |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -a -A -x -d -L -H -R -p -F -l -i -n -s -h -S -X -v -t -r -c -u -C -w |  | 100% |
+| `lsmod` |  |  |  | - |
+| `lsof` |  |  |  | - |
+| `makemime` | -c -e -o -C -N -a | -c -e -o -C -N -a |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mesg` |  |  |  | - |
+| `minips` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
 | `mkdir` | -m -p | -p -m |  | 100% |
 | `mkfifo` | -m | -m |  | 100% |
 | `mknod` | -m | -m |  | 100% |
+| `mkpasswd` | -P -m -S | -s --stdin -P -m -a -S --password-fd --salt --method |  | 100% |
 | `mktemp` | -d -t -p -q -u | -d -q -t -u -p |  | 100% |
 | `more` | -d -e -f -l -s -u | -d -e -f -l -s -u |  | 100% |
 | `mountpoint` | -q -d -n -x | -q -d -n -x |  | 100% |
+| `mpstat` | -A -I -u -P | -A -u -I -P |  | 100% |
 | `mv` | -f -i -n -T | -f -i -n -T |  | 100% |
+| `nameif` | -s -c | -s -c |  | 100% |
 | `nc` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
+| `netcat` | -e -l -k -p -s -w -i -n -u -b -v -o -z | -n -v -l -k -z -p -w -i -o -e | -s -u -b | 76% |
+| `netstat` | -r -a -l -t -u -w -x -e -n -W -p | -r -a -l -t -u -w -x -e -n -W -p |  | 100% |
 | `nice` | -n | -n |  | 100% |
 | `nl` | -b -n -s -w -v -i | -b -i -s -v -w -n |  | 100% |
+| `nmeter` | -d | -d |  | 100% |
 | `nohup` |  |  |  | - |
 | `nologin` |  |  |  | - |
 | `nproc` | --all --ignore=N | --all --ignore |  | 100% |
+| `nsenter` | -t -m -u -i -n -p -U -S -G -r -w -F --preserve-credentials | -m -u -i -n -p -U --preserve-credentials -r -w -F -t -S -G |  | 100% |
 | `nslookup` | -type -debug | -debug -type -querytype -port -retry -timeout -t |  | 100% |
+| `ntpd` | -n -q -N -x -k -w -p -S -l -I -d -4 -6 -a -A -b -g -L | -n -q -N -x -w -l -d -4 -6 -a -A -b -g -L -k -p -S -I |  | 100% |
 | `od` | -A -j -N -t -v -b -c -d -o -x | -v -c -b -x -d -o -A -t -N -j |  | 100% |
 | `paste` | -d -s | -s -d |  | 100% |
+| `patch` | -p -i -R -N -E --dry-run | -R -u -N -E -f --reverse --unified --forward --remove-empty-files --force --dry-run --backup-if-mismatch --no-backup-if-mismatch -p -i -g --strip --input --get |  | 100% |
 | `pgrep` | -l -a -f -n -o -v -x -s -P | -l -a -f -n -o -v -x -e -s -P |  | 100% |
 | `pidof` | -s -o | -s -o |  | 100% |
+| `ping` | -q -v -A -c -s -t -w -W -I -n -p -i -4 -6 | -4 -6 -A -q -v -n -c -s -i -t -I -W -w -p |  | 100% |
+| `ping6` | -q -v -A -c -s -t -w -W -I -n -p -i -4 -6 | -4 -6 -A -q -v -n -c -s -i -t -I -W -w -p |  | 100% |
 | `pipe_progress` |  |  |  | - |
 | `pkill` | -l -x -f -s -P -v -n -o -e | -l -x -f -v -n -o -e -a -s -P |  | 100% |
+| `pmap` | -x -q | -x -q |  | 100% |
+| `popmaildir` | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F | -b -d -m -V -c -a -s -T -k -t -R -Z -L -H -M -F |  | 100% |
+| `powertop` |  |  |  | - |
 | `printenv` |  |  |  | - |
 | `printf` |  |  |  | - |
 | `ps` | -o -T | -Z -a -A -d -e -f -l -o | -T | 50% |
+| `pscan` | -c -b -p -P -t -T | -c -b -p -P -t -T |  | 100% |
+| `pstree` | -p | -p |  | 100% |
 | `pwd` | -L -P | -L -P |  | 100% |
+| `pwdx` |  |  |  | - |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
 | `realpath` |  |  |  | - |
+| `reformime` | -x -X -d -e -i -s -r -c -m -h -o -O | -X -d -e -i -x -s -r -c -m -h -o -O |  | 100% |
 | `renice` | -n -p -g -u | -n -p -g -u |  | 100% |
 | `reset` |  |  |  | - |
 | `rev` |  |  |  | - |
 | `rm` | -i -r -R -f -v | -i -f -R -r -v |  | 100% |
 | `rmdir` | -p | -p |  | 100% |
+| `route` | -n -e -A | -n -e -A |  | 100% |
 | `run-parts` | -a -u --reverse --test --exit-on-error --list | --reverse --test --exit-on-error --list -a -u --arg --umask |  | 100% |
+| `sendmail` | -t -f -o -i -w -H -S -a -v | -t -i -v -f -o -w -H -S -a |  | 100% |
 | `seq` | -w -s | -w -s |  | 100% |
+| `setpriv` | -d --dump --nnp --no-new-privs --inh-caps --ambient-caps | -d --dump --nnp --no-new-privs --inh-caps --ambient-caps |  | 100% |
 | `setsid` | -c | -c |  | 100% |
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha256sum` | -c -s -w | -c -s -w |  | 100% |
 | `sha384sum` | -c -s -w | -c -s -w |  | 100% |
+| `sha3sum` | -c -s -w -a | -c -s -w -a |  | 100% |
 | `sha512sum` | -c -s -w | -c -s -w |  | 100% |
 | `shred` | -f -n -u -z | -f -z -u -n |  | 100% |
 | `shuf` | -e -i -n -o -z | -z -e -n -o -i |  | 100% |
 | `sleep` |  |  |  | - |
+| `smemcap` |  |  |  | - |
 | `sort` | -n -r -u -g -M -c -s -z -b -d -f -i -o -k -t | -c -b -f -i -d -n -g -M -r -s -u -z -o -t -k |  | 100% |
 | `split` | -b -l -a | -b -l -a |  | 100% |
+| `ssl_client` | -s -r -n -e | -e -s -r -n |  | 100% |
+| `ssl_server` | -v -f | -v -f |  | 100% |
 | `stat` | -L -f -t -c | -f -L -t -c |  | 100% |
 | `strings` | -a -f -o -n -t | -f -o -a -t -n |  | 100% |
 | `sum` | -r -s | -r -s |  | 100% |
 | `sync` | -d -f | -d -f |  | 100% |
+| `sysctl` | -e -n -q -a -p -w | -e -n -q -a -A -p -w |  | 100% |
 | `tac` |  |  |  | - |
 | `tail` | -c -f -n -q -s -v | -q -v -f -c -n -s |  | 100% |
 | `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -z --gzip -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -J -j --lzma --to-command | 84% |
+| `taskset` | -p -a -c | -p -a -c |  | 100% |
 | `tcpsvd` | -h -E -v -c -C -b -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `tee` | -a -i | -a -i |  | 100% |
+| `telnet` | -a -l | -a -l |  | 100% |
+| `telnetd` | -f -l -K -i -p -b -F -S -w -v | -K -i -F -S -v -l -f -p -b -w |  | 100% |
 | `test` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `tftp` | -l -r -g -p -b | -g -p -l -r -b -m |  | 100% |
+| `tftpd` | -c -r -l -u | -c -r -l -u |  | 100% |
 | `time` | -v -p -a -f -o | -v -p -a -f -o |  | 100% |
 | `timeout` | -s -k | -s -k |  | 100% |
+| `top` | -b -n -d -m -H | -b -m -H -n -d |  | 100% |
 | `touch` | -c -d -t -r | -c -d -t -r |  | 100% |
 | `tr` | -c -d -s | -c -d -s |  | 100% |
+| `traceroute` | -F -I -l -n -r -d -v -t -i -m -p -q -s -w -z -f -4 -6 | -4 -6 -F -I -l -n -r -d -v -t -i -m -p -q -s -w -z -f |  | 100% |
+| `traceroute6` | -F -I -l -n -r -d -v -t -i -m -p -q -s -w -z -f -4 -6 | -4 -6 -F -I -l -n -r -d -v -t -i -m -p -q -s -w -z -f |  | 100% |
 | `tree` |  |  |  | - |
 | `true` |  |  |  | - |
 | `truncate` | -c -s | -c -s |  | 100% |
@@ -134,20 +200,28 @@ the work.  Applet parity is the other axis: see the README.
 | `tsort` |  |  |  | - |
 | `tty` | -s | -s |  | 100% |
 | `ttysize` |  |  |  | - |
+| `tunctl` | -f -t -d -u -g -b | -b -f -t -d -u -g |  | 100% |
+| `udhcpc` | -C -V -F -i -n -p -q -R -r -s -T -t -S -A -O -o -x -f -B -b -a -v --clientid-none --vendorclass --fqdn --interface --now --pidfile --quit --release --request --script --timeout --retries --tryagain --syslog --request-option --no-default-options --foreground --background --broadcast --arping | -C --clientid-none -n --now -q --quit -R --release -S --syslog -o --no-default-options -f --foreground -b --background -B --broadcast -a --arping -v -V --vendorclass -F --fqdn -i --interface -p --pidfile -r --request -s --script -T --timeout -t --retries -A --tryagain -O --request-option -x |  | 100% |
+| `udhcpd` | -f -S -I -v -a | -f -S -v -I -a |  | 100% |
 | `udpsvd` | -h -E -v -c -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -m -n -r -s -p -v -i -o |  | 100% |
 | `unexpand` | -f -a -t | -a -f -t |  | 100% |
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
+| `unshare` | -m -u -i -n -p -U -f -r --mount --uts --ipc --net --pid --user --mount-proc --propagation --setgroups | -m -u -i -n -p -U -f -r --mount --uts --ipc --net --pid --user --fork --map-root-user --mount-proc --propagation --setgroups |  | 100% |
+| `unzip` | -l -n -o -j -p -t -q -K -x -d | -l -n -o -j -p -t -q -K -x -v -d |  | 100% |
 | `uptime` | -s | -s |  | 100% |
 | `users` |  |  |  | - |
 | `usleep` |  |  |  | - |
 | `uudecode` | -o | -o |  | 100% |
 | `uuencode` | -m | -m |  | 100% |
 | `uuidgen` | -r | -r |  | 100% |
+| `vconfig` |  |  |  | - |
 | `vi` | -c -R -H | -R -H -h -c |  | 100% |
+| `vmstat` | -n | -n |  | 100% |
 | `w` |  |  |  | - |
+| `watch` | -n -t -x | -t -x -d -n |  | 100% |
 | `wc` | -c -m -l -w -L | -c -m -l -w -L |  | 100% |
 | `wget` | -c -q -S -O -o -P -Y -U -T -t --spider --header --post-data --post-file --no-check-certificate | --spider --no-check-certificate -c -q -S --continue --quiet --server-response -nv -nc -nH -np --passive-ftp --no-cache --no-verbose --no-clobber --no-host-directories --no-parent --header -U --post-data --post-file -P -t -T -O -o -Y --output-document --output-file --directory-prefix --proxy --user-agent --timeout --tries |  | 100% |
 | `which` | -a | -a |  | 100% |
@@ -158,5 +232,4 @@ the work.  Applet parity is the other axis: see the README.
 | `xxd` | -l -s -a -p -i -r -g -c -o | -ps -i -r -a -p -g -c -l -s -o |  | 100% |
 | `yes` |  |  |  | - |
 | `zcat` |  | -c -f -k -v -q -d -t -n --stdout --to-stdout --force --test --no-name |  | - |
-
-**Total: 651 of 664 busybox options accepted (98%).**
+| `zcip` | -f -q -r -l -v | -f -q -v -r -l |  | 100% |

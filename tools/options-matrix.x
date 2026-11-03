@@ -20,6 +20,11 @@
 ; lint-known: busybox-options
 (include-once "docs/busybox-options.x")
 
+(import cu/cli cu-spec-of)
+(import cu/prims append byte-at byte-len cu-int->str file-write filter length
+  string-append string=? substring)
+(import cu/text cu-msort cu-str<)
+
 ; busybox spells a long option with its value shown, --ignore=N; the
 ; declaration and the guard know it as --ignore, a flag that takes one.
 ; The part before the = is what to look for.
@@ -61,7 +66,7 @@
 ; SEGFAULTED rather than raising.
 ; WHAT AN APPLET TAKES THAT IS NOT AN OPTION.  dd's operands are
 ; key=value, and date's format is an operand beginning with +, so neither
-; is in a %cu-option-spec row -- and both are read, so the matrix would
+; is in a cu-option-spec row -- and both are read, so the matrix would
 ; otherwise count a supported thing as missing.
 (def %mx-extra
   (list
@@ -78,14 +83,14 @@
 (def %mx-pct
   (fn (_ have want)
     (if (= want 0) "-"
-      (string-append (%cu-int->str (/ (- (* have 100) (% (* have 100) want)) want)) "%"))))
+      (string-append (cu-int->str (/ (- (* have 100) (% (* have 100) want)) want)) "%"))))
 
 (def %mx-cell
-  (fn (_ xs) (if (null? xs) "" (%cu-join-with xs " "))))
+  (fn (_ xs) (if (null? xs) "" (Str8 join " " xs))))
 
 (def %mx-names
-  (%cu-msort (map (fn (_ e) (first e)) %cu-applets)
-    (fn (_ a b) (%cu-str< a b))))
+  (cu-msort (Applets names)
+    (fn (_ a b) (cu-str< a b))))
 
 ; one row: applet | busybox | ours | missing | coverage.  Answers the
 ; pair (have . want) so the totals fold over the same walk.
@@ -97,7 +102,7 @@
     ; accepted as one that stands alone.  --help is not one of them: an
     ; applet answers it before its options are read, and test and its
     ; spellings declare it only so that it reaches them as an operand.
-    (def spec (%cu-spec-of name))
+    (def spec (cu-spec-of name))
     (def declared (if (null? spec) ()
                     (filter (fn (_ o) (not (string=? o "--help")))
                       (append (first spec) (first (rest spec))))))
@@ -105,14 +110,14 @@
                  (if (eq? e (lit none)) () e)))
     (def ours (%mx-uniq (append declared extra)))
     (if (eq? bb (lit none))
-      (do (display (string-concat
+      (do (display (%str-concat
                      (list "| `" name "` | _not a busybox applet_ | "
                            (%mx-cell ours) " | | - |\n")))
           (pair 0 0))
       (let ((missing (%mx-minus bb ours)))
         (def have (- (length bb) (length missing)))
         (do (display
-              (string-concat
+              (%str-concat
                 (list "| `" name "` | " (%mx-cell bb) " | " (%mx-cell ours)
                       " | " (%mx-cell missing) " | "
                       (%mx-pct have (length bb)) " |\n")))
@@ -134,10 +139,12 @@
                     (let ((r (%mx-row (first ns))))
                       (self (rest ns) (+ have (first r)) (+ want (rest r))))))))
         (go %mx-names 0 0)))
-    (display
-      (string-concat
-        (list "\n**Total: " (%cu-int->str (first totals)) " of "
-              (%cu-int->str (rest totals)) " busybox options accepted ("
-              (%mx-pct (first totals) (rest totals)) ").**\n")))))
+    ; the total goes to stderr, not the page: every applet's PR moves it,
+    ; and a line every PR changes is a conflict between any two of them
+    (file-write 2
+      (%str-concat
+        (list "Total: " (cu-int->str (first totals)) " of "
+              (cu-int->str (rest totals)) " busybox options accepted ("
+              (%mx-pct (first totals) (rest totals)) ").\n")))))
 
 (%mx-main)

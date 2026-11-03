@@ -12,21 +12,32 @@
 ; stops it at the first word that is not a cluster of the flags, and keeps that
 ; word, so `echo -x` and `echo -- a` print their words, as echo reads them;
 ; `none` says there are no options at all, so `printf -x` prints -x, and only a
-; first -- is dropped.
+; first -- is dropped.  `inetd` marks a service that wants a socket on stdin
+; before it reads any option: without one, its usage, as busybox's tftpd shows.
 ;
 ; The declaration is busybox's help text, row for row: what `APPLET --help`
 ; prints, less the banner line and the rows for options this bundle does not
 ; take.  A listed row declares the option it describes; a hidden row declares
 ; one busybox does not list; a text row is a line laid out by hand, or a
 ; spelling (a cluster, an attached value) of options declared elsewhere.  The
-; guard, the applet and --help all read the same row (through %cu-opts and
-; %cu-usage), so an option cannot be accepted and undocumented, nor documented
+; guard, the applet and --help all read the same row (through cu-opts and
+; cu-usage), so an option cannot be accepted and undocumented, nor documented
 ; and refused.
 ;
 ; test's whole vocabulary is declared because the guard must know every
 ; dash-word the grammar accepts; find's for the same reason, or a valid
 ; expression reads as a bad flag.  cu/find.x parses them; this list only makes
 ; them spellable.
+(module cu/options)
+
+(import cu/prims append length map reverse string-append string=? substring)
+
+; -u, -b (UDP's broadcasts) and -s are not here: refused, rather than read as
+; TCP or as no address at all.  -e is split off before the parse.
+(def nc-flags (list "-n" "-v" "-l" "-k" "-z"))
+
+(def nc-values (list "-p" "-w" "-i" "-o" "-e"))
+
 (def %cu-test-operators
   (list "-e" "-f" "-d" "-s" "-z" "-n" "-r" "-w" "-x" "-L" "-h"
         "-b" "-c" "-p" "-S" "-k" "-u" "-g" "-t"
@@ -45,7 +56,95 @@
 (def %cu-hidden-args
   (fn (_ opts) (map (fn (_ o) (Opts hidden (Opts arg o "" ""))) opts)))
 
-(def %cu-option-spec
+; ps's row, under NAME.  busybox's usage names -T too; threads are not in the
+; records ps reads, so -T is not accepted and not shown
+(def %cu-ps-row
+  (fn (_ name)
+    (list
+      (Opts declare name "[-o COL1,COL2=HEADER]"
+        "Show list of processes"
+        (list
+          (Opts arg "-o" "COL1,COL2=HEADER" "Select columns for display")
+          (Opts hidden (Opts flag "-Z" ""))
+          (Opts hidden (Opts flag "-a" ""))
+          (Opts hidden (Opts flag "-A" ""))
+          (Opts hidden (Opts flag "-d" ""))
+          (Opts hidden (Opts flag "-e" ""))
+          (Opts hidden (Opts flag "-f" ""))
+          (Opts hidden (Opts flag "-l" "")))))))
+
+; ping's row, under NAME: ping6's help is ping's without -4,-6 and -t
+(def %cu-ping-row
+  (fn (_ name)
+    (def six? (string=? name "ping6"))
+    (list
+      (Opts declare name "[OPTIONS] HOST"
+        "Send ICMP ECHO_REQUESTs to HOST"
+        (append
+          (if six? () (list (Opts text "\t-4,-6\t\tForce IP or IPv6 name resolution")))
+          (list
+            (Opts text "\t-c CNT\t\tSend only CNT pings")
+            (Opts text "\t-s SIZE\t\tSend SIZE data bytes in packets (default 56)")
+            (Opts text "\t-i SECS\t\tInterval")
+            (Opts text "\t-A\t\tPing as soon as reply is received"))
+          (if six? () (list (Opts text "\t-t TTL\t\tSet TTL")))
+          (list
+            (Opts text "\t-I IFACE/IP\tSource interface or IP address")
+            (Opts text "\t-W SEC\t\tSeconds to wait for the first response (default 10)")
+            (Opts text "\t\t\t(after all -c CNT packets are sent)")
+            (Opts text "\t-w SEC\t\tSeconds until ping exits (default:infinite)")
+            (Opts text "\t\t\t(can exit earlier with -c CNT)")
+            (Opts text "\t-q\t\tQuiet, only display output at start/finish")
+            (Opts text "\t-p HEXBYTE\tPayload pattern"))
+          (%cu-hidden-flags (list "-4" "-6" "-A" "-q" "-v" "-n"))
+          (%cu-hidden-args (list "-c" "-s" "-i" "-t" "-I" "-W" "-w" "-p"))))
+      (lit families))))
+
+; traceroute's row, under NAME: traceroute6's help leaves out -4,-6, -F and -l
+(def %cu-traceroute-row
+  (fn (_ name)
+    (def six? (string=? name "traceroute6"))
+    (list
+      (Opts declare name
+        (string-append (if six? "[-Inrv]" "[-46IFlnrv]")
+          " [-f 1ST_TTL] [-m MAXTTL] [-q PROBES] [-p PORT]\n\t[-t TOS] [-w WAIT_SEC] [-s SRC_IP] [-i IFACE]\n\t[-z PAUSE_MSEC] HOST [BYTES]")
+        "Trace the route to HOST"
+        (append
+          (if six? () (list (Opts text "\t-4,-6\tForce IP or IPv6 name resolution")
+                            (Opts text "\t-F\tSet don't fragment bit")))
+          (list (Opts text "\t-I\tUse ICMP ECHO instead of UDP datagrams"))
+          (if six? () (list (Opts text "\t-l\tDisplay TTL value of the returned packet")))
+          (list
+            (Opts text "\t-n\tPrint numeric addresses")
+            (Opts text "\t-r\tBypass routing tables, send directly to HOST")
+            (Opts text "\t-v\tVerbose")
+            (Opts text "\t-f N\tFirst number of hops (default 1)")
+            (Opts text "\t-m N\tMax number of hops")
+            (Opts text "\t-q N\tNumber of probes per hop (default 3)")
+            (Opts text "\t-p N\tBase UDP port number used in probes")
+            (Opts text "\t\t(default 33434)")
+            (Opts text "\t-s IP\tSource address")
+            (Opts text "\t-i IFACE Source interface")
+            (Opts text "\t-t N\tType-of-service in probe packets (default 0)")
+            (Opts text "\t-w SEC\tWait for a response (default 3)")
+            (Opts text "\t-z MSEC\tWait before each send"))
+          (%cu-hidden-flags (list "-4" "-6" "-F" "-I" "-l" "-n" "-r" "-d" "-v"))
+          (%cu-hidden-args (list "-t" "-i" "-m" "-p" "-q" "-s" "-w" "-z" "-f"))))
+      (lit families))))
+
+
+; nc's row, under NAME: netcat is the same applet, its usage text nc's
+(def %cu-nc-row
+  (fn (_ name)
+    (list
+      (Opts declare name "[OPTIONS] HOST PORT  - connect\nnc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen"
+        "\t-e PROG\tRun PROG after connect (must be last)\n\t-l\tListen mode, for inbound connects\n\t-lk\tWith -e, provides persistent server\n\t-p PORT\tLocal port\n\t-s ADDR\tLocal address\n\t-w SEC\tTimeout for connects and final net reads\n\t-i SEC\tDelay interval for lines sent\n\t-n\tDon't do DNS resolution\n\t-u\tUDP mode\n\t-b\tAllow broadcasts\n\t-v\tVerbose\n\t-o FILE\tHex dump traffic\n\t-z\tZero-I/O mode (scanning)"
+        (append (list)
+          (%cu-hidden-flags nc-flags)
+          (%cu-hidden-args nc-values)))
+      (lit none))))
+
+(def cu-option-spec
   (list
     (pair "cat"
       (list
@@ -246,6 +345,55 @@
             (Opts flag "-w" "Warn about improperly formatted checksum lines")
             (Opts hidden (Opts flag "-b" ""))
             (Opts hidden (Opts flag "-t" ""))))))
+    (pair "sha3sum"
+      (list
+        (Opts declare "sha3sum" "[-c[sw]] [-a BITS] [FILE]..."
+          "Print or check SHA3 checksums"
+          (list
+            (Opts text "\t-c\tCheck sums against list in FILEs")
+            (Opts text "\t-s\tDon't output anything, status code shows success")
+            (Opts text "\t-w\tWarn about improperly formatted checksum lines")
+            (Opts text "\t-a BITS\t224 (default), 256, 384, 512")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-w" ""))
+            (Opts hidden (Opts flag "-b" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts arg "-a" "BITS" ""))))))
+    (pair "cryptpw"
+      (list
+        (Opts declare "cryptpw" "[-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]"
+          "Print crypt(3) hashed PASSWORD"
+          (list
+            (Opts text "\t-P N\tRead password from fd N")
+            (Opts text "\t-m TYPE\tdes,md5,sha256/512 (default sha512)")
+            (Opts text "\t-S SALT")
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "--stdin" ""))
+            (Opts hidden (Opts arg "-P" "N" ""))
+            (Opts hidden (Opts arg "-m" "TYPE" ""))
+            (Opts hidden (Opts arg "-a" "TYPE" ""))
+            (Opts hidden (Opts arg "-S" "SALT" ""))
+            (Opts hidden (Opts arg "--password-fd" "N" ""))
+            (Opts hidden (Opts arg "--salt" "SALT" ""))
+            (Opts hidden (Opts arg "--method" "TYPE" ""))))))
+    (pair "mkpasswd"
+      (list
+        (Opts declare "mkpasswd" "[-P FD] [-m TYPE] [-S SALT] [PASSWORD] [SALT]"
+          "Print crypt(3) hashed PASSWORD"
+          (list
+            (Opts text "\t-P N\tRead password from fd N")
+            (Opts text "\t-m TYPE\tdes,md5,sha256/512 (default sha512)")
+            (Opts text "\t-S SALT")
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "--stdin" ""))
+            (Opts hidden (Opts arg "-P" "N" ""))
+            (Opts hidden (Opts arg "-m" "TYPE" ""))
+            (Opts hidden (Opts arg "-a" "TYPE" ""))
+            (Opts hidden (Opts arg "-S" "SALT" ""))
+            (Opts hidden (Opts arg "--password-fd" "N" ""))
+            (Opts hidden (Opts arg "--salt" "SALT" ""))
+            (Opts hidden (Opts arg "--method" "TYPE" ""))))))
     (pair "cksum"
       (list
         (Opts declare "cksum" "FILE..."
@@ -709,6 +857,48 @@
           (list
             (Opts arg "-n" "ADJUST" "Adjust priority by ADJUST")))
         (lit leading)))
+    (pair "ionice"
+      (list
+        (Opts declare "ionice" "[-c 1-3] [-n 0-7] [-t] { -p PID | PROG ARGS }"
+          "Change I/O priority and class"
+          (append
+            (list
+              (Opts text "\t-c N\tClass. 1:realtime 2:best-effort 3:idle")
+              (Opts text "\t-n N\tPriority")
+              (Opts text "\t-t\tIgnore errors"))
+            (%cu-hidden-flags (list "-t"))
+            (%cu-hidden-args (list "-n" "-c" "-p"))))
+        (lit leading)))
+    (pair "ipcs"
+      (list
+        (Opts declare "ipcs" "[[-smq] -i SHMID] | [[-asmq] [-tcplu]]" ()
+          (append
+            (list
+              (Opts text "\t-i ID\tShow specific resource")
+              (Opts text "Resource specification:")
+              (Opts text "\t-m\tShared memory segments")
+              (Opts text "\t-q\tMessage queues")
+              (Opts text "\t-s\tSemaphore arrays")
+              (Opts text "\t-a\tAll (default)")
+              (Opts text "Output format:")
+              (Opts text "\t-t\tTime")
+              (Opts text "\t-c\tCreator")
+              (Opts text "\t-p\tPid")
+              (Opts text "\t-l\tLimits")
+              (Opts text "\t-u\tSummary"))
+            (%cu-hidden-flags (list "-a" "-q" "-s" "-m" "-t" "-c" "-p" "-l" "-u"))
+            (%cu-hidden-args (list "-i"))))))
+    (pair "ipcrm"
+      (list
+        (Opts declare "ipcrm" "[-MQS key] [-mqs id]"
+          "Upper-case options MQS remove an object by shmkey value.\nLower-case options remove an object by shmid value."
+          (append
+            (list
+              (Opts text "\t-mM\tRemove memory segment after last detach")
+              (Opts text "\t-qQ\tRemove message queue")
+              (Opts text "\t-sS\tRemove semaphore"))
+            (%cu-hidden-args (list "-q" "-m" "-s" "-Q" "-M" "-S"))))
+        (lit leading)))
     ; the command a runner runs takes its own flags
     (pair "chroot"
       (list
@@ -1064,14 +1254,9 @@
             (Opts hidden (Opts arg "-p" "" ""))))))
     ; nc parses its own line -- -e takes the rest of it, the program's flags too
     ; -- so none: cu/nc.x's own lists say what it accepts
-    (pair "nc"
-      (list
-        (Opts declare "nc" "[OPTIONS] HOST PORT  - connect\nnc [OPTIONS] -l -p PORT [HOST] [PORT]  - listen"
-          "\t-e PROG\tRun PROG after connect (must be last)\n\t-l\tListen mode, for inbound connects\n\t-lk\tWith -e, provides persistent server\n\t-p PORT\tLocal port\n\t-s ADDR\tLocal address\n\t-w SEC\tTimeout for connects and final net reads\n\t-i SEC\tDelay interval for lines sent\n\t-n\tDon't do DNS resolution\n\t-u\tUDP mode\n\t-b\tAllow broadcasts\n\t-v\tVerbose\n\t-o FILE\tHex dump traffic\n\t-z\tZero-I/O mode (scanning)"
-          (append (list)
-            (%cu-hidden-flags %nc-flags)
-            (%cu-hidden-args %nc-values)))
-        (lit none)))
+    (pair "nc" (%cu-nc-row "nc"))
+    ; busybox's other name for nc, its usage text nc's
+    (pair "netcat" (%cu-nc-row "netcat"))
     ; nslookup reads its own -NAME=VALUE options, so none
     (pair "nslookup"
       (list
@@ -1095,6 +1280,19 @@
             (Opts arg "-b" "SIZE" "Transfer blocks in bytes")
             (Opts hidden (Opts arg "-m" "" ""))))
         (lit none)))
+    (pair "tftpd"
+      (list
+        (Opts declare "tftpd" "[-crl] [-u USER] [DIR]"
+          "Transfer a file on tftp client's request\n\ntftpd is an inetd service, inetd.conf line:\n\t69 dgram udp nowait root tftpd tftpd -l /files/to/serve\nCan be run from udpsvd:\n\tudpsvd -vE 0.0.0.0 69 tftpd /files/to/serve"
+          (append
+            (list
+              (Opts text "\t-r\tProhibit upload")
+              (Opts text "\t-c\tAllow file creation via upload")
+              (Opts text "\t-u USER\tAccess files as USER")
+              (Opts text "\t-l\tLog to syslog (inetd mode requires this)"))
+            (%cu-hidden-flags (list "-c" "-r" "-l"))
+            (%cu-hidden-args (list "-u"))))
+        (lit inetd)))
     ; ftpget and ftpput share ftpgetput.c's options: ftpput takes -c too, and
     ; busybox's --continue takes an argument; -P's row has no text of its own
     (pair "ftpget"
@@ -1147,6 +1345,210 @@
               (Opts text "\t-d STRING\tURL decode STRING"))
             (%cu-hidden-flags (list "-i" "-f" "-v"))
             (%cu-hidden-args (list "-p" "-M" "-K" "-u" "-r" "-h" "-c" "-m" "-e" "-d"))))))
+    (pair "dnsd"
+      (list
+        (Opts declare "dnsd" "[-dvs] [-c CONFFILE] [-t TTL_SEC] [-p PORT] [-i ADDR]"
+          "Small static DNS server daemon"
+          (append
+            (list
+              (Opts text "\t-c FILE\tConfig file")
+              (Opts text "\t-t SEC\tTTL")
+              (Opts text "\t-p PORT\tListen on PORT")
+              (Opts text "\t-i ADDR\tListen on ADDR")
+              (Opts text "\t-d\tDaemonize")
+              (Opts text "\t-v\tVerbose")
+              (Opts text "\t-s\tSend successful replies only. Use this if you want")
+              (Opts text "\t\tto use /etc/resolv.conf with two nameserver lines:")
+              (Opts text "\t\t\tnameserver DNSD_SERVER")
+              (Opts text "\t\t\tnameserver NORMAL_DNS_SERVER"))
+            (%cu-hidden-flags (list "-d" "-v" "-s"))
+            (%cu-hidden-args (list "-c" "-t" "-p" "-i"))))))
+    (pair "inetd"
+      (list
+        (Opts declare "inetd" "[-fe] [-q N] [-R N] [CONFFILE]"
+          "Listen for network connections and launch programs"
+          (append
+            (list
+              (Opts text "\t-f\tRun in foreground")
+              (Opts text "\t-e\tLog to stderr")
+              (Opts text "\t-q N\tSocket listen queue (default 128)")
+              (Opts text "\t-R N\tPause services after N connects/min")
+              (Opts text "\t\t(default 0 - disabled)")
+              (Opts text "\tDefault CONFFILE is /etc/inetd.conf"))
+            (%cu-hidden-flags (list "-f" "-e"))
+            (%cu-hidden-args (list "-q" "-R"))))))
+    (pair "fakeidentd"
+      (list
+        (Opts declare "fakeidentd" "[-fiw] [-b ADDR] [STRING]"
+          "Provide fake ident (auth) service"
+          (append
+            (list
+              (Opts text "\t-f\tRun in foreground")
+              (Opts text "\t-i\tInetd mode")
+              (Opts text "\t-w\tInetd 'wait' mode")
+              (Opts text "\t-b ADDR\tBind to specified address")
+              (Opts text "\tSTRING\tIdent answer string (default: nobody)"))
+            (%cu-hidden-flags (list "-f" "-i" "-w"))
+            (%cu-hidden-args (list "-b"))))))
+    (pair "telnet"
+      (list
+        (Opts declare "telnet" "[-a] [-l USER] HOST [PORT]"
+          "Connect to telnet server"
+          (append
+            (list
+              (Opts text "\t-a\tAutomatic login with $USER envvar")
+              (Opts text "\t-l USER\tAutomatic login as USER"))
+            (%cu-hidden-flags (list "-a"))
+            (%cu-hidden-args (list "-l"))))))
+    (pair "telnetd"
+      (list
+        (Opts declare "telnetd" "[OPTIONS]"
+          "Handle incoming telnet connections"
+          (append
+            (list
+              (Opts text "\t-l LOGIN\tExec LOGIN on connect (default /bin/login)")
+              (Opts text "\t-f ISSUE_FILE\tDisplay ISSUE_FILE instead of /etc/issue.net")
+              (Opts text "\t-K\t\tClose connection as soon as login exits")
+              (Opts text "\t\t\t(normally wait until all programs close slave pty)")
+              (Opts text "\t-p PORT\t\tPort to listen on. Default 23")
+              (Opts text "\t-b ADDR[:PORT]\tAddress to bind to")
+              (Opts text "\t-F\t\tRun in foreground")
+              (Opts text "\t-i\t\tInetd mode")
+              (Opts text "\t-w SEC\t\tInetd 'wait' mode, linger time SEC")
+              (Opts text "\t\tinetd.conf line: 23 stream tcp wait root telnetd telnetd -w10")
+              (Opts text "\t-S\t\tLog to syslog (implied by -i or without -F and -w)")
+              (Opts text "\t-v\t\tVerbose"))
+            (%cu-hidden-flags (list "-K" "-i" "-F" "-S" "-v"))
+            (%cu-hidden-args (list "-l" "-f" "-p" "-b" "-w"))))))
+    (pair "makemime"
+      (list
+        (Opts declare "makemime" "[OPTIONS] [FILE]..."
+          "Create multipart MIME-encoded message from FILEs"
+          (append
+            (list
+              (Opts text "\t-o FILE\tOutput. Default: stdout")
+              (Opts text "\t-a HDR\tAdd header(s). Examples:")
+              (Opts text "\t\t\"From: user@host.org\", \"Date: `date -R`\"")
+              (Opts text "\t-c CT\tContent type. Default: application/octet-stream")
+              (Opts text "\t-C CS\tCharset. Default: us-ascii")
+              (Opts text "")
+              (Opts text "Other options are silently ignored"))
+            (%cu-hidden-args (list "-c" "-e" "-o" "-C" "-N" "-a"))))))
+    ; -X takes no argument: what follows the options is PROG and its ARGS
+    (pair "reformime"
+      (list
+        (Opts declare "reformime" "[OPTIONS]"
+          "Parse MIME-encoded message on stdin"
+          (append
+            (list
+              (Opts text "\t-x PREFIX\tExtract content of MIME sections to files")
+              (Opts text "\t-X PROG ARGS\tFilter content of MIME sections through PROG")
+              (Opts text "\t\t\tMust be the last option")
+              (Opts text "")
+              (Opts text "Other options are silently ignored"))
+            (%cu-hidden-flags (list "-X" "-d" "-e" "-i"))
+            (%cu-hidden-args (list "-x" "-s" "-r" "-c" "-m" "-h" "-o" "-O"))))))
+    (pair "sendmail"
+      (list
+        (Opts declare "sendmail" "[-tv] [-f SENDER] [-amLOGIN 4<user_pass.txt | -auUSER -apPASS]\n\t\t[-w SECS] [-H 'PROG ARGS' | -S HOST] [RECIPIENT_EMAIL]..."
+          "Read email from stdin and send it"
+          (append
+            (list
+              (Opts text "Standard options:")
+              (Opts text "\t-t\t\tRead additional recipients from message body")
+              (Opts text "\t-f SENDER\tFor use in MAIL FROM:<sender>. Can be empty string")
+              (Opts text "\t\t\tDefault: -auUSER, or username of current UID")
+              (Opts text "\t-o OPTIONS\tVarious options. -oi implied, others are ignored")
+              (Opts text "\t-i\t\t-oi synonym, implied and ignored")
+              (Opts text "")
+              (Opts text "Busybox specific options:")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "\t-w SECS\t\tNetwork timeout")
+              (Opts text "\t-H 'PROG ARGS'\tRun connection helper. Examples:")
+              (Opts text "\t\topenssl s_client -quiet -tls1 -starttls smtp -connect smtp.gmail.com:25")
+              (Opts text "\t\topenssl s_client -quiet -tls1 -connect smtp.gmail.com:465")
+              (Opts text "\t\t\t$SMTP_ANTISPAM_DELAY: seconds to wait after helper connect")
+              (Opts text "\t-S HOST[:PORT]\tServer (default $SMTPHOST or 127.0.0.1)")
+              (Opts text "\t-amLOGIN\tLog in using AUTH LOGIN")
+              (Opts text "\t-amPLAIN\tor AUTH PLAIN")
+              (Opts text "\t\t\t(-amCRAM-MD5 not supported)")
+              (Opts text "\t-auUSER\t\tUsername for AUTH")
+              (Opts text "\t-apPASS \tPassword for AUTH")
+              (Opts text "")
+              (Opts text "If no -a options are given, authentication is not done.")
+              (Opts text "If -amLOGIN is given but no -au/-ap, user/password is read from fd #4.")
+              (Opts text "Other options are silently ignored; -oi is implied.")
+              (Opts text "Use makemime to create emails with attachments."))
+            (%cu-hidden-flags (list "-t" "-i" "-v"))
+            (%cu-hidden-args (list "-f" "-o" "-w" "-H" "-S" "-a"))))))
+    (pair "popmaildir"
+      (list
+        (Opts declare "popmaildir" "[OPTIONS] MAILDIR [CONN_HELPER ARGS]"
+          "Fetch content of remote mailbox to local maildir"
+          (append
+            (list
+              (Opts text "\t-s\t\tSkip authorization")
+              (Opts text "\t-T\t\tGet messages with TOP instead of RETR")
+              (Opts text "\t-k\t\tKeep retrieved messages on the server")
+              (Opts text "\t-t SEC\t\tNetwork timeout")
+              (Opts text "\t-F 'PROG ARGS'\tFilter program (may be repeated)")
+              (Opts text "\t-M 'PROG ARGS'\tDelivery program")
+              (Opts text "")
+              (Opts text "Fetch from plain POP3 server:")
+              (Opts text "popmaildir -k DIR nc pop3.server.com 110 <user_and_pass.txt")
+              (Opts text "Fetch from SSLed POP3 server and delete fetched emails:")
+              (Opts text "popmaildir DIR -- openssl s_client -quiet -connect pop3.server.com:995 <user_and_pass.txt"))
+            (%cu-hidden-flags (list "-b" "-d" "-m" "-V" "-c" "-a" "-s" "-T" "-k"))
+            (%cu-hidden-args (list "-t" "-R" "-Z" "-L" "-H" "-M" "-F"))))))
+    (pair "dumpleases"
+      (list
+        (Opts declare "dumpleases" "[-r|-a] [-d] [-f LEASEFILE]"
+          "Display DHCP leases granted by udhcpd"
+          (list
+            (Opts text "\t-f FILE\tLease file")
+            (Opts text "\t-r\tShow remaining time")
+            (Opts text "\t-a\tShow expiration time")
+            (Opts text "\t-d\tShow time in seconds")
+            (Opts hidden (Opts flag "-a" "--absolute" ""))
+            (Opts hidden (Opts flag "-r" "--remaining" ""))
+            (Opts hidden (Opts arg "-f" "--file" "FILE" ""))
+            (Opts hidden (Opts flag "-d" "--decimal" ""))))))
+    (pair "pscan"
+      (list
+        (Opts declare "pscan" "[-cb] [-p MIN_PORT] [-P MAX_PORT] [-t TIMEOUT] [-T MIN_RTT] HOST"
+          "Scan HOST, print all open ports"
+          (append
+            (list
+              (Opts text "\t-c\tShow closed ports too")
+              (Opts text "\t-b\tShow blocked ports too")
+              (Opts text "\t-p PORT\tScan from this port (default 1)")
+              (Opts text "\t-P PORT\tScan up to this port (default 1024)")
+              (Opts text "\t-t MS\tTimeout (default 5000 ms)")
+              (Opts text "\t-T MS\tMinimum rtt (default 5 ms)"))
+            (%cu-hidden-flags (list "-c" "-b"))
+            (%cu-hidden-args (list "-p" "-P" "-t" "-T"))))))
+    (pair "ntpd"
+      (list
+        (Opts declare "ntpd" "[-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]..."
+          "NTP client/server"
+          (append
+            (list
+              (Opts text "\t-d[d]\tVerbose")
+              (Opts text "\t-n\tRun in foreground")
+              (Opts text "\t-q\tQuit after clock is set")
+              (Opts text "\t-N\tRun at high priority")
+              (Opts text "\t-w\tDo not set time (only query peers), implies -n")
+              (Opts text "\t-S PROG\tRun PROG after stepping time, stratum change, and every 11 min")
+              (Opts text "\t-k FILE\tKey file (ntp.keys compatible)")
+              (Opts text "\t-p [keyno:NUM:]PEER")
+              (Opts text "\t\tObtain time from PEER (may be repeated)")
+              (Opts text "\t\tUse key NUM for authentication")
+              (Opts text "\t\tIf -p is not given, 'server HOST' lines")
+              (Opts text "\t\tfrom /etc/ntp.conf are used")
+              (Opts text "\t-l\tAlso run as server on port 123")
+              (Opts text "\t-I IFACE Bind server to IFACE, implies -l"))
+            (%cu-hidden-flags (list "-n" "-q" "-N" "-x" "-w" "-l" "-d" "-4" "-6" "-a" "-A" "-b" "-g" "-L"))
+            (%cu-hidden-args (list "-k" "-p" "-S" "-I"))))))
     ; tcpudp.c's getopt string, -i -x -t -p among it, stops at IP
     (pair "tcpsvd"
       (list
@@ -1371,6 +1773,19 @@
           (list
             (Opts flag "-c" "Set controlling terminal to stdin")))
         (lit leading)))
+    (pair "setpriv"
+      (list
+        (Opts declare "setpriv" "[OPTIONS] PROG ARGS"
+          "Run PROG with different privilege settings"
+          (append
+            (list
+              (Opts text "-d,--dump\t\tShow current capabilities")
+              (Opts text "--nnp,--no-new-privs\tIgnore setuid/setgid bits and file capabilities")
+              (Opts text "--inh-caps CAP,CAP\tSet inheritable capabilities")
+              (Opts text "--ambient-caps CAP,CAP\tSet ambient capabilities"))
+            (%cu-hidden-flags (list "-d" "--dump" "--nnp" "--no-new-privs"))
+            (%cu-hidden-args (list "--inh-caps" "--ambient-caps"))))
+        (lit prefixes)))
     (pair "ttysize"
       (list
         (Opts declare "ttysize" "[w] [h]"
@@ -1570,6 +1985,141 @@
             (Opts hidden (Opts flag "--force" ""))
             (Opts hidden (Opts flag "--test" ""))
             (Opts hidden (Opts flag "--no-name" ""))))))
+    (pair "unzip"
+      (list
+        (Opts declare "unzip" "[-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]"
+          "Extract FILEs from ZIP archive"
+          (list
+            (Opts text "\t-l\tList contents (with -q for short form)")
+            (Opts text "\t-n\tNever overwrite files (default: ask)")
+            (Opts text "\t-o\tOverwrite")
+            (Opts text "\t-j\tDo not restore paths")
+            (Opts text "\t-p\tWrite to stdout")
+            (Opts text "\t-t\tTest")
+            (Opts text "\t-q\tQuiet")
+            (Opts text "\t-K\tDo not clear SUID bit")
+            (Opts text "\t-x FILE\tExclude FILEs")
+            (Opts text "\t-d DIR\tExtract into DIR")
+            (Opts hidden (Opts flag "-l" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-o" ""))
+            (Opts hidden (Opts flag "-j" ""))
+            (Opts hidden (Opts flag "-p" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-K" ""))
+            (Opts hidden (Opts flag "-x" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts arg "-d" "DIR" ""))))))
+    (pair "cpio"
+      (list
+        (Opts declare "cpio" "[-dmvu] [-F FILE] [-R USER[:GRP]] [-H newc] [-tio] [-p DIR] [EXTR_FILE]..."
+          "Extract (-i) or list (-t) files from a cpio archive on stdin, or\ntake file list from stdin and create an archive (-o) or copy files (-p)"
+          (list
+            (Opts text "Main operation mode:")
+            (Opts text "\t-t\tList")
+            (Opts text "\t-i\tExtract EXTR_FILEs (or all)")
+            (Opts text "\t-o\tCreate (requires -H newc)")
+            (Opts text "\t-p DIR\tCopy files to DIR")
+            (Opts text "Options:")
+            (Opts text "\t-H newc\tArchive format")
+            (Opts text "\t-d\tMake leading directories")
+            (Opts text "\t-m\tRestore mtime")
+            (Opts text "\t-v\tVerbose")
+            (Opts text "\t-u\tOverwrite")
+            (Opts text "\t-F FILE\tInput (-t,-i,-p) or output (-o) file")
+            (Opts text "\t-R USER[:GRP]\tSet owner of created files")
+            (Opts text "\t-L\tDereference symlinks")
+            (Opts text "\t-0\tNUL terminated input")
+            (Opts text "\t--ignore-devno")
+            (Opts text "\t--renumber-inodes")
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-i" ""))
+            (Opts hidden (Opts flag "-o" ""))
+            (Opts hidden (Opts flag "-p" ""))
+            (Opts hidden (Opts arg "-H" "FMT" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-m" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-u" ""))
+            (Opts hidden (Opts arg "-F" "FILE" ""))
+            (Opts hidden (Opts arg "-R" "USER" ""))
+            (Opts hidden (Opts flag "-L" ""))
+            (Opts hidden (Opts flag "-0" ""))
+            (Opts hidden (Opts flag "--extract" ""))
+            (Opts hidden (Opts flag "--list" ""))
+            (Opts hidden (Opts flag "--create" ""))
+            (Opts hidden (Opts arg "--format" "" ""))
+            (Opts hidden (Opts flag "--pass-through" ""))
+            (Opts hidden (Opts arg "--owner" "" ""))
+            (Opts hidden (Opts arg "--file" "" ""))
+            (Opts hidden (Opts flag "--verbose" ""))
+            (Opts hidden (Opts flag "--null" ""))
+            (Opts hidden (Opts flag "--quiet" ""))
+            (Opts hidden (Opts flag "--to-stdout" ""))
+            (Opts hidden (Opts flag "--ignore-devno" ""))
+            (Opts hidden (Opts flag "--renumber-inodes" ""))))))
+    (pair "patch"
+      (list
+        (Opts declare "patch" "[-RNE] [-p N] [-i DIFF] [ORIGFILE [PATCHFILE]]" ()
+          (list
+            (Opts text "\t-p N\tStrip N leading components from file names")
+            (Opts text "\t-i DIFF\tRead DIFF instead of stdin")
+            (Opts text "\t-R\tReverse patch")
+            (Opts text "\t-N\tIgnore already applied patches")
+            (Opts text "\t-E\tRemove output files if they become empty")
+            (Opts text "\t--dry-run\tDon't actually change files")
+            (Opts hidden (Opts flag "-R" ""))
+            (Opts hidden (Opts flag "-u" ""))
+            (Opts hidden (Opts arg "-p" "N" ""))
+            (Opts hidden (Opts arg "-i" "DIFF" ""))
+            (Opts hidden (Opts flag "-N" ""))
+            (Opts hidden (Opts flag "-E" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts arg "-g" "ARG" ""))
+            (Opts hidden (Opts flag "--reverse" ""))
+            (Opts hidden (Opts flag "--unified" ""))
+            (Opts hidden (Opts arg "--strip" "" ""))
+            (Opts hidden (Opts arg "--input" "" ""))
+            (Opts hidden (Opts flag "--forward" ""))
+            (Opts hidden (Opts flag "--remove-empty-files" ""))
+            (Opts hidden (Opts flag "--force" ""))
+            (Opts hidden (Opts arg "--get" "" ""))
+            (Opts hidden (Opts flag "--dry-run" ""))
+            (Opts hidden (Opts flag "--backup-if-mismatch" ""))
+            (Opts hidden (Opts flag "--no-backup-if-mismatch" ""))))))
+    (pair "ssl_client"
+      (list
+        (Opts declare "ssl_client" "[-n SNI] { -s FD [-r FD] | HOST | -e PROG ARGS }" ()
+          (list
+            (Opts hidden (Opts arg "-s" "FD" ""))
+            (Opts hidden (Opts arg "-r" "FD" ""))
+            (Opts hidden (Opts arg "-n" "SNI" ""))
+            (Opts hidden (Opts flag "-e" ""))))
+        (lit leading)))
+    ; busybox's usage runs into its description: "PROG ARGSInetd-style"
+    (pair "ssl_server"
+      (list
+        (Opts declare "ssl_server" "-f PRIVKEY_CERT.pem PROG ARGSInetd-style TLS server" ()
+          (list
+            (Opts hidden (Opts arg "-f" "PEMFILE" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts text "\t-f PEMFILE\tHAProxy-style CRT file")))
+        (lit leading)))
+    (pair "ed"
+      (list
+        (Opts declare "ed" "[-p PROMPT] [-s] [FILE]" ()
+          (list
+            (Opts hidden (Opts arg "-p" "PROMPT" ""))
+            (Opts hidden (Opts flag "-s" ""))))))
+    (pair "dc"
+      (list
+        (Opts declare "dc" "[-x] [-eSCRIPT]... [-fFILE]... [FILE]..."
+          "Tiny RPN calculator. Operations:\nArithmetic: + - * / % ^\n~ - divide with remainder\n| - modular exponentiation\nv - square root\np - print top of the stack without popping\nf - print entire stack\nk - pop the value and set precision\ni - pop the value and set input radix\no - pop the value and set output radix\nExamples: dc -e'2 2 + p' -> 4, dc -e'8 8 * 2 2 + / p' -> 16"
+          (list
+            (Opts hidden (Opts flag "-x" ""))
+            (Opts hidden (Opts arg "-e" "SCRIPT" ""))
+            (Opts hidden (Opts arg "-f" "FILE" ""))))))
     (pair "sha384sum"
       (list
         (Opts declare "sha384sum" "[-c[sw]] [FILE]..."
@@ -1599,6 +2149,14 @@
             (Opts hidden (Opts flag "--fqdn" ""))
             (Opts hidden (Opts arg "-F" "FILE" ""))
             (Opts hidden (Opts arg "--file" "FILE" ""))))))
+    ; hostname run as dnsdomainname: its options, and no usage text of its own
+    (pair "dnsdomainname"
+      (list
+        (Opts declare "dnsdomainname" "" ()
+          (append
+            (%cu-hidden-flags (list "-s" "-i" "-d" "-f" "-v" "--domain" "--fqdn"))
+            (%cu-hidden-args (list "-F" "--file")))
+          (pair (lit help) #f))))
     (pair "hostid"
       (list
         (Opts declare "hostid" ""
@@ -1650,6 +2208,21 @@
             (Opts hidden (Opts flag "-g" ""))
             (Opts hidden (Opts flag "-u" ""))))
         (lit none)))
+    (pair "chrt"
+      (list
+        (Opts declare "chrt" "-m | -p [PRIO] PID | [-rfobi] PRIO PROG ARGS"
+          "Change scheduling priority and class for a process"
+          (append
+            (list
+              (Opts text "\t-m\tShow min/max priorities")
+              (Opts text "\t-p\tOperate on PID")
+              (Opts text "\t-r\tSet SCHED_RR class")
+              (Opts text "\t-f\tSet SCHED_FIFO class")
+              (Opts text "\t-o\tSet SCHED_OTHER class")
+              (Opts text "\t-b\tSet SCHED_BATCH class")
+              (Opts text "\t-i\tSet SCHED_IDLE class"))
+            (%cu-hidden-flags (list "-m" "-p" "-r" "-f" "-o" "-b" "-i"))))
+        (lit leading)))
     (pair "ts"
       (list
         (Opts declare "ts" "[-is] [STRFTIME]"
@@ -1720,6 +2293,24 @@
           "Display the time since the last boot"
           (list
             (Opts hidden (Opts flag "-s" ""))))))
+    ; busybox's help pairs -4 and -6 on one line and names -SIGNAL, which is
+    ; read before getopt; the rows are its text, the flags declared hidden
+    (pair "fuser"
+      (list
+        (Opts declare "fuser" "[-msk46] [-SIGNAL] FILE or PORT/PROTO"
+          "Find processes which use FILEs or PORTs"
+          (list
+            (Opts text "\t-m\tFind processes which use same fs as FILEs")
+            (Opts text "\t-4,-6\tSearch only IPv4/IPv6 space")
+            (Opts text "\t-s\tDon't display PIDs")
+            (Opts text "\t-k\tKill found processes")
+            (Opts text "\t-SIGNAL\tSignal to send (default: KILL)")
+            (Opts hidden (Opts flag "-m" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-6" ""))
+            (Opts hidden (Opts flag "-4" ""))))
+        (lit signal-any)))
     (pair "free"
       (list
         (Opts declare "free" "[-bkmgh]"
@@ -1730,21 +2321,9 @@
             (Opts hidden (Opts flag "-m" ""))
             (Opts hidden (Opts flag "-g" ""))
             (Opts hidden (Opts flag "-h" ""))))))
-    ; busybox's usage names -T too; threads are not in the records ps reads,
-    ; so -T is not accepted and not shown
-    (pair "ps"
-      (list
-        (Opts declare "ps" "[-o COL1,COL2=HEADER]"
-          "Show list of processes"
-          (list
-            (Opts arg "-o" "COL1,COL2=HEADER" "Select columns for display")
-            (Opts hidden (Opts flag "-Z" ""))
-            (Opts hidden (Opts flag "-a" ""))
-            (Opts hidden (Opts flag "-A" ""))
-            (Opts hidden (Opts flag "-d" ""))
-            (Opts hidden (Opts flag "-e" ""))
-            (Opts hidden (Opts flag "-f" ""))
-            (Opts hidden (Opts flag "-l" ""))))))
+    ; minips is ps under another name
+    (pair "ps" (%cu-ps-row "ps"))
+    (pair "minips" (%cu-ps-row "minips"))
     (pair "pidof"
       (list
         (Opts declare "pidof" "[-s] [-o PID] [NAME]..."
@@ -1788,6 +2367,540 @@
             (Opts flag "-e" "Display name and PID of the process being killed")
             (Opts hidden (Opts flag "-a" ""))))
         (lit signal)))
+    ; kill reads its own words, as busybox's kill_main does: the parse takes
+    ; none of them, so -9, -s SIG and a negative pid reach the applet
+    (pair "kill"
+      (list
+        (Opts declare "kill" "[-l] [-SIG] PID..."
+          "Send a signal (default: TERM) to given PIDs"
+          (list
+            (Opts flag "-l" "List all signal names and numbers")
+            (Opts hidden (Opts arg "-s" "" ""))))
+        (lit none)))
+    ; killall reads its own words, as busybox's kill_main does: -l, -q,
+    ; then -SIG or -s SIG (the -s busybox's help leaves out)
+    (pair "killall"
+      (list
+        (Opts declare "killall" "[-lq] [-SIG] PROCESS_NAME..."
+          "Send a signal (default: TERM) to given processes"
+          (list
+            (Opts flag "-l" "List all signal names and numbers")
+            (Opts flag "-q" "Don't complain if no processes were killed")
+            (Opts hidden (Opts arg "-s" "" ""))))
+        (lit none)))
+    (pair "pwdx"
+      (list
+        (Opts declare "pwdx" "PID..."
+          "Show current directory for PIDs"
+          (list))))
+    (pair "pstree"
+      (list
+        (Opts declare "pstree" "[-p] [PID|USER]"
+          "Display process tree, optionally start from USER or PID"
+          (list (Opts flag "-p" "Show pids")))))
+    ; powertop reads no options: every word is ignored
+    (pair "powertop"
+      (list
+        (Opts declare "powertop" ""
+          "Analyze power consumption on Intel-based laptops"
+          (list))
+        (lit none)))
+    ; busybox's smemcap reads no options: every word is an operand, unread
+    (pair "smemcap"
+      (list
+        (Opts declare "smemcap" ">SMEMDATA.TAR"
+          "Collect memory usage data in /proc and write it to stdout"
+          (list))
+        (lit none)))
+    ; sysctl's -q row is spaced, not tabbed, in busybox's help, so its rows
+    ; are laid out by hand
+    (pair "sysctl"
+      (list
+        (Opts declare "sysctl" "[-enq] { -a | -p [FILE]... | [-w] [KEY[=VALUE]]... }"
+          "Show/set kernel parameters"
+          (list
+            (Opts text "\t-e\tDon't warn about unknown keys")
+            (Opts text "\t-n\tDon't show key names")
+            (Opts text "\t-q      Quiet")
+            (Opts text "\t-a\tShow all values")
+            (Opts text "\t-p\tSet values from FILEs (default /etc/sysctl.conf)")
+            (Opts text "\t-w\tSet values")
+            (Opts hidden (Opts flag "-e" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-a" ""))
+            (Opts hidden (Opts flag "-A" ""))
+            (Opts hidden (Opts flag "-p" ""))
+            (Opts hidden (Opts flag "-w" ""))))
+        (lit leading)))
+    (pair "lsmod"
+      (list
+        (Opts declare "lsmod" ""
+          "List loaded kernel modules"
+          (list))
+        (lit none)))
+    (pair "route"
+      (list
+        (Opts declare "route" "[-ne] [-A inet[6]] [{add|del} [-net|-host] TARGET [netmask MASK]\n\t[gw GATEWAY] [metric N] [mss BYTES] [window BYTES] [reject] [IFACE]]"
+          "Show or edit kernel routing tables"
+          (list
+            (Opts text "\t-n\tDon't resolve names")
+            (Opts text "\t-e\tDisplay other/more information")
+            (Opts text "\t-A inet[6]\tSelect address family")
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-e" ""))
+            (Opts hidden (Opts arg "-A" "inet[6]" ""))))
+        (lit leading)))
+    (pair "arping"
+      (list
+        (Opts declare "arping" "[-fqbDUA] [-c CNT] [-w TIMEOUT] [-I IFACE] [-s SRC_IP] DST_IP"
+          "Send ARP requests/replies"
+          (append
+            (list
+              (Opts text "\t-f\t\tQuit on first ARP reply")
+              (Opts text "\t-q\t\tQuiet")
+              (Opts text "\t-b\t\tKeep broadcasting, don't go unicast")
+              (Opts text "\t-D\t\tExit with 1 if DST_IP replies")
+              (Opts text "\t-U\t\tUnsolicited ARP mode, update your neighbors")
+              (Opts text "\t-A\t\tARP answer mode, update your neighbors")
+              (Opts text "\t-c N\t\tStop after sending N ARP requests")
+              (Opts text "\t-w TIMEOUT\tSeconds to wait for ARP reply")
+              (Opts text "\t-I IFACE\tInterface to use (default eth0)")
+              (Opts text "\t-s SRC_IP\tSender IP address")
+              (Opts text "\tDST_IP\t\tTarget IP address"))
+            (%cu-hidden-flags (list "-f" "-q" "-b" "-D" "-U" "-A"))
+            (%cu-hidden-args (list "-c" "-w" "-I" "-s"))))))
+    (pair "nameif"
+      (list
+        (Opts declare "nameif" "[-s] [-c FILE] [IFNAME SELECTOR]..."
+          "Rename network interface while it in the down state.\nThe device matched by SELECTOR is renamed to IFNAME.\nSELECTOR can be a combination of:\n\tdriver=STRING\n\tbus=STRING\n\tphy_address=NUM\n\t[mac=]XX:XX:XX:XX:XX:XX"
+          (append
+            (list
+              (Opts text "\t-c FILE\tConfiguration file (default: /etc/mactab)")
+              (Opts text "\t-s\tLog to syslog"))
+            (%cu-hidden-flags (list "-s"))
+            (%cu-hidden-args (list "-c"))))))
+    (pair "vconfig"
+      (list
+        (Opts declare "vconfig" "COMMAND [OPTIONS]"
+          "Create and remove virtual ethernet devices"
+          (list
+            (Opts text "\tadd IFACE VLAN_ID")
+            (Opts text "\trem VLAN_NAME")
+            (Opts text "\tset_flag IFACE 0|1 VLAN_QOS")
+            (Opts text "\tset_egress_map VLAN_NAME SKB_PRIO VLAN_QOS")
+            (Opts text "\tset_ingress_map VLAN_NAME SKB_PRIO VLAN_QOS")
+            (Opts text "\tset_name_type NAME_TYPE")))))
+    (pair "tunctl"
+      (list
+        (Opts declare "tunctl" "[-f DEVICE] [-t NAME | -d NAME] [-u USER] [-g GRP] [-b]"
+          "Create or delete TUN/TAP interfaces"
+          (append
+            (list
+              (Opts text "\t-f DEV\tTUN device (default /dev/net/tun)")
+              (Opts text "\t-t NAME\tCreate iface (default: tapN)")
+              (Opts text "\t-d NAME\tDelete iface")
+              (Opts text "\t-u USER\tSet iface owner")
+              (Opts text "\t-g GRP\tSet iface group")
+              (Opts text "\t-b\tBrief output"))
+            (%cu-hidden-flags (list "-b"))
+            (%cu-hidden-args (list "-f" "-t" "-d" "-u" "-g"))))))
+    (pair "taskset"
+      (list
+        (Opts declare "taskset" "[-ap] [HEXMASK | -c LIST] { PID | PROG ARGS }"
+          "Set or get CPU affinity"
+          (append
+            (list
+              (Opts text "\t-p\tOperate on PID")
+              (Opts text "\t-a\tOperate on all threads")
+              (Opts text "\t-c\tAffinity is a list, not mask"))
+            (%cu-hidden-flags (list "-p" "-a" "-c"))))
+        (lit leading)))
+    ; nsenter reads its own options, as getopt32long does: -m and the rest
+    ; take a FILE only in their own word, which Opts has no form for
+    (pair "nsenter"
+      (list
+        (Opts declare "nsenter" "[OPTIONS] [PROG ARGS]" ()
+          (append
+            (list
+              (Opts text "\t-t PID\t\tTarget process to get namespaces from")
+              (Opts text "\t-m[FILE]\tEnter mount namespace")
+              (Opts text "\t-u[FILE]\tEnter UTS namespace (hostname etc)")
+              (Opts text "\t-i[FILE]\tEnter System V IPC namespace")
+              (Opts text "\t-n[FILE]\tEnter network namespace")
+              (Opts text "\t-p[FILE]\tEnter pid namespace")
+              (Opts text "\t-U[FILE]\tEnter user namespace")
+              (Opts text "\t-S UID\t\tSet uid in entered namespace")
+              (Opts text "\t-G GID\t\tSet gid in entered namespace")
+              (Opts text "\t--preserve-credentials\tDon't touch uids or gids")
+              (Opts text "\t-r[DIR]\t\tSet root directory")
+              (Opts text "\t-w[DIR]\t\tSet working directory")
+              (Opts text "\t-F\t\tDon't fork before exec'ing PROG"))
+            (%cu-hidden-flags (list "-m" "-u" "-i" "-n" "-p" "-U" "--preserve-credentials" "-r" "-w" "-F"))
+            (%cu-hidden-args (list "-t" "-S" "-G"))))
+        (lit none)))
+    ; unshare reads its own options, as getopt32long does: a namespace's FILE
+    ; only after an =, and a long option by any prefix, which Opts has no form for
+    (pair "unshare"
+      (list
+        (Opts declare "unshare" "[OPTIONS] [PROG ARGS]" ()
+          (append
+            (list
+              (Opts text "\t-m,--mount[=FILE]\tUnshare mount namespace")
+              (Opts text "\t-u,--uts[=FILE]\t\tUnshare UTS namespace (hostname etc.)")
+              (Opts text "\t-i,--ipc[=FILE]\t\tUnshare System V IPC namespace")
+              (Opts text "\t-n,--net[=FILE]\t\tUnshare network namespace")
+              (Opts text "\t-p,--pid[=FILE]\t\tUnshare PID namespace")
+              (Opts text "\t-U,--user[=FILE]\tUnshare user namespace")
+              (Opts text "\t-f\t\t\tFork before execing PROG")
+              (Opts text "\t-r\t\t\tMap current user to root (implies -U)")
+              (Opts text "\t--mount-proc[=DIR]\tMount /proc filesystem first (implies -m)")
+              (Opts text "\t--propagation slave|shared|private|unchanged")
+              (Opts text "\t\t\t\tModify mount propagation in mount namespace")
+              (Opts text "\t--setgroups allow|deny\tControl the setgroups syscall in user namespaces"))
+            (%cu-hidden-flags (list "-m" "-u" "-i" "-n" "-p" "-U" "-f" "-r" "--mount" "--uts"
+                                    "--ipc" "--net" "--pid" "--user" "--fork" "--map-root-user"
+                                    "--mount-proc"))
+            (%cu-hidden-args (list "--propagation" "--setgroups"))))
+        (lit none)))
+    (pair "brctl"
+      (list
+        (Opts declare "brctl" "COMMAND [BRIDGE [ARGS]]"
+          "Manage ethernet bridges\nCommands:\n\tshow [BRIDGE]...\tShow bridges\n\taddbr BRIDGE\t\tCreate BRIDGE\n\tdelbr BRIDGE\t\tDelete BRIDGE\n\taddif BRIDGE IFACE\tAdd IFACE to BRIDGE\n\tdelif BRIDGE IFACE\tDelete IFACE from BRIDGE\n\tshowmacs BRIDGE\t\t\tList MAC addresses\n\tshowstp\tBRIDGE\t\t\tShow STP info\n\tstp BRIDGE 1/yes/on|0/no/off\tSet STP on/off\n\tsetageing BRIDGE SECONDS\tSet ageing time\n\tsetfd BRIDGE SECONDS\t\tSet bridge forward delay\n\tsethello BRIDGE SECONDS\t\tSet hello time\n\tsetmaxage BRIDGE SECONDS\tSet max message age\n\tsetbridgeprio BRIDGE PRIO\tSet bridge priority\n\tsetportprio BRIDGE IFACE PRIO\tSet port priority\n\tsetpathcost BRIDGE IFACE COST\tSet path cost"
+          ())))
+    (pair "ether-wake"
+      (list
+        (Opts declare "ether-wake" "[-b] [-i IFACE] [-p aa:bb:cc:dd[:ee:ff]/a.b.c.d] MAC"
+          "Send a magic packet to wake up sleeping machines.\nMAC must be a station address (00:11:22:33:44:55) or\na hostname with a known 'ethers' entry."
+          (append
+            (list
+              (Opts text "\t-b\t\tBroadcast the packet")
+              (Opts text "\t-i IFACE\tInterface to use (default eth0)")
+              (Opts text "\t-p PASSWORD\tAppend four or six byte PASSWORD to the packet"))
+            (%cu-hidden-flags (list "-b"))
+            (%cu-hidden-args (list "-i" "-p"))))))
+    (pair "zcip"
+      (list
+        (Opts declare "zcip" "[OPTIONS] IFACE SCRIPT"
+          "Manage a ZeroConf IPv4 link-local address"
+          (append
+            (list
+              (Opts text "\t-f\t\tRun in foreground")
+              (Opts text "\t-q\t\tQuit after obtaining address")
+              (Opts text "\t-r 169.254.x.x\tRequest this address first")
+              (Opts text "\t-l x.x.0.0\tUse this range instead of 169.254")
+              (Opts text "\t-v\t\tVerbose")
+              (Opts text "")
+              (Opts text "$LOGGING=none\t\tSuppress logging")
+              (Opts text "$LOGGING=syslog \tLog to syslog")
+              (Opts text "")
+              (Opts text "With no -q, runs continuously monitoring for ARP conflicts,")
+              (Opts text "exits only on I/O errors (link down etc)"))
+            (%cu-hidden-flags (list "-f" "-q" "-v"))
+            (%cu-hidden-args (list "-r" "-l"))))))
+    (pair "udhcpd"
+      (list
+        (Opts declare "udhcpd" "[-fS] [-I ADDR] [-a MSEC] [CONFFILE]"
+          "DHCP server"
+          (append
+            (list
+              (Opts text "\t-f\tRun in foreground")
+              (Opts text "\t-S\tLog to syslog too")
+              (Opts text "\t-I ADDR\tLocal address")
+              (Opts text "\t-a MSEC\tTimeout for ARP ping (default 2000)")
+              (Opts text "Signals:")
+              (Opts text "\tUSR1\tUpdate lease file"))
+            (%cu-hidden-flags (list "-f" "-S" "-v"))
+            (%cu-hidden-args (list "-I" "-a"))))))
+    ; -a's MSEC is attached and optional, getopt's a::, so the row says so
+    (pair "udhcpc"
+      (list
+        (Opts declare "udhcpc" "[-fbqvRB] [-a[MSEC]] [-t N] [-T SEC] [-A SEC|-n]\n\t[-i IFACE] [-s PROG] [-p PIDFILE]\n\t[-oC] [-r IP] [-V VENDOR] [-F NAME] [-x OPT:VAL]... [-O OPT]..."
+          ()
+          (list
+            (Opts text "\t-i IFACE\tInterface to use (default eth0)")
+            (Opts text "\t-s PROG\t\tRun PROG at DHCP events (default /usr/share/udhcpc/default.script)")
+            (Opts text "\t-p FILE\t\tCreate pidfile")
+            (Opts text "\t-B\t\tRequest broadcast replies")
+            (Opts text "\t-t N\t\tSend up to N discover packets (default 3)")
+            (Opts text "\t-T SEC\t\tPause between packets (default 3)")
+            (Opts text "\t-A SEC\t\tWait if lease is not obtained (default 20)")
+            (Opts text "\t-b\t\tBackground if lease is not obtained")
+            (Opts text "\t-n\t\tExit if lease is not obtained")
+            (Opts text "\t-q\t\tExit after obtaining lease")
+            (Opts text "\t-R\t\tRelease IP on exit")
+            (Opts text "\t-f\t\tRun in foreground")
+            (Opts text "\t-S\t\tLog to syslog too")
+            (Opts text "\t-a[MSEC]\tValidate offered address with ARP ping")
+            (Opts text "\t-r IP\t\tRequest this IP address")
+            (Opts text "\t-o\t\tDon't request any options (unless -O is given)")
+            (Opts text "\t-O OPT\t\tRequest option OPT from server (cumulative)")
+            (Opts text "\t-x OPT:VAL\tInclude option OPT in sent packets (cumulative)")
+            (Opts text "\t\t\tExamples of string, numeric, and hex byte opts:")
+            (Opts text "\t\t\t-x hostname:bbox - option 12")
+            (Opts text "\t\t\t-x lease:3600 - option 51 (lease time)")
+            (Opts text "\t\t\t-x 0x3d:0100BEEFC0FFEE - option 61 (client id)")
+            (Opts text "\t\t\t-x 14:'\"dumpfile\"' - option 14 (shell-quoted)")
+            (Opts text "\t-F NAME\t\tAsk server to update DNS mapping for NAME")
+            (Opts text "\t-V VENDOR\tVendor identifier (default 'udhcp VERSION')")
+            (Opts text "\t-C\t\tDon't send MAC as client identifier")
+            (Opts text "\t-v\t\tVerbose")
+            (Opts text "Signals:")
+            (Opts text "\tUSR1\tRenew lease")
+            (Opts text "\tUSR2\tRelease lease")
+            (Opts hidden (Opts flag "-C" "--clientid-none" ""))
+            (Opts hidden (Opts arg "-V" "--vendorclass" "" ""))
+            (Opts hidden (Opts arg "-F" "--fqdn" "" ""))
+            (Opts hidden (Opts arg "-i" "--interface" "" ""))
+            (Opts hidden (Opts flag "-n" "--now" ""))
+            (Opts hidden (Opts arg "-p" "--pidfile" "" ""))
+            (Opts hidden (Opts flag "-q" "--quit" ""))
+            (Opts hidden (Opts flag "-R" "--release" ""))
+            (Opts hidden (Opts arg "-r" "--request" "" ""))
+            (Opts hidden (Opts arg "-s" "--script" "" ""))
+            (Opts hidden (Opts arg "-T" "--timeout" "" ""))
+            (Opts hidden (Opts arg "-t" "--retries" "" ""))
+            (Opts hidden (Opts arg "-A" "--tryagain" "" ""))
+            (Opts hidden (Opts flag "-S" "--syslog" ""))
+            (Opts hidden (Opts arg "-O" "--request-option" "" ""))
+            (Opts hidden (Opts flag "-o" "--no-default-options" ""))
+            (Opts hidden (Opts arg "-x" "" ""))
+            (Opts hidden (Opts flag "-f" "--foreground" ""))
+            (Opts hidden (Opts flag "-b" "--background" ""))
+            (Opts hidden (Opts flag "-B" "--broadcast" ""))
+            (Opts hidden (Opts flag "-a" "--arping" ""))
+            (Opts hidden (Opts flag "-v" ""))))
+        (lit optional)
+        (list "-a" "--arping")))
+    ; arp's help lays its rows out with two tabs, by hand
+    (pair "arp"
+      (list
+        (Opts declare "arp" "\n[-vn]\t[-H HWTYPE] [-i IF] -a [HOSTNAME]\n[-v]\t\t    [-i IF] -d HOSTNAME [pub]\n[-v]\t[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [temp]\n[-v]\t[-H HWTYPE] [-i IF] -s HOSTNAME HWADDR [netmask MASK] pub\n[-v]\t[-H HWTYPE] [-i IF] -Ds HOSTNAME IFACE [netmask MASK] pub"
+          "Manipulate ARP cache"
+          (list
+            (Opts text "\t-a\t\tDisplay (all) hosts")
+            (Opts text "\t-d\t\tDelete ARP entry")
+            (Opts text "\t-s\t\tSet new entry")
+            (Opts text "\t-v\t\tVerbose")
+            (Opts text "\t-n\t\tDon't resolve names")
+            (Opts text "\t-i IF\t\tNetwork interface")
+            (Opts text "\t-D\t\tRead HWADDR from IFACE")
+            (Opts text "\t-A,-p AF\tProtocol family")
+            (Opts text "\t-H HWTYPE\tHardware address type")
+            (Opts hidden (Opts flag "-a" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-D" ""))
+            (Opts hidden (Opts arg "-i" "IF" ""))
+            (Opts hidden (Opts arg "-A" "AF" ""))
+            (Opts hidden (Opts arg "-p" "AF" ""))
+            (Opts hidden (Opts arg "-H" "HWTYPE" ""))
+            (Opts hidden (Opts arg "-t" "HWTYPE" ""))))
+        (lit leading)))
+    ; netstat's help runs "Else:" lines under its rows, so they are laid out by hand
+    (pair "netstat"
+      (list
+        (Opts declare "netstat" "[-ral] [-tuwx] [-enWp]"
+          "Display networking information"
+          (list
+            (Opts text "\t-r\tRouting table")
+            (Opts text "\t-a\tAll sockets")
+            (Opts text "\t-l\tListening sockets")
+            (Opts text "\t\tElse: connected sockets")
+            (Opts text "\t-t\tTCP sockets")
+            (Opts text "\t-u\tUDP sockets")
+            (Opts text "\t-w\tRaw sockets")
+            (Opts text "\t-x\tUnix sockets")
+            (Opts text "\t\tElse: all socket types")
+            (Opts text "\t-e\tOther/more information")
+            (Opts text "\t-n\tDon't resolve names")
+            (Opts text "\t-W\tWide display")
+            (Opts text "\t-p\tShow PID/program name for sockets")
+            (Opts hidden (Opts flag "-r" ""))
+            (Opts hidden (Opts flag "-a" ""))
+            (Opts hidden (Opts flag "-l" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-u" ""))
+            (Opts hidden (Opts flag "-w" ""))
+            (Opts hidden (Opts flag "-x" ""))
+            (Opts hidden (Opts flag "-e" ""))
+            (Opts hidden (Opts flag "-n" ""))
+            (Opts hidden (Opts flag "-W" ""))
+            (Opts hidden (Opts flag "-p" ""))))
+        (lit leading)))
+    ; ifconfig reads its words itself, -a among them, as busybox's does
+    (pair "ifconfig"
+      (list
+        (Opts declare "ifconfig" "[-a] [IFACE] [ADDRESS]"
+          "Configure a network interface"
+          (list
+            (Opts text "\t[add ADDRESS[/PREFIXLEN]]")
+            (Opts text "\t[del ADDRESS[/PREFIXLEN]]")
+            (Opts text "\t[[-]broadcast [ADDRESS]] [[-]pointopoint [ADDRESS]]")
+            (Opts text "\t[netmask ADDRESS] [dstaddr ADDRESS]")
+            (Opts text "\t[outfill NN] [keepalive NN]")
+            (Opts text "\t[hw ether|infiniband ADDRESS] [metric NN] [mtu NN]")
+            (Opts text "\t[[-]trailers] [[-]arp] [[-]allmulti]")
+            (Opts text "\t[multicast] [[-]promisc] [txqueuelen NN] [[-]dynamic]")
+            (Opts text "\t[mem_start NN] [io_addr NN] [irq NN]")
+            (Opts text "\t[up|down] ...")))
+        (lit none)))
+    ; ip, ipaddr and iplink read their words themselves, the options before them too
+    (pair "ip"
+      (list
+        (Opts declare "ip" "[OPTIONS] address|route|link|tunnel|neigh|rule [ARGS]"
+          "OPTIONS := -f[amily] inet|inet6|link | -o[neline]"
+          (list
+            (Opts text "ip addr add|del IFADDR dev IFACE | show|flush [dev IFACE] [to PREFIX]")
+            (Opts text "ip route list|flush|add|del|change|append|replace|test ROUTE")
+            (Opts text "ip link set IFACE [up|down] [arp on|off] [multicast on|off]")
+            (Opts text "\t[promisc on|off] [mtu NUM] [name NAME] [qlen NUM] [address MAC]")
+            (Opts text "\t[master IFACE | nomaster] [netns PID]")
+            (Opts text "ip tunnel add|change|del|show [NAME]")
+            (Opts text "\t[mode ipip|gre|sit] [remote ADDR] [local ADDR] [ttl TTL]")
+            (Opts text "ip neigh show|flush [to PREFIX] [dev DEV] [nud STATE]")
+            (Opts text "ip rule [list] | add|del SELECTOR ACTION")))
+        (lit none)))
+    (pair "ipaddr"
+      (list
+        (Opts declare "ipaddr" "add|del IFADDR dev IFACE | show|flush [dev IFACE] [to PREFIX]" ()
+          (list
+            (Opts text "ipaddr add|change|replace|delete dev IFACE [CONFFLAG-LIST] IFADDR")
+            (Opts text "\tIFADDR := PREFIX | ADDR peer PREFIX [broadcast ADDR|+|-]")
+            (Opts text "\t\t[anycast ADDR] [label STRING] [scope SCOPE]")
+            (Opts text "\tPREFIX := ADDR[/MASK]")
+            (Opts text "\tSCOPE := [host|link|global|NUMBER]")
+            (Opts text "\tCONFFLAG-LIST := [CONFFLAG-LIST] CONFFLAG")
+            (Opts text "\tCONFFLAG := [noprefixroute]")
+            (Opts text "ipaddr show|flush [dev IFACE] [scope SCOPE] [to PREFIX] [label PATTERN]")))
+        (lit none)))
+    (pair "iproute"
+      (list
+        (Opts declare "iproute" "list|flush|add|del|change|append|replace|test ROUTE" ()
+          (list
+            (Opts text "iproute list|flush SELECTOR")
+            (Opts text "\tSELECTOR := [root PREFIX] [match PREFIX] [proto RTPROTO]")
+            (Opts text "\tPREFIX := default|ADDR[/MASK]")
+            (Opts text "iproute get ADDR [from ADDR iif IFACE]")
+            (Opts text "\t[oif IFACE] [tos TOS]")
+            (Opts text "iproute add|del|change|append|replace|test ROUTE")
+            (Opts text "\tROUTE := NODE_SPEC [INFO_SPEC]")
+            (Opts text "\tNODE_SPEC := PREFIX [table TABLE_ID] [proto RTPROTO] [scope SCOPE] [metric METRIC]")
+            (Opts text "\tINFO_SPEC := NH OPTIONS")
+            (Opts text "\tNH := [via [inet|inet6] ADDR] [dev IFACE] [src ADDR] [onlink]")
+            (Opts text "\tOPTIONS := [mtu [lock] NUM] [advmss [lock] NUM]")))
+        (lit none)))
+    (pair "ipneigh"
+      (list (Opts declare "ipneigh" "show|flush [to PREFIX] [dev DEV] [nud STATE]" () ()) (lit none)))
+    (pair "iprule"
+      (list
+        (Opts declare "iprule" "[list] | add|del SELECTOR ACTION" ()
+          (list
+            (Opts text "\tSELECTOR := [from PREFIX] [to PREFIX] [tos TOS] [fwmark FWMARK[/MASK]]")
+            (Opts text "\t\t\t[dev IFACE] [pref NUMBER]")
+            (Opts text "\tACTION := [table TABLE_ID] [nat ADDR]")
+            (Opts text "\t\t\t[prohibit|reject|unreachable]")
+            (Opts text "\t\t\t[realms [SRCREALM/]DSTREALM]")
+            (Opts text "\tTABLE_ID := [local|main|default|NUMBER]")))
+        (lit none)))
+    (pair "iptunnel"
+      (list
+        (Opts declare "iptunnel" "add|change|del|show [NAME]\n\t[mode ipip|gre|sit] [remote ADDR] [local ADDR] [ttl TTL]" ()
+          (list
+            (Opts text "iptunnel add|change|del|show [NAME]")
+            (Opts text "\t[mode ipip|gre|sit] [remote ADDR] [local ADDR]")
+            (Opts text "\t[[i|o]seq] [[i|o]key KEY] [[i|o]csum]")
+            (Opts text "\t[ttl TTL] [tos TOS] [[no]pmtudisc] [dev PHYS_DEV]")))
+        (lit none)))
+    ; busybox's iplink help has no blank line under its Usage: line, so it is all synopsis
+    (pair "iplink"
+      (list
+        (Opts declare "iplink"
+          "set IFACE [up|down] [arp on|off] [multicast on|off]\n\t[promisc on|off] [mtu NUM] [name NAME] [qlen NUM] [address MAC]\n\t[master IFACE | nomaster] [netns PID]\niplink add [link IFACE] IFACE [address MAC] type TYPE [ARGS]\niplink delete IFACE type TYPE [ARGS]\n\tTYPE ARGS := vlan VLANARGS | vrf table NUM\n\tVLANARGS := id VLANID [protocol 802.1q|802.1ad] [reorder_hdr on|off]\n\t\t[gvrp on|off] [mvrp on|off] [loose_binding on|off]\niplink show [IFACE]"
+          () ())
+        (lit none)))
+    ; busybox's top help runs its keys and options on from the description
+    ; with no blank line between, so it is all description and the options
+    ; are declared hidden
+    (pair "top"
+      (list
+        (Opts declare "top" "[-bmH] [-n COUNT] [-d SECONDS]"
+          "Show a view of process activity in real time.\nRead the status of all processes from /proc each SECONDS\nand show a screenful of them.\nKeys:\n\tN/M/P/T: show CPU usage, sort by pid/mem/cpu/time\n\tS: show memory\n\tR: reverse sort\n\tH: toggle threads, 1: toggle SMP\n\tQ,^C: exit\nOptions:\n\t-b\tBatch mode\n\t-n N\tExit after N iterations\n\t-d SEC\tDelay between updates\n\t-m\tSame as 's' key\n\t-H\tShow threads"
+          (list
+            (Opts hidden (Opts flag "-b" ""))
+            (Opts hidden (Opts arg "-n" "" ""))
+            (Opts hidden (Opts arg "-d" "" ""))
+            (Opts hidden (Opts flag "-m" ""))
+            (Opts hidden (Opts flag "-H" ""))))))
+    ; busybox's lsof reads no options and no operands; only a first --help
+    ; is its own
+    (pair "lsof"
+      (list
+        (Opts declare "lsof" ""
+          "Show all open files"
+          (list))
+        (lit none)))
+    (pair "vmstat"
+      (list
+        (Opts declare "vmstat" "[-n] [INTERVAL [COUNT]]"
+          "Show virtual memory statistics"
+          (list
+            (Opts flag "-n" "Show header once")))))
+    (pair "iostat"
+      (list
+        (Opts declare "iostat" "[-c] [-d] [-t] [-z] [-k|-m] [ALL|BLOCKDEV...] [INTERVAL [COUNT]]"
+          "Report CPU and I/O statistics"
+          (list
+            (Opts flag "-c" "Show CPU utilization")
+            (Opts flag "-d" "Show device utilization")
+            (Opts flag "-t" "Print current time")
+            (Opts flag "-z" "Omit devices with no activity")
+            (Opts flag "-k" "Use kb/s")
+            (Opts flag "-m" "Use Mb/s")))))
+    ; mpstat's and nmeter's help line their options up with tabs of their own,
+    ; so it is all description and the options are declared hidden
+    (pair "mpstat"
+      (list
+        (Opts declare "mpstat" "[-A] [-I SUM|CPU|ALL|SCPU] [-u] [-P num|ALL] [INTERVAL [COUNT]]"
+          "Per-processor statistics\n\n\t-A\t\t\tSame as -I ALL -u -P ALL\n\t-I SUM|CPU|ALL|SCPU\tReport interrupt statistics\n\t-P num|ALL\t\tProcessor to monitor\n\t-u\t\t\tReport CPU utilization"
+          (list
+            (Opts hidden (Opts flag "-A" ""))
+            (Opts hidden (Opts arg "-I" "" ""))
+            (Opts hidden (Opts arg "-P" "" ""))
+            (Opts hidden (Opts flag "-u" ""))))))
+    (pair "nmeter"
+      (list
+        (Opts declare "nmeter" "[-d MSEC] FORMAT_STRING"
+          "Monitor system in real time\n\n -d MSEC\tMilliseconds between updates, default:1000, none:-1\n\nFormat specifiers:\n %Nc or %[cN]\tCPU. N - bar size (default 10)\n\t\t(displays: S:system U:user N:niced D:iowait I:irq i:softirq)\n %[nINTERFACE]\tNetwork INTERFACE\n %m\t\tAllocated memory\n %[md]\t\tDirty file-backed memory\n %[mw]\t\tMemory being written to storage\n %[mf]\t\tFree memory\n %[mt]\t\tTotal memory\n %s\t\tAllocated swap\n %f\t\tNumber of used file descriptors\n %Ni\t\tTotal/specific IRQ rate\n %x\t\tContext switch rate\n %p\t\tForks\n %[pn]\t\t# of processes\n %b\t\tBlock io\n %Nt\t\tTime (with N decimal points)\n %NT\t\tZero-based timestamp (with N decimal points)\n %r\t\tPrint <cr> instead of <lf> at EOL"
+          (list
+            (Opts hidden (Opts arg "-d" "" ""))))))
+    ; the command watch runs takes its own flags; -d is busybox's, taken and
+    ; unused
+    (pair "watch"
+      (list
+        (Opts declare "watch" "[-n SEC] [-tx] PROG ARGS"
+          "Run PROG periodically"
+          (list
+            (Opts arg "-n" "SEC" "Period (default 2)")
+            (Opts flag "-t" "Don't print header")
+            (Opts flag "-x" "exec(PROG,ARGS) instead of sh -c 'PROG ARGS'")
+            (Opts hidden (Opts flag "-d" ""))))
+        (lit leading)))
+    ; ping6 is ping -6: its help leaves out -4,-6 and -t, its parse takes them
+    (pair "ping" (%cu-ping-row "ping"))
+    (pair "ping6" (%cu-ping-row "ping6"))
+    ; traceroute6 is traceroute -6: its help leaves out -4,-6, -F and -l, its parse takes them
+    (pair "traceroute" (%cu-traceroute-row "traceroute"))
+    (pair "traceroute6" (%cu-traceroute-row "traceroute6"))
+    (pair "pmap"
+      (list
+        (Opts declare "pmap" "[-xq] PID..."
+          "Display process memory usage"
+          (list
+            (Opts flag "-x" "Show details")
+            (Opts flag "-q" "Quiet")))))
     ; test and its spellings are an EXPRESSION, not an option list: the operators
     ; are declared so the parse knows them, and the applet parses the expression
     ; itself.  --help is an operand, as POSIX has it.
@@ -1807,3 +2920,5 @@
             (%cu-hidden-flags %cu-test-operators))
           (pair (lit help) #f))
         (lit none)))))
+
+(provide cu/options cu-option-spec nc-flags nc-values)

@@ -22,56 +22,22 @@
 ; --- small text helpers ------------------------------------------------------
 
 ; the index of the first byte of S at or after I equal to C, or nil
-(def %wget-index
-  (fn (self s c i)
-    (match
-      ((>= i (byte-len s)) ())
-      ((= (byte-at s i) c) i)
-      (#t (self s c (+ i 1))))))
+(module cu/net)
 
-; the index of the last byte of S equal to C, or nil
-(def %wget-last-index
-  (fn (_ s c)
-    (let go ((i (- (byte-len s) 1)))
-      (match
-        ((< i 0) ())
-        ((= (byte-at s i) c) i)
-        (#t (go (- i 1)))))))
-
-; the index where the text NEEDLE first starts in S, or nil
-(def %wget-find
-  (fn (_ s needle)
-    (def n (byte-len needle))
-    (let go ((i 0))
-      (match
-        ((> (+ i n) (byte-len s)) ())
-        ((string=? (substring s i (+ i n)) needle) i)
-        (#t (go (+ i 1)))))))
-
-; S's value as a decimal count when it is all digits, else nil
-(def %wget-digits
-  (fn (_ s)
-    (if (= (byte-len s) 0) ()
-      (let go ((i 0) (n 0))
-        (match
-          ((= i (byte-len s)) n)
-          ((if (>= (byte-at s i) #\0) (<= (byte-at s i) #\9) #f)
-            (go (+ i 1) (+ (* n 10) (- (byte-at s i) #\0))))
-          (#t ()))))))
-
-; floor division; the harness's / is exact
-(def %wget-div (fn (_ a b) (/ (- a (% a b)) b)))
-
-; S lowercased, letters only
-(def %wget-lower
-  (fn (_ s)
-    (list->string
-      (map (fn (_ c) (if (if (>= c #\A) (<= c #\Z) #f) (integer->char (+ c 32)) c))
-           (let go ((i (- (byte-len s) 1)) (acc ()))
-             (if (< i 0) acc (go (- i 1) (pair (byte-at s i) acc))))))))
+(import cu/cli cu-opts cu-usage)
+(import cu/inetd tn-port)
+(import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-sweep!
+  date-now-unix file-close file-err-op file-err-text file-exists?
+  file-open-excl file-open-or-err file-open-write file-open-wronly
+  file-read-all file-seek file-stat file-truncate file-write file-write-run
+  http-close http-head http-open http-read http-status integer->char
+  list->string map net-base64 net-close net-connect net-die net-recv-run
+  net-resolve net-send reverse string-append string=? substring sys-getenv
+  sys-isatty wget-digits wget-div wget-err-text wget-index wget-memv)
+(import cu/text cu-pad-left cu-pad-right cu-pad-zero)
 
 ; a head line as busybox prints and reads it: cut at the first control byte
-(def %wget-sanitize
+(def wget-sanitize
   (fn (_ s)
     (let go ((i 0))
       (match
@@ -80,24 +46,20 @@
         (#t (go (+ i 1)))))))
 
 ; N as decimal text, right-aligned in W columns
-(def %wget-rjust (fn (_ n w) (%cu-pad-left (%cu-int->str n) w)))
+(def %wget-rjust (fn (_ n w) (cu-pad-left (cu-int->str n) w)))
 
 ; N as two digits
-(def %wget-02 (fn (_ n) (%cu-pad-zero (%cu-int->str n) 2)))
+(def %wget-02 (fn (_ n) (cu-pad-zero (cu-int->str n) 2)))
 
 ; S cut or padded with blanks to exactly W columns
 (def %wget-fixed
   (fn (_ s w)
-    (if (>= (byte-len s) w) (substring s 0 w) (%cu-pad-right s w))))
+    (if (>= (byte-len s) w) (substring s 0 w) (cu-pad-right s w))))
 
 ; K copies of the byte C
-(def %wget-times
+(def wget-times
   (fn (_ k c)
     (bytes->str (let go ((k k) (acc ())) (if (<= k 0) acc (go (- k 1) (pair c acc)))))))
-
-; is X one of the numbers (or bytes) in L
-(def %wget-memv
-  (fn (self x l) (if (null? l) #f (if (= (first l) x) #t (self x (rest l))))))
 
 ; is X one of the symbols in L
 (def %wget-memq
@@ -133,19 +95,19 @@
 ; before the host's last @, percent-decoded, or nil.
 (def %wget-url
   (fn (_ url)
-    (def sep (%wget-find url "://"))
+    (def sep (Str8 index-of "://" url))
     (def scheme (if (null? sep) "http" (substring url 0 sep)))
     (def tail (if (null? sep) url (substring url (+ sep 3) (byte-len url))))
     (def cut
       (let go ((i 0))
         (match
           ((= i (byte-len tail)) ())
-          ((%wget-memv (byte-at tail i) (list #\/ #\? #\#)) i)
+          ((wget-memv (byte-at tail i) (list #\/ #\? #\#)) i)
           (#t (go (+ i 1))))))
     (def hostpart (if (null? cut) tail (substring tail 0 cut)))
     (def path (if (null? cut) "" (substring tail (+ cut 1) (byte-len tail))))
-    (def at (%wget-last-index hostpart #\@))
-    (if (%cu-member-s? scheme (list "http" "https" "ftp"))
+    (def at (Str8 last-index-of "@" hostpart))
+    (if (cu-member-s? scheme (list "http" "https" "ftp"))
       (list scheme
             (if (null? at) hostpart (substring hostpart (+ at 1) (byte-len hostpart)))
             path
@@ -154,27 +116,27 @@
 
 (def %wget-scheme (fn (_ t) (first t)))
 (def %wget-host (fn (_ t) (first (rest t))))
-(def %wget-path (fn (_ t) (first (rest (rest t)))))
-(def %wget-user (fn (_ t) (first (rest (rest (rest t))))))
+(def wget-path (fn (_ t) (first (rest (rest t)))))
+(def wget-user (fn (_ t) (first (rest (rest (rest t))))))
 
 ; HOST's (NAME . PORT): the port after its last colon, or the scheme's own;
 ; PORT is nil when the text after the colon is not a number
-(def %wget-name-port
+(def wget-name-port
   (fn (_ t)
     (def host (%wget-host t))
-    (def colon (%wget-last-index host #\:))
+    (def colon (Str8 last-index-of ":" host))
     (if (null? colon)
       (pair host (match ((string=? (%wget-scheme t) "https") 443)
                         ((string=? (%wget-scheme t) "ftp") 21)
                         (#t 80)))
       (pair (substring host 0 colon)
-            (%wget-digits (substring host (+ colon 1) (byte-len host)))))))
+            (wget-digits (substring host (+ colon 1) (byte-len host)))))))
 
 ; busybox's bb_get_last_path_component_nostrip: after the last /, or the whole
 ; when there is none or it is a lone /
-(def %wget-last-part
+(def wget-last-part
   (fn (_ p)
-    (def slash (%wget-last-index p #\/))
+    (def slash (Str8 last-index-of "/" p))
     (match
       ((null? slash) p)
       ((if (= slash 0) (= (byte-len p) 1) #f) p)
@@ -184,7 +146,7 @@
 ; that is empty or a lone /, under -P's directory when one is given
 (def %wget-fname
   (fn (_ t dir)
-    (def base (%wget-last-part (%wget-path t)))
+    (def base (wget-last-part (wget-path t)))
     (def name (if (if (= (byte-len base) 0) #t (= (byte-at base 0) #\/)) "index.html" base))
     (match
       ((null? dir) name)
@@ -201,32 +163,47 @@
 (def %wget-pos 0)         ; the offset the next write lands at
 (def %wget-reset-pos 0)   ; where this url's data starts in an -O file
 (def %wget-beg 0)         ; bytes already held: -c's file, an earlier try's
+; ftpget writing to stdout says so with this
+(def wget-out-fd! (fn (_ fd) (set! %wget-out-fd fd)))
+; the bytes already held, which ftpget resumes after
+(def wget-beg (fn (_) %wget-beg))
 
-(def %wget-on?
+(def wget-on?
   (fn (_ short long) (if (Opts on? %wget-cfg short) #t (Opts on? %wget-cfg long))))
 (def %wget-value
   (fn (_ short long)
     (let ((v (Opts value %wget-cfg short)))
       (if (null? v) (Opts value %wget-cfg long) v))))
-(def %wget-quiet? (fn (_) (%wget-on? "-q" "--quiet")))
-(def %wget-show? (fn (_) (%wget-on? "-S" "--server-response")))
+(def wget-quiet? (fn (_) (wget-on? "-q" "--quiet")))
+(def wget-show? (fn (_) (wget-on? "-S" "--server-response")))
 
-(def %wget-say
+(def wget-say
   (fn (_ s) (file-write %wget-msg-fd s)))
 
-; a fatal error: the message, and the run ends with status 1 -- each applet
-; catches the label net at its top and prints the message after its name
-(def %net-die
-  (fn (_ msg) (Err raise (lit net) msg ())))
+(def wget-die net-die)
 
-(def %wget-die %net-die)
+; create_and_connect_stream_or_die on HOST[:PORT], PORT DEFAULT without one:
+; the connected socket, or the run ended (label net) as busybox ends it
+(def cu-dial
+  (fn (_ spec default)
+    (def colon (Str8 last-index-of ":" spec))
+    (def host (cu-dial-host spec))
+    (def port (if (null? colon) default (tn-port (substring spec (+ colon 1) (byte-len spec)))))
+    (def ip (let ((q (guard (_ ()) (net-resolve host))))
+              (if (null? q) (Err raise (lit net) (%str-concat (list "bad address '" spec "'")) ()) q)))
+    (guard (e (if (eq? (Err label e) (lit io))
+                (Err raise (lit net) (%str-concat (list "can't connect to remote host (" ip "): " (wget-err-text e))) ())
+                (error e)))
+      (net-connect ip port))))
 
-; the message an io Err carries after its call's name: "Connection refused"
-(def %wget-err-text
-  (fn (_ e) (if (Err err? e) (file-err-text e) "")))
+; the HOST of HOST[:PORT]
+(def cu-dial-host
+  (fn (_ spec)
+    (let ((colon (Str8 last-index-of ":" spec)))
+      (if (null? colon) spec (substring spec 0 colon)))))
 
 ; the call an io Err came from, or nil for an Err that names none
-(def %wget-err-op
+(def wget-err-op
   (fn (_ e)
     (let ((d (e data)))
       (if (if (null? d) #t (number? d)) () (file-err-op e)))))
@@ -240,9 +217,9 @@
 (def %wget-pm-file "")
 
 (def %wget-pm-on?
-  (fn (_) (if (%wget-quiet?) #f (= %wget-msg-fd 2))))
+  (fn (_) (if (wget-quiet?) #f (= %wget-msg-fd 2))))
 
-(def %wget-pm-init!
+(def wget-pm-init!
   (fn (_ name)
     (def now (date-now-unix))
     (do (set! %wget-pm-file name)
@@ -262,7 +239,7 @@
 (def %wget-term-columns
   (fn (_ env)
     (match
-      ((not (null? env)) (let ((n (%wget-digits env))) (if (null? n) 0 n)))
+      ((not (null? env)) (let ((n (wget-digits env))) (if (null? n) 0 n)))
       ((sys-isatty 2) (first (Term window 2)))
       (#t 80))))
 
@@ -274,11 +251,11 @@
     (def scaled
       (if (<= ul 99999) (pair ul 0)
         (let go ((v (* ul 10)) (idx 0))
-          (let ((v2 (%wget-div v 1024)))
+          (let ((v2 (wget-div v 1024)))
             (if (>= v2 100000) (go v2 (+ idx 1)) (pair v2 (+ idx 1)))))))
     (def v (first scaled))
     (def idx (rest scaled))
-    (def u (%wget-div v 10))
+    (def u (wget-div v 10))
     (def d (% v 10))
     (def digit (fn (_ n) (integer->char (+ #\0 n))))
     ; a leading zero shows as a blank until the first digit that is not one
@@ -293,20 +270,20 @@
     (list->string
       (match
         ((= idx 0)
-          (append (lead (list (% (%wget-div u 1000) 10) (% (%wget-div u 100) 10)
-                              (% (%wget-div u 10) 10) (% u 10)))
+          (append (lead (list (% (wget-div u 1000) 10) (% (wget-div u 100) 10)
+                              (% (wget-div u 10) 10) (% u 10)))
                   (list (digit d))))
         ((>= u 100)
-          (append (lead (list (% (%wget-div u 1000) 10) (% (%wget-div u 100) 10)
-                              (% (%wget-div u 10) 10)))
+          (append (lead (list (% (wget-div u 1000) 10) (% (wget-div u 100) 10)
+                              (% (wget-div u 10) 10)))
                   (list (digit (% u 10)) (byte-at scale idx))))
         (#t
-          (append (lead (list (% (%wget-div u 10) 10)))
+          (append (lead (list (% (wget-div u 10) 10)))
                   (list (digit (% u 10)) #\. (digit d) (byte-at scale idx))))))))
 
 ; one update: drawn when FORCE, when the download is complete, or when a second
 ; has passed since the last; without a terminal each one is a line of its own
-(def %wget-pm-update!
+(def wget-pm-update!
   (fn (_ beg tr total force)
     (def now (date-now-unix))
     (def since (if force now (- now %wget-pm-last)))
@@ -321,7 +298,7 @@
     (def notty (not (sys-isatty 2)))
     (def sc
       (let go ((t total) (b beg) (x tr))
-        (if (>= t 1048576) (go (%wget-div t 256) (%wget-div b 256) (%wget-div x 256))
+        (if (>= t 1048576) (go (wget-div t 256) (wget-div b 256) (wget-div x 256))
           (list t b x))))
     (def t (first sc))
     (def b (first (rest sc)))
@@ -329,13 +306,13 @@
     (def bar (- (%wget-columns) 48))
     (def bars
       (if (= t 0) ""
-        (string-append (%wget-rjust (%wget-div (* 100 (+ b x)) t) 3)
+        (string-append (%wget-rjust (wget-div (* 100 (+ b x)) t) 3)
           (string-append "% "
             (if (<= bar 2) ""
               (let ((w (if (> bar 999) 999 bar)))
-                (let ((stars (%wget-div (* w (+ b x)) t)))
-                  (string-concat
-                    (list "|" (%wget-times stars #\*) (%wget-times (- w stars) #\space)
+                (let ((stars (wget-div (* w (+ b x)) t)))
+                  (%str-concat
+                    (list "|" (wget-times stars #\*) (wget-times (- w stars) #\space)
                           "| ")))))))))
     (def stalled
       (let ((s2 (- now %wget-pm-change)))
@@ -350,15 +327,15 @@
         ((>= stalled 5) "  - stalled -")
         ((if (= t 0) #t (if (= x 0) #t (< elapsed 0))) " --:--:-- ETA")
         (#t
-          (let ((e (- (%wget-div (* (- t b) elapsed) x) elapsed)))
+          (let ((e (- (wget-div (* (- t b) elapsed) x) elapsed)))
             (let ((e (if (>= e 3600000) 3599999 e)))
               (let ((secs (% e 3600)))
-                (string-concat
-                  (list (%wget-rjust (%wget-div e 3600) 3) ":"
-                        (%wget-02 (%wget-div secs 60)) ":" (%wget-02 (% secs 60))
+                (%str-concat
+                  (list (%wget-rjust (wget-div e 3600) 3) ":"
+                        (%wget-02 (wget-div secs 60)) ":" (%wget-02 (% secs 60))
                         " ETA"))))))))
     (file-write 2
-      (string-concat
+      (%str-concat
         (list (if notty "" "\r") (%wget-fixed %wget-pm-file 20) " "
               bars num eta (if notty "\n" ""))))
     notty))
@@ -370,7 +347,7 @@
 (def %wget-user-headers
   (fn (_)
     (map (fn (_ h)
-           (let ((c (%wget-index h #\: 0)))
+           (let ((c (wget-index h #\: 0)))
              (if (null? c) (pair h "")
                (pair (substring h 0 c)
                      (let go ((i (+ c 1)))
@@ -383,7 +360,7 @@
 (def %wget-has-header?
   (fn (_ hs name)
     (if (null? hs) #f
-      (if (string=? (%wget-lower (first (first hs))) name) #t
+      (if (string=? (Str8 downcase (first (first hs))) name) #t
         (%wget-has-header? (rest hs) name)))))
 
 ; the request's headers after Host and Connection, which Http adds: busybox's
@@ -397,11 +374,11 @@
       (if (%wget-has-header? uh "user-agent") ()
         (list (pair "User-Agent" (if (null? ua) "Wget" ua))))
       (append
-        (if (if (null? (%wget-user t)) #t (%wget-has-header? uh "authorization")) ()
-          (list (pair "Authorization" (string-append "Basic " (net-base64 (%wget-user t))))))
+        (if (if (null? (wget-user t)) #t (%wget-has-header? uh "authorization")) ()
+          (list (pair "Authorization" (string-append "Basic " (net-base64 (wget-user t))))))
         (append
           (if (if (= %wget-beg 0) #t (%wget-has-header? uh "range")) ()
-            (list (pair "Range" (string-concat (list "bytes=" (%cu-int->str %wget-beg) "-")))))
+            (list (pair "Range" (%str-concat (list "bytes=" (cu-int->str %wget-beg) "-")))))
           (append uh
             (if (if (null? post) #t (%wget-has-header? uh "content-type")) ()
               (list (pair "Content-Type" "application/x-www-form-urlencoded")))))))))
@@ -416,22 +393,22 @@
       ((null? file) ())
       ((string=? file "-") (stdin-thunk))
       ((not (file-exists? file))
-        (%wget-die (string-concat (list "can't open '" file "': No such file or directory"))))
+        (wget-die (%str-concat (list "can't open '" file "': No such file or directory"))))
       (#t (file-read-all file)))))
 
 ; "Connecting to HOST (IP:PORT)" for a new server; a name that does not resolve
 ; is busybox's "bad address", HOST as the url spells it
 (def %wget-connecting
   (fn (_ t)
-    (def np (%wget-name-port t))
+    (def np (wget-name-port t))
     (when (null? (rest np))
-      (%wget-die (string-concat (list "bad address '" (%wget-host t) "'"))))
+      (wget-die (%str-concat (list "bad address '" (%wget-host t) "'"))))
     (def ip (guard (_ ()) (net-resolve (first np))))
     (when (null? ip)
-      (%wget-die (string-concat (list "bad address '" (%wget-host t) "'"))))
-    (unless (%wget-quiet?)
-      (%wget-say (string-concat
-        (list "Connecting to " (%wget-host t) " (" ip ":" (%cu-int->str (rest np)) ")\n"))))
+      (wget-die (%str-concat (list "bad address '" (%wget-host t) "'"))))
+    (unless (wget-quiet?)
+      (wget-say (%str-concat
+        (list "Connecting to " (%wget-host t) " (" ip ":" (cu-int->str (rest np)) ")\n"))))
     ip))
 
 ; what keeps a response from arriving, in busybox's words: a refused
@@ -440,58 +417,58 @@
 ; own report of a head it cannot read are "error getting response".  Anything
 ; else is not the network's doing -- a platform without Http open, say -- and
 ; answers nil, so the caller raises it as it is.
-(def %wget-open-failure
+(def wget-open-failure
   (fn (_ e ip)
     (def label (Err label e))
     (match
-      ((if (eq? label (lit io)) (eq? (%wget-err-op e) (lit connect)) #f)
-        (string-concat (list "can't connect to remote host (" ip "): " (%wget-err-text e))))
+      ((if (eq? label (lit io)) (eq? (wget-err-op e) (lit connect)) #f)
+        (%str-concat (list "can't connect to remote host (" ip "): " (wget-err-text e))))
       ((eq? label (lit io)) "error getting response")
-      ((if (eq? label (lit value)) (%whois-after (e msg) "Http: bad response") #f)
+      ((if (eq? label (lit value)) (whois-after (e msg) "Http: bad response") #f)
         "error getting response")
       (#t ()))))
 
 ; open the exchange for T: the stream, its head read, or the run ends in the
-; words %wget-open-failure gives the failure.  POST answers the body to send,
+; words wget-open-failure gives the failure.  POST answers the body to send,
 ; read now -- after the "Connecting to", where busybox reads --post-file -- or
 ; nil for a GET
 (def %wget-open
   (fn (_ t ip post)
     (def body (post))
-    (def np (%wget-name-port t))
+    (def np (wget-name-port t))
     (def url
-      (string-concat
-        (list (%wget-scheme t) "://" (first np) ":" (%cu-int->str (rest np))
-              "/" (%wget-path t))))
+      (%str-concat
+        (list (%wget-scheme t) "://" (first np) ":" (cu-int->str (rest np))
+              "/" (wget-path t))))
     (def opts
       (append (list (pair (lit redirects) 0))
         (if (Opts on? %wget-cfg "--no-check-certificate") (list (list (lit insecure))) ())))
-    (guard (e (let ((why (if (Err err? e) (%wget-open-failure e ip) ())))
-                (if (null? why) (error e) (%wget-die why))))
+    (guard (e (let ((why (if (Err err? e) (wget-open-failure e ip) ())))
+                (if (null? why) (error e) (wget-die why))))
       (http-open (if (null? body) "GET" "POST") url (%wget-headers t body) body opts))))
 
 ; --- the body ------------------------------------------------------------------
 
 ; open the output on first need: -O's file truncated, else a new file that must
 ; not already exist
-(def %wget-out!
+(def wget-out!
   (fn (_ fname)
     (when (< %wget-out-fd 0)
       (let ((named? (not (null? (%wget-value "-O" "--output-document")))))
         (let ((fd (file-open-or-err (if named? file-open-write file-open-excl) fname)))
           (if (Err err? fd)
-            (%wget-die (string-concat (list "can't open '" fname "': " (file-err-text fd))))
+            (wget-die (%str-concat (list "can't open '" fname "': " (file-err-text fd))))
             (do (set! %wget-out-fd fd) (set! %wget-pos 0))))))))
 
 ; write the body, read through RD -- (RD N) answers up to N bytes as a run, nil
 ; at the end: answers #t when it all arrived, #f for a partial download -- a
 ; count that ran out early, a chunk cut short, or a body with neither a count
 ; nor chunks, which busybox reads to the end and counts as cut short
-(def %wget-retrieve
+(def wget-retrieve
   (fn (_ rd fname clen chunked?)
-    (unless (%wget-quiet?)
-      (%wget-say (if (= %wget-out-fd 1) "writing to stdout\n"
-                   (string-concat (list "saving to '" fname "'\n")))))
+    (unless (wget-quiet?)
+      (wget-say (if (= %wget-out-fd 1) "writing to stdout\n"
+                   (%str-concat (list "saving to '" fname "'\n")))))
     (def pm? (%wget-pm-on?))
     (def total-of
       (fn (_ tr whole?)
@@ -499,8 +476,8 @@
           (whole? (+ %wget-beg tr))
           ((if chunked? #t (null? clen)) 0)
           (#t (+ %wget-beg clen)))))
-    (when pm? (do (%wget-pm-init! (%wget-last-part fname))
-                  (%wget-pm-update! %wget-beg 0 (total-of 0 #f) #f)))
+    (when pm? (do (wget-pm-init! (wget-last-part fname))
+                  (wget-pm-update! %wget-beg 0 (total-of 0 #f) #f)))
     (def got
       (let go ((tr 0))
         (let ((piece (guard (_ (lit broken)) (rd 65536))))
@@ -511,25 +488,25 @@
               (let ((n (rest piece)))
                 (do (file-write-run %wget-out-fd piece)
                     (set! %wget-pos (+ %wget-pos n))
-                    (%cu-sweep! 1)
+                    (cu-sweep! 1)
                     ; the piece that ends a counted body goes straight to the
                     ; final update, as busybox's read loop does
                     (when (if pm? (if (null? clen) #t (< (+ tr n) clen)) #f)
-                      (%wget-pm-update! %wget-beg (+ tr n) (total-of (+ tr n) #f) #f))
+                      (wget-pm-update! %wget-beg (+ tr n) (total-of (+ tr n) #f) #f))
                     (go (+ tr n)))))))))
     (def tr (first got))
     (def whole? (rest got))
     (when pm?
-      (let ((tty? (not (%wget-pm-update! %wget-beg tr (total-of tr whole?) #t))))
+      (let ((tty? (not (wget-pm-update! %wget-beg tr (total-of tr whole?) #t))))
         (when tty? (file-write 2 "\n"))))
     (if whole?
       (do (unless (= %wget-out-fd 1) (file-truncate %wget-out-fd %wget-pos))
-          (unless (%wget-quiet?)
-            (%wget-say (if (= %wget-out-fd 1) "written to stdout\n"
-                         (string-concat (list "'" fname "' saved\n")))))
+          (unless (wget-quiet?)
+            (wget-say (if (= %wget-out-fd 1) "written to stdout\n"
+                         (%str-concat (list "'" fname "' saved\n")))))
           (pair tr #t))
-      (do (%wget-say (string-concat
-            (list "wget: connection closed at byte " (%cu-int->str tr) "\n")))
+      (do (wget-say (%str-concat
+            (list "wget: connection closed at byte " (cu-int->str tr) "\n")))
           (pair tr #f)))))
 
 ; --- one url ---------------------------------------------------------------------
@@ -541,7 +518,7 @@
       ((if (>= c #\a) (<= c #\z) #f) #t)
       ((if (>= c #\A) (<= c #\Z) #f) #t)
       ((if (>= c #\0) (<= c #\9) #f) #t)
-      (#t (%wget-memv c (list #\- #\. #\_))))))
+      (#t (wget-memv c (list #\- #\. #\_))))))
 
 ; a header line's (NAME . VALUE) as busybox reads it: the name lowercased up to
 ; the colon, the value after the blanks that follow it and without trailing
@@ -553,24 +530,24 @@
         (if (if (< i (byte-len line)) (%wget-name-byte? (byte-at line i)) #f)
           (go (+ i 1)) i)))
     (when (if (>= name-end (byte-len line)) #t (not (= (byte-at line name-end) #\:)))
-      (%wget-die (string-concat (list "bad header line: " (%wget-lower (substring line 0 name-end))
+      (wget-die (%str-concat (list "bad header line: " (Str8 downcase (substring line 0 name-end))
                                       (substring line name-end (byte-len line))))))
     (def v0
       (let go ((i (+ name-end 1)))
         (if (if (< i (byte-len line))
-              (%wget-memv (byte-at line i) (list #\space #\tab)) #f)
+              (wget-memv (byte-at line i) (list #\space #\tab)) #f)
           (go (+ i 1)) i)))
     (def v1
       (let go ((j (byte-len line)))
-        (if (if (> j v0) (%wget-memv (byte-at line (- j 1)) (list #\space #\tab)) #f)
+        (if (if (> j v0) (wget-memv (byte-at line (- j 1)) (list #\space #\tab)) #f)
           (go (- j 1)) j)))
-    (pair (%wget-lower (substring line 0 name-end)) (substring line v0 v1))))
+    (pair (Str8 downcase (substring line 0 name-end)) (substring line v0 v1))))
 
 ; download one url to its file, or check it with --spider
 (def %wget-one
   (fn (_ url stdin-thunk)
     (def t0 (%wget-url url))
-    (when (null? t0) (%wget-die (string-append "not an http or ftp url: " url)))
+    (when (null? t0) (wget-die (string-append "not an http or ftp url: " url)))
     (def named (%wget-value "-O" "--output-document"))
     (def fname
       (match
@@ -580,11 +557,11 @@
     (def tries
       (let ((v (%wget-value "-t" "--tries")))
         (if (null? v) 20
-          (let ((n (%wget-digits v)))
-            (if (null? n) (%wget-die (string-concat (list "invalid number '" v "'"))) n)))))
+          (let ((n (wget-digits v)))
+            (if (null? n) (wget-die (%str-concat (list "invalid number '" v "'"))) n)))))
     (def post (fn (_) (%wget-post stdin-thunk)))
     (set! %wget-beg 0)
-    (when (if (%wget-on? "-c" "--continue") (< %wget-out-fd 0) #f)
+    (when (if (wget-on? "-c" "--continue") (< %wget-out-fd 0) #f)
       (let ((fd (file-open-wronly fname)))
         (when (>= fd 0)
           (let ((size (Assoc get (lit size) (file-stat fname))))
@@ -598,9 +575,9 @@
 
 ; busybox's reset_beg_range_to_zero: a server that will not start part way
 ; through gets the whole file, written over what -c kept
-(def %wget-restart-failed!
+(def wget-restart-failed!
   (fn (_)
-    (%wget-say "wget: restart failed\n")
+    (wget-say "wget: restart failed\n")
     (set! %wget-beg 0)
     (when (>= %wget-out-fd 0)
       (do (file-seek %wget-out-fd %wget-reset-pos)
@@ -613,7 +590,7 @@
     (def ip (%wget-connecting t0))
     (def outcome
       (if (string=? (%wget-scheme t0) "ftp")
-        (%wget-ftp-hop t0 ip fname)
+        (wget-ftp-hop t0 ip fname)
         (%wget-hop t0 ip 16 fname post)))
     (when (if (number? outcome) (if (= tries 0) #t (> retries 0)) #f)
       (do (set! %wget-beg (+ %wget-beg outcome))
@@ -625,29 +602,29 @@
 (def %wget-hop
   (fn (self t ip redirs fname post)
     (def s (%wget-open t ip post))
-    (def head (map %wget-sanitize (http-head s)))
+    (def head (map wget-sanitize (http-head s)))
     (def status (http-status s))
-    (when (%wget-show?) (%wget-say (string-concat (list "  " (first head) "\n"))))
+    (when (wget-show?) (wget-say (%str-concat (list "  " (first head) "\n"))))
     (match
-      ((%wget-memv status (list 200 201 202 203 204))
-        (when (> %wget-beg 0) (%wget-restart-failed!)))
-      ((%wget-memv status (list 300 301 302 303 307 308)) ())
+      ((wget-memv status (list 200 201 202 203 204))
+        (when (> %wget-beg 0) (wget-restart-failed!)))
+      ((wget-memv status (list 300 301 302 303 307 308)) ())
       ((if (= status 206) (> %wget-beg 0) #f) ())
       (#t (do (http-close s)
-              (%wget-die (string-append "server returned error: " (first head))))))
+              (wget-die (string-append "server returned error: " (first head))))))
     (def found (%wget-walk s status (rest head) () #f))
     (match
       ((eq? (first found) (lit location))
         (do (http-close s)
-            (when (= redirs 1) (%wget-die "too many redirections"))
+            (when (= redirs 1) (wget-die "too many redirections"))
             (%wget-follow t ip (first (rest found)) (- redirs 1) fname post)))
-      ((%wget-on? "--spider" "--spider")
+      ((wget-on? "--spider" "--spider")
         (do (http-close s)
-            (unless (%wget-quiet?) (%wget-say "remote file exists\n"))
+            (unless (wget-quiet?) (wget-say "remote file exists\n"))
             (lit done)))
       (#t
-        (do (if (string=? fname "-") (set! %wget-out-fd 1) (%wget-out! fname))
-            (let ((r (%wget-retrieve (fn (_ n) (http-read s n)) fname
+        (do (if (string=? fname "-") (set! %wget-out-fd 1) (wget-out! fname))
+            (let ((r (wget-retrieve (fn (_ n) (http-read s n)) fname
                                      (first (rest found)) (first (rest (rest found))))))
               (do (http-close s)
                   (if (rest r) (lit done) (first r)))))))))
@@ -658,12 +635,12 @@
   (fn (_ t ip loc redirs fname post)
     (if (if (> (byte-len loc) 0) (= (byte-at loc 0) #\/) #f)
       (%wget-hop (list (%wget-scheme t) (%wget-host t) (substring loc 1 (byte-len loc))
-                       (%wget-user t))
+                       (wget-user t))
                  ip redirs fname post)
       (let ((t2 (%wget-url loc)))
-        (do (when (null? t2) (%wget-die (string-append "not an http or ftp url: " loc)))
-            (let ((t3 (if (null? (%wget-user t2))
-                        (list (%wget-scheme t2) (%wget-host t2) (%wget-path t2) (%wget-user t))
+        (do (when (null? t2) (wget-die (string-append "not an http or ftp url: " loc)))
+            (let ((t3 (if (null? (wget-user t2))
+                        (list (%wget-scheme t2) (%wget-host t2) (wget-path t2) (wget-user t))
                         t2)))
               (%wget-hop t3 (%wget-connecting t3) redirs fname post)))))))
 
@@ -673,26 +650,26 @@
   (fn (self s status ls clen chunked?)
     (match
       ((null? ls)
-        (do (when (%wget-show?) (%wget-say "  \n"))
+        (do (when (wget-show?) (wget-say "  \n"))
             (list (lit body) clen chunked?)))
       (#t
         (let ((line (first ls)))
-          (do (when (%wget-show?) (%wget-say (string-concat (list "  " line "\n"))))
+          (do (when (wget-show?) (wget-say (%str-concat (list "  " line "\n"))))
               (let ((kv (%wget-header-line line)))
                 (match
                   ((string=? (first kv) "content-length")
-                    (let ((n (%wget-digits (rest kv))))
+                    (let ((n (wget-digits (rest kv))))
                       (if (null? n)
                         (do (http-close s)
-                            (%wget-die (string-concat
+                            (wget-die (%str-concat
                               (list "content-length " (rest kv) " is garbage"))))
                         (self s status (rest ls) n chunked?))))
                   ((string=? (first kv) "transfer-encoding")
-                    (if (string=? (%wget-lower (rest kv)) "chunked")
+                    (if (string=? (Str8 downcase (rest kv)) "chunked")
                       (self s status (rest ls) clen #t)
                       (do (http-close s)
-                          (%wget-die (string-concat
-                            (list "transfer encoding '" (%wget-lower (rest kv))
+                          (wget-die (%str-concat
+                            (list "transfer encoding '" (Str8 downcase (rest kv))
                                   "' is not supported"))))))
                   ((if (string=? (first kv) "location") (>= status 300) #f)
                     (list (lit location) (rest kv)))
@@ -700,11 +677,11 @@
 
 ; --- the applet ------------------------------------------------------------------
 
-(def %cu-wget
+(def cu-wget
   (fn (_ argv stdin-thunk)
-    (set! %wget-cfg (%cu-opts "wget" argv))
+    (set! %wget-cfg (cu-opts "wget" argv))
     (def urls (Opts operands %wget-cfg))
-    (if (null? urls) (%cu-usage "wget")
+    (if (null? urls) (cu-usage "wget")
       (do (set! %wget-msg-fd 2)
           (set! %wget-out-fd (if (string=? (if (null? (%wget-value "-O" "--output-document")) ""
                                               (%wget-value "-O" "--output-document")) "-")
@@ -722,11 +699,11 @@
       (if (if (null? log) #t (string=? log "-")) ()
         (file-open-or-err file-open-write log)))
     (if (if (null? opened) #f (Err err? opened))
-      (do (file-write 2 (string-concat (list "wget: can't open '" log "': " (file-err-text opened) "\n")))
+      (do (file-write 2 (%str-concat (list "wget: can't open '" log "': " (file-err-text opened) "\n")))
           1)
       (do (unless (null? opened) (set! %wget-msg-fd opened))
           (let ((st (guard (e (if (eq? (Err label e) (lit net))
-                                (do (%wget-say (string-concat (list "wget: " (e msg) "\n"))) 1)
+                                (do (wget-say (%str-concat (list "wget: " (e msg) "\n"))) 1)
                                 (error e)))
                       (let each ((us urls))
                         (if (null? us) 0
@@ -752,23 +729,23 @@
 (def %net-connect-or-die
   (fn (_ host port)
     (def ip (guard (_ ()) (net-resolve host)))
-    (when (null? ip) (%net-die (string-concat (list "bad address '" host "'"))))
-    (guard (e (if (eq? (%wget-err-op e) (lit connect))
-                (%net-die (string-concat
-                  (list "can't connect to remote host (" ip "): " (%wget-err-text e))))
+    (when (null? ip) (net-die (%str-concat (list "bad address '" host "'"))))
+    (guard (e (if (eq? (wget-err-op e) (lit connect))
+                (net-die (%str-concat
+                  (list "can't connect to remote host (" ip "): " (wget-err-text e))))
                 (error e)))
       (net-connect ip port))))
 
 ; S without the blanks at either end
-(def %whois-trim
+(def whois-trim
   (fn (_ s)
-    (def blank? (fn (_ c) (%wget-memv c (list #\space #\tab #\newline #\return 11 12))))
+    (def blank? (fn (_ c) (wget-memv c (list #\space #\tab #\newline #\return 11 12))))
     (def a (let go ((i 0)) (if (if (< i (byte-len s)) (blank? (byte-at s i)) #f) (go (+ i 1)) i)))
     (def b (let go ((j (byte-len s))) (if (if (> j a) (blank? (byte-at s (- j 1))) #f) (go (- j 1)) j)))
     (substring s a b)))
 
 ; what follows PREFIX at the start of S, or nil
-(def %whois-after
+(def whois-after
   (fn (_ s prefix)
     (if (if (>= (byte-len s) (byte-len prefix))
           (string=? (substring s 0 (byte-len prefix)) prefix) #f)
@@ -782,7 +759,7 @@
     (string-append
       (bytes->str
         (let go ((bs (reverse rchunk)) (acc ()))
-          (if (if (null? bs) #t (%wget-memv (first bs) (list 13 10 0)))
+          (if (if (null? bs) #t (wget-memv (first bs) (list 13 10 0)))
             (reverse acc)
             (go (rest bs) (pair (first bs) acc)))))
       "\n")))
@@ -791,10 +768,10 @@
 ; reply names no other server
 (def %whois-query
   (fn (_ host port name pfx)
-    (file-write 1 (string-concat
-      (list "[Querying " host ":" (%cu-int->str port) " '" pfx name "']\n")))
+    (file-write 1 (%str-concat
+      (list "[Querying " host ":" (cu-int->str port) " '" pfx name "']\n")))
     (def fd (%net-connect-or-die host port))
-    (net-send fd (string-concat (list pfx name "\r\n")))
+    (net-send fd (%str-concat (list pfx name "\r\n")))
     ; state: the texts so far (reversed), their length, success?, redirect
     (def st (%whois-read fd (list () 0 #f ())))
     (net-close fd)
@@ -802,7 +779,7 @@
     (def success? (first (rest (rest st))))
     (def redir (first (rest (rest (rest st)))))
     (if (if success? #t (not (string=? pfx "")))
-      (pair (string-concat (reverse texts))
+      (pair (%str-concat (reverse texts))
             (if (if (null? redir) #f (string=? redir host)) () redir))
       (%whois-query host port name "domain "))))
 
@@ -830,16 +807,16 @@
     (def len (+ (first (rest st)) (byte-len text)))
     (def success? (first (rest (rest st))))
     (def redir (first (rest (rest (rest st)))))
-    (def low (%wget-lower (%whois-trim text)))
+    (def low (Str8 downcase (whois-trim text)))
     (match
       ((not success?)
         (list texts len
-              (if (%whois-after low "domain:") #t (not (null? (%whois-after low "domain name:"))))
+              (if (whois-after low "domain:") #t (not (null? (whois-after low "domain name:"))))
               redir))
       ((null? redir)
-        (let ((p (%whois-after low "whois server:")))
-          (let ((p2 (if (null? p) (%whois-after low "whois:") p)))
-            (list texts len #t (if (null? p2) () (%whois-trim p2))))))
+        (let ((p (whois-after low "whois server:")))
+          (let ((p2 (if (null? p) (whois-after low "whois:") p)))
+            (list texts len #t (if (null? p2) () (whois-trim p2))))))
       (#t (list texts len success? redir)))))
 
 ; each server in turn: its text when it is the last or -i asks for all
@@ -847,27 +824,177 @@
   (fn (self host port name all?)
     (def r (%whois-query host port name ""))
     (when (if (null? (rest r)) #t all?)
-      (file-write 1 (string-concat (list "[" host "]\n" (first r)))))
+      (file-write 1 (%str-concat (list "[" host "]\n" (first r)))))
     (unless (null? (rest r))
-      (do (file-write 1 (string-concat (list "[Redirected to " (rest r) "]\n")))
+      (do (file-write 1 (%str-concat (list "[Redirected to " (rest r) "]\n")))
           (self (rest r) 43 name all?)))))
 
-(def %cu-whois
+(def cu-whois
   (fn (_ argv stdin-thunk)
-    (def o (%cu-opts "whois" argv))
+    (def o (cu-opts "whois" argv))
     (def names (Opts operands o))
     (def host (let ((h (Opts value o "-h"))) (if (null? h) "whois.iana.org" h)))
     (def pv (Opts value o "-p"))
-    (def port (if (null? pv) 43 (%wget-digits pv)))
+    (def port (if (null? pv) 43 (wget-digits pv)))
     (match
-      ((null? names) (%cu-usage "whois"))
+      ((null? names) (cu-usage "whois"))
       ((null? port)
-        (do (file-write 2 (string-concat (list "whois: invalid number '" pv "'\n"))) 1))
+        (do (file-write 2 (%str-concat (list "whois: invalid number '" pv "'\n"))) 1))
       (#t
         (guard (e (if (eq? (Err label e) (lit net))
-                    (do (file-write 2 (string-concat (list "whois: " (e msg) "\n"))) 1)
+                    (do (file-write 2 (%str-concat (list "whois: " (e msg) "\n"))) 1)
                     (error e)))
           (let each ((ns names))
             (if (null? ns) 0
               (do (%whois-chase host port (first ns) (Opts on? o "-i"))
                   (each (rest ns))))))))))
+
+(def %ftp-buf "")  ; what has arrived on it past the last line handed out
+
+(def ftp-code (fn (_ l) (wget-digits (substring l 0 3))))
+
+; a TCP connection to IP's PORT, or the run ends as busybox's
+; xconnect_stream ends it
+(def ftp-connect
+  (fn (_ ip port)
+    (guard (e (if (eq? (wget-err-op e) (lit connect))
+                (net-die (%str-concat
+                  (list "can't connect to remote host (" ip "): " (wget-err-text e))))
+                (error e)))
+      (net-connect ip port))))
+
+; busybox's parse_pasv_epsv: the data port a 227 reply's last two numbers make,
+; or the one between an EPSV reply's last two |s; nil when there is none
+(def ftp-data-port
+  (fn (_ l)
+    (if (= (byte-at l 2) #\7)
+      (let ((close (Str8 last-index-of ")" l)))
+        (let ((s (if (null? close)
+                   (let ((cr (Str8 last-index-of "\r" l))) (if (null? cr) l (substring l 0 cr)))
+                   (substring l 0 close))))
+          (let ((c2 (Str8 last-index-of "," s)))
+            (if (null? c2) ()
+              (let ((c1 (Str8 last-index-of "," (substring s 0 c2))))
+                (if (null? c1) ()
+                  (let ((hi (wget-digits (substring s (+ c1 1) c2)))
+                        (lo (wget-digits (substring s (+ c2 1) (byte-len s)))))
+                    (if (if (null? hi) #t (null? lo)) ()
+                      (if (if (> hi 255) #t (> lo 255)) () (+ (* hi 256) lo))))))))))
+      (let ((b2 (Str8 last-index-of "|" l)))
+        (if (null? b2) ()
+          (let ((b1 (Str8 last-index-of "|" (substring l 0 b2))))
+            (if (null? b1) ()
+              (let ((p (wget-digits (substring l (+ b1 1) b2))))
+                (if (null? p) () (if (> p 65535) () p))))))))))
+
+(def ftp-fd -1)   ; the control connection
+
+; a reply's last line: three digits and a space
+(def ftp-final?
+  (fn (_ l)
+    (if (>= (byte-len l) 4)
+      (if (if (>= (byte-at l 0) #\0) (<= (byte-at l 0) #\9) #f) (= (byte-at l 3) #\space) #f)
+      #f)))
+
+; the next line from the server without its newline, or nil when the
+; connection ends with nothing more; a last line with no newline is a line
+(def ftp-line
+  (fn (self)
+    (def nl (wget-index %ftp-buf #\newline 0))
+    (if (null? nl)
+      (let ((r (net-recv-run ftp-fd 4096)))
+        (if (null? r)
+          (if (= (byte-len %ftp-buf) 0) ()
+            (let ((l %ftp-buf)) (do (set! %ftp-buf "") l)))
+          (do (set! %ftp-buf (string-append %ftp-buf (substring (first r) 0 (rest r))))
+              (self))))
+      (let ((l (substring %ftp-buf 0 nl)))
+        (do (set! %ftp-buf (substring %ftp-buf (+ nl 1) (byte-len %ftp-buf)))
+            l)))))
+
+(def ftp-open!
+  (fn (_ fd) (do (set! ftp-fd fd) (set! %ftp-buf "") (set! ftp-reply ""))))
+
+(def ftp-reply "") ; the last reply line, as read
+
+(def ftp-send
+  (fn (_ line) (net-send ftp-fd (string-append line "\r\n"))))
+
+; prepare_ftp_session: logged in, the size asked, the data connection open and
+; RETR asked.  Answers (DATA . CLEN), CLEN nil when SIZE is not answered 213
+(def %wget-ftp-session
+  (fn (_ t ip)
+    (def np (wget-name-port t))
+    (ftp-open! (ftp-connect ip (rest np)))
+    (unless (= (%wget-ftpcmd () ()) 220) (wget-die ftp-reply))
+    (def u (wget-user t))
+    (def colon (if (null? u) () (wget-index u #\: 0)))
+    (def user (match ((null? u) "anonymous") ((null? colon) u) (#t (substring u 0 colon))))
+    (def pass (match ((null? u) "busybox") ((null? colon) "") (#t (substring u (+ colon 1) (byte-len u)))))
+    (match
+      ((= (%wget-ftpcmd "USER " user) 230) ())
+      ((if (= (ftp-code ftp-reply) 331) (= (%wget-ftpcmd "PASS " pass) 230) #f) ())
+      (#t (wget-die (string-append "ftp login: " ftp-reply))))
+    (%wget-ftpcmd "TYPE I" ())
+    (def clen
+      (if (= (%wget-ftpcmd "SIZE " (wget-path t)) 213)
+        (let ((n (wget-digits (substring ftp-reply 4 (byte-len ftp-reply)))))
+          (if (null? n)
+            (wget-die (%str-concat (list "bad SIZE value '" (substring ftp-reply 4 (byte-len ftp-reply)) "'")))
+            n))
+        ()))
+    (unless (= (%wget-ftpcmd "EPSV" ()) 229)
+      (unless (= (%wget-ftpcmd "PASV" ()) 227)
+        (wget-die (string-append "bad response to PASV: " ftp-reply))))
+    (def port (ftp-data-port ftp-reply))
+    (when (null? port) (wget-die (string-append "bad response to PASV: " ftp-reply)))
+    (def data (ftp-connect ip port))
+    (def len
+      (if (> (wget-beg) 0)
+        (if (= (%wget-ftpcmd (string-append "REST " (cu-int->str (wget-beg))) ()) 350)
+          (if (null? clen) () (- clen (wget-beg)))
+          (do (wget-restart-failed!) clen))
+        clen))
+    (when (> (%wget-ftpcmd "RETR " (wget-path t)) 150)
+      (wget-die (string-append "bad response to RETR: " ftp-reply)))
+    (pair data len)))
+
+; one exchange as wget.c's ftpcmd has it: S1 and S2 sent joined, shown with -S
+; as "--> S1S2" and a blank line; each line read shown with -S, cut at its first
+; control byte; the connection ending is "error getting response"
+(def %wget-ftpcmd
+  (fn (_ s1 s2)
+    (unless (null? s1)
+      (let ((line (string-append s1 (if (null? s2) "" s2))))
+        (do (ftp-send line)
+            (when (wget-show?) (wget-say (%str-concat (list "--> " line "\n\n")))))))
+    (let go ()
+      (let ((l (ftp-line)))
+        (when (null? l) (wget-die "error getting response"))
+        (let ((s (wget-sanitize l)))
+          (do (set! ftp-reply s)
+              (when (wget-show?) (wget-say (string-append s "\n")))
+              (if (ftp-final? s) (ftp-code s) (go))))))))
+
+; one try at an ftp:// url: the session, the file (or --spider's answer), then
+; the server's 226.  Answers done, or the bytes a partial download got
+(def wget-ftp-hop
+  (fn (_ t ip fname)
+    (def dl (%wget-ftp-session t ip))
+    (def data (first dl))
+    (def outcome
+      (if (wget-on? "--spider" "--spider")
+        (do (unless (wget-quiet?) (wget-say "remote file exists\n"))
+            (lit done))
+        (do (if (string=? fname "-") (wget-out-fd! 1) (wget-out! fname))
+            (let ((r (wget-retrieve (fn (_ n) (net-recv-run data n)) fname (rest dl) #f)))
+              (if (rest r) (lit done) (first r))))))
+    (net-close data)
+    (unless (= (%wget-ftpcmd () ()) 226) (wget-die (string-append "ftp error: " ftp-reply)))
+    (net-close ftp-fd)
+    outcome))
+
+(provide cu/net cu-dial cu-dial-host cu-wget cu-whois ftp-code ftp-connect
+  ftp-data-port ftp-fd ftp-final? ftp-line ftp-open! ftp-reply ftp-send
+  wget-last-part wget-open-failure wget-pm-init! wget-pm-update! wget-times
+  whois-after whois-trim)
