@@ -2937,6 +2937,39 @@ stderr:
 status 0
 ```
 
+### bunzip2
+
+```cu
+(run (list "bunzip2" "--help") "")
+```
+---
+```output
+Usage: bunzip2 [-cfk] [FILE]...|
+|
+Decompress FILEs (or stdin)|
+|
+	-c	Write to stdout|
+	-f	Force|
+	-k	Keep input files|
+	-t	Test integrity|
+stderr:
+status 0
+```
+
+### bzcat
+
+```cu
+(run (list "bzcat" "--help") "")
+```
+---
+```output
+Usage: bzcat [FILE]...|
+|
+Decompress to stdout|
+stderr:
+status 0
+```
+
 ### unzip
 
 ```cu
