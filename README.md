@@ -144,6 +144,7 @@ a line:**
     pscan
     pstree
     pwd
+    rdate
     readlink
     renice
     reset
@@ -482,6 +483,7 @@ The applets tested there so far:
     cu/procps.x       uptime, free, ps (and minips, its other name), pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
     cu/pscan.x        pscan: a TCP port scan of a host, its open ports and their services
     cu/pstree.x       pstree: the process tree, its threads too, from a process or for a user
+    cu/rdate.x        rdate: the time asked of a server by RFC 868, set and shown
     cu/route.x        route: the routing tables shown, and routes added and deleted through the kernel's ioctls
     cu/runparts.x     run-parts: a directory's scripts, in order
     cu/sendmail.x     sendmail: a message on stdin sent by SMTP, -S or a -H helper, AUTH LOGIN or PLAIN
