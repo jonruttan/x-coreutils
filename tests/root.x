@@ -62,6 +62,7 @@
 (import cu/hexdump cu-hd cu-hexdump cu-xxd)
 (import cu/httpd cu-httpd hd-crypt-equal? hd-system-password hd-ugid)
 (import cu/ifconfig cu-ifconfig if-ref if-req)
+(import cu/ifplugd cu-ifplugd)
 (import cu/inet inet-addr-host inet-addr-host6 inet-aton inet-dec inet-dotted
   inet-hex inet-hex8 inet-host-addr inet-int32 inet-ioctl inet-left inet-ntop6
   inet-ntop6-bytes inet-pton6! inet-resolve inet-rresolve inet-service

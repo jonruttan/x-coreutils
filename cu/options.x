@@ -2734,6 +2734,37 @@
           "Relay DHCP requests between clients and server.\nWithout SERVER_IP, requests are broadcast on SERVER_IFACE."
           (list))
         (lit none)))
+    ; getopt's leading +: the parse stops at the first operand, and ifplugd
+    ; reads none
+    (pair "ifplugd"
+      (list
+        (Opts declare "ifplugd" "[OPTIONS]"
+          "Network interface plug detection daemon"
+          (append
+            (list
+              (Opts text "\t-n\t\tRun in foreground")
+              (Opts text "\t-s\t\tDon't log to syslog")
+              (Opts text "\t-i IFACE\tInterface")
+              (Opts text "\t-f/-F\t\tTreat link detection error as link down/link up")
+              (Opts text "\t\t\t(otherwise exit on error)")
+              (Opts text "\t-a\t\tDon't up interface at each link probe")
+              (Opts text "\t-M\t\tMonitor creation/destruction of interface")
+              (Opts text "\t\t\t(otherwise it must exist)")
+              (Opts text "\t-A\t\tDon't up newly appeared interface")
+              (Opts text "\t-r PROG\t\tScript to run")
+              (Opts text "\t-x ARG\t\tExtra argument for script")
+              (Opts text "\t-I\t\tDon't exit on nonzero exit code from script")
+              (Opts text "\t-p\t\tDon't run \"up\" script on startup")
+              (Opts text "\t-q\t\tDon't run \"down\" script on exit")
+              (Opts text "\t-l\t\tAlways run script on startup")
+              (Opts text "\t-t SECS\t\tPoll time in seconds")
+              (Opts text "\t-u SECS\t\tDelay before running script after link up")
+              (Opts text "\t-d SECS\t\tDelay after link down")
+              (Opts text "\t-m MODE\t\tAPI mode (mii, priv, ethtool, wlan, iff, auto)")
+              (Opts text "\t-k\t\tKill running daemon"))
+            (%cu-hidden-flags (list "-a" "-n" "-s" "-f" "-F" "-I" "-p" "-q" "-l" "-M" "-A" "-k"))
+            (%cu-hidden-args (list "-i" "-r" "-t" "-u" "-d" "-m" "-x"))))
+        (lit leading)))
     ; arp's help lays its rows out with two tabs, by hand
     (pair "arp"
       (list

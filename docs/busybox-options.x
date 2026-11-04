@@ -46,6 +46,7 @@
                             "--request-option" "--no-default-options" "--foreground" "--stateless"
                             "--background")))
     (list "dhcprelay" ())
+    (list "ifplugd" (%letters "ansfFirItudmpqlxMAk"))
     (list "ascii" ())
     (list "base32" (%letters "diw"))
     (list "base64" (%letters "dw"))
