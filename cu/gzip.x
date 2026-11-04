@@ -38,7 +38,8 @@
 
 (def %gz-room 32768)
 
-(def gz-copy (prim-ref (lit mem) (lit copy)))
+(import x/core/doors mem-copy)
+(def gz-copy mem-copy)
 (def gz-at (fn (_ p off) (cu-int->ptr (+ ((prim-ref (lit ptr) (lit ->int)) p) off))))
 
 ; the run ends: MSG said under the applet's NAME, and the status 1

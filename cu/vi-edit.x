@@ -255,7 +255,8 @@
   (fn (_)
     (def c (vi- (%vi| (%vi-get-one-char) 32) #\a))
     (if (if (vi< c 0) #f (vi< c 26)) (set! %vi-ydreg c) (%vi-indicate-error))))
-(def %vi| (prim-ref (lit int) (lit |)))
+(import x/core/doors int|)
+(def %vi| int|)
 
 ; --- marks ------------------------------------------------------------------
 

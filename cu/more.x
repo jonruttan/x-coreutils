@@ -38,7 +38,7 @@
 
 ; --- the doors --------------------------------------------------------------
 
-(def %more/ (prim-ref (lit int) (lit /)))
+(import x/core/doors int/)
 (def %more-cr (bytes->str (list #\return)))
 (def %more-esc (bytes->str (list #\escape)))
 ; the byte a control key types: Ctrl-C is 3
@@ -86,9 +86,9 @@
 (def %more-prompt-text
   (fn (_)
     (if (= %more-size 0) "--More-- "
-      (let ((d (if (< %more-size 100) 1 (%more/ %more-size 100))))
+      (let ((d (if (< %more-size 100) 1 (int/ %more-size 100))))
         (%str-concat
-          (list "--More-- (" (cu-int->str (%more/ %more-pos d))
+          (list "--More-- (" (cu-int->str (int/ %more-pos d))
                 "% of " (cu-int->str %more-size) " bytes)"))))))
 
 ; a key as busybox's tolower reads it, Enter as a newline
