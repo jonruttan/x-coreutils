@@ -33,11 +33,11 @@
 (import cu/ping pn-be16 pn-div pn-now pn-setopt)
 (import cu/prims append byte-at byte-len cu-err-label cu-hexs cu-int->str
   cu-libc-sym cu-nth cu-ptr-call cu-ptr-ref cu-str->ptr file-close
-  integer->char length libc-strerror list->string map reverse string-append
-  string=? substring sys-exit sys-usleep)
+  length libc-strerror map reverse string-append string=? substring
+  sys-exit sys-usleep)
 (import cu/telnetd td-ptr->int)
 (import cu/udhcp ud-6rd ud-ack ud-add-option! ud-add-simple! ud-arpping
-  ud-be16! ud-be32 ud-be32! ud-byte ud-bytes ud-bytes-be ud-catch! ud-chaddr
+  ud-be16! ud-be32 ud-be32! ud-byte ud-bytes ud-bytes-be ud-catch! ud-chaddr ud-dname-dec
   ud-child? ud-ciaddr ud-cksum ud-daemonize! ud-decline ud-die ud-discover
   ud-dns-string ud-dotted ud-dump ud-end ud-end-option ud-errno ud-error
   ud-file ud-find-option ud-flags ud-get-option ud-get-option32 ud-giaddr
@@ -45,10 +45,10 @@
   ud-logging! ud-ms ud-nak ud-offer ud-optflag-named ud-optflag-of ud-optflags
   ud-options ud-packet ud-packet-size ud-process-reset! ud-put!
   ud-read-interface ud-recv-kernel ud-release ud-remove-pidfile ud-req
-  ud-request ud-s32 ud-same? ud-scan-overload ud-secs ud-send-kernel
+  ud-nip6 ud-request ud-s32 ud-same? ud-scan-overload ud-secs ud-send-kernel
   ud-send-raw ud-set! ud-siaddr ud-sip-servers ud-sname ud-spawn
   ud-static-routes ud-status ud-str-bytes ud-str2optset ud-string
-  ud-string-host ud-strtou ud-taken ud-type-length ud-u16 ud-u32 ud-u8
+  ud-string-host ud-strtou ud-taken ud-text ud-type-length ud-u16 ud-u32 ud-u8
   ud-verbose ud-write-pidfile ud-xid ud-yiaddr ud-zeros)
 (import cu/vi vi-bundle-version)
 
@@ -103,7 +103,6 @@
 (def %uc-mton
   (fn (_ m) (let go ((m m) (i 0)) (if (= m 0) i (go (& (<< m 1) 4294967295) (+ i 1))))))
 
-(def %uc-text (fn (_ l) (list->string (map integer->char l))))
 (def %uc-upto-nul
   (fn (_ l) (let go ((left l) (acc ())) (if (if (null? left) #t (= (first left) 0)) (reverse acc) (go (rest left) (pair (first left) acc))))))
 
@@ -117,36 +116,6 @@
       (null? (List find (fn (_ c) (not (ok? c))) l)))))
 
 (def %uc-hex4 (fn (_ l) (%str-concat (map ud-hex2 l))))
-
-; sprint_nip6
-(def %uc-nip6
-  (fn (_ l)
-    (Str8 join ":" (let go ((left l) (acc ())) (if (null? left) (reverse acc) (go (List drop 2 left) (pair (%uc-hex4 (List take 2 left)) acc)))))))
-
-; dname_dec: the names in L, a space between, after PRE; nil where L
-; holds no label or is not one
-(def %uc-dname
-  (fn (_ l pre)
-    (def n (length l))
-    (def at (fn (_ i) (cu-nth i l)))
-    (let go ((pos 0) (ret 0) (depth 0) (out (reverse (ud-str-bytes pre))) (len (byte-len pre)) (labels #f))
-      (if (>= pos n)
-        (if labels (%uc-text (reverse (rest out))) ())
-        (let ((c (at pos)))
-          (def next
-            (match
-              ((= (& c 192) 192)
-               (if (> (+ pos 2) n) ()
-                 (list (& (+ (* c 256) (at (+ pos 1))) 16383) (if (= ret 0) (+ pos 2) ret) (+ depth 1) out len labels)))
-              ((not (= c 0))
-               (if (> (+ pos c 1) n) ()
-                 (list (+ pos c 1) ret depth
-                       (pair #\. (append (reverse (List take c (List drop (+ pos 1) l))) out))
-                       (+ len c 1) #t)))
-              (#t (list (if (= ret 0) (+ pos 1) ret) (if (= ret 0) ret 0) (if (= ret 0) depth 0)
-                        (if (= len 0) out (pair #\space (rest out))) len labels))))
-          (if (if (null? next) #t (if (> (cu-nth 2 next) 6) #t (> (cu-nth 4 next) 6150))) ()
-            (go (first next) (cu-nth 1 next) (cu-nth 2 next) (cu-nth 3 next) (cu-nth 4 next) (cu-nth 5 next))))))))
 
 ; xmalloc_optname_optval: NAME=, then DATA as FLAGS' type says; a name
 ; decoded is the whole of it, NAME= included, as dname_dec writes it
@@ -172,19 +141,19 @@
          (let ((s (%uc-upto-nul l)))
            (if (if (= type ud-string-host) (not (%uc-good-name? s)) #f)
              (substring "bad" 0 (if (< (length l) 4) (- (length l) 1) 3))
-             (%uc-text s))))
+             (ud-text s))))
         ((= type ud-static-routes) (%uc-routes l ""))
         ((= type ud-6rd)
          (if (if (>= (length l) 22) (if (<= (first l) 32) (<= (- (+ (cu-nth 1 l) 32) (first l)) 128) #f) #f)
            (%str-concat (list (cu-int->str (first l)) " " (cu-int->str (cu-nth 1 l)) " "
-                              (%uc-nip6 (List take 16 (List drop 2 l))) " "
+                              (ud-nip6 (List take 16 (List drop 2 l))) " "
                               (self ud-ip 4 (List drop 18 l) pre)))
            ""))
         ((= type ud-dns-string)
-         (let ((d (%uc-dname l pre))) (if (null? d) "" (pair (lit whole) d))))
+         (let ((d (ud-dname-dec l pre))) (if (null? d) "" (pair (lit whole) d))))
         ((= type ud-sip-servers)
          (match ((= (first l) 1) (self ud-ip 4 (rest l) pre))
-                ((= (first l) 0) (let ((d (%uc-dname (rest l) pre))) (if (null? d) "" (pair (lit whole) d))))
+                ((= (first l) 0) (let ((d (ud-dname-dec (rest l) pre))) (if (null? d) "" (pair (lit whole) d))))
                 (#t "")))
         (#t "")))))
 
@@ -225,7 +194,7 @@
                                  (%uc-optval (first f) bytes (cu-nth 2 f)))))
                 (def item (list code bytes text))
                 (go (rest l) (append mask (if (null? old) (pair item acc) (map (fn (_ i) (if (eq? i old) item i)) acc))))))))
-        (def field (fn (_ at n) (%uc-text (%uc-upto-nul (ud-bytes p at n)))))
+        (def field (fn (_ at n) (ud-text (%uc-upto-nul (ud-bytes p at n)))))
         (append head (map (fn (_ i) (cu-nth 2 i)) items)
           (list (say (string-append "ip=" (ud-dotted (ud-be32 p ud-yiaddr)))))
           (if (= (ud-be32 p ud-siaddr) 0) () (list (say (string-append "siaddr=" (ud-dotted (ud-be32 p ud-siaddr))))))
@@ -468,11 +437,11 @@
     (set! %uc-arp (if (Opts on? o "-a") (%uc-number (if (null? msec) "2000" msec) 4294967295) ()))
     (map (fn (_ s)
            (let ((r (ud-strtou s 0)))
-             (%uc-ask! (if (if (rest r) (<= (first r) 254) #f) (first r) (first (rest (ud-optflag-named s)))))))
+             (%uc-ask! (if (if (rest r) (<= (first r) 254) #f) (first r) (first (rest (ud-optflag-named s ud-optflags)))))))
          (Opts values o "-O"))
     (unless (Opts on? o "-o")
       (map (fn (_ f) (unless (= (& (first f) ud-req) 0) (%uc-ask! (first (rest f))))) ud-optflags))
-    (map (fn (_ x) (set! %uc-options (rest (ud-str2optset x %uc-options)))) (Opts values o "-x"))
+    (map (fn (_ x) (set! %uc-options (rest (ud-str2optset x %uc-options ud-optflags #f)))) (Opts values o "-x"))
     (let ((v (Opts value o "-V" (string-append "udhcp " (vi-bundle-version)))))
       (unless (= (byte-len v) 0)
         (let ((b (ud-str-bytes (if (> (byte-len v) 254) (substring v 0 254) v))))

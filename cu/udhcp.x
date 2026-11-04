@@ -7,7 +7,7 @@
 ; @license MIT No Attribution (MIT-0)
 ;
 ; busybox 1.36.1's networking/udhcp: common.c, packet.c, socket.c,
-; arpping.c and domain_codec.c's encoder, built as its defconfig builds
+; arpping.c and domain_codec.c, built as its defconfig builds
 ; them -- RFC 3397 and 802.1Q options on, no -P.
 ;
 ; Addresses are kept as numbers in host order, the first byte highest.
@@ -23,13 +23,14 @@
 
 (import cu/inet inet-host-addr inet-set!)
 (import cu/inetd in-call in-percent)
-(import cu/ping pn-be16 pn-byte pn-div pn-fold pn-now pn-setopt pn-sol-socket
-  pn-sum)
+(import cu/ping pn-af6 pn-be16 pn-byte pn-div pn-fold pn-now pn-setopt
+  pn-sol-socket pn-sum)
 (import cu/prims append byte-at byte-len cu-hexs cu-int->str cu-libc-sym
   cu-nth cu-ptr-call cu-ptr-ref cu-stat-get cu-stdin-to-command! cu-str->ptr
-  file-close file-fstat-full file-unlink file-write filter hx-strtoul length
-  libc-strerror map reverse str-make-raw string-append string=? substring
-  sys-dup2 sys-exec sys-exit sys-fork sys-getpid sys-setenv sys-wait)
+  file-close file-fstat-full file-unlink file-write filter hx-strtoul
+  integer->char length libc-strerror list->string map reverse str-make-raw
+  string-append string=? substring sys-dup2 sys-exec sys-exit sys-fork
+  sys-getpid sys-setenv sys-wait)
 (import cu/telnetd td-ptr->int)
 (import cu/text cu-pad-zero)
 
@@ -99,6 +100,37 @@
 
 (def ud-hex2 (fn (_ b) (cu-pad-zero (cu-hexs b) 2)))
 (def ud-mac-text (fn (_ l) (Str8 join ":" (map ud-hex2 l))))
+(def ud-text (fn (_ l) (list->string (map integer->char l))))
+
+; sprint_nip6: the 16 bytes of L, every group four digits
+(def ud-nip6
+  (fn (_ l)
+    (Str8 join ":" (let go ((left l) (acc ())) (if (null? left) (reverse acc) (go (List drop 2 left) (pair (%ud-hex-text (List take 2 left)) acc)))))))
+
+; dname_dec: the names in L, a space between, after PRE; nil where L
+; holds no label or is not one
+(def ud-dname-dec
+  (fn (_ l pre)
+    (def n (length l))
+    (def at (fn (_ i) (cu-nth i l)))
+    (let go ((pos 0) (ret 0) (depth 0) (out (reverse (ud-str-bytes pre))) (len (byte-len pre)) (labels #f))
+      (if (>= pos n)
+        (if labels (ud-text (reverse (rest out))) ())
+        (let ((c (at pos)))
+          (def next
+            (match
+              ((= (& c 192) 192)
+               (if (> (+ pos 2) n) ()
+                 (list (& (+ (* c 256) (at (+ pos 1))) 16383) (if (= ret 0) (+ pos 2) ret) (+ depth 1) out len labels)))
+              ((not (= c 0))
+               (if (> (+ pos c 1) n) ()
+                 (list (+ pos c 1) ret depth
+                       (pair #\. (append (reverse (List take c (List drop (+ pos 1) l))) out))
+                       (+ len c 1) #t)))
+              (#t (list (if (= ret 0) (+ pos 1) ret) (if (= ret 0) ret 0) (if (= ret 0) depth 0)
+                        (if (= len 0) out (pair #\space (rest out))) len labels))))
+          (if (if (null? next) #t (if (> (cu-nth 2 next) 6) #t (> (cu-nth 4 next) 6150))) ()
+            (go (first next) (cu-nth 1 next) (cu-nth 2 next) (cu-nth 3 next) (cu-nth 4 next) (cu-nth 5 next))))))))
 
 ; host_and_af2sockaddr for AF_INET: S's address, a dotted one or a name
 ; looked up, a :PORT after it passed over; nil where it is not one, said
@@ -209,10 +241,11 @@
 
 (def ud-optflag-of (fn (_ code) (List find (fn (_ f) (= (first (rest f)) code)) ud-optflags)))
 
-; udhcp_option_idx: NAME's entry, else the run ends naming every one known
+; udhcp_option_idx: NAME's entry in TABLE, else the run ends naming every
+; one known
 (def ud-optflag-named
-  (fn (_ name)
-    (def named (filter (fn (_ f) (not (null? (%ud-name-of f)))) ud-optflags))
+  (fn (_ name table)
+    (def named (filter (fn (_ f) (not (null? (%ud-name-of f)))) table))
     (def f (List find (fn (_ f) (string=? (%ud-name-of f) name)) named))
     (if (null? f)
       (ud-die (%str-concat (list "unknown option '" name "', known options: "
@@ -279,9 +312,12 @@
     (if (if (null? bad) (<= (length out) 255) #f) out ())))
 
 ; attach_option: SET with VALUE's bytes for FLAG's code, a list option's
-; bytes added to the one there while it stays under 255
+; bytes added to the one there while it stays under 255.  For DHCPv6 the
+; code is the low byte of two, which busybox reads where DHCP keeps the
+; length: a new option goes last, before every other only for code 0, and
+; a list option's bytes are not added, its code raised by their count.
 (def %ud-attach
-  (fn (_ set flag value)
+  (fn (_ set flag value v6)
     (def type (& (first flag) 15))
     (def bytes (match ((= type ud-bin)
                        (let ((b (%ud-hex2bin value)))
@@ -290,29 +326,39 @@
                       (#t value)))
     (def code (first (rest flag)))
     (def existing (ud-find-option set code))
-    (match ((null? existing) (ud-insert set (pair code (pair (length bytes) bytes))))
+    (def opt (pair code (pair (length bytes) bytes)))
+    (match ((null? existing)
+            (if (not v6) (ud-insert set opt)
+              (do (ud-log2 (%str-concat (list "attaching option " (ud-hex2 code) " to list")))
+                  (if (= code 0) (pair opt set) (append set (list opt))))))
            ((= (& (first flag) ud-list) 0) set)
+           (v6
+            (do (ud-log2 (%str-concat (list "attaching option " (ud-hex2 code) " to existing member of list")))
+                (if (< (+ (first existing) (length bytes)) 255)
+                  (%ud-replace set existing (pair (+ (first existing) (length bytes)) (rest existing)))
+                  set)))
            (#t
             (do (ud-log2 (%str-concat (list "attaching option " (ud-hex2 code) " to existing member of list")))
                 (if (< (+ (first (rest existing)) (length bytes)) 255)
                   (%ud-replace set existing (pair code (pair (+ (first (rest existing)) (length bytes)) (append (rest (rest existing)) bytes))))
                   set))))))
 
-; udhcp_str2optset: LINE, "NAME VALUE..." or "CODE VALUE", added to SET;
-; (OK . SET), the values read before one not read kept
+; udhcp_str2optset: LINE, "NAME VALUE..." or "CODE VALUE", added to SET,
+; NAME looked up in TABLE, the option DHCPv6's where V6; (OK . SET), the
+; values read before one not read kept
 (def ud-str2optset
-  (fn (_ line set)
+  (fn (_ line set table v6)
     (def name (ud-strtok line 0 " \t=:"))
     (if (null? name) (pair #f set)
       (let ((num (ud-strtou (first name) 0)))
         (def flag (if (if (rest num) (< (first num) 255) #f)
                     (list ud-bin (first num) ())
-                    (ud-optflag-named (first name))))
-        (%ud-values line (rest name) flag set #f)))))
+                    (ud-optflag-named (first name) table)))
+        (%ud-values line (rest name) flag set #f v6)))))
 
 ; OK: whether a value was read before this one; a list ends at its last
 (def %ud-values
-  (fn (self line at flag set ok)
+  (fn (self line at flag set ok v6)
     (def type (& (first flag) 15))
     (def tok (if (= type ud-bin)
                (let ((t (ud-strtok line at ""))) (if (null? t) () (pair (%ud-trim (first t)) (rest t))))
@@ -321,9 +367,9 @@
       (let ((r (%ud-value line (first tok) (rest tok) flag)))
         ; r: (BYTES-OR-NIL NEXT FLAG)
         (if (null? (first r)) (pair #f set)
-          (let ((set (%ud-attach set (cu-nth 2 r) (first r))))
+          (let ((set (%ud-attach set (cu-nth 2 r) (first r) v6)))
             (if (= (& (first flag) ud-list) 0) (pair #t set)
-              (self line (first (rest r)) flag set #t))))))))
+              (self line (first (rest r)) flag set #t v6))))))))
 
 (def %ud-trim
   (fn (_ s)
@@ -606,19 +652,32 @@
       (do (cu-ptr-call (cu-libc-sym "memcpy") (cu-str->ptr b) name (if (> (byte-len name) 15) 15 (byte-len name)))
           (in-call (cu-ptr-call (cu-libc-sym "setsockopt") fd pn-sol-socket 25 (cu-str->ptr b) 16))))))
 
+; a sockaddr_in6 for the 16 bytes of ADDR, PORT and SCOPE
+(def ud-sin6
+  (fn (_ addr port scope)
+    (let ((b (ud-zeros 28)))
+      (do (if os-darwin? (do (ud-set! b 0 28) (ud-set! b 1 pn-af6)) (inet-set! b 0 pn-af6 2))
+          (ud-be16! b 2 port) (ud-put! b 8 addr) (inet-set! b 24 scope 4) b))))
+
 ; udhcp_listen_socket: UDP on PORT, broadcasts let in, bound to INF -- an
 ; alias's colon and what follows dropped
-(def ud-listen
-  (fn (_ port inf)
+(def ud-listen (fn (_ port inf) (%ud-listen port inf #f)))
+
+; d6_listen_socket: the same over IPv6
+(def ud-listen6 (fn (_ port inf) (%ud-listen port inf #t)))
+
+(def %ud-listen
+  (fn (_ port inf v6)
     (ud-log2 (%str-concat (list "opening listen socket on *:" (cu-int->str port) " " inf)))
-    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") 2 2 17)))
+    (def fd (in-call (cu-ptr-call (cu-libc-sym "socket") (if v6 pn-af6 2) 2 17)))
     (when (< fd 0) (ud-die (string-append "socket: " (libc-strerror (ud-errno fd)))))
     (pn-setopt fd pn-sol-socket 2 1)
     (when (< (pn-setopt fd pn-sol-socket 6 1) 0) (ud-die (string-append "SO_BROADCAST: " (libc-strerror (Err errno-of -1)))))
     (def dev (let go ((i (- (byte-len inf) 1))) (match ((< i 0) inf) ((= (byte-at inf i) #\:) (substring inf 0 i)) (#t (go (- i 1))))))
     (let ((r (ud-bind-device fd dev)))
       (when (< r 0) (ud-die (%str-concat (list "can't bind to interface " dev ": " (libc-strerror (ud-errno r)))))))
-    (let ((r (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (ud-sin 0 port)) 16))))
+    (let ((r (if v6 (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (ud-sin6 (ud-bytes (ud-zeros 16) 0 16) port 0)) 28))
+               (in-call (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (ud-sin 0 port)) 16)))))
       (when (< r 0) (ud-die (string-append "bind: " (libc-strerror (ud-errno r))))))
     fd))
 
@@ -763,15 +822,17 @@
 (provide cu/udhcp ud-6rd ud-ack ud-add-option! ud-add-simple! ud-arpping
   ud-aton ud-be16! ud-be32 ud-be32! ud-byte ud-bytes ud-bytes-be ud-catch!
   ud-chaddr ud-child? ud-ciaddr ud-cksum ud-daemonize! ud-decline ud-die
-  ud-discover ud-dns-string ud-dotted ud-dump ud-end ud-end-option ud-errno
-  ud-error ud-file ud-find-option ud-flags ud-get-option ud-get-option32
-  ud-giaddr ud-hex2 ud-hlen ud-info ud-inform ud-insert ud-interface-address
-  ud-ip ud-ip-pair ud-listen ud-log1 ud-log2 ud-logging! ud-mac-text ud-ms
-  ud-nak ud-now ud-offer ud-op ud-optflag-named ud-optflag-of ud-optflags
-  ud-options ud-packet ud-packet-size ud-perror ud-process-reset! ud-put!
-  ud-read-interface ud-recv-kernel ud-recv-kernel-sized ud-release
-  ud-remove-pidfile ud-req ud-request ud-s32 ud-same? ud-scan-overload ud-secs
-  ud-send-kernel ud-send-raw ud-set! ud-siaddr ud-sin ud-sip-servers ud-sname
+  ud-discover ud-dname-dec ud-dns-string ud-dotted ud-dump ud-end
+  ud-end-option ud-errno ud-error ud-file ud-find-option ud-flags
+  ud-get-option ud-get-option32 ud-giaddr ud-hex2 ud-hlen ud-info ud-inform
+  ud-insert ud-interface-address ud-ip ud-ip-pair ud-list ud-listen ud-listen6
+  ud-log1 ud-log2 ud-logging! ud-mac-text ud-ms ud-nak ud-nip6 ud-now ud-offer
+  ud-op ud-optflag-named ud-optflag-of ud-optflags ud-options ud-packet
+  ud-packet-size ud-perror ud-process-reset! ud-put! ud-read-interface
+  ud-recv-kernel ud-recv-kernel-sized ud-release ud-remove-pidfile ud-req
+  ud-request ud-s32 ud-same? ud-scan-overload ud-secs ud-send-kernel
+  ud-send-raw ud-set! ud-siaddr ud-sin ud-sin6 ud-sip-servers ud-sname
   ud-spawn ud-static-routes ud-status ud-str-bytes ud-str2nip ud-str2optset
-  ud-string ud-string-host ud-strtok ud-strtou ud-taken ud-type-length ud-u16
-  ud-u32 ud-u8 ud-verbose ud-write-pidfile ud-xid ud-yiaddr ud-zeros)
+  ud-string ud-string-host ud-strtok ud-strtou ud-taken ud-text
+  ud-type-length ud-u16 ud-u32 ud-u8 ud-verbose ud-write-pidfile ud-xid
+  ud-yiaddr ud-zeros)
