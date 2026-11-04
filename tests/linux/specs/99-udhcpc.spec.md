@@ -158,7 +158,10 @@ status and the script's log are compared.
           (lc-drain)
           (Heap collect)
           (def srv (lc-server server))
-          (def pid (lc-client side (append (list "-i" "uc1" "-s" "/tmp/uc-script.sh" "-T" "1") args)))
+          ; -T 1 unless the case gives its own
+          (def pid (lc-client side (append (list "-i" "uc1" "-s" "/tmp/uc-script.sh")
+                                           (if (List any? (fn (_ a) (string=? a "-T")) args) () (list "-T" "1"))
+                                           args)))
           (map (fn (_ s) (s pid)) steps)
           ; a client still running after a minute is killed, so a run that
           ; went wrong fails in its own case
@@ -258,7 +261,9 @@ same
 Packets with another's transaction ID or MAC, without a type, and an ACK
 before any OFFER are passed over; an OFFER with no server ID is taken as
 0.0.0.0's; a NAK from another server is passed over, one from it starts
-over.  The ACK carries one option of each type, an option given twice,
+over.  -T 3: the scripted server's five answers to the first DISCOVER can
+take past a second on a slow machine, and a client that times out first
+sends another.  The ACK carries one option of each type, an option given twice,
 a name with a pointer in it, and the file and sname fields lent to
 options; the NAK carries them as fields.
 
@@ -294,7 +299,7 @@ options; the NAK carries them as fields.
               (do (ud-put! p ud-file (append (lc-o 66 (lc-s "tftp.example")) (list 255)))
                   (ud-put! p ud-sname (append (lc-o 67 (lc-s "boot.img")) (list 255)))
                   p))))))
-(lc-case (list (list (lit scripted) lc-weird)) (list "-f" "-q" "-v" "-V" "v" "-t" "5") ())
+(lc-case (list (list (lit scripted) lc-weird)) (list "-f" "-q" "-v" "-V" "v" "-t" "5" "-T" "3") ())
 ```
 ---
 ```output
