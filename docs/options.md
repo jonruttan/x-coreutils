@@ -76,6 +76,7 @@ the work.  Applet parity is the other axis: see the README.
 | `httpd` | -c -d -h -e -r -m -u -p -M -K -i -f -v | -i -f -v -p -M -K -u -r -h -c -m -e -d |  | 100% |
 | `id` | -u -g -G -n -r | -u -g -G -n -r |  | 100% |
 | `ifconfig` |  |  |  | - |
+| `ifplugd` | -a -n -s -f -F -i -r -I -t -u -d -m -p -q -l -x -M -A -k | -a -n -s -f -F -i -r -I -t -u -d -m -p -q -l -x -M -A -k |  | 100% |
 | `inetd` | -f -e -q -R | -f -e -q -R |  | 100% |
 | `install` | -c -d -D -s -p -o -g -m -t | -c -d -D -p -o -g -m -t | -s | 88% |
 | `ionice` | -n -c -p -t | -t -n -c -p |  | 100% |

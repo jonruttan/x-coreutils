@@ -76,6 +76,7 @@ a line:**
     httpd
     id
     ifconfig
+    ifplugd
     inetd
     ionice
     install
@@ -374,6 +375,7 @@ The applets tested there so far:
 - `dhcprelay`
 - `ether-wake`
 - `ifconfig`
+- `ifplugd`
 - `ionice`
 - `ip`
 - `ipcrm`
@@ -442,6 +444,7 @@ The applets tested there so far:
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
     cu/httpd.x        httpd: busybox's web server -- files, httpd.conf, ranges, ETags, inetd mode or a listener
     cu/ifconfig.x     ifconfig: the interfaces shown, and addresses, flags and settings set through the kernel's ioctls
+    cu/ifplugd.x      ifplugd: a script run as an interface's link comes and goes, read through ethtool, MII, IFF_RUNNING or netlink
     cu/inet.x         what the network tables share: addresses, names through the C library, the ioctls' buffers
     cu/inetd.x        inetd: one listener for many services, a program or a builtin for each
     cu/ionice.x       ionice: a process's I/O class and priority asked and set through ioprio_get and ioprio_set
