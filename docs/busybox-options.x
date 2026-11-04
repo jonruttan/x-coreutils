@@ -113,6 +113,7 @@
     (list "ipcrm" (%letters "qmsQMS"))
     (list "ipcs" (%letters "iaqsmtcplu"))
     (list "killall" (%letters "lqs"))
+    (list "killall5" (%letters "los"))
     (list "link" ())
     (list "ln" (%letters "sfnbtv"))
     (list "logname" ())

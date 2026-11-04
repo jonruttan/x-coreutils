@@ -1,6 +1,6 @@
 ; # x-coreutils -- the small tools, as applets
 ;
-; ## cu/procps.x -- uptime, free, ps, pidof, pgrep, pkill, lsof
+; ## cu/procps.x -- uptime, free, ps, pidof, pgrep, pkill, kill, killall, killall5, lsof
 ;
 ; @author [Jon Ruttan](jonruttan@gmail.com)
 ; @copyright 2026 Jon Ruttan
@@ -836,7 +836,80 @@
           (List fold (fn (_ acc pid) (+ acc (send pid))) 0 (reverse (first hits))))))
     (& (List fold (fn (_ acc name) (+ acc (one name))) 0 names) 255)))
 
-(provide cu/procps cu-free cu-kill cu-killall cu-lsof cu-minips cu-pgrep
+; --- killall5 ---------------------------------------------------------------
+;
+; busybox's kill_main as killall5 (procps/kill.c): a signal, TERM unless
+; asked, to every process outside this one's session but init, this one and
+; a kernel thread, whose session is 0.  Every process is stopped first and
+; continued after, unless the signal is STOP or CONT.  Its words are read by
+; hand: -l, or one -SIG or -s SIG; the words left must each be -o PID, and
+; are read again for each process the scan reaches, as busybox reads them.
+; The status is 2 when nothing was signalled, 1 for a word that is no -o PID.
+
+(def cu-killall5
+  (fn (_ argv stdin-thunk)
+    (def w (if (null? argv) "" (first argv)))
+    (def a (if (if (> (byte-len w) 0) (= (byte-at w 0) #\-) #f) (substring w 1 (byte-len w)) ()))
+    (match
+      ((null? a) (%k5-scan argv cu-sigterm))
+      ((str=? a "l") (if (null? (rest argv)) (%pg-print-signames) (%kl-list %k5-say (rest argv))))
+      ; -o PID ends the signal words
+      ((if (> (byte-len a) 0) (= (byte-at a 0) #\o) #f) (%k5-scan argv cu-sigterm))
+      (#t (let ((by-s (if (str=? a "s") (not (null? (rest argv))) #f)))
+            (def word (if by-s (first (rest argv)) a))
+            (def signo (pg-signum word))
+            (if (null? signo) (%k5-say (%str-concat (list "bad signal name '" word "'")))
+              (%k5-scan (if by-s (rest (rest argv)) (rest argv)) signo)))))))
+
+(def %k5-say
+  (fn (_ s) (do (file-write 2 (%str-concat (list "killall5: " s "\n"))) 1)))
+
+; SIGNO to each process the scan spares not, OMITS read against each; a kill
+; refused is not counted, as busybox counts it not
+(def %k5-scan
+  (fn (_ omits signo)
+    (def me (sys-getpid))
+    (def mine (host-process me))
+    (def sid (if (null? mine) () (Assoc get (lit sid) mine)))
+    (def stop (pg-signum "STOP"))
+    (def cont (pg-signum "CONT"))
+    (def pause (not (if (= signo stop) #t (= signo cont))))
+    (def status (list 2))
+    (def done (list #f))
+    (if pause (sys-kill -1 stop) ())
+    (%pg-each (ps-sorted (host-processes))
+      (fn (_ p)
+        (def pid (Assoc get (lit pid) p))
+        (def psid (Assoc get (lit sid) p))
+        (if (match ((first done) #t) ((equal? psid sid) #t) ((equal? psid 0) #t) ((= pid me) #t) (#t (= pid 1))) ()
+          (let ((o (%k5-omit omits pid)))
+            (match
+              ((eq? o (lit kill)) (do (sys-kill pid signo) (set-first! status 0)))
+              ((eq? o (lit bad)) (do (set-first! status 1) (set-first! done #t)))
+              (#t ()))))))
+    (if pause (sys-kill -1 cont) ())
+    (first status)))
+
+; what WORDS make of PID: (lit omit) for an -o naming it, (lit bad) once a
+; word that is no -o PID is said, else (lit kill).  The pid is bb_strtoi's:
+; an int, all of the word.
+(def %k5-omit
+  (fn (self words pid)
+    (if (null? words) (lit kill)
+      (let ((w (first words)))
+        (def o? (if (>= (byte-len w) 2) (if (= (byte-at w 0) #\-) (= (byte-at w 1) #\o) #f) #f))
+        (def glued (if o? (substring w 2 (byte-len w)) ""))
+        (def split (if o? (if (= (byte-len glued) 0) (not (null? (rest words))) #f) #f))
+        (def s (if split (first (rest words)) glued))
+        (def r (pg-strto s 0 -2147483648 2147483647))
+        (def n (if (= (rest r) (byte-len s)) (first r) ()))
+        (match
+          ((not o?) (do (%k5-say (%str-concat (list "bad option '" w "'"))) (lit bad)))
+          ((null? n) (do (%k5-say (%str-concat (list "invalid number '" s "'"))) (lit bad)))
+          ((= n pid) (lit omit))
+          (#t (self (if split (rest (rest words)) (rest words)) pid)))))))
+
+(provide cu/procps cu-free cu-kill cu-killall cu-killall5 cu-lsof cu-minips cu-pgrep
   cu-pidof cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head
   ps-args ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o
   ps-printable ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)

@@ -2388,6 +2388,16 @@
             (Opts flag "-q" "Don't complain if no processes were killed")
             (Opts hidden (Opts arg "-s" "" ""))))
         (lit none)))
+    ; killall5 reads its own words too: -l, -SIG or -s SIG, then -o PID...
+    (pair "killall5"
+      (list
+        (Opts declare "killall5" "[-l] [-SIG] [-o PID]..."
+          "Send a signal (default: TERM) to all processes outside current session"
+          (list
+            (Opts flag "-l" "List all signal names and numbers")
+            (Opts arg "-o" "PID" "Don't signal this PID")
+            (Opts hidden (Opts arg "-s" "" ""))))
+        (lit none)))
     (pair "pwdx"
       (list
         (Opts declare "pwdx" "PID..."
