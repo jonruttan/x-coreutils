@@ -160,7 +160,7 @@
   sys-umask sys-uname sys-unsetenv sys-user-group sys-user-groups sys-user-id
   sys-user-name sys-usleep sys-wait vec-build vec-make vec-ref vec-set!
   vm-dash-number wget-digits wget-div wget-err-text wget-index wget-memv)
-(import cu/procps cu-free cu-kill cu-killall cu-lsof cu-minips cu-pgrep
+(import cu/procps cu-free cu-kill cu-killall cu-killall5 cu-lsof cu-minips cu-pgrep
   cu-pidof cu-pkill cu-ps cu-pwdx cu-uptime lsof-target pg-base pg-head
   ps-args ps-boot-line ps-four ps-free-text ps-free-unit ps-parse-o
   ps-printable ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)

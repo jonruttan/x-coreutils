@@ -96,6 +96,7 @@ the work.  Applet parity is the other axis: see the README.
 | `join` | _not a busybox applet_ | -t | | - |
 | `kill` | -l -s | -l -s |  | 100% |
 | `killall` | -l -q -s | -l -q -s |  | 100% |
+| `killall5` | -l -o -s | -l -o -s |  | 100% |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logname` |  |  |  | - |

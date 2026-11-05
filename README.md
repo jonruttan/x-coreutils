@@ -96,6 +96,7 @@ a line:**
     join
     kill
     killall
+    killall5
     link
     ln
     logname
@@ -383,6 +384,7 @@ The applets tested there so far:
 - `ip`
 - `ipcrm`
 - `ipcs`
+- `killall5`
 - `lsmod`
 - `nameif`
 - `netstat`
@@ -482,7 +484,7 @@ The applets tested there so far:
     cu/popmaildir.x   popmaildir: a POP3 mailbox fetched into a maildir, by a connection helper or stdin
     cu/powertop.x     powertop: the wakeups the kernel counts and their causes, the C-states' residency
     cu/prims.x        the platform layer (byte doors, bitwise, File, the wide stat)
-    cu/procps.x       uptime, free, ps (and minips, its other name), pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
+    cu/procps.x       uptime, free, ps (and minips, its other name), pidof, pgrep, pkill, kill, killall, killall5, pwdx and lsof, over the Host
     cu/pscan.x        pscan: a TCP port scan of a host, its open ports and their services
     cu/pstree.x       pstree: the process tree, its threads too, from a process or for a user
     cu/rdate.x        rdate: the time asked of a server by RFC 868, set and shown

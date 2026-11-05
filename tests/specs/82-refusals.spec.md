@@ -8412,6 +8412,42 @@ killall: bad signal name 's'
 status 1
 ```
 
+### killall5 -~
+
+```cu
+(run (list "killall5" "-~") "")
+```
+---
+```output
+stderr:
+killall5: bad signal name '~'
+status 1
+```
+
+### killall5 --nope
+
+```cu
+(run (list "killall5" "--nope") "")
+```
+---
+```output
+stderr:
+killall5: bad signal name '-nope'
+status 1
+```
+
+### killall5 -s
+
+```cu
+(run (list "killall5" "-s") "")
+```
+---
+```output
+stderr:
+killall5: bad signal name 's'
+status 1
+```
+
 ### pwdx -~
 
 ```cu

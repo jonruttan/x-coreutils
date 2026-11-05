@@ -3535,6 +3535,23 @@ stderr:
 status 0
 ```
 
+### killall5
+
+```cu
+(run (list "killall5" "--help") "")
+```
+---
+```output
+Usage: killall5 [-l] [-SIG] [-o PID]...|
+|
+Send a signal (default: TERM) to all processes outside current session|
+|
+	-l	List all signal names and numbers|
+	-o PID	Don't signal this PID|
+stderr:
+status 0
+```
+
 ### pwdx
 
 ```cu
