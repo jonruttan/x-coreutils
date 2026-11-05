@@ -3,8 +3,9 @@
 busybox's arp (networking/arp.c), run as root against the container's own
 ARP cache.  Each case runs the bundle's arp and busybox's on the same words,
 PRE through the shell before each, and compares what they write and their
-status, and where it says so what /proc/net/arp holds after, its lines for the
-entries alone (the container's gateway comes and goes there).  The entries
+status, and where it says so what /proc/net/arp holds after; the listings and
+the cache after are compared by their lines for the entries alone (the
+container's gateway comes and goes there).  The entries
 are on 10.77.0.0/24, an address the setup puts on eth0, their names in
 /etc/hosts so a name is found without asking a server; each case takes
 away what it adds.
@@ -61,13 +62,22 @@ away what it adds.
 ```cu
 (do (lx-sh "arp -s 10.77.0.5 02:00:00:00:00:05; arp -s 10.77.0.6 02:00:00:00:00:06 pub")
     (def lx-quiet "ip neigh flush dev eth0 >/dev/null 2>&1; true")
-    (lx-case lx-quiet (list "arp" "10.77.0.5"))
-    (lx-case lx-quiet (list "arp" "-a" "-n"))
-    (lx-case lx-quiet (list "arp" "-n" "10.77.0.5"))
-    (lx-case lx-quiet (list "arp" "-n" "-i" "eth0"))
-    (lx-case lx-quiet (list "arp" "-n" "-H" "ether"))
-    (lx-case lx-quiet (list "arp" "-n" "-i" "nosuch0"))
-    (lx-case lx-quiet (list "arp" "-n" "10.77.0.99"))
+    ; the gateway can be learned again between the flush and either side's
+    ; read: each side's lines for an address off 10.77.0.0/24 are dropped
+    (def lx-own (fn (_ s)
+      (do (file-write-all "/tmp/lx-own" s)
+          (lx-sh "awk '!/ \\([0-9.]+\\) at / || / \\(10\\.77\\./' /tmp/lx-own > /tmp/lx-owned")
+          (lx-read "/tmp/lx-owned"))))
+    (def lx-case-own (fn (_ pre argv)
+      (do (lx-sh pre) (def lx-a (lx-own (lx-x argv))) (lx-sh pre) (def lx-b (lx-own (lx-bb argv)))
+          (display (if (string=? lx-a lx-b) "same\n" (%str-concat (list "ours:\n" lx-a "busybox:\n" lx-b)))))))
+    (lx-case-own lx-quiet (list "arp" "10.77.0.5"))
+    (lx-case-own lx-quiet (list "arp" "-a" "-n"))
+    (lx-case-own lx-quiet (list "arp" "-n" "10.77.0.5"))
+    (lx-case-own lx-quiet (list "arp" "-n" "-i" "eth0"))
+    (lx-case-own lx-quiet (list "arp" "-n" "-H" "ether"))
+    (lx-case-own lx-quiet (list "arp" "-n" "-i" "nosuch0"))
+    (lx-case-own lx-quiet (list "arp" "-n" "10.77.0.99"))
     (lx-sh lx-clear) (display ""))
 ```
 ---
