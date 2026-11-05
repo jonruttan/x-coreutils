@@ -28,8 +28,7 @@
   sys-exit sys-fork sys-getenv sys-signal)
 (import cu/text cu-pad-zero)
 
-(def %tm-str->ptr (prim-ref (lit str) (lit ->ptr)))
-(def %tm-ptr->int (prim-ref (lit ptr) (lit ->int)))
+(import x/core/doors str->ptr ptr->int)
 (def %tm-c-wait4 ())
 (def %tm-c-getpagesize ())
 
@@ -211,8 +210,8 @@
       (let ((st (str-make-raw 4)) (ru (str-make-raw 144)))
         (def wait
           (fn (self)
-            (let ((r (Sys %sign-fold (cu-ptr-call %tm-c-wait4 pid (%tm-ptr->int (%tm-str->ptr st)) 0
-                                       (%tm-ptr->int (%tm-str->ptr ru))))))
+            (let ((r (Sys %sign-fold (cu-ptr-call %tm-c-wait4 pid (ptr->int (str->ptr st)) 0
+                                       (ptr->int (str->ptr ru))))))
               (if (if (< r 0) (not (= r pid)) #f) (self) r))))
         (do (sys-signal 2 (Sys sig-ign))
             (sys-signal 3 (Sys sig-ign))

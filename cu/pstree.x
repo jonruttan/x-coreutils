@@ -43,20 +43,16 @@
 
 ; the sort's primitives: a comparison runs some 75,000 times over a desktop's
 ; processes and threads, and the ambient ops cost ~90 objects each
-(def %pst< (prim-ref (lit int) (lit <)))
-(def %pst= (prim-ref (lit int) (lit =)))
-(def %pst-cmp (prim-ref (lit mem) (lit cmp)))
-(def %pst-ptr (prim-ref (lit str) (lit ->ptr)))
-(def %pst-len (prim-ref (lit str) (lit byte-len)))
+(import x/core/doors int< int= mem-cmp str->ptr str-byte-len)
 
 ; strcmp's sign for two names, which hold no NUL: memcmp over the shorter,
 ; then the shorter first
 (def %pst-strcmp
   (fn (_ a b)
-    (def la (%pst-len a))
-    (def lb (%pst-len b))
-    (def c (%pst-cmp (%pst-ptr a) (%pst-ptr b) (if (%pst< la lb) la lb)))
-    (if (eq? c 0) (if (%pst< la lb) -1 (if (%pst< lb la) 1 0)) c)))
+    (def la (str-byte-len a))
+    (def lb (str-byte-len b))
+    (def c (mem-cmp (str->ptr a) (str->ptr b) (if (int< la lb) la lb)))
+    (if (eq? c 0) (if (int< la lb) -1 (if (int< lb la) 1 0)) c)))
 
 ; --- the table -------------------------------------------------------------------
 
@@ -109,13 +105,13 @@
     (def pa (%pst-ppid a))
     (def pb (%pst-ppid b))
     (match
-      ((%pst< pa pb) #t)
-      ((%pst< pb pa) #f)
+      ((int< pa pb) #t)
+      ((int< pb pa) #f)
       (#t (let ((c (%pst-strcmp (%pst-comm a) (%pst-comm b))))
-            (if (eq? c 0) (%pst< (%pst-uid a) (%pst-uid b)) (%pst< c 0)))))))
+            (if (eq? c 0) (int< (%pst-uid a) (%pst-uid b)) (int< c 0)))))))
 
 ; N a child of P, but P's own: Darwin's kernel_task is its own parent
-(def %pst-kid (fn (_ n p kids) (if (%pst= (%pst-pid n) p) kids (pair n kids))))
+(def %pst-kid (fn (_ n p kids) (if (int= (%pst-pid n) p) kids (pair n kids))))
 
 ; the nodes in that order as runs of one parent, ((PPID . CHILDREN) ...)
 (def %pst-runs
@@ -124,7 +120,7 @@
     (let go ((l l) (p ()) (kids ()) (acc ()))
       (match
         ((null? l) (reverse (done p kids acc)))
-        ((if (null? p) #f (%pst= (%pst-ppid (first l)) p)) (go (rest l) p (%pst-kid (first l) p kids) acc))
+        ((if (null? p) #f (int= (%pst-ppid (first l)) p)) (go (rest l) p (%pst-kid (first l) p kids) acc))
         (#t (let ((q (%pst-ppid (first l))))
               (go (rest l) q (%pst-kid (first l) q ()) (done p kids acc))))))))
 
@@ -136,20 +132,20 @@
 (def %pst-table
   (fn (_ nodes)
     (def runs (%pst-runs (List sort %pst-before? nodes)))
-    (let go ((ns (List sort (fn (_ a b) (%pst< (%pst-pid a) (%pst-pid b))) nodes)) (rs runs) (orphans ()))
+    (let go ((ns (List sort (fn (_ a b) (int< (%pst-pid a) (%pst-pid b))) nodes)) (rs runs) (orphans ()))
       (match
         ((null? rs) orphans)
         ((null? ns) (go ns (rest rs) (pair (%pst-orphan (first rs)) orphans)))
-        ((%pst< (%pst-pid (first ns)) (first (first rs))) (go (rest ns) rs orphans))
-        ((%pst< (first (first rs)) (%pst-pid (first ns))) (go ns (rest rs) (pair (%pst-orphan (first rs)) orphans)))
+        ((int< (%pst-pid (first ns)) (first (first rs))) (go (rest ns) rs orphans))
+        ((int< (first (first rs)) (%pst-pid (first ns))) (go ns (rest rs) (pair (%pst-orphan (first rs)) orphans)))
         (#t (do (set-first! (%pst-kids-cell (first ns)) (rest (first rs)))
                 (go (rest ns) (rest rs) orphans)))))))
 
 ; find_proc: PID's node, or the ? of a parent the table only names, else nil
 (def %pst-find
   (fn (_ nodes orphans pid)
-    (def hit (List find (fn (_ n) (%pst= (%pst-pid n) pid)) nodes))
-    (if (null? hit) (List find (fn (_ n) (%pst= (%pst-pid n) pid)) orphans) hit)))
+    (def hit (List find (fn (_ n) (int= (%pst-pid n) pid)) nodes))
+    (if (null? hit) (List find (fn (_ n) (int= (%pst-pid n) pid)) orphans) hit)))
 
 ; --- the drawing -----------------------------------------------------------------
 

@@ -50,7 +50,7 @@
 (import cu/strings cu-range-number)
 (import cu/text cu-num-prefix cu-pad-left cu-pad-zero cu-pieces cu-run-text)
 
-(def %tar-ptr->int (prim-ref (lit ptr) (lit ->int)))
+(import x/core/doors ptr->int)
 (def %tar-c-memcpy ())
 (def %tar-c-write ())
 (def %tar-c-mkdir ())
@@ -69,7 +69,7 @@
 (def tar-mkdir (fn (_ path mode) (cu-ptr-call %tar-c-mkdir path mode)))
 (def tar-mknod (fn (_ path mode dev) (cu-ptr-call %tar-c-mknod path mode dev)))
 
-(def %tar-addr (fn (_ s) (%tar-ptr->int (cu-str->ptr s))))
+(def %tar-addr (fn (_ s) (ptr->int (cu-str->ptr s))))
 (def tar-min (fn (_ a b) (if (< a b) a b)))
 
 ; the run ends: MSG said under tar's name, and the status 1

@@ -153,7 +153,7 @@
 
 ; --- Darwin: the kern.sysv.ipcs sysctls ----------------------------------------
 
-(def %sv-word! (prim-ref (lit ptr) (lit set-word!)))
+(import x/core/doors ptr-set-word!)
 (def %sv-addr (fn (_ buf) ((prim-ref (lit ptr) (lit ->int)) (cu-str->ptr buf))))
 
 (def %sv-sysctl-names
@@ -167,10 +167,10 @@
     (def cmd (str-make-raw 24))
     (def size (str-make-raw 8))
     (def p (cu-str->ptr cmd))
-    (%sv-word! p 0 (bit-or 1 (bit-shl op 32)))
-    (%sv-word! p 8 (bit-or cursor (bit-shl len 32)))
-    (%sv-word! p 16 (%sv-addr data))
-    (%sv-word! (cu-str->ptr size) 0 24)
+    (ptr-set-word! p 0 (bit-or 1 (bit-shl op 32)))
+    (ptr-set-word! p 8 (bit-or cursor (bit-shl len 32)))
+    (ptr-set-word! p 16 (%sv-addr data))
+    (ptr-set-word! (cu-str->ptr size) 0 24)
     (if (< (%sv-libc "sysctlbyname" (list (rest (Assoc entry kind %sv-sysctl-names)) p (cu-str->ptr size) p 24)) 0) ()
       (cu-ptr-ref p 8 4))))
 

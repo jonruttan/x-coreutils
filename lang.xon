@@ -97,7 +97,11 @@
 ; given, and a lang bundle's lang.xon grammars are x/tool/syntax's catalogue
 ; (x-lang#1129), which vi's syntax option draws with (cu/vi-syntax.x).
 ;
+; v0.44.0: x/core/doors provides the engine's doors under one set of names
+; (x-lang#1138); cu/prims.x and the applets import them instead of binding
+; their own.
+;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.43.0")
+(requires-release "v0.44.0")
 
 (entry "run.x")
