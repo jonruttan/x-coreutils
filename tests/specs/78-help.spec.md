@@ -2970,6 +2970,27 @@ stderr:
 status 0
 ```
 
+### bzip2
+
+```cu
+(run (list "bzip2" "--help") "")
+```
+---
+```output
+Usage: bzip2 [-cfkdt123456789] [FILE]...|
+|
+Compress FILEs (or stdin) with bzip2 algorithm|
+|
+	-1..9	Compression level|
+	-d	Decompress|
+	-c	Write to stdout|
+	-f	Force|
+	-k	Keep input files|
+	-t	Test integrity|
+stderr:
+status 0
+```
+
 ### unzip
 
 ```cu

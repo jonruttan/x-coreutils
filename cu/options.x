@@ -2023,6 +2023,35 @@
             (Opts hidden (Opts flag "-q" ""))
             (Opts hidden (Opts flag "-d" ""))
             (Opts hidden (Opts flag "-t" ""))))))
+    (pair "bzip2"
+      (list
+        (Opts declare "bzip2" "[-cfkdt123456789] [FILE]..."
+          "Compress FILEs (or stdin) with bzip2 algorithm"
+          (list
+            (Opts text "\t-1..9\tCompression level")
+            (Opts text "\t-d\tDecompress")
+            (Opts text "\t-c\tWrite to stdout")
+            (Opts text "\t-f\tForce")
+            (Opts text "\t-k\tKeep input files")
+            (Opts text "\t-t\tTest integrity")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-z" ""))
+            (Opts hidden (Opts flag "-s" ""))
+            (Opts hidden (Opts flag "-1" ""))
+            (Opts hidden (Opts flag "-2" ""))
+            (Opts hidden (Opts flag "-3" ""))
+            (Opts hidden (Opts flag "-4" ""))
+            (Opts hidden (Opts flag "-5" ""))
+            (Opts hidden (Opts flag "-6" ""))
+            (Opts hidden (Opts flag "-7" ""))
+            (Opts hidden (Opts flag "-8" ""))
+            (Opts hidden (Opts flag "-9" ""))))))
     (pair "unzip"
       (list
         (Opts declare "unzip" "[-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]"
