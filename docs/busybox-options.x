@@ -92,6 +92,8 @@
     (list "groups" ())
     (list "gunzip" (%letters "cfkt"))
     (list "gzip" (%letters "cfkdt"))
+    (list "bunzip2" (%letters "cfkt"))
+    (list "bzcat" ())
     (list "hd" ())
     (list "head" (%letters "ncqv"))
     (list "hostid" ())

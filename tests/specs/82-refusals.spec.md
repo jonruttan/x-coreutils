@@ -3660,6 +3660,76 @@ Decompress to stdout
 status 1
 ```
 
+### bunzip2 -~
+
+```cu
+(run (list "bunzip2" "-~") "")
+```
+---
+```output
+stderr:
+bunzip2: unrecognized option: ~
+Usage: bunzip2 [-cfk] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+```
+
+### bunzip2 --nope
+
+```cu
+(run (list "bunzip2" "--nope") "")
+```
+---
+```output
+stderr:
+bunzip2: unrecognized option: nope
+Usage: bunzip2 [-cfk] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+```
+
+### bzcat -~
+
+```cu
+(run (list "bzcat" "-~") "")
+```
+---
+```output
+stderr:
+bzcat: unrecognized option: ~
+Usage: bzcat [FILE]...
+
+Decompress to stdout
+status 1
+```
+
+### bzcat --nope
+
+```cu
+(run (list "bzcat" "--nope") "")
+```
+---
+```output
+stderr:
+bzcat: unrecognized option: nope
+Usage: bzcat [FILE]...
+
+Decompress to stdout
+status 1
+```
+
 ### unzip -~
 
 ```cu

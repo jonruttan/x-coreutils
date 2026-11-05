@@ -18,6 +18,8 @@ the work.  Applet parity is the other axis: see the README.
 | `base64` | -d -w | -d -w |  | 100% |
 | `basename` | -s | -s |  | 100% |
 | `brctl` |  |  |  | - |
+| `bunzip2` | -c -f -k -t | -c -f -k -v -q -d -t |  | 100% |
+| `bzcat` |  | -c -f -k -v -q -d -t |  | - |
 | `cal` | -j -m -y | -j -m -y |  | 100% |
 | `cat` | -n -b -v -t -e -A | -n -b -v -t -e -A |  | 100% |
 | `chgrp` | -R -h -L -H -P -c -v -f | -h -L -H -P -R -c -v -f |  | 100% |
