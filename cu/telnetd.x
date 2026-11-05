@@ -80,7 +80,8 @@
     (when (null? p) (%td-die "can't find free pty"))
     p))
 
-(def td-ptr->int (prim-ref (lit ptr) (lit ->int)))
+(import x/core/doors ptr->int)
+(def td-ptr->int ptr->int)
 
 ; the termios flag words, by offset: Darwin's tcflag_t is eight bytes, Linux's four
 (def %td-tio-at (fn (_ k) (* k (if os-darwin? 8 4))))

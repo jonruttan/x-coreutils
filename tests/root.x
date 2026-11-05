@@ -55,7 +55,7 @@
 (import cu/ftpd cu-ftpd)
 (import cu/fuser cu-fuser)
 (import cu/getopt cu-getopt)
-(import cu/gzip cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
+(import cu/gzip cu-bunzip2 cu-bzcat cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
   gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)
 (import cu/hash cu-bytes cu-cksum-applet cu-crypt64 cu-md5 cu-md5-bytes
   cu-md5sum cu-sha1-bytes cu-sha1sum cu-sum)
@@ -166,6 +166,7 @@
   ps-printable ps-resolve! ps-sorted ps-stat ps-table ps-uptime-line)
 (import cu/pscan cu-pscan)
 (import cu/pstree cu-pstree)
+(import cu/rdate cu-rdate)
 (import cu/route cu-route rt-show4)
 (import cu/runparts cu-run-parts)
 (import cu/sendmail cu-sendmail sm-atoi sm-helper-check sm-helper-pid!

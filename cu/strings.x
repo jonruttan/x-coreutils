@@ -26,10 +26,7 @@
   string-append string=?)
 (import cu/text cu-fold-one cu-num-prefix cu-pad-left)
 
-(def %sg+ (prim-ref (lit int) (lit +)))
-(def %sg-str->ptr (prim-ref (lit str) (lit ->ptr)))
-(def %sg-ptr->int (prim-ref (lit ptr) (lit ->int)))
-(def %sg-bsub (prim-ref (lit str) (lit byte-sub)))
+(import x/core/doors int+ str->ptr ptr->int str-byte-sub)
 (def %sg-min (fn (_ a b) (if (< a b) a b)))
 (def %sg-c-strspn ())
 (def %sg-c-strcspn ())
@@ -111,7 +108,7 @@
 ; K printable bytes of TEXT from I, the run's next
 (def %sg-run!
   (fn (_ text i k)
-    (def bytes (%sg-bsub text i k))
+    (def bytes (str-byte-sub text i k))
     (do (if (= %sg-count 0) (set! %sg-start %sg-offset) ())
         (if %sg-on (%sg-put bytes)
           (do (set! %sg-held (pair bytes %sg-held))
@@ -133,19 +130,19 @@
   (fn (_ p s)
     (def text (first p))
     (def n (rest p))
-    (def addr (%sg-ptr->int (%sg-str->ptr text)))
+    (def addr (ptr->int (str->ptr text)))
     (def nuls
       (fn (self i)
         (if (if (< i n) (= (byte-at text i) 0) #f) (self (+ i 1)) i)))
     (def go
       (fn (self i)
         (if (>= i n) ()
-          (let ((k (%sg-min (cu-ptr-call %sg-c-strspn (%sg+ addr i) %sg-printable)
+          (let ((k (%sg-min (cu-ptr-call %sg-c-strspn (int+ addr i) %sg-printable)
                              (- n i))))
             (do (if (> k 0) (%sg-run! text i k) ())
                 (let ((j (+ i k)))
                   (if (>= j n) ()
-                    (let ((m (%sg-min (cu-ptr-call %sg-c-strcspn (%sg+ addr j) %sg-printable)
+                    (let ((m (%sg-min (cu-ptr-call %sg-c-strcspn (int+ addr j) %sg-printable)
                                        (- n j))))
                       (let ((e (nuls (+ j m))))
                         (do (%sg-end-run!)

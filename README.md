@@ -18,6 +18,8 @@ a line:**
     base64
     basename
     brctl
+    bunzip2
+    bzcat
     cal
     cat
     chgrp
@@ -144,6 +146,7 @@ a line:**
     pscan
     pstree
     pwd
+    rdate
     readlink
     renice
     reset
@@ -439,7 +442,7 @@ The applets tested there so far:
     cu/ftpd.x         ftpd: busybox's FTP server, one connection on stdin, PASV, EPSV or PORT
     cu/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
-    cu/gzip.x         gzip, gunzip and zcat, a piece at a time through Zlib's streams
+    cu/gzip.x         gzip, gunzip, zcat, bunzip2 and bzcat, a piece at a time through x-lang's streams
     cu/hash.x         md5sum sha1sum cksum sum; the digests are x-lang's codecs
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
     cu/httpd.x        httpd: busybox's web server -- files, httpd.conf, ranges, ETags, inetd mode or a listener
@@ -482,6 +485,7 @@ The applets tested there so far:
     cu/procps.x       uptime, free, ps (and minips, its other name), pidof, pgrep, pkill, kill, killall, pwdx and lsof, over the Host
     cu/pscan.x        pscan: a TCP port scan of a host, its open ports and their services
     cu/pstree.x       pstree: the process tree, its threads too, from a process or for a user
+    cu/rdate.x        rdate: the time asked of a server by RFC 868, set and shown
     cu/route.x        route: the routing tables shown, and routes added and deleted through the kernel's ioctls
     cu/runparts.x     run-parts: a directory's scripts, in order
     cu/sendmail.x     sendmail: a message on stdin sent by SMTP, -S or a -H helper, AUTH LOGIN or PLAIN

@@ -26,11 +26,12 @@
 (import x/num/float)
 (import x/num/bigint)
 
-(def char->integer (prim-ref (lit char) (lit ->int)))
-(def integer->char (prim-ref (lit int) (lit ->char)))
-(def byte-at (prim-ref (lit str) (lit byte-ref)))
-(def byte-len (prim-ref (lit str) (lit byte-len)))
-(def str-make-raw (prim-ref (lit str) (lit make)))
+(import x/core/doors char->int int->char str-byte-ref str-byte-len str-make type-of int+ int- int* int/ int% int< int& int| int<< int>> ffi-dlsym ffi-dlopen ptr-call ptr-ref-word ptr->str int->ptr ptr-ref heap-collect str->ptr ptr-set!)
+(def char->integer char->int)
+(def integer->char int->char)
+(def byte-at str-byte-ref)
+(def byte-len str-byte-len)
+(def str-make-raw str-make)
 
 (def string-length (fn (_ s) (Str8 length s)))
 (def substring (fn (_ s a b) (Str8 sub a (- b a) s)))
@@ -48,7 +49,7 @@
 ; bundle calls (%str-concat LIST) wherever it has the pieces as a list.
 (def string-append (fn (_ . ss) (%str-concat ss)))
 
-(def cu-type-of (prim-ref (lit type) (lit of)))
+(def cu-type-of type-of)
 
 (def length (fn (_ l) (List length l)))
 (def reverse (fn (_ l) (cu-rev l ())))
@@ -79,16 +80,15 @@
 ; operand crashes the engine and a sum past a word wraps -- so they take only
 ; what is an integer by construction, never a value read from a user.  There
 ; is no > or >=: a > b is (cu< b a), and a >= b swaps the branches of a <.
-(def cu+ (prim-ref (lit int) (lit +)))
-(def cu- (prim-ref (lit int) (lit -)))
-(def cu* (prim-ref (lit int) (lit *)))
-(def cu/ (prim-ref (lit int) (lit /)))
-(def cu% (prim-ref (lit int) (lit %)))
-(def cu< (prim-ref (lit int) (lit <)))
-(def cu& (prim-ref (lit int) (lit &)))
-(def %cu| (prim-ref (lit int) (lit |)))
-(def cu<< (prim-ref (lit int) (lit <<)))
-(def cu>> (prim-ref (lit int) (lit >>)))
+(def cu+ int+)
+(def cu- int-)
+(def cu* int*)
+(def cu/ int/)
+(def cu% int%)
+(def cu< int<)
+(def cu& int&)
+(def cu<< int<<)
+(def cu>> int>>)
 
 (def file-read-all (fn (_ path) (File read-all path)))
 (def file-write-all (fn (_ path text) (File write-all path text)))
@@ -216,9 +216,9 @@
 ; uses (x/type/err.x): resolved on the first ask and kept by name, so a symbol
 ; is resolved at run and never at load, and the state image holds no address.
 ; A libc without the symbol answers nil, kept the same way.
-(def cu-dlsym (prim-ref (lit ffi) (lit dlsym)))
-(def cu-dlopen (prim-ref (lit ffi) (lit dlopen)))
-(def cu-ptr-call (prim-ref (lit ptr) (lit call)))
+(def cu-dlsym ffi-dlsym)
+(def cu-dlopen ffi-dlopen)
+(def cu-ptr-call ptr-call)
 (def %cu-libc-syms (list ()))
 (def %cu-libc-hit
   (fn (self syms name)
@@ -251,9 +251,9 @@
 ; pw_name and getgrgid's gr_name, the first field of their structs on Darwin
 ; and Linux alike.  There is no passwd door on Sys, so both are reached through
 ; the FFI, as the umask is.
-(def cu-ptr-word (prim-ref (lit ptr) (lit ref-word)))
-(def cu-ptr->str (prim-ref (lit ptr) (lit ->str)))
-(def cu-int->ptr (prim-ref (lit int) (lit ->ptr)))
+(def cu-ptr-word ptr-ref-word)
+(def cu-ptr->str ptr->str)
+(def cu-int->ptr int->ptr)
 
 (def %cu-id-name
   (fn (_ sym id)
@@ -271,7 +271,7 @@
 ; name -- getpwnam's pw_uid and getgrnam's gr_gid, the four bytes after the
 ; struct's two pointers -- and a user's login group, pw_gid, the four after
 ; that, on Darwin and Linux alike.
-(def cu-ptr-ref (prim-ref (lit ptr) (lit ref)))
+(def cu-ptr-ref ptr-ref)
 
 (def %cu-name-field
   (fn (_ sym name offset)
@@ -506,7 +506,7 @@
 ; walked, has none of MASK's bits set -- once every MASK+1 steps.  What the loop
 ; holds is in its arguments, and so rooted across the collect.  The cell turns
 ; the sweeps off, for a caller that measures what a loop allocates.
-(def cu-heap-collect (prim-ref (lit heap) (lit collect)))
+(def cu-heap-collect heap-collect)
 (def cu-sweeps-cell (list #t))
 
 ; the masks, so each sweep clears a million objects or a few: a step over a
@@ -773,8 +773,8 @@
 ; platforms lay a timeval out as 16 bytes with the seconds a little-endian i64
 ; at offset 0, so all 32 bytes are written, the microseconds and padding as
 ; zeros -- a raw string starts out filled with spaces, not zeros.
-(def cu-str->ptr (prim-ref (lit str) (lit ->ptr)))
-(def cu-ptr-set! (prim-ref (lit ptr) (lit set!)))
+(def cu-str->ptr str->ptr)
+(def cu-ptr-set! ptr-set!)
 (def file-set-times
   (fn (_ path atime mtime)
     (def buf (str-make-raw 32))
@@ -1368,7 +1368,7 @@
     (def go (fn (self i acc) (if (< i 0) acc (self (- i 1) (pair (char->integer (byte-at w i)) acc)))))
     (go (- (byte-len w) 1) ())))
 
-(def cal/ (prim-ref (lit int) (lit /)))
+(def cal/ int/)
 
 (def hx-hex-digit
   (fn (_ c)

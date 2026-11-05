@@ -1527,6 +1527,16 @@
               (Opts text "\t-T MS\tMinimum rtt (default 5 ms)"))
             (%cu-hidden-flags (list "-c" "-b"))
             (%cu-hidden-args (list "-p" "-P" "-t" "-T"))))))
+    (pair "rdate"
+      (list
+        (Opts declare "rdate" "[-s/-p] HOST"
+          "Set and print time from HOST using RFC 868"
+          (append
+            (list
+              (Opts text "\t-s\tOnly set system time")
+              (Opts text "\t-p\tOnly print time"))
+            (%cu-hidden-flags (list "-s" "-p"))))
+        (lit leading)))
     (pair "ntpd"
       (list
         (Opts declare "ntpd" "[-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]..."
@@ -1985,6 +1995,34 @@
             (Opts hidden (Opts flag "--force" ""))
             (Opts hidden (Opts flag "--test" ""))
             (Opts hidden (Opts flag "--no-name" ""))))))
+    (pair "bunzip2"
+      (list
+        (Opts declare "bunzip2" "[-cfk] [FILE]..."
+          "Decompress FILEs (or stdin)"
+          (list
+            (Opts text "\t-c\tWrite to stdout")
+            (Opts text "\t-f\tForce")
+            (Opts text "\t-k\tKeep input files")
+            (Opts text "\t-t\tTest integrity")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
+    (pair "bzcat"
+      (list
+        (Opts declare "bzcat" "[FILE]..."
+          "Decompress to stdout"
+          (list
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
     (pair "unzip"
       (list
         (Opts declare "unzip" "[-lnojpqK] FILE[.zip] [FILE]... [-x FILE]... [-d DIR]"
