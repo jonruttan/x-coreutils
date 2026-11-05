@@ -17,8 +17,9 @@
 ; terminal's width, $COLUMNS over the terminal stdin is, else 80: its last
 ; column a +, and the children of a cut line are not drawn.  A process
 ; whose parent is its own (Darwin's kernel_task) is nobody's child.  An id
-; names a process, never a thread: Darwin's thread ids are counted apart
-; from its pids, so a thread can hold a process's number.
+; names a process before a thread, and only a process has children:
+; Darwin's thread ids are counted apart from its pids, so a thread can hold
+; a process's number.
 
 (module cu/pstree)
 
@@ -150,11 +151,14 @@
         (#t (do (set-first! (%pst-kids-cell (first ns)) (rest (first rs)))
                 (go (rest ns) (rest rs) orphans)))))))
 
-; find_proc: PID's process, or the ? of a parent the table only names, else nil
+; find_proc: PID's process, else the thread of that id, else the ? of a
+; parent the table only names, else nil
 (def %pst-find
-  (fn (_ procs orphans pid)
-    (def hit (List find (fn (_ n) (int= (%pst-pid n) pid)) procs))
-    (if (null? hit) (List find (fn (_ n) (int= (%pst-pid n) pid)) orphans) hit)))
+  (fn (_ procs nodes orphans pid)
+    (def has (fn (_ n) (int= (%pst-pid n) pid)))
+    (def p (List find has procs))
+    (def t (if (null? p) (List find has nodes) p))
+    (if (null? t) (List find has orphans) t)))
 
 ; --- the drawing -----------------------------------------------------------------
 
@@ -307,9 +311,9 @@
     (set! %pst-col 0)
     (set! %pst-pieces ())
     (if (= uid 0)
-      (let ((top (%pst-find procs orphans pid)))
+      (let ((top (%pst-find procs (rest scan) orphans pid)))
         (unless (null? top) (%pst-dump top 0 1 #t #t 0 ())))
-      (let ((top (%pst-find procs orphans 1)))
+      (let ((top (%pst-find procs (rest scan) orphans 1)))
         (unless (if (null? top) #f (%pst-by-user top uid #f))
           (%pst-die "no processes found"))))
     0))
