@@ -145,6 +145,7 @@ the work.  Applet parity is the other axis: see the README.
 | `pstree` | -p | -p |  | 100% |
 | `pwd` | -L -P | -L -P |  | 100% |
 | `pwdx` |  |  |  | - |
+| `rdate` | -s -p | -s -p |  | 100% |
 | `readlink` | -f -n -v | -n -f -v -e |  | 100% |
 | `realpath` |  |  |  | - |
 | `reformime` | -x -X -d -e -i -s -r -c -m -h -o -O | -X -d -e -i -x -s -r -c -m -h -o -O |  | 100% |

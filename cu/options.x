@@ -1527,6 +1527,16 @@
               (Opts text "\t-T MS\tMinimum rtt (default 5 ms)"))
             (%cu-hidden-flags (list "-c" "-b"))
             (%cu-hidden-args (list "-p" "-P" "-t" "-T"))))))
+    (pair "rdate"
+      (list
+        (Opts declare "rdate" "[-s/-p] HOST"
+          "Set and print time from HOST using RFC 868"
+          (append
+            (list
+              (Opts text "\t-s\tOnly set system time")
+              (Opts text "\t-p\tOnly print time"))
+            (%cu-hidden-flags (list "-s" "-p"))))
+        (lit leading)))
     (pair "ntpd"
       (list
         (Opts declare "ntpd" "[-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]..."

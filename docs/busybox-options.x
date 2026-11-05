@@ -249,6 +249,7 @@
     (list "ntpd" (%letters "nqNxkwpSlId46aAbgL"))
     (list "dumpleases" (list "-a" "-r" "-f" "-d" "--absolute" "--remaining" "--file" "--decimal"))
     (list "pscan" (%letters "cbpPtT"))
+    (list "rdate" (%letters "sp"))
     (list "ssl_client" (%letters "srne"))
     (list "ssl_server" (%letters "vf"))
     (list "tcpsvd" (%letters "hEvcCbul"))
