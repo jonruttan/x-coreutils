@@ -102,6 +102,6 @@
 ; their own.
 ;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
-(requires-release "v0.45.0")
+(requires-release "v0.46.0")
 
 (entry "run.x")
