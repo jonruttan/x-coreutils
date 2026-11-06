@@ -101,6 +101,10 @@
 ; (x-lang#1138); cu/prims.x and the applets import them instead of binding
 ; their own.
 ;
+; v0.46.0: Bzip2 writes a bzip2 stream a piece at a time, byte for byte as
+; busybox's bzip2 does (x-lang#1160), which the bzip2 applet runs on
+; (cu/gzip.x).
+;
 ; v0.28.0 is the release the suite and its sweep bounds are measured on.
 (requires-release "v0.46.0")
 

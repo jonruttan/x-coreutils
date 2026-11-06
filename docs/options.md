@@ -20,6 +20,7 @@ the work.  Applet parity is the other axis: see the README.
 | `brctl` |  |  |  | - |
 | `bunzip2` | -c -f -k -t | -c -f -k -v -q -d -t |  | 100% |
 | `bzcat` |  | -c -f -k -v -q -d -t |  | - |
+| `bzip2` | -c -f -k -d -t -1 -2 -3 -4 -5 -6 -7 -8 -9 | -c -f -k -v -q -d -t -z -s -1 -2 -3 -4 -5 -6 -7 -8 -9 |  | 100% |
 | `cal` | -j -m -y | -j -m -y |  | 100% |
 | `cat` | -n -b -v -t -e -A | -n -b -v -t -e -A |  | 100% |
 | `chgrp` | -R -h -L -H -P -c -v -f | -h -L -H -P -R -c -v -f |  | 100% |

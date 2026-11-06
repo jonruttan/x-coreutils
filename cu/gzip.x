@@ -1,33 +1,36 @@
 ; # x-coreutils -- the small tools, as applets
 ;
-; ## cu/gzip.x -- gzip, gunzip, zcat, bunzip2, bzcat
+; ## cu/gzip.x -- gzip, gunzip, zcat, bzip2, bunzip2, bzcat
 ;
 ; @author [Jon Ruttan](jonruttan@gmail.com)
 ; @copyright 2026 Jon Ruttan
 ; @license MIT No Attribution (MIT-0)
 ;
 ; busybox's gzip family (archival/gzip.c, bbunzip.c and libarchive's
-; unpack_gz_stream), with bunzip2 and bzcat on the same frame (bbunzip.c's
-; bunzip2_main and unpack_bz2_stream).  gzip writes busybox's header -- no
-; name, mtime 0, OS 3 -- then the data deflated, then its CRC and length;
-; gunzip reads every member in turn, passing over a header's extra field,
-; name, comment and CRC, and leaves whatever follows the last member when it
-; is not another; bunzip2 reads every stream that follows another the same
-; way.  A FILE is replaced by FILE.gz, or FILE.gz (or .tgz) by FILE (or
-; .tar), or FILE.bz2 by FILE, the new file made with the old one's mode and,
-; after gunzip, a header's nonzero mtime; -c writes to standard output and
-; keeps the input, -k keeps it, -f replaces an output already there, -t only
-; checks.  bzcat is bunzip2 -c; zcat is gunzip -c that takes bzip2 data too,
-; and refuses what is neither.
+; unpack_gz_stream), with bzip2, bunzip2 and bzcat on the same frame
+; (archival/bzip2.c, bbunzip.c's bunzip2_main and unpack_bz2_stream).  gzip
+; writes busybox's header -- no name, mtime 0, OS 3 -- then the data
+; deflated, then its CRC and length; bzip2 writes one stream at the block
+; size of the lowest -1 to -9 given, 9 when none, -s counting as -2; gunzip
+; reads every member in turn, passing over a header's extra field, name,
+; comment and CRC, and leaves whatever follows the last member when it is
+; not another; bunzip2 reads every stream that follows another the same way.
+; A FILE is replaced by FILE.gz or FILE.bz2, or FILE.gz (or .tgz) by FILE
+; (or .tar), or FILE.bz2 by FILE, the new file made with the old one's mode
+; and, after gunzip, a header's nonzero mtime; -c writes to standard output
+; and keeps the input, -k keeps it, -f replaces an output already there, -t
+; only checks.  bzcat is bunzip2 -c, and bzip2 -d or -t is bunzip2; zcat is
+; gunzip -c that takes bzip2 data too, and refuses what is neither.
 ;
-; The data goes a piece at a time through x-lang's Deflate, Inflate and
-; Bunzip2 streams, in x, so no C library is wanted (x-os has none): no file
-; is read whole.  busybox deflates with code of its own, so a compressed file
-; holds the same data but not always the same bytes.
+; The data goes a piece at a time through x-lang's Deflate, Inflate, Bzip2
+; and Bunzip2 streams, in x, so no C library is wanted (x-os has none): no
+; file is read whole.  busybox deflates with code of its own, so a gzip file
+; holds the same data but not always the same bytes; a bzip2 file is byte
+; for byte busybox's.
 
 (module cu/gzip)
 
-(import cu/cli cu-opts)
+(import cu/cli cu-opts cu-usage)
 (import cu/prims append byte-at byte-len char->integer cu-err-label
   cu-int->ptr cu-ptr-set! cu-stat-get cu-str->ptr cu-sweep-tick! file-close
   file-err-text file-open-err file-open-wronly file-set-times file-stat-full
@@ -39,6 +42,7 @@
 (import x/codec/inflate)
 (import x/codec/crc32)
 (import x/codec/bunzip2)
+(import x/codec/bzip2)
 
 (def %gz-room 32768)
 
@@ -388,10 +392,29 @@
           (if first? (%gz-die name "invalid magic") ()))))
     (go #t)))
 
+; SRC's pieces as one bzip2 stream to FD at LEVEL, as busybox's bzip2 writes
+; them: each piece fed as it comes, and an empty last piece writes the rest
+(def %bz-pack!
+  (fn (_ src fd level)
+    (def z (Bzip2 stream level))
+    (def put
+      (fn (_ buf n final)
+        (let ((r (Bzip2 feed z buf 0 n final)))
+          (%gz-write! fd (first r) (first (rest r))))))
+    (def feed
+      (fn (self)
+        (let ((p (src)))
+          (match
+            ((Err err? p) (error p))
+            ((= (rest p) 0) ())
+            (#t (do (put (first p) (rest p) #f) (cu-sweep-tick! 0) (self)))))))
+    (do (feed)
+        (put "" 0 #t))))
+
 ; --- the applets -------------------------------------------------------------------
 
 ; How a run goes, in a vector: the applet's name, unpacking?, -c, -f, -k, -t,
-; zcat's check of the magic, the format (gz or bz2).
+; zcat's check of the magic, the format (gz or bz2), bzip2's block size digit.
 (def %gz-name (fn (_ t) (vec-ref t 0)))
 
 (def %gz-run-guarded
@@ -410,7 +433,7 @@
                        (if (%gz-on? o "-d" "--decompress") #t
                          (if (%gz-on? o "--uncompress" "-t") #t
                            (Opts on? o "--test")))
-                       #f #f)
+                       #f #f 0)
             (Opts operands o) stdin-thunk))))))
 
 (def cu-gunzip
@@ -418,35 +441,53 @@
     (%gz-run-guarded
       (fn (_)
         (let ((o (cu-opts "gunzip" argv)))
-          (%gz-files (%gz-settings "gunzip" o (lit gz) #t #f #f) (Opts operands o) stdin-thunk))))))
+          (%gz-files (%gz-settings "gunzip" o (lit gz) #t #f #f 0) (Opts operands o) stdin-thunk))))))
 
 (def cu-zcat
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
         (let ((o (cu-opts "zcat" argv)))
-          (%gz-files (%gz-settings "zcat" o (lit gz) #t #t #t) (Opts operands o) stdin-thunk))))))
+          (%gz-files (%gz-settings "zcat" o (lit gz) #t #t #t 0) (Opts operands o) stdin-thunk))))))
+
+; busybox's bzip2 -d or -t is its bunzip2 read over the same words, which
+; takes no -z, -s or level; the first of those it meets is refused, under
+; bzip2's name
+(def cu-bzip2
+  (fn (_ argv stdin-thunk)
+    (%gz-run-guarded
+      (fn (_)
+        (let ((o (cu-opts "bzip2" (%gz-levels-gone argv))))
+          (if (%gz-on? o "-d" "-t")
+            (let ((extra (%bz-only-letter argv)))
+              (if (null? extra)
+                (%gz-files (%gz-settings "bzip2" o (lit bz2) #t #f #f 0) (Opts operands o) stdin-thunk)
+                (do (file-write 2 (%str-concat (list "bzip2: unrecognized option: " extra "\n")))
+                    (cu-usage "bzip2"))))
+            (%gz-files (%gz-settings "bzip2" o (lit bz2) #f #f #f (%bz-level argv))
+              (Opts operands o) stdin-thunk)))))))
 
 (def cu-bunzip2
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
         (let ((o (cu-opts "bunzip2" argv)))
-          (%gz-files (%gz-settings "bunzip2" o (lit bz2) #t #f #f) (Opts operands o) stdin-thunk))))))
+          (%gz-files (%gz-settings "bunzip2" o (lit bz2) #t #f #f 0) (Opts operands o) stdin-thunk))))))
 
 (def cu-bzcat
   (fn (_ argv stdin-thunk)
     (%gz-run-guarded
       (fn (_)
         (let ((o (cu-opts "bzcat" argv)))
-          (%gz-files (%gz-settings "bzcat" o (lit bz2) #t #t #f) (Opts operands o) stdin-thunk))))))
+          (%gz-files (%gz-settings "bzcat" o (lit bz2) #t #t #f 0) (Opts operands o) stdin-thunk))))))
 
 (def %gz-on? (fn (_ o a b) (if (Opts on? o a) #t (Opts on? o b))))
 
-; CAT writes to standard output whatever the options; ZCAT checks the magic
+; CAT writes to standard output whatever the options; ZCAT checks the magic;
+; LEVEL is bzip2's block size digit
 (def %gz-settings
-  (fn (_ name o form unpack cat zcat)
-    (vec-build 8
+  (fn (_ name o form unpack cat zcat level)
+    (vec-build 9
       (fn (_ i)
         (match
           ((= i 0) name) ((= i 1) unpack)
@@ -455,7 +496,8 @@
           ((= i 4) (Opts on? o "-k"))
           ((= i 5) (%gz-on? o "-t" "--test"))
           ((= i 6) zcat)
-          (#t form))))))
+          ((= i 7) form)
+          (#t level))))))
 
 ; bbunpack: each name, or standard input; the status
 (def %gz-files
@@ -466,11 +508,12 @@
           (self (rest l) (if (= (%gz-one t (first l) stdin-thunk) 0) status 1)))))
     (go (if (null? names) (list "-") names) 0)))
 
-; FILE.gz for FILE, or FILE for FILE.gz and FILE.tar for FILE.tgz, or FILE
-; for FILE.bz2; nil for another suffix
+; FILE.gz or FILE.bz2 for FILE, or FILE for FILE.gz and FILE.tar for
+; FILE.tgz, or FILE for FILE.bz2; nil for another suffix
 (def %gz-new-name
   (fn (_ t file)
-    (if (not (vec-ref t 1)) (string-append file ".gz")
+    (if (not (vec-ref t 1))
+      (string-append file (if (eq? (vec-ref t 7) (lit bz2)) ".bz2" ".gz"))
       (let ((n (byte-len file)))
         (match
           ((eq? (vec-ref t 7) (lit bz2))
@@ -574,6 +617,8 @@
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
                 (error e)))
       (do (match
+            ((if (not (vec-ref t 1)) (eq? (vec-ref t 7) (lit bz2)) #f)
+              (%bz-pack! src fd (vec-ref t 8)))
             ((not (vec-ref t 1)) (%gz-pack! src fd))
             ((eq? (vec-ref t 7) (lit bz2)) (%bz-unpack! (%gz-name t) src fd))
             (#t (%gz-unpack! (%gz-name t) src fd mtime)))
@@ -600,6 +645,57 @@
     (if (> (byte-len w) 1)
       (if (= (char->integer (byte-at w 0)) 45) (%gz-digit? (char->integer (byte-at w 1))) #f)
       #f)))
+
+; a word of short options: a dash, then letters that do not start with one
+(def %gz-short-word?
+  (fn (_ w)
+    (if (> (byte-len w) 1)
+      (if (= (char->integer (byte-at w 0)) 45) (not (= (char->integer (byte-at w 1)) 45)) #f)
+      #f)))
+
+; bzip2's block size digit, as busybox reads its words before --: the lowest
+; of the -1 to -9 given, -s counting as -2, 9 when none
+(def %bz-level
+  (fn (_ argv)
+    (def word
+      (fn (self bytes low)
+        (if (null? bytes) low
+          (self (rest bytes)
+            (match
+              ((%gz-digit? (first bytes)) (if (< (- (first bytes) 48) low) (- (first bytes) 48) low))
+              ((= (first bytes) 115) (if (< 2 low) 2 low))
+              (#t low))))))
+    (def go
+      (fn (self l low)
+        (match
+          ((null? l) low)
+          ((string=? (first l) "--") low)
+          ((%gz-short-word? (first l)) (self (rest l) (word (rest (gz-word-bytes (first l))) low)))
+          (#t (self (rest l) low)))))
+    (go argv 9)))
+
+; the first letter in the short words before -- that bunzip2 does not take
+; (-z, -s, -1 to -9), or nil
+(def %bz-only-letter
+  (fn (_ argv)
+    (def word
+      (fn (self bytes)
+        (match
+          ((null? bytes) ())
+          ((%gz-digit? (first bytes)) (bytes->str (list (first bytes))))
+          ((= (first bytes) 115) "s")
+          ((= (first bytes) 122) "z")
+          (#t (self (rest bytes))))))
+    (def go
+      (fn (self l)
+        (match
+          ((null? l) ())
+          ((string=? (first l) "--") ())
+          ((%gz-short-word? (first l))
+            (let ((c (word (rest (gz-word-bytes (first l))))))
+              (if (null? c) (self (rest l)) c)))
+          (#t (self (rest l))))))
+    (go argv)))
 
 ; --- tar's z ------------------------------------------------------------------------
 
@@ -636,5 +732,5 @@
                   (if (pair? how) (src (first how))
                     (if (first again) (do (%set-first! again #f) p) (src))))))))))
 
-(provide cu/gzip cu-bunzip2 cu-bzcat cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
+(provide cu/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
   gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)
