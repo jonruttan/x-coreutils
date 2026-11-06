@@ -16,7 +16,10 @@
 ; blank line between, and root is the whole tree.  A line stops at the
 ; terminal's width, $COLUMNS over the terminal stdin is, else 80: its last
 ; column a +, and the children of a cut line are not drawn.  A process
-; whose parent is its own (Darwin's kernel_task) is nobody's child.
+; whose parent is its own (Darwin's kernel_task) is nobody's child.  An id
+; names a process before a thread, and only a process has children:
+; Darwin's thread ids are counted apart from its pids, so a thread can hold
+; a process's number.
 
 (module cu/pstree)
 
@@ -83,20 +86,26 @@
     (when (>= (first %pst-unswept) 256)
       (do (cu-heap-collect) (set-first! %pst-unswept 0)))))
 
-; every process, its threads after it, in the table's order
+; (PROCESSES . NODES): the processes' nodes, and every node, each process's
+; threads after it, in the table's order
 (def %pst-scan
   (fn (_)
     (def ps (ps-sorted (host-processes)))
     (cu-heap-collect)
     (set-first! %pst-unswept 0)
-    (List flat-map
-      (fn (_ p)
-        (def pid (Assoc get (lit pid) p))
-        (def ppid (Assoc get (lit ppid) p))
-        (def comm (Assoc get (lit comm) p))
-        (pair (%pst-node pid (if (= pid ppid) 0 ppid) (Assoc get (lit uid) p) (if (null? comm) "" comm))
-              (%pst-threads p pid)))
-      ps)))
+    (def procs
+      (List map
+        (fn (_ p)
+          (def pid (Assoc get (lit pid) p))
+          (def ppid (Assoc get (lit ppid) p))
+          (def comm (Assoc get (lit comm) p))
+          (%pst-node pid (if (= pid ppid) 0 ppid) (Assoc get (lit uid) p) (if (null? comm) "" comm)))
+        ps))
+    (pair procs
+      (let go ((ps ps) (ns procs) (acc ()))
+        (if (null? ps) (reverse acc)
+          (go (rest ps) (rest ns)
+            (append (reverse (%pst-threads (first ps) (%pst-pid (first ns)))) (pair (first ns) acc))))))))
 
 ; the children's order, add_child's: by parent, then name, then user; the
 ; table's order else, which the sort keeps
@@ -127,12 +136,13 @@
 ; a parent the table only names, find_proc's ?
 (def %pst-orphan (fn (_ r) (list (first r) 0 0 "?" (list (rest r)))))
 
-; each node given its children, a merge of the nodes by id with the runs by
-; parent; answers the ?s for the runs whose parent is no node
+; each process given its children, a merge of the processes by id with the
+; runs of all the nodes by parent; answers the ?s for the runs whose parent
+; is no process
 (def %pst-table
-  (fn (_ nodes)
+  (fn (_ procs nodes)
     (def runs (%pst-runs (List sort %pst-before? nodes)))
-    (let go ((ns (List sort (fn (_ a b) (int< (%pst-pid a) (%pst-pid b))) nodes)) (rs runs) (orphans ()))
+    (let go ((ns (List sort (fn (_ a b) (int< (%pst-pid a) (%pst-pid b))) procs)) (rs runs) (orphans ()))
       (match
         ((null? rs) orphans)
         ((null? ns) (go ns (rest rs) (pair (%pst-orphan (first rs)) orphans)))
@@ -141,11 +151,14 @@
         (#t (do (set-first! (%pst-kids-cell (first ns)) (rest (first rs)))
                 (go (rest ns) (rest rs) orphans)))))))
 
-; find_proc: PID's node, or the ? of a parent the table only names, else nil
+; find_proc: PID's process, else the thread of that id, else the ? of a
+; parent the table only names, else nil
 (def %pst-find
-  (fn (_ nodes orphans pid)
-    (def hit (List find (fn (_ n) (int= (%pst-pid n) pid)) nodes))
-    (if (null? hit) (List find (fn (_ n) (int= (%pst-pid n) pid)) orphans) hit)))
+  (fn (_ procs nodes orphans pid)
+    (def has (fn (_ n) (int= (%pst-pid n) pid)))
+    (def p (List find has procs))
+    (def t (if (null? p) (List find has nodes) p))
+    (if (null? t) (List find has orphans) t)))
 
 ; --- the drawing -----------------------------------------------------------------
 
@@ -290,16 +303,17 @@
     (def pid (if digit? (%pst-number arg) 1))
     (def uid (if (if (null? arg) #t digit?) 0
                (let ((u (sys-user-id arg))) (if (null? u) (%pst-die (string-append "unknown user " arg)) u))))
-    (def nodes (%pst-scan))
-    (def orphans (%pst-table nodes))
+    (def scan (%pst-scan))
+    (def procs (first scan))
+    (def orphans (%pst-table procs (rest scan)))
     (set! %pst-pids? (Opts on? o "-p"))
     (set! %pst-width width)
     (set! %pst-col 0)
     (set! %pst-pieces ())
     (if (= uid 0)
-      (let ((top (%pst-find nodes orphans pid)))
+      (let ((top (%pst-find procs (rest scan) orphans pid)))
         (unless (null? top) (%pst-dump top 0 1 #t #t 0 ())))
-      (let ((top (%pst-find nodes orphans 1)))
+      (let ((top (%pst-find procs (rest scan) orphans 1)))
         (unless (if (null? top) #f (%pst-by-user top uid #f))
           (%pst-die "no processes found"))))
     0))
