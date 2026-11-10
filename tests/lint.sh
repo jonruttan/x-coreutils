@@ -31,6 +31,33 @@ KIT="${X_LANG_KIT:-$("$X" --share-dir)/tools/lang-kit}"
 	exit 0
 }
 
+# An x older than the release lang.xon names skips too, for the same reason:
+# the fragments import platform libraries such a tree has no file for, and the
+# linter preloads them, so the run dies per file on `include: cannot open` --
+# which reads as a defect in this source rather than as a platform too old.
+#
+# Conservative on purpose.  Only a release that can be read AND is below the
+# floor skips; an x whose release is unreadable runs the lint, so a version
+# this cannot parse never silently disables the gate.
+FLOOR=$(sed -n 's/^(requires-release "v\{0,1\}\([0-9.]*\)").*/\1/p' "$BUNDLE/lang.xon" | head -1)
+HAVE=$("$X" --version 2>/dev/null |
+	sed -n 's/.*library release v\{0,1\}\([0-9.]*\).*/\1/p' | head -1)
+if [ -n "$FLOOR" ] && [ -n "$HAVE" ] && ! awk -v a="$HAVE" -v b="$FLOOR" 'BEGIN {
+		na = split(a, have, "."); nb = split(b, want, ".")
+		n = na > nb ? na : nb
+		for (i = 1; i <= n; i++) {
+			u = (i <= na ? have[i] + 0 : 0)
+			v = (i <= nb ? want[i] + 0 : 0)
+			if (u > v) exit 0
+			if (u < v) exit 1
+		}
+		exit 0
+	}'; then
+	echo "x-coreutils: SKIPPING lint -- this x is $HAVE, lang.xon needs $FLOOR." >&2
+	echo "x-coreutils: install a current x to gate on it." >&2
+	exit 0
+fi
+
 # Every file, not the entry alone: the linter reads its targets as data
 # and follows no import, so linting run.x would examine none of the
 # modules.  Each cu/ file is a scoped module, or a file of one its own
