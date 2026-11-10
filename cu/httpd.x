@@ -55,7 +55,7 @@
   wget-err-text wget-index wget-memv)
 (import cu/session hd-daemonize ss-call)
 (import cu/test t-permitted?)
-(import cu/text3 cu-b64-decode-to)
+(import cu/text3 cu-b64-decode-string)
 (import cu/tftp tftp-bytes)
 
 (def %hd-verbose 0)
@@ -725,15 +725,13 @@
         (set! %hd-authorized (%hd-check-auth url (%hd-b64-decode (substring v 5 (byte-len v)))))
         (when cgi? (%hd-cgi-header! h))))))
 
-; decode_base64: the characters of the alphabet decoded, any other byte passed
-; over, the first = ending it
+; decode_base64, as busybox's httpd calls it on the credentials: the
+; characters of the alphabet decoded, any other byte passed over, a pad
+; ending it
 (def %hd-b64-decode
   (fn (_ s)
-    (def eq (wget-index s #\= 0))
-    (def body (if (null? eq) s (substring s 0 eq)))
-    (def out (list ""))
-    (cu-b64-decode-to body (fn (_ r) (set-first! out (string-append (first out) (substring (first r) 0 (rest r))))) #t)
-    (first out)))
+    (def r (cu-b64-decode-string s))
+    (substring (first r) 0 (rest r))))
 
 ; a POST's length: digits and nothing else, or a 400
 (def %hd-content-length!
