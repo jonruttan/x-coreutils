@@ -73,9 +73,11 @@ Three pieces: a NUL; a NUL and `A`; a NUL.
 ---
     AABBAA==
 
-### decoded, they come back as they were; a NUL in the input is not base64
+### decoded, they come back as they were; a NUL in the input is passed over
 
-What comes before the NUL is put out, and the status is 1.
+A NUL is outside the alphabet, and busybox's base64 -d passes over it as it
+does any such byte: what is on either side of it decodes, and the status is
+0.
 
 ```cu
 (do (into "b3" (list "base64" "-d" (bp "b1s")) ()) (display (list (same "b3" "rnd"))) (newline) (display (cu-dispatch (cu-find-applet "base64") "base64" (list "-d") (runs-of (list (cu-run-bytes (list 81 85 74 68 0 82 69 86 71) 9))))))
@@ -83,7 +85,7 @@ What comes before the NUL is put out, and the status is 1.
 ---
 ```output
 (#t)
-ABC1
+ABCDEF0
 ```
 
 ## dd

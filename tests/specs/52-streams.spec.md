@@ -68,18 +68,16 @@ each line it fills.
 ### a tool that needs only the start of its input asks for no piece past it
 
 od -N and dd count= stop reading once they have their bytes, from an input
-that never ends; base64 -d stops at the first piece that holds what is not
-base64.  Each shows what it put out, then the pieces it asked for.
+that never ends.  Each shows what it put out, then the pieces it asked for.
 
 ```cu
-(do (let ((src (endless "abc"))) (do (run (list "od" "-An" "-c" "-N" "5") src) (display (asked src)))) (newline) (let ((src (endless "abc"))) (do (run (list "dd" "bs=4" "count=2" "status=none") src) (display (asked src)))) (newline) (let ((src (feed (list "YWJj" "!!!!" "ZGVm") #f))) (do (display (out-of (fn (_) (run (list "base64" "-d") src)))) (display (asked src)))))
+(do (let ((src (endless "abc"))) (do (run (list "od" "-An" "-c" "-N" "5") src) (display (asked src)))) (newline) (let ((src (endless "abc"))) (do (run (list "dd" "bs=4" "count=2" "status=none") src) (display (asked src)))))
 ```
 ---
 ```output
    a   b   c   a   b
 (2)
 abcabcab(3)
-abc(2)
 ```
 
 ## pieces cut anywhere

@@ -469,9 +469,12 @@
       (list
         (Opts declare "base64" "[-d] [-w COL] [FILE]"
           "Base64 encode or decode FILE to standard output"
-          (list
-            (Opts flag "-d" "Decode data")
-            (Opts arg "-w" "COL" "Wrap lines at COL (default 76, 0 disables)")))))
+          (append
+            (list
+              (Opts flag "-d" "Decode data")
+              (Opts arg "-w" "COL" "Wrap lines at COL (default 76, 0 disables)"))
+            ; busybox takes -i and does nothing with it
+            (%cu-hidden-flags (list "-i"))))))
     (pair "stat"
       (list
         (Opts declare "stat" "[-ltf] [-c FMT] FILE..."
