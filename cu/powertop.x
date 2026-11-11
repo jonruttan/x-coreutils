@@ -89,9 +89,9 @@
 
 ; --- C's numbers ----------------------------------------------------------------
 
-(def %ptop-u32 (fn (_ n) (& n 4294967295)))
+(def %ptop-u32 (fn (_ n) (& n 0xFFFFFFFF)))
 (def %ptop-i32
-  (fn (_ n) (let ((u (& n 4294967295))) (if (>= u 2147483648) (- u 4294967296) u))))
+  (fn (_ n) (let ((u (& n 0xFFFFFFFF))) (if (>= u 2147483648) (- u 4294967296) u))))
 
 ; an unsigned 64-bit N as a double, N read as the machine word it is
 (def %ptop-u64->float

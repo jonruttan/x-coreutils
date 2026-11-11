@@ -204,7 +204,7 @@
 
 ; --- netlink ----------------------------------------------------------------------------
 
-(def %pd-align (fn (_ n) (& (+ n 3) (^ 3 4294967295))))
+(def %pd-align (fn (_ n) (& (+ n 3) (^ 3 0xFFFFFFFF))))
 
 ; strncmp (IFACE, the name at P, LEN) = 0, IFACE no longer than LEN
 (def %pd-name-is?
@@ -325,7 +325,7 @@
     (match ((= (byte-len head) 0) 0)
            ((not (rest r)) -1)
            ((if (< digits (byte-len head)) (%pd-alnum? (byte-at head digits)) #f) -1)
-           (#t (let ((v (& (first r) 4294967295))) (if (>= v 2147483648) (- v 4294967296) v))))))
+           (#t (let ((v (& (first r) 0xFFFFFFFF))) (if (>= v 2147483648) (- v 4294967296) v))))))
 
 (def %pd-digit? (fn (_ c) (if (>= c #\0) (<= c #\9) #f)))
 (def %pd-alnum?

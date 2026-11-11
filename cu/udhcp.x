@@ -384,7 +384,7 @@
   (fn (_ line val at flag)
     (def type (& (first flag) 15))
     (def ip (fn (_ s) (let ((n (ud-str2nip s))) (if (null? n) () (ud-be32-bytes n)))))
-    (def num (fn (_ r size) (if (rest r) (List drop (- 4 size) (ud-be32-bytes (& (first r) 4294967295))) ())))
+    (def num (fn (_ r size) (if (rest r) (List drop (- 4 size) (ud-be32-bytes (& (first r) 0xFFFFFFFF))) ())))
     (def string (fn (_ s) (if (= (byte-len s) 0) () (ud-str-bytes (if (> (byte-len s) 254) (substring s 0 254) s)))))
     (match
       ((= type ud-ip) (list (ip val) at flag))

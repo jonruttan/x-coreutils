@@ -104,7 +104,7 @@
     (match
       (numeric? (inet-dotted n))
       ((= n 0) wild)
-      ((if host? #t (not (= (& n (^ m 4294967295)) 0)))
+      ((if host? #t (not (= (& n (^ m 0xFFFFFFFF)) 0)))
         (let ((name (inet-addr-host n))) (if (null? name) (inet-dotted n) name)))
       (#t (inet-dotted n)))))
 

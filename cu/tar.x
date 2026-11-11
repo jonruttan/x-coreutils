@@ -529,7 +529,7 @@
       ((null? dev) 0)
       (os-darwin? (| (<< (first dev) 24) (rest dev)))
       (#t (| (| (<< (& (first dev) 4095) 8) (& (rest dev) 255))
-             (| (<< (& (rest dev) 1048320) 12) (<< (& (first dev) 4294963200) 32)))))))
+             (| (<< (& (rest dev) 1048320) 12) (<< (& (first dev) 0xFFFFF000) 32)))))))
 
 (def tar-find-str
   (fn (_ s sub)
