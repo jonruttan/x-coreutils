@@ -72,7 +72,7 @@
       (if (= hp 0) #f
         (let ((p (cu-int->ptr hp)))
           (pair (cu-ptr->str (cu-int->ptr (cu-ptr-word p 0)))
-                (if (= (& (cu-ptr-ref p 20 4) 4294967295) 4)
+                (if (= (& (cu-ptr-ref p 20 4) 0xFFFFFFFF) 4)
                   (%si-addrs (cu-ptr-word p 24)) ())))))))
 
 ; the dotted quads of a NULL-ended list of in_addr pointers at LIST
@@ -173,7 +173,7 @@
 (def cu-hostid
   (fn (_ argv stdin-thunk)
     (if (pair? argv) (cu-usage "hostid")
-      (let ((id (& (%si-call "gethostid") 4294967295)))
+      (let ((id (& (%si-call "gethostid") 0xFFFFFFFF)))
         (do (file-write 1 (string-append (cu-pad-zero (dp-udigits id 16 #f) 8) "\n")) 0)))))
 
 ; --- mountpoint -----------------------------------------------------------------
@@ -402,7 +402,7 @@
     (let ((tv (str-make-raw 16)))
       (do (%si-call "gettimeofday" tv 0)
           (let ((p (cu-str->ptr tv)))
-            (pair (cu-ptr-word p 0) (& (cu-ptr-ref p 8 4) 4294967295)))))))
+            (pair (cu-ptr-word p 0) (& (cu-ptr-ref p 8 4) 0xFFFFFFFF)))))))
 
 ; NOW less BASE, borrowing a second where the microseconds go below zero
 (def %si-elapsed

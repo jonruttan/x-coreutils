@@ -148,7 +148,7 @@
 ; read_u32 sets the number whether or not it was read whole
 (def %dd-set-u32
   (fn (_ v set)
-    (let ((r (ud-strtou v 10))) (do (set (& (first r) 4294967295)) (rest r)))))
+    (let ((r (ud-strtou v 10))) (do (set (& (first r) 0xFFFFFFFF)) (rest r)))))
 
 ; read_config
 (def %dd-read-config
@@ -212,7 +212,7 @@
     (def i (%dd-oldest-expired))
     (unless (null? i)
       (vec-set! %dd-leases i
-        (list (& (+ (ud-now) secs) 4294967295) nip (if (null? mac) (list 0 0 0 0 0 0) mac)
+        (list (& (+ (ud-now) secs) 0xFFFFFFFF) nip (if (null? mac) (list 0 0 0 0 0 0) mac)
               (if (null? host) (%dd-nuls 20) (%dd-clean-name host)))))
     i))
 
@@ -270,7 +270,7 @@
                       (go (- i 1) (if (= (%dd-nip (%dd-lease i)) 0) acc (pair (%dd-lease i) acc))))))
         (def b (ud-zeros (+ 8 (* 36 (length used)))))
         (ud-be32! b 0 (>> curr 32))
-        (ud-be32! b 4 (& curr 4294967295))
+        (ud-be32! b 4 (& curr 0xFFFFFFFF))
         (let go ((l used) (at 8))
           (unless (null? l)
             (let ((left (- (%dd-expires (first l)) curr)))
@@ -454,7 +454,7 @@
            (when (match ((null? server-id) #f) ((null? req-opt) #f) ((null? lease-nip) #f) (#t (= requested lease-nip)))
              (unless (eq? lease (lit static))
                (vec-set! %dd-leases lease
-                 (list (& (+ (ud-now) %dd-decline-time) 4294967295) lease-nip (list 0 0 0 0 0 0) (%dd-host (%dd-lease lease))))))))
+                 (list (& (+ (ud-now) %dd-decline-time) 0xFFFFFFFF) lease-nip (list 0 0 0 0 0 0) (%dd-host (%dd-lease lease))))))))
       ((= type ud-release)
        (do (ud-log1 "received RELEASE")
            (when (if (null? server-id) #f (if (null? lease-nip) #f (= (ud-be32 p ud-ciaddr) lease-nip)))

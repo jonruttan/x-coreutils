@@ -273,7 +273,7 @@
     (def bits (List ref 2 peer))
     (def v (ip-num (reverse (List take 4 (List ref 1 peer)))))
     (def host (- (<< 1 (- 32 bits)) 1))
-    (def w (if set? (| v host) (& v (^ host 4294967295))))
+    (def w (if set? (| v host) (& v (^ host 0xFFFFFFFF))))
     (List take (List ref 3 peer) (append (reverse (ip-le w 4)) (List drop 4 (List ref 1 peer))))))
 
 ; ipaddr_modify after its words: what the kernel is handed
@@ -498,7 +498,7 @@
 (def %ip-flag-word
   (fn (_ s bit on?)
     (ip-put (ip-put s (lit mask) (| (ip-get s (lit mask)) bit)) (lit flags)
-             (if on? (| (ip-get s (lit flags)) bit) (& (ip-get s (lit flags)) (^ bit 4294967295))))))
+             (if on? (| (ip-get s (lit flags)) bit) (& (ip-get s (lit flags)) (^ bit 0xFFFFFFFF))))))
 
 ; one of do_set's words at the front of WS: (S . WORDS-LEFT)
 (def %ip-set-word
@@ -567,7 +567,7 @@
               ((= k 1) (go (rest a) (pair (pair 5 (%ip-vlan-proto f (first a))) acc) flags mask))
               (#t (let ((bit (cu-nth (- k 2) (list 1 2 8 4))))
                     (go (rest a) acc
-                        (if (%ip-on-off f (cu-nth k %ip-vlan-words) (first a)) (| flags bit) (& flags (^ bit 4294967295)))
+                        (if (%ip-on-off f (cu-nth k %ip-vlan-words) (first a)) (| flags bit) (& flags (^ bit 0xFFFFFFFF)))
                         (| mask bit)))))))))))
 
 ; the protocol's bytes, network order, from its name lowercased

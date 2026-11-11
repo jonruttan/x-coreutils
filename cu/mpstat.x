@@ -47,8 +47,8 @@
            (def counts (Assoc get (lit counts) r))
            (pair (Assoc get (lit name) r)
              (if (null? counts)
-               (pair (& (vm-get (lit total) r) 4294967295) (map (fn (_ c) 0) (if (null? cpus) () (rest cpus))))
-               (map (fn (_ c) (let ((e (Assoc find c counts))) (if (null? e) 0 (& (rest e) 4294967295)))) cpus))))
+               (pair (& (vm-get (lit total) r) 0xFFFFFFFF) (map (fn (_ c) 0) (if (null? cpus) () (rest cpus))))
+               (map (fn (_ c) (let ((e (Assoc find c counts))) (if (null? e) 0 (& (rest e) 0xFFFFFFFF)))) cpus))))
       records)))
 
 ; The processor numbers an interrupt table names, from its first source with
@@ -192,7 +192,7 @@
                      (def k (match-at j (first (cu-nth j ctab))))
                      (if (null? k) "        N/A"
                        (vm-right
-                         (vm-fixed (vm-rate (& (- (count ctab j cpu) (count ptab k cpu)) 4294967295) itv 100) 2)
+                         (vm-fixed (vm-rate (& (- (count ctab j cpu) (count ptab k cpu)) 0xFFFFFFFF) itv 100) 2)
                          10)))
                 js))
             "\n"))))

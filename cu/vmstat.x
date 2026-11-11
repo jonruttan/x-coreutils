@@ -168,7 +168,7 @@
 ; went backwards
 (def %vm-delta
   (fn (_ now before)
-    (def v (& (- now before) 4294967295))
+    (def v (& (- now before) 0xFFFFFFFF))
     (if (>= v 2147483648) 0 v)))
 
 ; The CPU shares: (SUM . VSHIFT) over the deltas D of the share columns, the

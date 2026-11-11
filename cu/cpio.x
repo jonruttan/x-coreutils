@@ -113,7 +113,7 @@
 (def %cp-member
   (fn (_ rd s owner fs)
     (def at (fn (_ k) (cu-nth k fs)))
-    (def mode (& (at 1) 4294967295))
+    (def mode (& (at 1) 0xFFFFFFFF))
     (def type (& mode 61440))
     (def name (%cp-unroot (%cp-text rd (& (at 9) 8191))))
     (def size (at 6))
@@ -315,7 +315,7 @@
           (get (lit dev)) (get (lit rdev)))))
 
 (def %co-hex8
-  (fn (_ v) (cu-pad-zero (dp-udigits (& v 4294967295) 16 #t) 8)))
+  (fn (_ v) (cu-pad-zero (dp-udigits (& v 0xFFFFFFFF) 16 #t) 8)))
 
 ; N NUL bytes into the archive
 (def %co-nuls!
