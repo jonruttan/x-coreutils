@@ -66,7 +66,7 @@
 (def %top-rows ())                      ; the scan, sorted
 (def %top-names ())                     ; (uid . name), the names seen this run
 
-(def %top-u32 (fn (_ n) (& n 4294967295)))
+(def %top-u32 (fn (_ n) (& n 0xFFFFFFFF)))
 (def %top-u16 (fn (_ n) (& n 65535)))
 (def %top-ticks (fn (_ ns) (if (null? ns) 0 (ps-div ns %top-tick))))
 

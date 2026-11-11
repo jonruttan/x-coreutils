@@ -42,8 +42,8 @@
 (def %pmap-address
   (fn (_ addr)
     (if (< addr 0)
-      (string-append (cu-pad-zero (cu-hexs (& (>> addr 32) 4294967295)) 8)
-                     (cu-pad-zero (cu-hexs (& addr 4294967295)) 8))
+      (string-append (cu-pad-zero (cu-hexs (& (>> addr 32) 0xFFFFFFFF)) 8)
+                     (cu-pad-zero (cu-hexs (& addr 0xFFFFFFFF)) 8))
       (cu-pad-zero (cu-hexs addr) 16))))
 
 ; one region's row; SIZE is its KiB

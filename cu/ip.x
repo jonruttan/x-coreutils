@@ -256,7 +256,7 @@
           ((not (first m)) (bad))
           ((= (List ref 1 m) 2)
             (let ((mask (ip-num (reverse (List take 4 (List ref 2 m))))))
-              (let ((inv (^ mask 4294967295)))
+              (let ((inv (^ mask 0xFFFFFFFF)))
                 (if (if (= (& inv (+ inv 1)) 0) (<= (%ip-ones mask) bits) #f) (%ip-ones mask) (bad)))))
           (#t (if (null? n) 4294967295 (first n))))))))
 
@@ -273,7 +273,7 @@
 
 (def ip-off (fn (_ p o) (cu-int->ptr (+ (td-ptr->int p) o))))
 (def ip-bytes (fn (_ p at n) (map (fn (_ k) (cu-ptr-ref p (+ at k) 1)) (List range 0 n))))
-(def ip-align (fn (_ n) (& (+ n 3) (^ 3 4294967295))))
+(def ip-align (fn (_ n) (& (+ n 3) (^ 3 0xFFFFFFFF))))
 
 ; the attribute TYPE of ATTRS: (TYPE . BYTES), or nil
 (def ip-attr (fn (_ attrs type) (List find (fn (_ e) (= (first e) type)) attrs)))
@@ -403,9 +403,9 @@
 
 (def %ip-link-flags
   (fn (_ flags mdown)
-    (def f (& flags (^ 64 4294967295)))
+    (def f (& flags (^ 64 0xFFFFFFFF)))
     (def on (filter (fn (_ e) (not (= (& f (first e)) 0))) %ip-flag-labels))
-    (def left (List fold (fn (_ n e) (& n (^ (first e) 4294967295))) f on))
+    (def left (List fold (fn (_ n e) (& n (^ (first e) 0xFFFFFFFF))) f on))
     (%str-concat
       (list "<" (if (if (= (& flags 1) 0) #f (= (& flags 64) 0)) "NO-CARRIER," "")
             (Str8 join "," (map rest on)) (if (= left 0) "" (cvt left cu-string-type 16))
@@ -526,7 +526,7 @@
   (fn (_ flags)
     (def named (filter (fn (_ e) (not (= (& flags (first e)) 0)))
                        (list (pair 1 "secondary ") (pair 64 "tentative ") (pair 8 "dadfailed ") (pair 32 "deprecated "))))
-    (def left (& flags (^ 745 4294967295)))
+    (def left (& flags (^ 745 0xFFFFFFFF)))
     (%str-concat
       (list (%str-concat (map rest named))
             (if (= (& flags 128) 0) "dynamic " "")
