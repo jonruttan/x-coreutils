@@ -101,7 +101,7 @@
 
 ; mton: the mask's width, counted to its last set bit
 (def %uc-mton
-  (fn (_ m) (let go ((m m) (i 0)) (if (= m 0) i (go (& (<< m 1) 4294967295) (+ i 1))))))
+  (fn (_ m) (let go ((m m) (i 0)) (if (= m 0) i (go (& (<< m 1) 0xFFFFFFFF) (+ i 1))))))
 
 (def %uc-upto-nul
   (fn (_ l) (let go ((left l) (acc ())) (if (if (null? left) #t (= (first left) 0)) (reverse acc) (go (rest left) (pair (first left) acc))))))
@@ -482,7 +482,7 @@
                                (ud-logging! "udhcpc" (ud-verbose) #t #t)))
           (ud-write-pidfile %uc-pidfile)
           (ud-info (string-append "started, v" (vi-bundle-version)))
-          (cu-ptr-call (cu-libc-sym "srand") (& (pn-now) 4294967295))
+          (cu-ptr-call (cu-libc-sym "srand") (& (pn-now) 0xFFFFFFFF))
           (set! %uc-state %uc-init)
           (set! %uc-sock -1)
           (set! %uc-listen 0)

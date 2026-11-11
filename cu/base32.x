@@ -141,7 +141,7 @@
                 (#t
                   (let ((v2 (+ (* v 32) d)) (eq2 (if (= c #\=) (+ eq 1) 0)))
                     (if (= k 7)
-                      (do (emit (& v2 1099511627775) eq2) (self (+ i 1) 0 0 0))
+                      (do (emit (& v2 0xFFFFFFFFFF) eq2) (self (+ i 1) 0 0 0))
                       (self (+ i 1) v2 (+ k 1) eq2))))))))))
     (let ((r (go 0 (vec-ref st 0) (vec-ref st 1) (vec-ref st 2))))
       (do (if (null? (first out)) ()

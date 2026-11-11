@@ -35,8 +35,8 @@
         (octal 100 8 (& mode 511))
         (octal 108 8 (& uid 2097151))
         (octal 116 8 (& gid 2097151))
-        (octal 124 12 (& size 4294967295))
-        (octal 136 12 (& mtime 8589934591))
+        (octal 124 12 (& size 0xFFFFFFFF))
+        (octal 136 12 (& mtime 0x1FFFFFFFF))
         (cu-ptr-set! (cu-str->ptr h) 156 type 1)
         (tc-write-header! 1 h))))
 

@@ -68,7 +68,7 @@
     (def a1 (>> a 16))
     (def b0 (& b 65535))
     (def b1 (>> b 16))
-    (& (+ (* a0 b0) (<< (& (+ (* a0 b1) (* a1 b0)) 65535) 16)) 4294967295)))
+    (& (+ (* a0 b0) (<< (& (+ (* a0 b1) (* a1 b0)) 65535) 16)) 0xFFFFFFFF)))
 
 ; the full 64 bits of A * B, each under 2^32: (HIGH . LOW)
 (def %zc-mul64
@@ -79,10 +79,10 @@
     (def b1 (>> b 16))
     (def mid (+ (* a0 b1) (* a1 b0)))
     (def low (+ (* a0 b0) (<< (& mid 65535) 16)))
-    (pair (& (+ (>> low 32) (>> mid 16) (* a1 b1)) 4294967295) (& low 4294967295))))
+    (pair (& (+ (>> low 32) (>> mid 16) (* a1 b1)) 0xFFFFFFFF) (& low 0xFFFFFFFF))))
 
 ; srand: the seed S - 1, S unsigned
-(def %zc-srand (fn (_ s) (do (set! %zc-hi 0) (set! %zc-lo (& (- s 1) 4294967295)))))
+(def %zc-srand (fn (_ s) (do (set! %zc-hi 0) (set! %zc-lo (& (- s 1) 0xFFFFFFFF)))))
 
 ; rand: seed = 6364136223846793005 * seed + 1, the top 31 bits answered
 (def %zc-rand
@@ -90,10 +90,10 @@
     (def ah 1481765933)              ; 0x5851f42d
     (def al 1284865837)              ; 0x4c957f2d
     (def ll (%zc-mul64 al %zc-lo))
-    (def hi (& (+ (first ll) (%zc-mul32 ah %zc-lo) (%zc-mul32 al %zc-hi)) 4294967295))
+    (def hi (& (+ (first ll) (%zc-mul32 ah %zc-lo) (%zc-mul32 al %zc-hi)) 0xFFFFFFFF))
     (def lo (+ (rest ll) 1))
-    (set! %zc-lo (& lo 4294967295))
-    (set! %zc-hi (if (> lo 4294967295) (& (+ hi 1) 4294967295) hi))
+    (set! %zc-lo (& lo 0xFFFFFFFF))
+    (set! %zc-hi (if (> lo 4294967295) (& (+ hi 1) 0xFFFFFFFF) hi))
     (>> %zc-hi 1)))
 
 (def %zc-delay (fn (_ secs) (% (%zc-rand) (* secs 1000))))
@@ -338,7 +338,7 @@
     (let ((r (Opts value o "-r")))
       (unless (null? r)
         (let ((ip (inet-aton r)))
-          (if (if (null? ip) #t (not (= (& (%zc-swap ip) 4294901760) %zc-net)))
+          (if (if (null? ip) #t (not (= (& (%zc-swap ip) 0xFFFF0000) %zc-net)))
             (%zc-die "invalid link address")
             (set! %zc-chosen (%zc-swap ip))))))
     (set! %zc-iface (first ops))

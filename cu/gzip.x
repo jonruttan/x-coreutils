@@ -100,7 +100,7 @@
       (do (%gz-sink-step! k (first held) (rest held) #f)
           (vec-set! k 4 (%gz-held buf n))
           (vec-set! k 2 (Crc32 update (vec-ref k 2) buf 0 n))
-          (vec-set! k 3 (& (+ (vec-ref k 3) n) 4294967295))))))
+          (vec-set! k 3 (& (+ (vec-ref k 3) n) 0xFFFFFFFF))))))
 
 (def %gz-held
   (fn (_ buf n)
@@ -274,7 +274,7 @@
         (let ((copy (str-make-raw n)))
           (do (gz-copy (cu-str->ptr copy) (cu-str->ptr out) n)
               (vec-set! st 2 (Crc32 update (vec-ref st 2) out 0 n))
-              (vec-set! st 3 (& (+ (vec-ref st 3) n) 4294967295))
+              (vec-set! st 3 (& (+ (vec-ref st 3) n) 0xFFFFFFFF))
               (vec-set! st 4 0)
               (vec-set! st 9 (append (vec-ref st 9) (list (pair copy n))))))))))
 
