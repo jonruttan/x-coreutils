@@ -32,6 +32,9 @@
   sys-fork sys-getpid sys-pipe sys-setenv sys-signal sys-time-ms sys-wait
   wget-index)
 (import cu/telnet tn-run)
+(import cu/text3 cu-b64-feed cu-b64-finish cu-b64-fresh)
+
+(import x/codec/base64)
 
 (def %mm-charset "us-ascii")
 
@@ -49,33 +52,9 @@
 
 ; --- base64 -------------------------------------------------------------------
 
-(def %mm-alphabet "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/")
-
-(def %mm-b64-char (fn (_ v) (substring %mm-alphabet v (+ v 1))))
-
-; bb_uuencode's base64 of BYTES, padded
-(def mm-b64
-  (fn (_ bytes)
-    (let go ((l bytes) (acc ()))
-      (if (null? l) (%str-concat (reverse acc))
-        (let ((b0 (first l))
-              (b1 (if (null? (rest l)) () (first (rest l))))
-              (b2 (if (if (null? (rest l)) #t (null? (rest (rest l)))) () (first (rest (rest l))))))
-          (def n (+ (* b0 65536) (* (if (null? b1) 0 b1) 256) (if (null? b2) 0 b2)))
-          (def c (fn (_ shift) (%mm-b64-char (% (/ (- n (% n shift)) shift) 64))))
-          (go (if (null? b2) () (rest (rest (rest l))))
-              (pair (%str-concat (list (c 262144) (c 4096) (if (null? b1) "=" (c 64)) (if (null? b2) "=" (%mm-b64-char (% n 64)))))
-                    acc)))))))
-
-; the value of base64 character T, 64 for a padding =, or nil
-(def %mm-b64-value
-  (fn (_ t)
-    (match ((if (>= t #\A) (<= t #\Z) #f) (- t #\A))
-           ((if (>= t #\a) (<= t #\z) #f) (+ 26 (- t #\a)))
-           ((if (>= t #\0) (<= t #\9) #f) (+ 52 (- t #\0)))
-           ((= t #\+) 62)
-           ((= t #\/) 63)
-           (#t ()))))
+; bb_uuencode's base64 of BYTES, padded: x/codec/base64's.  Decoding is the
+; busybox reading cu/text3 carries.
+(def mm-b64 (fn (_ bytes) (Base64 encode-bytes bytes)))
 
 ; --- stdin, a byte at a time --------------------------------------------------------
 
@@ -315,46 +294,18 @@
                 (let ((st (% (sys-wait pid) 256)))
                   (if (= st 0) 0 (+ st 20))))))))
 
-; read_base64 with '-' as the end: the input decoded to FD a buffer at a time,
-; a buffer ending at a space or control character, the -, or the end, and
-; what a buffer leaves undecoded carried to the next
+; read_base64 with '-' as the end: the input decoded to FD as cu/text3's
+; busybox reading decodes it, the -, or the end, ending it -- with nothing
+; read since the last chunk, as it stands; else "truncated input" where a
+; group was left unfinished
 (def %mm-read-base64
   (fn (_ fd)
-    (let fill ((carry ()))
-      (def got
-        (let read ((acc carry) (n (length carry)))
-          (if (>= n 80) (pair (reverse acc) #f)
-            (let ((ch (mm-getc)))
-              (match ((if (null? ch) #t (= ch #\-)) (pair (reverse acc) (if (null? acc) (lit done) #t)))
-                     ((<= ch 32) (pair (reverse acc) #f))
-                     (#t (read (pair ch acc) (+ n 1))))))))
-      (unless (eq? (rest got) (lit done))
-        (let ((d (%mm-decode (first got))))
-          (do (unless (null? (first d)) (let ((r (tn-run (first d)))) (guard (_ ()) (File write fd (first r) (rest r)))))
-              (if (rest got)
-                (unless (null? (rest d)) (%mm-die "truncated input"))
-                (fill (rest d)))))))))
-
-; decode_base64 over CHARS: (BYTES . LEFT), LEFT the characters of an
-; unfinished group; a = in the third or fourth place ends the decoding
-(def %mm-decode
-  (fn (_ chars)
-    (let go ((l chars) (group ()) (out ()))
-      (if (null? l) (pair (reverse out) (reverse (map rest group)))
-        (let ((t (first l)))
-          (def v (%mm-b64-value t))
-          (def i (length group))
-          (def pad? (if (= t #\=) (if (= i 3) #t (if (= i 2) (if (null? (rest l)) #f (= (first (rest l)) #\=)) #f)) #f))
-          (match
-            ((if (null? v) (not pad?) #f) (go (rest l) group out))
-            ((< i 3) (go (rest l) (append group (list (pair (if pad? 0 v) t))) out))
-            (#t (let ((vals (append (map first group) (list (if pad? 0 v)))))
-                  (def n (+ (* (first vals) 262144) (* (cu-nth 1 vals) 4096) (* (cu-nth 2 vals) 64) (cu-nth 3 vals)))
-                  (def b (list (% (/ (- n (% n 65536)) 65536) 256) (% (/ (- n (% n 256)) 256) 256) (% n 256)))
-                  (def pads (+ (if pad? 1 0) (if (= (rest (cu-nth 2 group)) #\=) 1 0)))
-                  (def kept (List take (- 3 pads) b))
-                  (if (> pads 0) (pair (append (reverse out) kept) (rest l))
-                    (go (rest l) () (append (reverse b) out)))))))))))
+    (def put (fn (_ r) (guard (_ ()) (File write fd (first r) (rest r)))))
+    (let go ((st cu-b64-fresh))
+      (let ((ch (mm-getc)))
+        (if (if (null? ch) #t (= ch #\-))
+          (unless (cu-b64-finish st put #f) (%mm-die "truncated input"))
+          (go (cu-b64-feed st ch put #f)))))))
 
 (provide cu/mime cu-makemime cu-reformime mm-b64 mm-ci= mm-getc mm-gets mm-in
   mm-source!)

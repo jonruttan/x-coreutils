@@ -294,7 +294,7 @@
     (set! %pn-ntx (+ %pn-ntx 1))
     ; the clock, native order: it is read back here, the checksum and the
     ; send all that follow it
-    (cu-ptr-set! p 8 (& (pn-now) 4294967295) 4)
+    (cu-ptr-set! p 8 (& (pn-now) 0xFFFFFFFF) 4)
     (unless %pn-v6 (pn-be16! p 2 (pn-fold (+ (+ %pn-base seq) (pn-sum p 8 (if (< n 12) n 12))))))
     (def sz (in-call (cu-ptr-call (cu-libc-sym "sendto") %pn-fd p n 0 (cu-str->ptr %pn-sa) %pn-salen)))
     (when (< sz 0) (%pn-errno-die "sendto" sz))
@@ -333,7 +333,7 @@
 ; unpack_tail
 (def %pn-tail!
   (fn (_ sz p from seq ttl now)
-    (def trip (if (null? p) () (& (- now (cu-ptr-ref p 0 4)) 4294967295)))
+    (def trip (if (null? p) () (& (- now (cu-ptr-ref p 0 4)) 0xFFFFFFFF)))
     (unless (null? trip)
       (do (set! %pn-tsum (+ %pn-tsum trip))
           (when (if (null? %pn-tmin) #t (< trip %pn-tmin)) (set! %pn-tmin trip))

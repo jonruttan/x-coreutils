@@ -111,7 +111,7 @@
 (def %u6-sec (fn (_) (pn-div (pn-now) 1000000)))
 (def %u6-rand (fn (_) (in-call (cu-ptr-call (cu-libc-sym "rand")))))
 ; random_xid: three random bytes after the one the type takes
-(def %u6-xid! (fn (_) (set! %u6-xid (& (%u6-rand) 4294967040))))
+(def %u6-xid! (fn (_) (set! %u6-xid (& (%u6-rand) 0xFFFFFF00))))
 
 ; --- bytes --------------------------------------------------------------------------------
 
@@ -552,7 +552,7 @@
                                (ud-logging! "udhcpc6" (ud-verbose) #t #t)))
           (ud-write-pidfile %u6-pidfile)
           (ud-info (string-append "started, v" (vi-bundle-version)))
-          (cu-ptr-call (cu-libc-sym "srand") (& (pn-now) 4294967295))
+          (cu-ptr-call (cu-libc-sym "srand") (& (pn-now) 0xFFFFFFFF))
           (set! %u6-state %u6-init)
           (set! %u6-sock -1)
           (set! %u6-listen 0)
@@ -719,8 +719,8 @@
                  (sys-usleep (* %u6-discover-timeout 1000000))
                  (%u6-listen! %u6-listen)))
            ()))
-      ((not (= (& (%u6-xid-of p) 4294967040) %u6-xid))
-       (ud-log1 (%str-concat (list "xid " (cu-hexs (& (%u6-xid-of p) 4294967040)) " (our is " (cu-hexs %u6-xid) "), ignoring packet"))))
+      ((not (= (& (%u6-xid-of p) 0xFFFFFF00) %u6-xid))
+       (ud-log1 (%str-concat (list "xid " (cu-hexs (& (%u6-xid-of p) 0xFFFFFF00)) " (our is " (cu-hexs %u6-xid) "), ignoring packet"))))
       (#t (%u6-message (first (%u6-at p 0 1)) (List drop 4 p))))))
 
 ; TYPE and the OPTIONS of a packet that is ours: an ADVERTISE while

@@ -213,7 +213,8 @@
   cu-with-sources)
 (import cu/text2 cu-echo cu-fold cu-oct->str cu-pad cu-paste cu-printf
   cu-rev-applet cu-seq cu-tac cu-tee)
-(import cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from cu-base64
+(import cu/text3 cu-b64-decode-chars cu-b64-decode-string cu-b64-feed
+  cu-b64-finish cu-b64-fresh cu-b64-put-end cu-b64-put-from cu-base64
   cu-dos2unix cu-expand cu-factor cu-list->vec cu-shuf cu-shuf-range cu-spaces
   cu-split cu-unexpand cu-unix2dos cu-vec->list cu-yes)
 (import cu/text4 cu-nl cu-uniq)

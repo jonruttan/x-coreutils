@@ -17,16 +17,17 @@
 (module cu/encode)
 
 (import cu/cli cu-opts)
-(import cu/prims bit-and bit-shl bit-xor byte-at byte-len cu% cu& cu* cu+ cu-
-  cu-b->s cu-hexs cu-int->str cu-last cu-lines cu-nth cu-run-bytes cu-stat-get
-  cu-sweep-at cu-sweep-lines cu-sweep-steps cu/ cu< cu<< cu>> file-close
-  file-err-text file-open-or-err file-open-write file-stat-full file-write
-  file-write-run filter length map reverse set-first! string-append string=?
-  substring sys-umask)
+(import cu/prims append bit-and bit-shl bit-xor byte-at byte-len cu% cu& cu*
+  cu+ cu- cu-b->s cu-hexs cu-int->str cu-last cu-lines cu-nth cu-run-bytes
+  cu-stat-get cu-sweep-at cu-sweep-lines cu-sweep-steps cu/ cu< cu<< cu>>
+  file-close file-err-text file-open-or-err file-open-write file-stat-full
+  file-write file-write-run filter length map reverse set-first! string-append
+  string=? substring sys-umask)
 (import cu/text cu-enough cu-fold-said cu-gather-said cu-num-prefix
   cu-pad-left cu-pad-zero cu-run-join cu-run-part cu-says)
 (import cu/text2 cu-oct->str)
-(import cu/text3 cu-b64-decode-to cu-b64-put-end cu-b64-put-from)
+(import cu/text3 cu-b64-feed cu-b64-finish cu-b64-fresh cu-b64-put-end
+  cu-b64-put-from)
 
 (def %cu-od-char
   (fn (_ b)
@@ -402,17 +403,17 @@
         (list (if m? "begin-base64 " "begin ") (cu-oct->str mode) " " name
               "\n")))
     (def g (cu-fold-said src stdin-thunk (cu-says "uuencode")
-             (%cu-uu-take begin m?) (list #f (pair "" 0) () 0)))
+             (%cu-uu-take begin m?) (list #f (pair "" 0) 0)))
     (def s (first g))
     (if (> (rest g) 0) 1
       (do (if (first s) () (display begin))
-          (%cu-uu-end m? (cu-nth 1 s) (cu-nth 2 s) (cu-nth 3 s))
+          (%cu-uu-end m? (cu-nth 1 s) (cu-nth 2 s))
           0))))
 
-; uuencode's TAKE: the state is (BEGUN LEFT LINE COL) -- whether the begin line
-; is out; the bytes the pieces before left for the next line or step, as a
-; run; and under -m the base64 line so far.  The historical encoding puts out
-; each whole line of 45 bytes, -m each whole step of three.
+; uuencode's TAKE: the state is (BEGUN LEFT COL) -- whether the begin line is
+; out; the bytes the pieces before left for the next line or group, as a run;
+; and under -m the column the base64 line has reached.  The historical
+; encoding puts out each whole line of 45 bytes, -m each whole group of three.
 (def %cu-uu-take
   (fn (_ begin m?)
     (fn (_ r s)
@@ -420,12 +421,10 @@
           (let ((text (if (= (rest (cu-nth 1 s)) 0) r
                         (cu-run-join (cu-nth 1 s) r 0 (rest r)))))
             (if m?
-              (let ((b (cu-b64-put-from text 76 (cu-nth 2 s) (cu-nth 3 s)
-                         #f)))
-                (list #t (cu-run-part text (first b) (rest text))
-                      (cu-nth 1 b) (cu-nth 2 b)))
+              (let ((b (cu-b64-put-from text 76 (cu-nth 2 s) #f)))
+                (list #t (cu-run-part text (first b) (rest text)) (rest b)))
               (list #t (cu-run-part text (%cu-uu-lines text) (rest text))
-                    () 0)))))))
+                    0)))))))
 
 ; the whole lines of 45 bytes run R holds, put out; answers where they stop
 (def %cu-uu-lines
@@ -442,10 +441,10 @@
 ; the end of the encoding: what the pieces left, as the last short line or
 ; step with its padding, and the terminator
 (def %cu-uu-end
-  (fn (_ m? left line col)
+  (fn (_ m? left col)
     (if m?
-      (let ((b (cu-b64-put-from left 76 line col #t)))
-        (do (cu-b64-put-end 76 (cu-nth 1 b) (cu-nth 2 b))
+      (let ((b (cu-b64-put-from left 76 col #t)))
+        (do (cu-b64-put-end 76 (rest b))
             (display "====\n")))
       (do (if (> (rest left) 0)
             (display
@@ -554,7 +553,32 @@
                 (do (cu-sweep-at k cu-sweep-lines)
                     (self (rest ls) (%cu-onto bs out) (+ n (length bs))
                       (+ k 1))))))))
-    (if b64? (cu-b64-decode-to (Str8 join "\n" body) put #t)
+    (if b64? (%cu-uu-b64-body body put)
       (go (filter (fn (_ l) (> (byte-len l) 0)) body) () 0 0))))
+
+; BODY under -m: its lines and then the ==== that ends them, fed a byte at a
+; time to busybox's reading, which stops at that line.  A group the last
+; line left unfinished is decoded with the = of the terminator, as busybox's
+; is.
+(def %cu-uu-b64-body
+  (fn (_ body put)
+    (def line
+      (fn (_ l st)
+        (def end (byte-len l))
+        (def go
+          (fn (self i st)
+            (match
+              ((eq? st (lit stop)) st)
+              ((cu< i end) (self (cu+ i 1) (cu-b64-feed st (cu& (byte-at l i) 255) put #t)))
+              (#t (cu-b64-feed st 10 put #t)))))
+        (go 0 st)))
+    (def go
+      (fn (self ls k st)
+        (match
+          ((eq? st (lit stop)) #t)
+          ((null? ls) (cu-b64-finish st put #t))
+          (#t (do (cu-sweep-at k cu-sweep-lines)
+                  (self (rest ls) (+ k 1) (line (first ls) st)))))))
+    (go (append body (list "====")) 0 cu-b64-fresh)))
 
 (provide cu/encode cu-od cu-uudecode cu-uuencode)
