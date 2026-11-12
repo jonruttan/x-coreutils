@@ -2,13 +2,14 @@
 
 <p align="center"><img src="docs/bitwise-banner.svg" alt="x-coreutils, with Bitwise the owl" width="100%"></p>
 
-The small tools built second in the self-hosting arc, as APPLETS of
-one bundle -- organized like busybox:
+BusyBox's applets on [x-lang](https://github.com/jonruttan/x-lang), as
+one bundle:
 
     x -l coreutils -- APPLET [args]...
 
-**Two hundred applets: busybox's `coreutils` set and well past it, one to
-a line:**
+The aim is every BusyBox applet, each checked against BusyBox 1.36.1,
+with BusyBox's behaviour where it and GNU differ.  The applets, one to a
+line:
 
     arch
     arp
@@ -26,8 +27,8 @@ a line:**
     chgrp
     chmod
     chown
-    chrt
     chroot
+    chrt
     cksum
     clear
     cmp
@@ -49,8 +50,8 @@ a line:**
     dos2unix
     du
     dumpleases
-    ed
     echo
+    ed
     env
     ether-wake
     expand
@@ -81,8 +82,8 @@ a line:**
     ifconfig
     ifplugd
     inetd
-    ionice
     install
+    ionice
     iostat
     ip
     ipaddr
@@ -148,8 +149,11 @@ a line:**
     pscan
     pstree
     pwd
+    pwdx
     rdate
     readlink
+    realpath
+    reformime
     renice
     reset
     rev
@@ -209,19 +213,19 @@ a line:**
     udhcpc6
     udhcpd
     udpsvd
+    uname
     unexpand
     uniq
     unix2dos
     unlink
     unshare
     unzip
-    uname
     uptime
     users
+    usleep
     uudecode
     uuencode
     uuidgen
-    usleep
     vconfig
     vi
     vmstat
@@ -231,8 +235,8 @@ a line:**
     wget
     which
     who
-    whois
     whoami
+    whois
     xargs
     xxd
     yes
@@ -267,13 +271,10 @@ Self-contained: no `(requires-lang ...)`.
 
 ## Known limits
 
-  - **No name service.** There is no passwd or group door.  A user's
-    name comes from /etc/passwd when it holds the id, then `$USER`,
-    then `$LOGNAME`, then the number itself; `logname` reads
-    `$LOGNAME` first.  No group has a name: `groups`, `id`, `id -gn`
-    and `id -Gn` print numbers.  `chown` and `chgrp` take numeric ids
-    only, and their reports name ids where GNU's name a user and a
-    group: `changed group of 'f' from 0 to 20`.
+  - **Names are libc's.** A user's or group's name and id come from
+    `getpwuid`, `getgrgid`, `getpwnam` and `getgrnam`, reached through
+    the FFI, and print as the number where the system has no name.
+    `chown` and `chgrp` take a name or an id.
   - **`date` is in the C locale.** Times are local, in the zone TZ
     names, as busybox's are, but the locale is not read, so names print
     as `LC_ALL=C date` prints them.  `date -d` and `touch -d` read a
@@ -282,16 +283,15 @@ Self-contained: no `(requires-lang ...)`.
   - **`tty` answers isatty**, not a terminal name: there is no ttyname
     door, so it prints `/dev/tty` or `not a tty`.
   - **`which` tests existence**, not the execute bit.
-  - **Text, not binary.** An applet holds what it reads as a string,
-    and a string's length stops at its first NUL byte, so `cat`, `od`,
-    `wc`, `cmp`, `dd` and the other readers see a file or a stream
-    only up to its first NUL -- `cmp` can call two different
-    files the same.  What a tool *writes* carries its own count, so an
-    escape that names NUL writes the byte: `printf '\0'`, `echo -e
-    '\0'` and `tr a '\0'` all do.  `cp`, `mv` and `install`
-    copy every byte, and the digests (`md5sum` to `sha3sum`, `-c` too,
-    `cksum` and `sum`) read every byte; `sort -z`, `shuf -z` and
-    `xargs -0` read NUL as a separator, and `env -0` writes it.
+  - **NUL bytes.** `cat`, `tee`, `head`, `tail`, `wc`, `tr`, `od`,
+    `base64`, `dd`, `dos2unix`, `unix2dos`, `split`, `uuencode` and
+    `uudecode` carry them, `cmp` and `diff` compare files that hold
+    them, `cp`, `mv` and `install` copy every byte, and the digests
+    (`md5sum` to `sha3sum`, `-c` too, `cksum` and `sum`) read every
+    byte.  `sort -z`, `shuf -z` and `xargs -0` read NUL as a separator,
+    and `env -0` writes it.  An escape that names NUL writes the byte:
+    `printf '\0'`, `echo -e '\0'` and `tr a '\0'` all do.  The other
+    text tools are not checked on input that holds a NUL.
   - **`expr`'s regular expressions are its own grammar**: literals,
     `.`, `*`, bracket expressions with ranges and negation, `$`, and
     one `\(...\)` capture.  No `\{n,m\}`, `\+`, `\?` or `\|`, and no
@@ -331,10 +331,7 @@ Self-contained: no `(requires-lang ...)`.
     answered when vi next waits for a key, where busybox's handlers
     answer them at once, so the two differ only while a long command
     runs.
-  - **Not present**: `stty` (ioctl), `hostid`
-    (gethostid) and `mknod` (device numbers), for want of a door this
-    bundle will not invent; and `sha3sum`, which needs no door and is
-    not written.
+  - **Not present**: `stty`.
 
 Paired with x-lang v0.52.0 (`lang.xon` is the checkable row).
 
@@ -387,11 +384,13 @@ The applets tested there so far:
 - `ipcs`
 - `killall5`
 - `lsmod`
+- `minips`
 - `nameif`
 - `netstat`
 - `nsenter`
 - `ping`
 - `powertop`
+- `pstree`
 - `route`
 - `setpriv`
 - `smemcap`
