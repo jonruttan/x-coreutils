@@ -24,11 +24,11 @@
 (import cu/cli cu-usage)
 (import cu/net whois-trim)
 (import cu/prims append byte-at byte-len cu-int->str cu-member-s? cu-nth
-  file-err-text file-exists? file-open-err file-read-all file-read-run
+  file-err-sym file-err-text file-exists? file-open-err file-read-all
   file-write file-write-run filter integer->char length list->string map
   net-close net-die net-resolve net-udp-connect reverse set-first!
-  string-append string=? substring sys-poll sys-time-ms sys-uname vec-build
-  vec-ref wget-digits wget-div wget-index wget-memv)
+  str-make-raw string-append string=? substring sys-poll sys-time-ms sys-uname
+  vec-build vec-ref wget-digits wget-div wget-index wget-memv)
 
 (def %ns-port 53)
 (def %ns-retry 2)
@@ -286,9 +286,18 @@
 ; the run of a query's bytes
 (def %ns-run (fn (_ bs) (pair (bytes->str bs) (length bs))))
 
+; how many queries the last send wrote
+(def %ns-sent 0)
+
+; busybox's words for a write to SERVER that failed with E
+(def %ns-write-failed
+  (fn (_ server e)
+    (file-write 2 (%str-concat (list "nslookup: write to '" (first server) "': " (file-err-text e) "\n")))))
+
 ; send every unanswered query to SERVER; #t, or #f when a write failed
 (def %ns-send-all
   (fn (_ fd server queries)
+    (set! %ns-sent 0)
     (let go ((qs queries))
       (match
         ((null? qs) #t)
@@ -296,10 +305,15 @@
         (#t
           (let ((r (file-write-run fd (%ns-run (first (rest (first qs)))))))
             (if (< r 0)
-              (do (file-write 2 (%str-concat (list "nslookup: write to '" (first server) "': "
-                    (file-err-text (file-open-err r (first server))) "\n")))
-                  #f)
-              (go (rest qs)))))))))
+              (do (%ns-write-failed server (file-open-err r (first server))) #f)
+              (do (set! %ns-sent (+ %ns-sent 1)) (go (rest qs))))))))))
+
+; one datagram of FD as a run, (BUFFER . COUNT), or the io Err the read failed with
+(def %ns-read
+  (fn (_ fd server)
+    (def buf (str-make-raw 512))
+    (def r (File read fd buf 512))
+    (if (< r 0) (Err from-errno (Err errno-of r) (lit read) (first server)) (pair buf r))))
 
 ; ask SERVER every query; answers how many replies came, -1 after a failed write
 (def %ns-send-queries
@@ -313,7 +327,12 @@
     r))
 
 ; the wait for replies: a resend each INTERVAL, until TIMEOUT has passed or
-; every query has its answer
+; every query has its answer.  A read that fails is said and the wait goes
+; on, as busybox does.  A server's refusal is the kernel's answer to the first
+; query, an ICMP port-unreachable: Linux takes it in on loopback before the
+; next write, which fails with it, and busybox gives up on the server there.
+; Darwin takes it in later, so a send of more than one query that the read
+; finds refused is the write's failure, said as busybox says it.
 (def %ns-loop
   (fn (self fd server queries timeout interval tstart tsent send? replies servfail printed?)
     (def now (sys-time-ms))
@@ -328,8 +347,17 @@
         (let ((ready (sys-poll (list (pair fd (list (lit in)))) (- interval (- now tsent)))))
           (if (null? ready)
             (self fd server queries timeout interval tstart tsent #f replies servfail printed?)
-            (%ns-on-reply self fd server queries timeout interval tstart tsent replies servfail
-                          printed? (file-read-run fd 512))))))))
+            (let ((r (%ns-read fd server)))
+              (match
+                ((not (Err err? r))
+                  (%ns-on-reply self fd server queries timeout interval tstart tsent replies servfail
+                                printed? r))
+                ((if (eq? (file-err-sym r) (lit econnrefused)) (> %ns-sent 1) #f)
+                  (do (%ns-write-failed server r) -1))
+                (#t
+                  (do (file-write 2 (%str-concat (list "nslookup: read: " (file-err-text r) "\n")))
+                      (self fd server queries timeout interval tstart tsent #f replies servfail
+                            printed?)))))))))))
 
 ; one datagram read: print the server's lines on the first, match it to its
 ; query by id, and print what it says
