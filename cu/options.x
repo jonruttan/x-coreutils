@@ -2026,6 +2026,34 @@
             (Opts hidden (Opts flag "-q" ""))
             (Opts hidden (Opts flag "-d" ""))
             (Opts hidden (Opts flag "-t" ""))))))
+    (pair "unlzma"
+      (list
+        (Opts declare "unlzma" "[-cfk] [FILE]..."
+          "Decompress FILEs (or stdin)"
+          (list
+            (Opts text "\t-c\tWrite to stdout")
+            (Opts text "\t-f\tForce")
+            (Opts text "\t-k\tKeep input files")
+            (Opts text "\t-t\tTest integrity")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
+    (pair "lzcat"
+      (list
+        (Opts declare "lzcat" "[FILE]..."
+          "Decompress to stdout"
+          (list
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))
+            (Opts hidden (Opts flag "-k" ""))
+            (Opts hidden (Opts flag "-v" ""))
+            (Opts hidden (Opts flag "-q" ""))
+            (Opts hidden (Opts flag "-d" ""))
+            (Opts hidden (Opts flag "-t" ""))))))
     (pair "bzip2"
       (list
         (Opts declare "bzip2" "[-cfkdt123456789] [FILE]..."

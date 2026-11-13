@@ -94,6 +94,8 @@
     (list "gzip" (%letters "cfkdt"))
     (list "bunzip2" (%letters "cfkt"))
     (list "bzcat" ())
+    (list "unlzma" (%letters "cfkt"))
+    (list "lzcat" ())
     (list "bzip2" (%letters "cfkdt123456789"))
     (list "hd" ())
     (list "head" (%letters "ncqv"))

@@ -1,6 +1,6 @@
 ; # x-coreutils -- the small tools, as applets
 ;
-; ## cu/gzip.x -- gzip, gunzip, zcat, bzip2, bunzip2, bzcat
+; ## cu/gzip.x -- gzip, gunzip, zcat, bzip2, bunzip2, bzcat, unlzma, lzcat
 ;
 ; @author [Jon Ruttan](jonruttan@gmail.com)
 ; @copyright 2026 Jon Ruttan
@@ -8,25 +8,28 @@
 ;
 ; busybox's gzip family (archival/gzip.c, bbunzip.c and libarchive's
 ; unpack_gz_stream), with bzip2, bunzip2 and bzcat on the same frame
-; (archival/bzip2.c, bbunzip.c's bunzip2_main and unpack_bz2_stream).  gzip
+; (archival/bzip2.c, bbunzip.c's bunzip2_main and unpack_bz2_stream), and
+; unlzma and lzcat (bbunzip.c's unlzma_main, unpack_lzma_stream).  gzip
 ; writes busybox's header -- no name, mtime 0, OS 3 -- then the data
 ; deflated, then its CRC and length; bzip2 writes one stream at the block
 ; size of the lowest -1 to -9 given, 9 when none, -s counting as -2; gunzip
 ; reads every member in turn, passing over a header's extra field, name,
 ; comment and CRC, and leaves whatever follows the last member when it is
-; not another; bunzip2 reads every stream that follows another the same way.
-; A FILE is replaced by FILE.gz or FILE.bz2, or FILE.gz (or .tgz) by FILE
-; (or .tar), or FILE.bz2 by FILE, the new file made with the old one's mode
-; and, after gunzip, a header's nonzero mtime; -c writes to standard output
-; and keeps the input, -k keeps it, -f replaces an output already there, -t
-; only checks.  bzcat is bunzip2 -c, and bzip2 -d or -t is bunzip2; zcat is
-; gunzip -c that takes bzip2 data too, and refuses what is neither.
+; not another; bunzip2 reads every stream that follows another the same way;
+; unlzma reads one stream and nothing after it.  A FILE is replaced by
+; FILE.gz or FILE.bz2, or FILE.gz (or .tgz) by FILE (or .tar), or FILE.bz2
+; or FILE.lzma by FILE, the new file made with the old one's mode and,
+; after gunzip, a header's nonzero mtime; -c writes to standard output and
+; keeps the input, -k keeps it, -f replaces an output already there, -t only
+; checks.  bzcat is bunzip2 -c, and bzip2 -d or -t is bunzip2; zcat is
+; gunzip -c that takes bzip2 data too, and refuses what is neither; lzcat is
+; unlzma -c.
 ;
-; The data goes a piece at a time through x-lang's Deflate, Inflate, Bzip2
-; and Bunzip2 streams, in x, so no C library is wanted (x-os has none): no
-; file is read whole.  busybox deflates with code of its own, so a gzip file
-; holds the same data but not always the same bytes; a bzip2 file is byte
-; for byte busybox's.
+; The data goes a piece at a time through x-lang's Deflate, Inflate, Bzip2,
+; Bunzip2 and Unlzma streams, in x, so no C library is wanted (x-os has
+; none): no file is read whole.  busybox deflates with code of its own, so
+; a gzip file holds the same data but not always the same bytes; a bzip2
+; file is byte for byte busybox's.
 
 (module cu/gzip)
 
@@ -43,6 +46,7 @@
 (import x/codec/crc32)
 (import x/codec/bunzip2)
 (import x/codec/bzip2)
+(import x/codec/unlzma)
 
 (def %gz-room 32768)
 
@@ -53,6 +57,11 @@
 ; the run ends: MSG said under the applet's NAME, and the status 1
 (def %gz-die
   (fn (_ name msg) (Err raise (lit gzip) (%str-concat (list name ": " msg)) ())))
+
+; busybox's _and_die: MSG said, status 1, and the run over at once, its
+; other names not taken and the output file left as it is
+(def %gz-end
+  (fn (_ name msg) (Err raise (lit gzip-end) (%str-concat (list name ": " msg)) ())))
 
 (def %gz-say (fn (_ name msg) (file-write 2 (%str-concat (list name ": " msg "\n")))))
 
@@ -411,15 +420,94 @@
     (do (feed)
         (put "" 0 #t))))
 
+; --- lzma -------------------------------------------------------------------------
+
+; What the codec's data D holds under KEY, or nil
+(def %lz-at
+  (fn (self key d)
+    (if (null? d) ()
+      (if (if (pair? (first d)) (eq? (first (first d)) key) #f) (rest (first d)) (self key (rest d))))))
+
+; busybox's buffer is the window, written to FD each time it fills and what
+; is in it at the stream's end.  HOLD is a vector: the region, how much of
+; it is filled, the window's size, and the region's size, which grows
+; towards the window's as the bytes come rather than taking it whole.
+(def %lz-hold
+  (fn (_ room)
+    (def cap (if (< room 4096) room 4096))
+    (vec-build 4 (fn (_ i) (match ((= i 0) (str-make-raw cap)) ((= i 1) 0) ((= i 2) room) (#t cap))))))
+
+(def %lz-room!
+  (fn (_ hold need)
+    (when (< (vec-ref hold 3) need)
+      (let ((cap ((fn (self c) (if (< c need) (self (* c 2)) c)) (* 2 (vec-ref hold 3)))))
+        (let ((cap (if (< (vec-ref hold 2) cap) (vec-ref hold 2) cap)))
+          (let ((r (str-make-raw cap)) (filled (vec-ref hold 1)))
+            (do (if (> filled 0) (gz-copy (cu-str->ptr r) (cu-str->ptr (vec-ref hold 0)) filled) ())
+                (vec-set! hold 0 r)
+                (vec-set! hold 3 cap))))))))
+
+; N bytes of BUF from AT into HOLD, each window it fills written to FD
+(def %lz-take!
+  (fn (self hold fd buf at n)
+    (unless (= n 0)
+      (let ((filled (vec-ref hold 1)) (room (vec-ref hold 2)))
+        (let ((k (if (< (- room filled) n) (- room filled) n)))
+          (do (%lz-room! hold (+ filled k))
+              (gz-copy (gz-at (cu-str->ptr (vec-ref hold 0)) filled) (gz-at (cu-str->ptr buf) at) k)
+              (vec-set! hold 1 (+ filled k))
+              (when (= (vec-ref hold 1) room)
+                (do (%gz-write! fd (vec-ref hold 0) room) (vec-set! hold 1 0)))
+              (self hold fd buf (+ at k) (- n k))))))))
+
+; SRC's stream decoded to FD, as unpack_lzma_stream reads it: a header of
+; 13 bytes whose first is under 225, or "bad lzma header", then the data a
+; piece at a time.  One stream is the whole of it: what follows is not
+; read.  Data cut short is busybox's read dying, which ends the run and
+; leaves the output as it is; other bad data is "corrupted data".  Neither
+; writes the window's last bytes.
+(def %lz-unpack!
+  (fn (_ name src fd)
+    (def rd (%gz-reader src))
+    (def head (%gz-bytes! rd 13))
+    (when (if (null? head) #t (>= (first head) 225)) (%gz-die name "bad lzma header"))
+    (def hold (%lz-hold (let ((d (%gz-u32 (rest head)))) (if (= d 0) 1 d))))
+    (def z (Unlzma stream))
+    (def out (fn (_ r) (%lz-take! hold fd (first r) 0 (first (rest r)))))
+    (def go
+      (fn (self)
+        (unless (Unlzma done? z)
+          (let ((p (%gz-piece rd)))
+            (if (null? p) (out (Unlzma finish z))
+              (let ((at (vec-ref rd 2)))
+                (do (vec-set! rd 2 (rest p))
+                    (out (Unlzma feed z (first p) at (- (rest p) at)))
+                    (cu-sweep-tick! 0)
+                    (self))))))))
+    (def hb (str-make-raw 13))
+    (%gz-fill! hb head)
+    ; the raise carries what the call decoded before the decision that
+    ; failed: its whole windows are written, as busybox wrote them before
+    ; it stopped
+    (guard (e (if (eq? (cu-err-label e) (lit value))
+                (do (let ((o (%lz-at (lit out) (e data)))) (if (null? o) () (out o)))
+                    (if (eq? (%lz-at (lit lzma) (e data)) (lit short))
+                      (%gz-end name "unexpected EOF")
+                      (%gz-die name "corrupted data")))
+                (error e)))
+      (do (out (Unlzma feed z hb 0 13)) (go)))
+    (%gz-write! fd (vec-ref hold 0) (vec-ref hold 1))))
+
 ; --- the applets -------------------------------------------------------------------
 
 ; How a run goes, in a vector: the applet's name, unpacking?, -c, -f, -k, -t,
-; zcat's check of the magic, the format (gz or bz2), bzip2's block size digit.
+; zcat's check of the magic, the format (gz, bz2 or lzma), bzip2's block size
+; digit.
 (def %gz-name (fn (_ t) (vec-ref t 0)))
 
 (def %gz-run-guarded
   (fn (_ thunk)
-    (guard (e (if (eq? (cu-err-label e) (lit gzip))
+    (guard (e (if (if (eq? (cu-err-label e) (lit gzip)) #t (eq? (cu-err-label e) (lit gzip-end)))
                 (do (file-write 2 (string-append (e msg) "\n")) 1)
                 (error e)))
       (thunk))))
@@ -481,6 +569,21 @@
         (let ((o (cu-opts "bzcat" argv)))
           (%gz-files (%gz-settings "bzcat" o (lit bz2) #t #t #f 0) (Opts operands o) stdin-thunk))))))
 
+; busybox's unlzma_main: bbunpack over the lzma stream; lzcat is unlzma -c
+(def cu-unlzma
+  (fn (_ argv stdin-thunk)
+    (%gz-run-guarded
+      (fn (_)
+        (let ((o (cu-opts "unlzma" argv)))
+          (%gz-files (%gz-settings "unlzma" o (lit lzma) #t #f #f 0) (Opts operands o) stdin-thunk))))))
+
+(def cu-lzcat
+  (fn (_ argv stdin-thunk)
+    (%gz-run-guarded
+      (fn (_)
+        (let ((o (cu-opts "lzcat" argv)))
+          (%gz-files (%gz-settings "lzcat" o (lit lzma) #t #t #f 0) (Opts operands o) stdin-thunk))))))
+
 (def %gz-on? (fn (_ o a b) (if (Opts on? o a) #t (Opts on? o b))))
 
 ; CAT writes to standard output whatever the options; ZCAT checks the magic;
@@ -509,7 +612,7 @@
     (go (if (null? names) (list "-") names) 0)))
 
 ; FILE.gz or FILE.bz2 for FILE, or FILE for FILE.gz and FILE.tar for
-; FILE.tgz, or FILE for FILE.bz2; nil for another suffix
+; FILE.tgz, or FILE for FILE.bz2 or FILE.lzma; nil for another suffix
 (def %gz-new-name
   (fn (_ t file)
     (if (not (vec-ref t 1))
@@ -518,6 +621,8 @@
         (match
           ((eq? (vec-ref t 7) (lit bz2))
             (if (gz-ends? file ".bz2") (substring file 0 (- n 4)) ()))
+          ((eq? (vec-ref t 7) (lit lzma))
+            (if (gz-ends? file ".lzma") (substring file 0 (- n 5)) ()))
           ((gz-ends? file ".gz") (substring file 0 (- n 3)))
           ((gz-ends? file ".tgz") (string-append (substring file 0 (- n 4)) ".tar"))
           (#t ()))))))
@@ -582,7 +687,8 @@
         (do (%gz-close-src src) (%gz-say name (string-append file ": unknown suffix - ignored")) 1))
       ((not to-file)
         (let ((fd (if (vec-ref t 5) (file-open-wronly "/dev/null") 1)))
-          (let ((r (%gz-work t src fd (list 0))))
+          (let ((r (guard (e (do (%gz-close-src src) (if (vec-ref t 5) (file-close fd) ()) (error e)))
+                     (%gz-work t src fd (list 0)))))
             (do (%gz-close-src src) (if (vec-ref t 5) (file-close fd) ()) r))))
       (#t (%gz-to-file t file st src new)))))
 
@@ -600,7 +706,10 @@
             1)
         (let ((mtime (list 0)))
           ; an error gzip does not say itself still takes the new file away
-          (let ((r (guard (e (do (%gz-close-src src) (file-close fd) (guard (_ ()) (file-unlink new)) (error e)))
+          (let ((r (guard (e (do (%gz-close-src src)
+                                 (file-close fd)
+                                 (unless (eq? (cu-err-label e) (lit gzip-end)) (guard (_ ()) (file-unlink new)))
+                                 (error e)))
                      (%gz-work t src fd mtime))))
             (do (%gz-close-src src)
                 (file-close fd)
@@ -621,6 +730,7 @@
               (%bz-pack! src fd (vec-ref t 8)))
             ((not (vec-ref t 1)) (%gz-pack! src fd))
             ((eq? (vec-ref t 7) (lit bz2)) (%bz-unpack! (%gz-name t) src fd))
+            ((eq? (vec-ref t 7) (lit lzma)) (%lz-unpack! (%gz-name t) src fd))
             (#t (%gz-unpack! (%gz-name t) src fd mtime)))
           0))))
 
@@ -732,5 +842,5 @@
                   (if (pair? how) (src (first how))
                     (if (first again) (do (%set-first! again #f) p) (src))))))))))
 
-(provide cu/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
+(provide cu/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-lzcat cu-unlzma cu-zcat gz-at gz-copy gz-ends? gz-sink
   gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)

@@ -104,6 +104,7 @@ the work.  Applet parity is the other axis: see the README.
 | `ls` | -1 -A -a -C -x -d -L -H -R -F -p -l -i -n -s -h -r -S -X -v -c -t -u -w | -1 -a -A -x -d -L -H -R -p -F -l -i -n -s -h -S -X -v -t -r -c -u -C -w |  | 100% |
 | `lsmod` |  |  |  | - |
 | `lsof` |  |  |  | - |
+| `lzcat` |  | -c -f -k -v -q -d -t |  | - |
 | `makemime` | -c -e -o -C -N -a | -c -e -o -C -N -a |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mesg` |  |  |  | - |
@@ -217,6 +218,7 @@ the work.  Applet parity is the other axis: see the README.
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d | -u -d |  | 100% |
 | `unlink` |  |  |  | - |
+| `unlzma` | -c -f -k -t | -c -f -k -v -q -d -t |  | 100% |
 | `unshare` | -m -u -i -n -p -U -f -r --mount --uts --ipc --net --pid --user --mount-proc --propagation --setgroups | -m -u -i -n -p -U -f -r --mount --uts --ipc --net --pid --user --fork --map-root-user --mount-proc --propagation --setgroups |  | 100% |
 | `unzip` | -l -n -o -j -p -t -q -K -x -d | -l -n -o -j -p -t -q -K -x -v -d |  | 100% |
 | `uptime` | -s | -s |  | 100% |
