@@ -80,7 +80,7 @@
 ; =NAME, only for a grammar syntax=NAME named
 (def %vi-grammar-shown
   (fn (_)
-    (def g %vi-grammar-set)
+    (def g (%vi-grammar-chosen))
     (def name (if (null? g) () (g name)))
     (if (null? name) "" (string-append "=" (cvt name cu-string-type)))))
 ; theme=NAME, only for a theme other than the default
@@ -153,6 +153,7 @@
     (match
       ((if (vi< eq 0) #f (if no #t (null? g))) (%vi-bad-option word))
       (#t (do (set! %vi-grammar-set g)
+              (set! %vi-grammar-set-for %vi-filename)
               (set! %vi-setops (vi- %vi-setops (vi& %vi-setops %vi-sy)))
               (if no () (set! %vi-setops (vi+ %vi-setops %vi-sy))))))))
 

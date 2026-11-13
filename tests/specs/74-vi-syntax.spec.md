@@ -47,6 +47,10 @@ counts the SGR sequences drawn that are not resets.
     (File write fd text (byte-len text))
     (File close fd)
     (vi-typed (list path) bursts 6 (if (null? cols) 30 (first cols)))
+    (vi-shown)))
+; the rows as drawn, their cells, the bottom line and the colours counted
+(def vi-shown
+  (fn (_)
     (def cells (vi-state (lit %vi-cells)))
     (display
       (%str-concat
@@ -253,6 +257,65 @@ colours 3
 no cells
 status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8
 colours 5
+```
+
+### -c sets syntax=NAME as the first file is read
+
+```cu
+(proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vsy && mkdir -p /tmp/x-cu-vsy && printf '(def x 1)\\n' > /tmp/x-cu-vsy/f.txt"))
+(vi-typed (list "-c" ":set syntax=x" "/tmp/x-cu-vsy/f.txt") (list (string-append ":set" cr)) 6 80)
+(vi-shown)
+```
+---
+```output
+|(def x 1)
+|~
+|~
+|~
+|~
+:JEEE I DJ
+:
+:
+:
+:
+status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8 syntax=x
+colours 5
+```
+
+### syntax=NAME holds for its file alone: another file :e reads finds its own
+
+After syntax=x on f.txt, g.txt is drawn plain and :set lists syntax without
+the name.  :e # reads f.txt again, and a file read again finds its own
+grammar, as vim's detection runs again on a read: none for .txt.
+
+```cu
+(proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vsy && mkdir -p /tmp/x-cu-vsy && printf '(def x 1)\\n' > /tmp/x-cu-vsy/f.txt && printf '(def y 2)\\n' > /tmp/x-cu-vsy/g.txt"))
+(vi-typed (list "/tmp/x-cu-vsy/f.txt")
+  (list (string-append ":set syntax=x" cr) (string-append ":e /tmp/x-cu-vsy/g.txt" cr) (string-append ":set" cr)) 6 80)
+(vi-shown)
+(vi-typed (list "/tmp/x-cu-vsy/f.txt")
+  (list (string-append ":set syntax=x" cr) (string-append ":e /tmp/x-cu-vsy/g.txt" cr) (string-append ":e #" cr))
+  6 30)
+(vi-shown)
+```
+---
+```output
+|(def y 2)
+|~
+|~
+|~
+|~
+no cells
+status noautoindent noexpandtab noflash noignorecase noshowmatch tabstop=8 syntax
+colours 5
+|(def x 1)
+|~
+|~
+|~
+|~
+no cells
+status '/tmp/x-cu-vsy/f.txt' 1L, 10C
+colours 3
 ```
 
 ### a grammar no one knows, or nosyntax with a name, is a bad option
