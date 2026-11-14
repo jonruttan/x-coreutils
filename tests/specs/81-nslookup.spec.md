@@ -128,6 +128,20 @@ nslookup: write to '127.0.0.1': Connection refused
 status 1
 ```
 
+### no server listening, one query: the read finds the refusal
+
+```cu
+(ns-case (list "-port=P" "-type=a" "-timeout=1" "-retry=1" "host.test" "127.0.0.1") ())
+```
+---
+```output
+;; connection timed out; no servers could be reached
+
+stderr:
+nslookup: read: Connection refused
+status 1
+```
+
 ### no operand, an unknown type, an unknown option, an operand too many
 
 ```cu
