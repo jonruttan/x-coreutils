@@ -119,6 +119,7 @@
     (list "killall5" (%letters "los"))
     (list "link" ())
     (list "ln" (%letters "sfnbtv"))
+    (list "logger" (%letters "pst"))
     (list "logname" ())
     (list "ls" (%letters "1AaCxdLHRFplinshrSXvctuw"))
     (list "lsmod" ())
