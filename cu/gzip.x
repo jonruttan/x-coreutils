@@ -46,7 +46,6 @@
 (import x/codec/crc32)
 (import x/codec/bunzip2)
 (import x/codec/bzip2)
-(import x/codec/unlzma)
 
 (def %gz-room 32768)
 
@@ -468,6 +467,7 @@
 ; writes the window's last bytes.
 (def %lz-unpack!
   (fn (_ name src fd)
+    (import x/codec/unlzma)
     (def rd (%gz-reader src))
     (def head (%gz-bytes! rd 13))
     (when (if (null? head) #t (>= (first head) 225)) (%gz-die name "bad lzma header"))
