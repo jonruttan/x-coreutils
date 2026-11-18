@@ -333,7 +333,7 @@ Self-contained: no `(requires-lang ...)`.
     runs.
   - **Not present**: `stty`.
 
-Paired with x-lang v0.56.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.57.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
