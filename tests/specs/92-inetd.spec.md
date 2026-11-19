@@ -1,4 +1,5 @@
 # @weight 4
+# @timeout-scale 2
 
 inetd as busybox's.  Each case writes CONF (as printf's %b reads it) to
 /tmp/x-cu-inetd/conf and SCRIPT to /tmp/x-cu-inetd/s, runs inetd in a child with
