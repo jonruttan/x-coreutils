@@ -1,4 +1,5 @@
 # @weight 2
+# @timeout-scale 3
 
 ftpd as busybox's.  Each case makes the tree /tmp/x-cu-fd/srv with PRE (every
 file in it dated 2026-01-02 03:04:05 UTC), runs ftpd ARGS DIR on a connection

@@ -51,12 +51,21 @@ SPEC_PATH="${SPEC_PATH:-$BUNDLE/tests/specs}"
 if [ "${IMG:-1}" != 0 ]; then
 	_builder="$X_ROOT/tools/dev/image-build.sh"
 	if [ -f "$_builder" ]; then
-		if X_BIN="$X_BIN" X_SH="$(command -v "$X")" sh "$_builder" \
-			"$LANG_LIB" "$BUNDLE/tests/lib/.images" "$BUNDLE/cu"; then
+		_st=0
+		X_BIN="$X_BIN" X_SH="$(command -v "$X")" sh "$_builder" \
+			"$LANG_LIB" "$BUNDLE/tests/lib/.images" "$BUNDLE/cu" || _st=$?
+		if [ "$_st" = 0 ]; then
 			X_IMG_DIR="$BUNDLE/tests/lib/.images"
 			export X_IMG_DIR
+		elif [ "$_st" = 3 ]; then
+			# A refused write: more live objects than the writer holds, a word it
+			# cannot name, or a writer the kernel ended.  Booted from source
+			# instead, every file runs past its timeout -- 3,125 of 3,297 tests
+			# on CI, and six hours where there was no timeout.
+			echo "x-coreutils: the state image was refused (see tests/lib/.images/harness.gen.x.log); IMG=0 boots from source" >&2
+			exit 2
 		else
-			echo "x-coreutils: no state image (image-build exit $?) -- the suite boots from source" >&2
+			echo "x-coreutils: no state image (image-build exit $_st) -- the suite boots from source" >&2
 		fi
 	else
 		echo "x-coreutils: no image writer at $_builder -- the suite boots from source" >&2
