@@ -31,6 +31,8 @@
   file-read-unsized file-write length libc-strerror map reverse string-append
   string=? substring)
 (import cu/text cu-pad-left cu-pad-zero)
+(import x/core/doors type-make-instance)
+(import x/num/float float str->float)
 
 (def %br-root "/sys/class/net/")
 
@@ -260,7 +262,7 @@
     (match
       ((if (>= (byte-len body) 3) (string=? (substring body 0 3) "nan") #f) (bad))
       ((if (>= (byte-len body) 3) (string=? (substring body 0 3) "inf") #f) (if neg? (bad) 2147483647))
-      (#t (let ((d (Float from (string-append (if neg? "-" "") body))))
+      (#t (let ((d (type-make-instance float (str->float (string-append (if neg? "-" "") body)))))
             (if (Float < d (Float from 0)) (bad)
               (let ((dd (Float * d (Float from 100))))
                 (if (Float < (Float from 2147483647) dd) 2147483647 (Float ->int dd)))))))))
