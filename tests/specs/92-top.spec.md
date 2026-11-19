@@ -1,4 +1,5 @@
 # @weight 1
+# @timeout-scale 3
 
 busybox's top (procps/top.c).  Its numbers are checked against busybox's own
 formatting -- smart_ulltoa5, fmt_100percent_8, the %RSS and %CPU
