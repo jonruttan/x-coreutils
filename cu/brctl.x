@@ -247,6 +247,38 @@
                           (if (dec? (at k)) (digits k dec?) b))
                         b)))))))))))
 
+; the double strtod makes of W, a span %br-strtod-end read, unsigned and
+; lowercased.  Float from takes only what the reader reads as one number,
+; so a decimal is written whole, INT.FRAC then eEXP, and a hex one is
+; summed from its digits and scaled by its power of two, exactly while
+; its digits fit a double's 53 bits
+(def %br-strtod
+  (fn (_ w)
+    (def n (byte-len w))
+    (def find (fn (_ s c) (let go ((k 0)) (if (= k (byte-len s)) #f (if (= (byte-at s k) c) k (go (+ k 1)))))))
+    (def hex? (if (>= n 2) (= (byte-at w 1) #\x) #f))
+    (def ep (or (find w (if hex? #\p #\e)) n))
+    (def mant (substring w (if hex? 2 0) ep))
+    (def dot (find mant #\.))
+    (def ip (if dot (substring mant 0 dot) mant))
+    (def fp (if dot (substring mant (+ dot 1) (byte-len mant)) ""))
+    (def ex (if (< ep n) (substring w (+ ep 1) n) "0"))
+    (def or0 (fn (_ s) (if (= (byte-len s) 0) "0" s)))
+    (if (not hex?)
+      (Float from (%str-concat (list (or0 ip) "." (or0 fp) "e" ex)))
+      (let ((digit (fn (_ c) (if (<= c #\9) (- c #\0) (+ 10 (- c #\a)))))
+            (exp-neg? (= (byte-at ex 0) #\-)))
+        (let ((m (let go ((k 0) (acc (Float from 0)) (s (string-append ip fp)))
+                   (if (= k (byte-len s)) acc
+                     (go (+ k 1) (Float + (Float * acc (Float from 16)) (Float from (digit (byte-at s k)))) s))))
+              (p (let go ((k (if (if exp-neg? #t (= (byte-at ex 0) #\+)) 1 0)) (acc 0))
+                   (if (= k (byte-len ex)) acc (go (+ k 1) (+ (* acc 10) (- (byte-at ex k) #\0)))))))
+          (let go ((v m) (e (- (if exp-neg? (- 0 p) p) (* 4 (byte-len fp)))))
+            (match
+              ((> e 0) (go (Float * v (Float from 2)) (- e 1)))
+              ((< e 0) (go (Float / v (Float from 2)) (+ e 1)))
+              (#t v))))))))
+
 ; str_to_jiffies: S's seconds as hundredths, capped at INT_MAX
 (def %br-jiffies
   (fn (_ s)
@@ -260,7 +292,7 @@
     (match
       ((if (>= (byte-len body) 3) (string=? (substring body 0 3) "nan") #f) (bad))
       ((if (>= (byte-len body) 3) (string=? (substring body 0 3) "inf") #f) (if neg? (bad) 2147483647))
-      (#t (let ((d (Float from (string-append (if neg? "-" "") body))))
+      (#t (let ((d (if neg? (Float - (Float from 0) (%br-strtod body)) (%br-strtod body))))
             (if (Float < d (Float from 0)) (bad)
               (let ((dd (Float * d (Float from 100))))
                 (if (Float < (Float from 2147483647) dd) 2147483647 (Float ->int dd)))))))))
