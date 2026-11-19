@@ -72,6 +72,14 @@ jobs:
           make             # x-bin at the repo root -- `make engine` does not build it
           make boot        # the launcher-free amalgams the harness loads
 
+      # The platform's runner bounds each spec process with timeout, or
+      # gtimeout on macOS; with neither on PATH it runs unbounded.  The macOS
+      # image has neither, so a stuck case held the job until GitHub's 6-hour
+      # limit, its name unsaid.  Coreutils gives gtimeout, and a stuck file
+      # fails with its tests named.
+      - name: Install gtimeout
+        run: brew install coreutils
+
       # spec-gate compares the failing test names against
       # tests/contract/known-failures.txt and is red when they differ in either
       # direction -- a new failure, or a recorded one that now passes.  Each
@@ -88,6 +96,12 @@ jobs:
           PARALLEL_JOBS: 3
           SPEC_HEAVY_JOBS: 1
           SPEC_HEAVY_MIN: 4
+          # The runner's base budget is 60 s a spec process.  Three at a time
+          # here, a file runs over twice as long as on a quiet machine:
+          # 99-sha3-crypt takes 25 s there and passed 60 s here.  The bound
+          # catches a stuck case either way; 180 s keeps it from catching a
+          # slow one.  @timeout-scale multiplies it.
+          TIMEOUT_UNIT_SECS: 180
         run: X="$GITHUB_WORKSPACE/.x-lang/x.sh" sh tests/spec-gate.sh
 
   # Linux, as root: the applets whose work is the kernel's (tests/linux/specs),
