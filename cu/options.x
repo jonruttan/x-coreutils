@@ -1552,6 +1552,16 @@
             (%cu-hidden-flags (list "-s"))
             (%cu-hidden-args (list "-t" "-p"))))
         (lit leading)))
+    (pair "logread"
+      (list
+        (Opts declare "logread" "[-fF]"
+          "Show messages in syslogd's circular buffer"
+          (append
+            (list
+              (Opts text "\t-f\tOutput data as log grows")
+              (Opts text "\t-F\tSame as -f, but dump buffer first"))
+            (%cu-hidden-flags (list "-f" "-F"))))
+        (lit leading)))
     ; -m is read, as busybox's getopt reads it, and does nothing: its MARK
     ; lines are not built
     (pair "syslogd"

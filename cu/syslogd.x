@@ -39,7 +39,7 @@
 (import cu/vi vi-bundle-version)
 
 (def %sl-max-read 256)                ; CONFIG_FEATURE_SYSLOGD_READ_BUFFER_SIZE
-(def %sl-key 0x414E4547)              ; "GENA", logread's key too
+(def sl-key 0x414E4547)               ; "GENA", the key logread reads too
 (def %sl-pidfile "/var/run/syslogd.pid")
 (def %sl-dns-wait 120)
 
@@ -158,8 +158,8 @@
 
 ; --- the shared buffer --------------------------------------------------------------
 
-; four 16-bit words a sembuf: number, op, flags
-(def %sl-sembuf
+; a sembuf per (NUMBER OP FLAGS), three 16-bit words; logread builds its own
+(def sl-sembuf
   (fn (_ ops)
     (def b (str-make-raw (* 6 (length ops))))
     (let go ((l ops) (at 0))
@@ -178,18 +178,18 @@
 ; semaphores made, or found where logread's syslogd left them
 (def %sl-ipc-init!
   (fn (_)
-    (set! %sl-wdn (%sl-sembuf (list (list 0 0 0) (list 1 0 0) (list 1 1 0))))
-    (set! %sl-wup (%sl-sembuf (list (list 1 -1 2048))))
-    (set! %sl-shmid (%sl-call "shmget" %sl-key %sl-shm-size 932))
+    (set! %sl-wdn (sl-sembuf (list (list 0 0 0) (list 1 0 0) (list 1 1 0))))
+    (set! %sl-wup (sl-sembuf (list (list 1 -1 2048))))
+    (set! %sl-shmid (%sl-call "shmget" sl-key %sl-shm-size 932))
     (when (< %sl-shmid 0) (%sl-perror "shmget"))
     (def at (cu-ptr-call (cu-libc-sym "shmat") %sl-shmid 0 0))
     (when (= (in-call at) -1) (%sl-perror "shmat"))
     (set! %sl-shm at)
     (cu-ptr-call (cu-libc-sym "memset") (cu-int->ptr at) 0 %sl-shm-size)
     (cu-ptr-set! (cu-int->ptr at) 0 (- %sl-shm-size 9) 4)
-    (set! %sl-semid (%sl-call "semget" %sl-key 2 2047))
+    (set! %sl-semid (%sl-call "semget" sl-key 2 2047))
     (when (< %sl-semid 0)
-      (do (when (= (Err errno-of -1) 17) (set! %sl-semid (%sl-call "semget" %sl-key 2 0)))
+      (do (when (= (Err errno-of -1) 17) (set! %sl-semid (%sl-call "semget" sl-key 2 0)))
           (when (< %sl-semid 0) (%sl-perror "semget"))))))
 
 ; log_to_shmem: MSG and its NUL at the tail, around the end of the ring
@@ -503,4 +503,4 @@
                 (error e)))
       (%sl-main argv))))
 
-(provide cu/syslogd cu-syslogd)
+(provide cu/syslogd cu-syslogd sl-key sl-sembuf)
