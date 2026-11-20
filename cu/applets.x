@@ -103,6 +103,7 @@
 (import cu/strings cu-strings-applet)
 (import cu/sys2 cu-env cu-false cu-printenv cu-sleep cu-true cu-which cu-xargs)
 (import cu/sysctl cu-sysctl)
+(import cu/syslogd cu-syslogd)
 (import cu/sysinfo cu-dnsdomainname cu-hostid cu-hostname cu-mesg cu-mknod
   cu-mountpoint cu-renice cu-ts)
 (import cu/tar cu-tar)
@@ -331,6 +332,7 @@
     (method powertop (self argv stdin-thunk) (cu-powertop argv stdin-thunk))
     (method smemcap (self argv stdin-thunk) (cu-smemcap argv stdin-thunk))
     (method sysctl (self argv stdin-thunk) (cu-sysctl argv stdin-thunk))
+    (method syslogd (self argv stdin-thunk) (cu-syslogd argv stdin-thunk))
     (method lsmod (self argv stdin-thunk) (cu-lsmod argv stdin-thunk))
     (method route (self argv stdin-thunk) (cu-route argv stdin-thunk))
     (method arp (self argv stdin-thunk) (cu-arp argv stdin-thunk))
