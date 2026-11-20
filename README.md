@@ -101,6 +101,7 @@ line:
     killall5
     link
     ln
+    logger
     logname
     ls
     lsmod
@@ -335,7 +336,7 @@ Self-contained: no `(requires-lang ...)`.
     runs.
   - **Not present**: `stty`.
 
-Paired with x-lang v0.55.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.58.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -385,6 +386,7 @@ The applets tested there so far:
 - `ipcrm`
 - `ipcs`
 - `killall5`
+- `logger`
 - `lsmod`
 - `minips`
 - `nameif`
@@ -466,6 +468,7 @@ The applets tested there so far:
     cu/iprule.x       ip rule and iprule: the routing rules listed, added and deleted, over netlink
     cu/ipset.x        ip addr add, change, delete and flush, ip link set, add and delete, over netlink and the ioctls
     cu/iptunnel.x     ip tunnel and iptunnel: IPv4 tunnels added, changed, deleted and shown, through the tunnel ioctls
+    cu/logger.x       logger: a message, or standard input's lines, to the system log through syslog(3)
     cu/ls.x           ls
     cu/lsmod.x        lsmod: the kernel's loaded modules, from /proc/modules
     cu/mime.x         makemime and reformime: MIME messages made, and taken apart to files or a program
