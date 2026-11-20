@@ -22,7 +22,7 @@
 (import cu/prims bit-and byte-at byte-len cu-int->str cu-libc-sym cu-ptr-call
   file-write string-append string=? substring sys-geteuid sys-user-name)
 
-(def %lg-facilities
+(def lg-facilities
   (list (pair "auth" 32) (pair "authpriv" 80) (pair "cron" 72) (pair "daemon" 24)
         (pair "ftp" 88) (pair "kern" 0) (pair "lpr" 48) (pair "mail" 16)
         (pair "mark" 192) (pair "news" 56) (pair "security" 32) (pair "syslog" 40)
@@ -30,7 +30,7 @@
         (pair "local0" 128) (pair "local1" 136) (pair "local2" 144) (pair "local3" 152)
         (pair "local4" 160) (pair "local5" 168) (pair "local6" 176) (pair "local7" 184)))
 
-(def %lg-priorities
+(def lg-priorities
   (list (pair "alert" 1) (pair "crit" 2) (pair "debug" 7) (pair "emerg" 0)
         (pair "err" 3) (pair "error" 3) (pair "info" 6) (pair "none" 16)
         (pair "notice" 5) (pair "panic" 0) (pair "warn" 4) (pair "warning" 4)))
@@ -62,9 +62,9 @@
 (def %lg-pencode
   (fn (_ s)
     (def dot (Str8 index-of "." s))
-    (def fac (if (null? dot) 8 (%lg-decode (substring s 0 dot) %lg-facilities)))
+    (def fac (if (null? dot) 8 (%lg-decode (substring s 0 dot) lg-facilities)))
     (when (< fac 0) (%lg-die (string-append "unknown facility name: " (substring s 0 dot))))
-    (def lev (%lg-decode (if (null? dot) s (substring s (+ dot 1) (byte-len s))) %lg-priorities))
+    (def lev (%lg-decode (if (null? dot) s (substring s (+ dot 1) (byte-len s))) lg-priorities))
     (when (< lev 0) (%lg-die (string-append "unknown priority name: " s)))
     (+ (bit-and lev 7) (bit-and fac 1016))))
 
@@ -119,4 +119,4 @@
                 (error e)))
       (%lg-main o stdin-thunk))))
 
-(provide cu/logger cu-logger)
+(provide cu/logger cu-logger lg-facilities lg-priorities)

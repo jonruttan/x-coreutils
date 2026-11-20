@@ -184,6 +184,7 @@ line:
     sum
     sync
     sysctl
+    syslogd
     tac
     tail
     tar
@@ -397,6 +398,7 @@ The applets tested there so far:
 - `setpriv`
 - `smemcap`
 - `sysctl`
+- `syslogd`
 - `taskset`
 - `traceroute`
 - `tunctl`
@@ -508,6 +510,7 @@ The applets tested there so far:
     cu/sys2.x         true false env printenv sleep which xargs
     cu/sysctl.x       sysctl: the kernel's parameters, read and written under /proc/sys
     cu/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
+    cu/syslogd.x      syslogd: the system log daemon, /dev/log to files, the shared buffer, /dev/kmsg or UDP
     cu/tar.x          tar: ustar archives listed, extracted and made, z through gzip
     cu/taskset.x      taskset: a process's CPU affinity shown and set, as a mask or a list
     cu/tcpsvd.x       tcpsvd and udpsvd: a program run for each connection or sender

@@ -188,6 +188,7 @@
 (import cu/sys2 cu-drop-last cu-env cu-false cu-printenv cu-sleep cu-true
   cu-which cu-xargs)
 (import cu/sysctl cu-sysctl sy-trim)
+(import cu/syslogd cu-syslogd)
 (import cu/sysinfo cu-dnsdomainname cu-hostid cu-hostname cu-mesg cu-mknod
   cu-mountpoint cu-renice cu-ts si-digits? si-now)
 (import cu/tar cu-tar cu-unsafe-prefix tar-all-pieces tar-copy-out! tar-field

@@ -186,7 +186,7 @@
 ; --- addresses -------------------------------------------------------------------------
 
 (def %nt-af6 (if os-darwin? 30 10))
-(def %nt-family (fn (_ sa) (cu-ptr-ref (cu-str->ptr sa) (if os-darwin? 1 0) 1)))
+(def nt-family (fn (_ sa) (cu-ptr-ref (cu-str->ptr sa) (if os-darwin? 1 0) 1)))
 
 ; xmalloc_sockaddr2dotted_noport: IPv4 dotted, IPv6 as inet_ntop writes it --
 ; an IPv4-mapped one too, ::ffff:a.b.c.d
@@ -194,14 +194,14 @@
   (fn (_ sa)
     (def p (cu-str->ptr sa))
     (def out (str-make-raw 64))
-    (if (= (%nt-family sa) 2)
+    (if (= (nt-family sa) 2)
       (cu-ptr-call (cu-libc-sym "inet_ntop") 2 (cu-int->ptr (+ (td-ptr->int p) 4)) (cu-str->ptr out) 64)
       (cu-ptr-call (cu-libc-sym "inet_ntop") %nt-af6 (cu-int->ptr (+ (td-ptr->int p) 8)) (cu-str->ptr out) 64))
     (cu-ptr->str (cu-str->ptr out))))
 
-; host2sockaddr(HOST, 123): (SOCKADDR LEN), or nil said as busybox says it
-(def %nt-resolve
-  (fn (_ org)
+; host2sockaddr(ORG, PORT): (SOCKADDR LEN), or nil, the failure said through SAY
+(def nt-host2sockaddr
+  (fn (_ org dflt say)
     (def bracket? (Str8 starts? "[" org))
     (def close (if bracket? (wget-index org #\] 0) ()))
     (def last (Str8 last-index-of ":" org))
@@ -213,11 +213,11 @@
                      ((null? colon) org)
                      (#t (substring org 0 colon))))
     (def ptext (if (null? colon) () (substring org (+ colon 1) (byte-len org))))
-    (def port (if (null? ptext) 123 (let ((n (in-strtou ptext))) (if (if (null? n) #f (<= n 65535)) n -1))))
+    (def port (if (null? ptext) dflt (let ((n (in-strtou ptext))) (if (if (null? n) #f (<= n 65535)) n -1))))
     (match
       ((if bracket? (if (null? close) #t (if (< (+ close 1) (byte-len org)) (not (= (byte-at org (+ close 1)) #\:)) #f)) #f)
-        (do (%nt-say (%str-concat (list "bad address '" org "'"))) ()))
-      ((< port 0) (do (%nt-say (%str-concat (list "bad port '" ptext "'"))) ()))
+        (do (say (%str-concat (list "bad address '" org "'"))) ()))
+      ((< port 0) (do (say (%str-concat (list "bad port '" ptext "'"))) ()))
       (#t (let ((a4 (str-make-raw 4)) (a6 (in-zeroed 16)))
             (match
               ((not (= (in-call (cu-ptr-call (cu-libc-sym "inet_aton") host (cu-str->ptr a4))) 0))
@@ -225,7 +225,7 @@
               ((= (in-call (cu-ptr-call (cu-libc-sym "inet_pton") %nt-af6 host (cu-str->ptr a6))) 1)
                 (let ((s (in-sockaddr6 a6 port))) (list (first s) (rest s))))
               (#t (let ((q (guard (_ ()) (net-resolve host))))
-                    (if (null? q) (do (%nt-say (%str-concat (list "bad address '" org "'"))) ())
+                    (if (null? q) (do (say (%str-concat (list "bad address '" org "'"))) ())
                       (list (net-sockaddr q port) 16))))))))))
 
 (def %nt-dotted-of (fn (_ a4) (let ((p (cu-str->ptr a4))) (%str-concat (list (%nt-u (cu-ptr-ref p 0 1)) "." (%nt-u (cu-ptr-ref p 1 1)) "." (%nt-u (cu-ptr-ref p 2 1)) "." (%nt-u (cu-ptr-ref p 3 1)))))))
@@ -234,7 +234,7 @@
 (def %nt-refid-of
   (fn (_ sa)
     (def p (cu-str->ptr sa))
-    (if (= (%nt-family sa) 2) (map (fn (_ i) (cu-ptr-ref p i 1)) (list 4 5 6 7))
+    (if (= (nt-family sa) 2) (map (fn (_ i) (cu-ptr-ref p i 1)) (list 4 5 6 7))
       (List take 4 (cu-md5-bytes (map (fn (_ i) (cu-ptr-ref p i 1)) (list 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23)))))))
 
 ; --- peers --------------------------------------------------------------------------------
@@ -335,7 +335,7 @@
 ; resolve_peer_hostname: the address, or nil and the next try further off
 (def %nt-resolve-peer!
   (fn (_ p)
-    (def a (%nt-resolve (%np p %np-host)))
+    (def a (nt-host2sockaddr (%np p %np-host) 123 %nt-say))
     (if (null? a) (do (%np! p %np-dns (& (+ (* (%np p %np-dns) 2) 1) 63)) ())
       (do (%np! p %np-sa a)
           (%np! p %np-dotted (%nt-dotted (first a)))
@@ -380,7 +380,7 @@
   (fn (_ p)
     (unless (null? (%np p %np-sa))
       (do (when (< (%np p %np-fd) 0)
-            (let ((fam (%nt-family (first (%np p %np-sa)))))
+            (let ((fam (nt-family (first (%np p %np-sa)))))
               (let ((fd (in-call (cu-ptr-call (cu-libc-sym "socket") fam 2 0))))
                 (do (if (= fam 2)
                       (do (cu-ptr-call (cu-libc-sym "bind") fd (cu-str->ptr (net-sockaddr "0.0.0.0" 0)) 16)
@@ -1119,4 +1119,5 @@
       (unless (List any? (fn (_ p) (> (%np p %np-reach) 0)) %nt-peers)
         (do (%nt-clamp!) (%nt-run-script "unsync" (Float from 0)))))))
 
-(provide cu/ntpd cu-ntpd nt-be-bytes nt-imin nt-raw nt-unhex nt-zeros)
+(provide cu/ntpd cu-ntpd nt-be-bytes nt-family nt-host2sockaddr nt-imin nt-raw nt-unhex
+  nt-zeros)

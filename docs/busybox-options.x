@@ -120,6 +120,7 @@
     (list "link" ())
     (list "ln" (%letters "sfnbtv"))
     (list "logger" (%letters "pst"))
+    (list "syslogd" (%letters "nRLCKOsblStDfm"))
     (list "logname" ())
     (list "ls" (%letters "1AaCxdLHRFplinshrSXvctuw"))
     (list "lsmod" ())

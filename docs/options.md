@@ -183,6 +183,7 @@ the work.  Applet parity is the other axis: see the README.
 | `sum` | -r -s | -r -s |  | 100% |
 | `sync` | -d -f | -d -f |  | 100% |
 | `sysctl` | -e -n -q -a -p -w | -e -n -q -a -A -p -w |  | 100% |
+| `syslogd` | -n -R -L -C -K -O -s -b -l -S -t -D -f -m | -n -L -C -K -S -t -D -R -O -s -b -l -f -m |  | 100% |
 | `tac` |  |  |  | - |
 | `tail` | -c -f -n -q -s -v | -q -v -f -c -n -s |  | 100% |
 | `tar` | -c -x -t -z -J -j -a -h -m -v -o -k -O -f -C -T -X --lzma --exclude --overwrite --strip-components --no-recursion --numeric-owner --no-same-permissions --to-command | -v -O -m -o -k -z --gzip -a -h -c -x -t -p --overwrite --no-recursion --numeric-owner --no-same-permissions --list --extract --create --to-stdout --no-same-owner --same-permissions --verbose --keep-old --dereference --touch -f -C -T -X --exclude --strip-components --file --directory --files-from --exclude-from | -J -j --lzma --to-command | 84% |

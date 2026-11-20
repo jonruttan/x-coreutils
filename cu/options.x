@@ -1552,6 +1552,31 @@
             (%cu-hidden-flags (list "-s"))
             (%cu-hidden-args (list "-t" "-p"))))
         (lit leading)))
+    ; -m is read, as busybox's getopt reads it, and does nothing: its MARK
+    ; lines are not built
+    (pair "syslogd"
+      (list
+        (Opts declare "syslogd" "[OPTIONS]"
+          "System logging utility"
+          (append
+            (list
+              (Opts text "\t-n\t\tRun in foreground")
+              (Opts text "\t-R HOST[:PORT]\tLog to HOST:PORT (default PORT:514)")
+              (Opts text "\t-L\t\tLog locally and via network (default is network only if -R)")
+              (Opts text "\t-C[size_kb]\tLog to shared mem buffer (use logread to read it)")
+              (Opts text "\t-K\t\tLog to kernel printk buffer (use dmesg to read it)")
+              (Opts text "\t-O FILE\t\tLog to FILE (default: /var/log/messages, stdout if -)")
+              (Opts text "\t-s SIZE\t\tMax size (KB) before rotation (default 200KB, 0=off)")
+              (Opts text "\t-b N\t\tN rotated logs to keep (default 1, max 99, 0=purge)")
+              (Opts text "\t-l N\t\tLog only messages more urgent than prio N (1-8)")
+              (Opts text "\t-S\t\tSmaller output")
+              (Opts text "\t-t\t\tStrip client-generated timestamps")
+              (Opts text "\t-D\t\tDrop duplicates")
+              (Opts text "\t-f FILE\t\tUse FILE as config (default:/etc/syslog.conf)"))
+            (%cu-hidden-flags (list "-n" "-L" "-C" "-K" "-S" "-t" "-D"))
+            (%cu-hidden-args (list "-R" "-O" "-s" "-b" "-l" "-f" "-m"))))
+        (lit optional)
+        (list "-C" "")))
     (pair "ntpd"
       (list
         (Opts declare "ntpd" "[-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]..."
