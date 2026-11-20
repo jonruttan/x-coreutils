@@ -122,6 +122,7 @@
     (list "link" ())
     (list "ln" (%letters "sfnbtv"))
     (list "logger" (%letters "pst"))
+    (list "logread" (%letters "fF"))
     (list "syslogd" (%letters "nRLCKOsblStDfm"))
     (list "logname" ())
     (list "ls" (%letters "1AaCxdLHRFplinshrSXvctuw"))

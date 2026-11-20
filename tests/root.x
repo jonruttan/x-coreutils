@@ -92,6 +92,7 @@
   ip-talk ip-unsigned)
 (import cu/iptunnel cu-iptunnel ip-tunnel)
 (import cu/logger cu-logger)
+(import cu/logread cu-logread)
 (import cu/ls cu-ls ls-cell ls-user-cell)
 (import cu/lsmod cu-lsmod)
 (import cu/mime cu-makemime cu-reformime mm-b64 mm-ci= mm-getc mm-gets mm-in

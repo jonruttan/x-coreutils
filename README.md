@@ -102,6 +102,7 @@ line:
     link
     ln
     logger
+    logread
     logname
     ls
     lsmod
@@ -388,6 +389,7 @@ The applets tested there so far:
 - `ipcs`
 - `killall5`
 - `logger`
+- `logread`
 - `lsmod`
 - `minips`
 - `nameif`
@@ -471,6 +473,7 @@ The applets tested there so far:
     cu/ipset.x        ip addr add, change, delete and flush, ip link set, add and delete, over netlink and the ioctls
     cu/iptunnel.x     ip tunnel and iptunnel: IPv4 tunnels added, changed, deleted and shown, through the tunnel ioctls
     cu/logger.x       logger: a message, or standard input's lines, to the system log through syslog(3)
+    cu/logread.x      logread: the messages in syslogd's shared buffer, once or as it grows
     cu/ls.x           ls
     cu/lsmod.x        lsmod: the kernel's loaded modules, from /proc/modules
     cu/mime.x         makemime and reformime: MIME messages made, and taken apart to files or a program
