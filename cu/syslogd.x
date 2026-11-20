@@ -444,7 +444,7 @@
 (def %sl-follow
   (fn (_ path k)
     (def to (if (< k 20) (guard (_ ()) (file-readlink path)) ()))
-    (match ((if (null? to) #t (not (string? to))) path)
+    (match ((null? to) path)
            ((Str8 starts? "/" to) (%sl-follow to (+ k 1)))
            (#t (let ((slash (Str8 last-index-of "/" path)))
                  (%sl-follow (if (null? slash) to (string-append (substring path 0 (+ slash 1)) to)) (+ k 1)))))))
