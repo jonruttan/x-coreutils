@@ -55,7 +55,7 @@
 (import cu/ftpd cu-ftpd)
 (import cu/fuser cu-fuser)
 (import cu/getopt cu-getopt)
-(import cu/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-zcat gz-at gz-copy gz-ends? gz-sink
+(import cu/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-lzcat cu-unlzma cu-zcat gz-at gz-copy gz-ends? gz-sink
   gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)
 (import cu/hash cu-bytes cu-cksum-applet cu-crypt64 cu-md5 cu-md5-bytes
   cu-md5sum cu-sha1-bytes cu-sha1sum cu-sum)

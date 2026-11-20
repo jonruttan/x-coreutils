@@ -106,6 +106,7 @@ line:
     ls
     lsmod
     lsof
+    lzcat
     makemime
     md5sum
     mesg
@@ -220,6 +221,7 @@ line:
     uniq
     unix2dos
     unlink
+    unlzma
     unshare
     unzip
     uptime
@@ -335,7 +337,7 @@ Self-contained: no `(requires-lang ...)`.
     runs.
   - **Not present**: `stty`.
 
-Paired with x-lang v0.58.0 (`lang.xon` is the checkable row).
+Paired with x-lang v0.59.0 (`lang.xon` is the checkable row).
 
 ## Try it
 
@@ -448,7 +450,7 @@ The applets tested there so far:
     cu/ftpd.x         ftpd: busybox's FTP server, one connection on stdin, PASV, EPSV or PORT
     cu/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
     cu/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
-    cu/gzip.x         gzip, gunzip, zcat, bzip2, bunzip2 and bzcat, a piece at a time through x-lang's streams
+    cu/gzip.x         gzip, gunzip, zcat, bzip2, bunzip2, bzcat, unlzma and lzcat, a piece at a time through x-lang's streams
     cu/hash.x         md5sum sha1sum cksum sum; the digests are x-lang's codecs
     cu/hexdump.x      hexdump, hd and xxd over it, and xxd -r
     cu/httpd.x        httpd: busybox's web server -- files, httpd.conf, ranges, ETags, inetd mode or a listener

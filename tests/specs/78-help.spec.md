@@ -2970,6 +2970,39 @@ stderr:
 status 0
 ```
 
+### unlzma
+
+```cu
+(run (list "unlzma" "--help") "")
+```
+---
+```output
+Usage: unlzma [-cfk] [FILE]...|
+|
+Decompress FILEs (or stdin)|
+|
+	-c	Write to stdout|
+	-f	Force|
+	-k	Keep input files|
+	-t	Test integrity|
+stderr:
+status 0
+```
+
+### lzcat
+
+```cu
+(run (list "lzcat" "--help") "")
+```
+---
+```output
+Usage: lzcat [FILE]...|
+|
+Decompress to stdout|
+stderr:
+status 0
+```
+
 ### bzip2
 
 ```cu
