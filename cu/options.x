@@ -1540,6 +1540,18 @@
               (Opts text "\t-p\tOnly print time"))
             (%cu-hidden-flags (list "-s" "-p"))))
         (lit leading)))
+    (pair "logger"
+      (list
+        (Opts declare "logger" "[-s] [-t TAG] [-p PRIO] [MESSAGE]"
+          "Write MESSAGE (or stdin) to syslog"
+          (append
+            (list
+              (Opts text "\t-s\tLog to stderr as well as the system log")
+              (Opts text "\t-t TAG\tLog using the specified tag (defaults to user name)")
+              (Opts text "\t-p PRIO\tPriority (number or FACILITY.LEVEL pair)"))
+            (%cu-hidden-flags (list "-s"))
+            (%cu-hidden-args (list "-t" "-p"))))
+        (lit leading)))
     (pair "ntpd"
       (list
         (Opts declare "ntpd" "[-dnqNwl] [-I IFACE] [-S PROG] [-k KEYFILE] [-p [keyno:N:]PEER]..."
