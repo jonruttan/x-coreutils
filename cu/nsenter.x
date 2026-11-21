@@ -25,10 +25,11 @@
 (import cu/getopt cu-getopt-long)
 (import cu/inetd in-call in-exec)
 (import cu/perm cu-basename-of)
-(import cu/prims cu-err-label cu-int->str cu-libc-sym cu-ptr-call cu-ptr-ref
-  cu-stdin-to-command! cu-str->ptr file-err-sym file-err-text file-open-or-err
-  file-open-read file-write libc-strerror str-make-raw string-append sys-close
-  sys-exec-or-err sys-exit sys-fork sys-getenv sys-getpid sys-kill sys-signal)
+(import cu/prims cu-err-label cu-execvp-or-die cu-int->str cu-libc-sym
+  cu-ptr-call cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-err-text
+  file-open-or-err file-open-read file-write libc-strerror str-make-raw
+  string-append sys-close sys-exit sys-fork sys-getenv sys-getpid sys-kill
+  sys-signal)
 (import cu/strings cu-range-number)
 
 (def %nse-die
@@ -128,14 +129,6 @@
     (def r (in-exec sh (list (string-append "-" name))))
     (%nse-die (%str-concat (list "can't execute '" sh "': " (libc-strerror (Err errno-of r)))))))
 
-; PROG run in place of this process, as BB_EXECVP_or_die runs it
-(def %nse-exec
-  (fn (_ prog)
-    (cu-stdin-to-command!)
-    (def err (sys-exec-or-err (first prog) (rest prog)))
-    (file-write 2 (%str-concat (list "nsenter: can't execute '" (first prog) "': " (file-err-text err) "\n")))
-    (sys-exit (if (eq? (file-err-sym err) (lit enoent)) 127 126))))
-
 (def %nse-run
   (fn (_ os prog)
     (def pid (let ((t (%nse-value os "t"))) (if (null? t) 0 t)))
@@ -173,7 +166,7 @@
           (%nse-or-die (%nse-libc "setgid" (fn (_ door) (cu-ptr-call door (%nse-zero (%nse-value os "G"))))) "setgid")))
     (when (if creds #t (%nse-given? os "S"))
       (%nse-or-die (%nse-libc "setuid" (fn (_ door) (cu-ptr-call door (%nse-zero (%nse-value os "S"))))) "setuid"))
-    (if (null? prog) (%nse-shell) (%nse-exec prog))))
+    (if (null? prog) (%nse-shell) (cu-execvp-or-die "nsenter" prog))))
 
 (def %nse-main
   (fn (_ argv)

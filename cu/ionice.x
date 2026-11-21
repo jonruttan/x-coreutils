@@ -17,9 +17,8 @@
 (module cu/ionice)
 
 (import cu/cli cu-opts)
-(import cu/prims bit-and bit-or bit-shl bit-shr cu-err-label cu-int->str
-  cu-nth cu-stdin-to-command! file-err-sym file-err-text file-write
-  libc-strerror string-append sys-exec-or-err sys-exit)
+(import cu/prims bit-and bit-or bit-shl bit-shr cu-err-label cu-execvp-or-die
+  cu-int->str cu-nth file-write libc-strerror string-append)
 (import cu/strings cu-range-number)
 
 (def %ion-die
@@ -62,14 +61,6 @@
                                  (if (= ioclass 3) "\n"
                                    (%str-concat (list ": prio " (cu-int->str (bit-and (rest got) 255)) "\n")))))))
 
-; PROG run in place of this process, with busybox's statuses if it cannot be
-(def %ion-exec
-  (fn (_ prog)
-    (do (cu-stdin-to-command!)
-        (let ((e (sys-exec-or-err (first prog) (rest prog))))
-          (do (file-write 2 (%str-concat (list "ionice: can't execute '" (first prog) "': " (file-err-text e) "\n")))
-              (sys-exit (if (eq? (file-err-sym e) (lit enoent)) 127 126)))))))
-
 (def %ion-main
   (fn (_ argv)
     (def o (cu-opts "ionice" argv))
@@ -83,7 +74,7 @@
       (do (def done (%ion-call %ion-set "ioprio_set"
                      (fn (_ door) (door 1 pid (bit-or pri (bit-shl ioclass 13))))))
           (when (if (null? (first done)) #f (not (Opts on? o "-t"))) (%ion-die (first done)))
-          (when (pair? prog) (%ion-exec prog))))
+          (when (pair? prog) (cu-execvp-or-die "ionice" prog))))
     0))
 
 (def cu-ionice

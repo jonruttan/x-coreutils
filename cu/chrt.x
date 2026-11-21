@@ -19,10 +19,9 @@
 (import cu/cli cu-opts cu-usage)
 (import cu/inet inet-set! inet-zeros)
 (import cu/inetd in-call)
-(import cu/prims byte-at byte-len cu-err-label cu-int->str cu-libc-sym
-  cu-ptr-call cu-ptr-ref cu-stdin-to-command! cu-str->ptr file-err-text
-  file-write hx-strtoul libc-strerror string-append string=? sys-exec-or-err
-  sys-exit)
+(import cu/prims byte-at byte-len cu-err-label cu-execvp-or-die cu-int->str
+  cu-libc-sym cu-ptr-call cu-ptr-ref cu-str->ptr file-write hx-strtoul
+  libc-strerror string-append string=?)
 
 (def %ch-die
   (fn (_ msg)
@@ -120,13 +119,6 @@
             (match ((string=? f "-f") 1) ((string=? f "-o") 0) ((string=? f "-b") 3)
                    ((string=? f "-i") 5) (#t 2)))))))
 
-(def %ch-exec
-  (fn (_ argv)
-    (cu-stdin-to-command!)
-    (let ((err (sys-exec-or-err (first argv) (rest argv))))
-      (do (file-write 2 (%str-concat (list "chrt: can't execute '" (first argv) "': " (file-err-text err) "\n")))
-          (sys-exit (if (string=? (file-err-text err) "No such file or directory") 127 126))))))
-
 (def %ch-main
   (fn (_ argv)
     (def o (cu-opts "chrt" argv))
@@ -145,7 +137,7 @@
                 (do (%ch-set pid policy prio) (%ch-print pid "new")))
               0)))
       ((null? (rest args)) (%ch-usage))
-      (#t (do (%ch-set 0 policy (first args)) (%ch-exec (rest args)))))))
+      (#t (do (%ch-set 0 policy (first args)) (cu-execvp-or-die "chrt" (rest args)))))))
 
 (def cu-chrt
   (fn (_ argv stdin-thunk)

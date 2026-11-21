@@ -177,6 +177,7 @@
   sm-space?)
 (import cu/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
   cu-ttysize hd-daemonize ss-call ss-flock ss-resolve!)
+(import cu/setarch cu-linux32 cu-linux64 cu-setarch)
 (import cu/setpriv cu-setpriv)
 (import cu/sha256 cu-m32 cu-sha256 cu-sha256sum cu-sum-applet)
 (import cu/sha3 cu-sha3sum)

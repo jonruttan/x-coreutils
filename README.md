@@ -102,6 +102,8 @@ line:
     killall5
     klogd
     link
+    linux32
+    linux64
     ln
     logger
     logread
@@ -168,6 +170,7 @@ line:
     run-parts
     sendmail
     seq
+    setarch
     setpriv
     setsid
     sha1sum
@@ -392,6 +395,8 @@ The applets tested there so far:
 - `ipcs`
 - `killall5`
 - `klogd`
+- `linux32`
+- `linux64`
 - `logger`
 - `logread`
 - `lsmod`
@@ -403,6 +408,7 @@ The applets tested there so far:
 - `powertop`
 - `pstree`
 - `route`
+- `setarch`
 - `setpriv`
 - `smemcap`
 - `sysctl`
@@ -508,6 +514,7 @@ The applets tested there so far:
     cu/runparts.x     run-parts: a directory's scripts, in order
     cu/sendmail.x     sendmail: a message on stdin sent by SMTP, -S or a -H helper, AUTH LOGIN or PLAIN
     cu/session.x      fsync, flock, setsid, ttysize, nologin, pipe_progress
+    cu/setarch.x      setarch, linux32, linux64: PROG run under the personality linux32 or linux64 names, -R without address randomization
     cu/setpriv.x      setpriv: PROG run with no_new_privs and inheritable or ambient capabilities, the state shown by -d
     cu/sha256.x       sha256sum, and the driver every digest applet shares
     cu/sha3.x         sha3sum: SHA-3 at any width busybox takes, through x-lang's Sha3
