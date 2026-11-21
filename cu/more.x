@@ -29,9 +29,10 @@
 
 (import cu/cli cu-opts cu-string-stdin)
 (import cu/prims byte-at byte-len cu-b->s cu-int->str cu-stat-get
-  cu-stdin-to-command! cu-sweep! cu-sweep-bytes file-close file-open-or-err
+  cu-sweep! cu-sweep-bytes file-close file-open-or-err
   file-open-read file-read-fd file-stat-full file-write file-write-run reverse
-  set-first! string-append string=? sys-exec sys-isatty)
+  set-first! string-append string=? sys-isatty)
+(import cu/stty cu-stty)
 (import cu/text cu-enough cu-fold-one cu-fold-said cu-pad-left cu-say cu-says)
 
 (import x/repl/term)
@@ -276,11 +277,10 @@
   (fn (_ argv stdin-thunk)
     (do (file-write 1 (%str-concat (list %more-esc "[H" %more-esc "[J"))) 0)))
 
-; busybox's reset, built without its own stty: with standard output a
-; terminal, the console reset, the US character set, the attributes off, the
-; screen cleared below and the cursor shown -- then `stty sane`, the terminal's
-; settings put back, by whichever stty the path finds.  There being none is not
-; a failure.
+; busybox's reset: with standard output a terminal, the console reset, the US
+; character set, the attributes off, the screen cleared below and the cursor
+; shown -- then the applet stty's `stty sane`, the terminal's settings put
+; back, and its status reset's.
 (def %reset-codes
   (%str-concat (list %more-esc "c" %more-esc "(B" %more-esc "[m" %more-esc "[J"
                        %more-esc "[?25h")))
@@ -289,9 +289,7 @@
   (fn (_ argv stdin-thunk)
     (if (sys-isatty 1)
       (do (file-write 1 %reset-codes)
-          (cu-stdin-to-command!)
-          (sys-exec "stty" (list "sane"))
-          0)
+          (cu-stty (list "sane") stdin-thunk))
       0)))
 
 (provide cu/more cu-clear cu-more cu-reset more-typed)
