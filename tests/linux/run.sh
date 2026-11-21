@@ -9,15 +9,15 @@
 # @license MIT No Attribution (MIT-0)
 #
 # The image is built from tests/linux/Containerfile at the x-lang release
-# lang.xon declares, once a release and Containerfile.  The bundle is mounted, so
+# bundle.xon declares, once a release and Containerfile.  The bundle is mounted, so
 # an edit runs at once.  ENGINE names the container engine, podman by
 # default, docker in CI; SPEC names one spec file to run alone.
 set -e
 
 BUNDLE="$(cd "$(dirname "$0")/../.." && pwd)"
 ENGINE="${ENGINE:-podman}"
-REF="$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' "$BUNDLE/lang.xon")"
-[ -n "$REF" ] || { echo "x-coreutils: lang.xon declares no release" >&2; exit 2; }
+REF="$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' "$BUNDLE/bundle.xon")"
+[ -n "$REF" ] || { echo "x-coreutils: bundle.xon declares no release" >&2; exit 2; }
 # the tag names the release and the Containerfile, so an edit to either builds anew
 TAG="x-coreutils-linux:$REF-$(cksum < "$BUNDLE/tests/linux/Containerfile" | cut -d" " -f1)"
 

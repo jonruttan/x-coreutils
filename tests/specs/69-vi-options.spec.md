@@ -25,8 +25,8 @@ same words, environment and keys through a pipe with the same pauses.
 types the bursts, and draws what came of them.
 
 ```cu
-(def vi-state (fn (_ name) (eval name (module cu/vi))))
-(def vi-set! (fn (_ name v) (eval (list (lit set!) name (list (lit lit) v)) (module cu/vi))))
+(def vi-state (fn (_ name) (eval name (module coreutils/vi))))
+(def vi-set! (fn (_ name v) (eval (list (lit set!) name (list (lit lit) v)) (module coreutils/vi))))
 (def vi-keys
   (list (pair (lit esc) (bytes->str (list 27))) (pair (lit cr) (bytes->str (list 13)))
         (pair (lit bs) (bytes->str (list 127))) (pair (lit ctrl-c) (bytes->str (list 3)))
@@ -281,26 +281,29 @@ file `make install` writes into the bundle.
 ### the version file make install writes
 
 ```cu
-(def vi-saved-root (guard (e ()) %lang-root))
 (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vo && mkdir -p /tmp/x-cu-vo && printf '1.2.3-4-gabcdef\n' > /tmp/x-cu-vo/version"))
-(def %lang-root "/tmp/x-cu-vo")
-(display (list (vi-bundle-version) (byte-len (vi-bundle-version))))
-(set! %lang-root vi-saved-root)
+(display (list (vi-version-at "/tmp/x-cu-vo") (byte-len (vi-version-at "/tmp/x-cu-vo"))))
 ```
 ---
     (1.2.3-4-gabcdef 15)
 
-### a checkout, with no version file, is dev
+### a directory with no version file is dev, and so is no directory
 
 ```cu
-(def vi-saved-root (guard (e ()) %lang-root))
 (proc-run (list "/bin/sh" "-c" "rm -rf /tmp/x-cu-vo && mkdir -p /tmp/x-cu-vo"))
-(def %lang-root "/tmp/x-cu-vo")
-(display (list (vi-bundle-version) (byte-len (vi-bundle-version))))
-(set! %lang-root vi-saved-root)
+(display (list (vi-version-at "/tmp/x-cu-vo") (vi-version-at ())))
 ```
 ---
-    (dev 3)
+    (dev dev)
+
+### the bundle's own directory: this checkout, which has none
+
+```cu
+(import x/sys/bundle)
+(display (list (vi-bundle-version) (file-exists? (string-append (Bundle root "coreutils") "/bundle.xon"))))
+```
+---
+    (dev #t)
 
 ## options
 

@@ -5,7 +5,7 @@ block here SPAWNS A PROCESS, and the suite runs a file's snippets in one
 process without collecting between them, so these belong beside their
 own fixtures rather than on the end of the option specs.
 
-Two of busybox's nine are deliberately absent, and `cu/sys2.x` records
+Two of busybox's nine are deliberately absent, and `lib/coreutils/sys2.x` records
 why: `-0` cannot receive its input, because a NUL truncates an x string
 at every door this bundle has, and `-p` wants a tty the applet protocol
 never hands an applet.  Declaring either would accept a flag the applet

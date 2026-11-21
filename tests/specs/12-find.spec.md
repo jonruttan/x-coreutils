@@ -5,7 +5,7 @@ The tree is built once, in the first case, and every case below reads it.
 
 Expectations come from `/usr/bin/find` over the same tree, with one
 difference held throughout: this walk answers in SORTED order, as every
-other descent in this bundle does (cu/walk.x says why), where find(1)
+other descent in this bundle does (lib/coreutils/walk.x says why), where find(1)
 answers in whatever order the filesystem keeps.  The sets are the same;
 only the order is settled here and arbitrary there.
 
