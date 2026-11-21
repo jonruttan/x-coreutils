@@ -72,15 +72,15 @@
                    ((if (>= c #\A) (<= c #\Z) #f) #t) (#t #f))))
 
 ; xatou_range and xatoul_range: S in decimal, nothing before or after it, at
-; most LIMIT, from LO to HI
-(def %sl-number
-  (fn (_ s lo hi limit)
+; most LIMIT, from LO to HI; DIE takes the message where it is not
+(def sl-number
+  (fn (_ s lo hi limit die)
     (def c (if (> (byte-len s) 0) (byte-at s 0) 0))
     (def r (if (if (>= c #\0) (<= c #\9) #f) (hx-strtoul s 0 10 limit) (pair 0 0)))
-    (def range (fn (_) (%sl-die (%str-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range")))))
+    (def range (fn (_) (die (%str-concat (list "number " s " is not in " (cu-int->str lo) ".." (cu-int->str hi) " range")))))
     (match
       ((if (= (rest r) 0) #t (if (null? (first r)) #t (< (rest r) (byte-len s))))
-        (%sl-die (%str-concat (list "invalid number '" s "'"))))
+        (die (%str-concat (list "invalid number '" s "'"))))
       ((if (< (first r) lo) #t (> (first r) hi)) (range))
       (#t (first r)))))
 
@@ -475,25 +475,29 @@
           (sys-kill (sys-getpid) sig)
           (+ 128 sig)))))
 
+; bb_daemonize with DAEMON_CHDIR_ROOT: the parent gone, a new session, in /;
+; standard output and error kept
+(def sl-background!
+  (fn (_)
+    (when (> (sys-fork) 0) (sys-exit 0))
+    (cu-ptr-call (cu-libc-sym "setsid"))
+    (Sys chdir "/")))
+
 (def %sl-main
   (fn (_ argv)
     (def o (cu-opts "syslogd" argv))
     (set! %sl-opts o)
     (if (not (null? (Opts operands o))) (cu-usage "syslogd")
       (do (def c (rest (cu-optional "syslogd" argv)))
-          (let ((l (Opts value o "-l"))) (unless (null? l) (set! %sl-level (%sl-number l 1 8 0xFFFFFFFF))))
-          (let ((s (Opts value o "-s"))) (unless (null? s) (set! %sl-file-size (* 1024 (%sl-number s 0 2097151 0xFFFFFFFF)))))
-          (let ((b (Opts value o "-b"))) (unless (null? b) (set! %sl-rotate (%sl-number b 0 99 0xFFFFFFFF))))
-          (unless (null? c) (set! %sl-shm-size (* 1024 (%sl-number c 4 2097151 0x7FFFFFFFFFFFFFFF))))
+          (let ((l (Opts value o "-l"))) (unless (null? l) (set! %sl-level (sl-number l 1 8 0xFFFFFFFF %sl-die))))
+          (let ((s (Opts value o "-s"))) (unless (null? s) (set! %sl-file-size (* 1024 (sl-number s 0 2097151 0xFFFFFFFF %sl-die)))))
+          (let ((b (Opts value o "-b"))) (unless (null? b) (set! %sl-rotate (sl-number b 0 99 0xFFFFFFFF %sl-die))))
+          (unless (null? c) (set! %sl-shm-size (* 1024 (sl-number c 4 2097151 0x7FFFFFFFFFFFFFFF %sl-die))))
           (set! %sl-remotes (reverse (map %sl-remote (Opts values o "-R"))))
           (set! %sl-out (%sl-file (Opts value o "-O" "/var/log/messages")))
           (%sl-config! (Opts value o "-f"))
           (set! %sl-host (%sl-hostname))
-          (unless (%sl-on? "-n")
-            (do
-                (when (> (sys-fork) 0) (sys-exit 0))
-                (cu-ptr-call (cu-libc-sym "setsid"))
-                (Sys chdir "/")))
+          (unless (%sl-on? "-n") (sl-background!))
           (%sl-daemon)))))
 
 (def cu-syslogd
@@ -503,4 +507,4 @@
                 (error e)))
       (%sl-main argv))))
 
-(provide cu/syslogd cu-syslogd sl-key sl-sembuf)
+(provide cu/syslogd cu-syslogd sl-background! sl-key sl-number sl-sembuf)

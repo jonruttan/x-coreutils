@@ -1552,6 +1552,17 @@
             (%cu-hidden-flags (list "-s"))
             (%cu-hidden-args (list "-t" "-p"))))
         (lit leading)))
+    (pair "klogd"
+      (list
+        (Opts declare "klogd" "[-c N] [-n]"
+          "Log kernel messages to syslog"
+          (append
+            (list
+              (Opts text "\t-c N\tPrint to console messages more urgent than prio N (1-8)")
+              (Opts text "\t-n\tRun in foreground"))
+            (%cu-hidden-flags (list "-n"))
+            (%cu-hidden-args (list "-c"))))
+        (lit leading)))
     (pair "logread"
       (list
         (Opts declare "logread" "[-fF]"

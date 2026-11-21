@@ -98,6 +98,7 @@ the work.  Applet parity is the other axis: see the README.
 | `kill` | -l -s | -l -s |  | 100% |
 | `killall` | -l -q -s | -l -q -s |  | 100% |
 | `killall5` | -l -o -s | -l -o -s |  | 100% |
+| `klogd` | -c -n | -n -c |  | 100% |
 | `link` |  |  |  | - |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logger` | -p -s -t | -s -t -p |  | 100% |
