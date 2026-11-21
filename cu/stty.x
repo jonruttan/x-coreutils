@@ -206,61 +206,84 @@
 (def %st-params (list "line" "rows" "cols" "columns" "size" "speed" "ispeed" "ospeed"))
 (def %st-param-arg? (fn (_ p) (not (if (string=? p "size") #t (string=? p "speed")))))
 
+(def %st-bad (fn (_ arg) (%st-die (%str-concat (list "invalid argument '" arg "'")))))
+(def %st-needs (fn (_ arg next) (when (null? next) (%st-die (string-append arg " requires an argument")))))
+(def %st-dash? (fn (_ arg) (if (> (byte-len arg) 0) (= (byte-at arg 0) #\-) #f)))
+
+; Each step of the first pass answers (TAKEN ACTION ALL? G? DEVICE): TAKEN the
+; words it read (1, or 2 with the argument after), ACTION nil where there is
+; none for the second pass.
+
+; -F in ARG at I: the rest of ARG names the device, or NEXT does
+(def %st-option-f
+  (fn (_ arg i next all? g? dev)
+    (unless (null? dev) (%st-die "only one device may be specified"))
+    (if (< (+ i 1) (byte-len arg))
+      (list 1 () all? g? (substring arg (+ i 1) (byte-len arg)))
+      (do (%st-needs "-F" next) (list 2 () all? g? next)))))
+
+; ARG's cluster of -a, -g and -F
+(def %st-options
+  (fn (_ arg next all? g? dev)
+    (def go
+      (fn (self i all? g?)
+        (if (>= i (byte-len arg)) (list 1 () all? g? dev)
+          (let ((c (byte-at arg i)))
+            (match
+              ((= c #\a) (self (+ i 1) #t g?))
+              ((= c #\g) (self (+ i 1) all? #t))
+              ((= c #\F) (%st-option-f arg i next all? g? dev))
+              (#t (%st-bad arg)))))))
+    (go 1 all? g?)))
+
+; a parameter, as (TAKEN . ACTION); the line where there is none is read and dropped
+(def %st-param-word
+  (fn (_ arg next)
+    (when (%st-param-arg? arg) (%st-needs arg next))
+    (def v (match
+             ((if (string=? arg "ispeed") #t (string=? arg "ospeed")) (%st-baud next))
+             ((%st-param-arg? arg) (%st-number next 1 2147483647 #t))
+             (#t ())))
+    (pair (if (%st-param-arg? arg) 2 1)
+          (if (if (string=? arg "line") (not (%st-has? (lit line))) #f) () (pair (lit param) (pair arg v))))))
+
+; a line -g wrote, or a speed
+(def %st-other-word
+  (fn (_ arg)
+    (def ws (%st-recover arg))
+    (if (not (null? ws)) (pair 1 (pair (lit words) ws))
+      (let ((b (%st-baud arg)))
+        (if (null? b) (%st-bad arg) (pair 1 (pair (lit speed) b)))))))
+
+; a word with no -, as (TAKEN . ACTION)
+(def %st-word
+  (fn (_ arg next)
+    (def c (%st-control arg))
+    (match
+      ((not (null? (%st-mode arg))) (pair 1 (pair (lit mode) (pair (%st-mode arg) #f))))
+      ((not (null? c)) (do (%st-needs arg next) (pair 2 (pair (lit control) (pair c (%st-char-value c next))))))
+      ((not (null? (List find (fn (_ p) (string=? p arg)) %st-params))) (%st-param-word arg next))
+      (#t (%st-other-word arg)))))
+
+(def %st-step
+  (fn (_ arg next all? g? dev)
+    (def m (if (%st-dash? arg) (%st-mode (substring arg 1 (byte-len arg))) ()))
+    (match
+      ((not (null? m)) (if (%st-flag? m %st-rev) (list 1 (pair (lit mode) (pair m #t)) all? g? dev) (%st-bad arg)))
+      ((%st-dash? arg) (%st-options arg next all? g? dev))
+      (#t (let ((w (%st-word arg next))) (list (first w) (rest w) all? g? dev))))))
+
 ; ARGV checked as busybox's first pass checks it, as (ACTIONS ALL? G? DEVICE):
 ; ACTIONS what the second pass does, each (KIND . DATA)
 (def %st-parse
   (fn (_ argv)
-    (def needs (fn (_ arg next) (when (null? next) (%st-die (string-append arg " requires an argument")))))
     (def go
       (fn (self args acts all? g? dev)
         (if (null? args) (list (reverse acts) all? g? dev)
-          (let ((arg (first args)) (next (if (null? (rest args)) () (first (rest args))))
-                (m (if (if (> (byte-len (first args)) 0) (= (byte-at (first args) 0) #\-) #f)
-                     (%st-mode (substring (first args) 1 (byte-len (first args)))) ())))
-            (match
-              ((not (null? m))
-                (if (%st-flag? m %st-rev)
-                  (self (rest args) (pair (pair (lit mode) (pair m #t)) acts) all? g? dev)
-                  (%st-die (%str-concat (list "invalid argument '" arg "'")))))
-              ((if (> (byte-len arg) 0) (= (byte-at arg 0) #\-) #f)
-                (let ((opts (fn (oself i all? g?)
-                              (if (>= i (byte-len arg)) (self (rest args) acts all? g? dev)
-                                (let ((c (byte-at arg i)))
-                                  (match
-                                    ((= c #\a) (oself (+ i 1) #t g?))
-                                    ((= c #\g) (oself (+ i 1) all? #t))
-                                    ((= c #\F)
-                                      (do (unless (null? dev) (%st-die "only one device may be specified"))
-                                          (if (< (+ i 1) (byte-len arg))
-                                            (self (rest args) acts all? g? (substring arg (+ i 1) (byte-len arg)))
-                                            (do (needs "-F" next)
-                                                (self (rest (rest args)) acts all? g? next)))))
-                                    (#t (%st-die (%str-concat (list "invalid argument '" arg "'"))))))))))
-                  (opts 1 all? g?)))
-              ((not (null? (%st-mode arg)))
-                (self (rest args) (pair (pair (lit mode) (pair (%st-mode arg) #f)) acts) all? g? dev))
-              ((not (null? (%st-control arg)))
-                (do (needs arg next)
-                    (let ((c (%st-control arg)))
-                      (self (rest (rest args)) (pair (pair (lit control) (pair c (%st-char-value c next))) acts)
-                            all? g? dev))))
-              ((not (null? (List find (fn (_ p) (string=? p arg)) %st-params)))
-                (do (when (%st-param-arg? arg) (needs arg next))
-                    (let ((v (match
-                               ((if (string=? arg "ispeed") #t (string=? arg "ospeed")) (%st-baud next))
-                               ((%st-param-arg? arg) (%st-number next 1 2147483647 #t))
-                               (#t ()))))
-                      (if (if (string=? arg "line") (not (%st-has? (lit line))) #f)
-                        (self (rest (rest args)) acts all? g? dev)
-                        (self (if (%st-param-arg? arg) (rest (rest args)) (rest args))
-                              (pair (pair (lit param) (pair arg v)) acts) all? g? dev)))))
-              (#t
-                (let ((ws (%st-recover arg)))
-                  (if (not (null? ws))
-                    (self (rest args) (pair (pair (lit words) ws) acts) all? g? dev)
-                    (let ((b (%st-baud arg)))
-                      (if (null? b) (%st-die (%str-concat (list "invalid argument '" arg "'")))
-                        (self (rest args) (pair (pair (lit speed) b) acts) all? g? dev)))))))))))
+          (let ((s (%st-step (first args) (if (null? (rest args)) () (first (rest args))) all? g? dev)))
+            (self (if (= (first s) 2) (rest (rest args)) (rest args))
+                  (if (null? (List ref 1 s)) acts (pair (List ref 1 s) acts))
+                  (List ref 2 s) (List ref 3 s) (List ref 4 s))))))
     (go argv () #f #f ())))
 
 ; --- showing ----------------------------------------------------------------------
@@ -274,9 +297,7 @@
     (def max (first (rest st)))
     (def out (rest (rest st)))
     (def n (byte-len msg))
-    (def lead (if (= col 0) ""
-                (if (= (byte-at msg 0) 10) ""
-                  (if (>= (+ col 1 n) max) "\n" " "))))
+    (def lead (match ((= col 0) "") ((= (byte-at msg 0) 10) "") ((>= (+ col 1 n) max) "\n") (#t " ")))
     (def col2 (if (= col 0) n (if (string=? lead "\n") n (+ col 1 n))))
     (pair (if (= (byte-at msg (- n 1)) 10) 0 col2)
           (pair max (pair msg (pair lead out))))))
@@ -474,7 +495,7 @@
   (fn (_ a b)
     (def words=
       (fn (self x y)
-        (if (null? x) (null? y) (if (null? y) #f (if (= (first x) (first y)) (self (rest x) (rest y)) #f)))))
+        (match ((null? x) (null? y)) ((null? y) #f) ((= (first x) (first y)) (self (rest x) (rest y))) (#t #f))))
     (if (words= (Term words a) (Term words b))
       (if (%st-num= (Term setting a (lit ispeed)) (Term setting b (lit ispeed)))
         (%st-num= (Term setting a (lit ospeed)) (Term setting b (lit ospeed))) #f)
