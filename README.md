@@ -99,6 +99,7 @@ line:
     kill
     killall
     killall5
+    klogd
     link
     ln
     logger
@@ -388,6 +389,7 @@ The applets tested there so far:
 - `ipcrm`
 - `ipcs`
 - `killall5`
+- `klogd`
 - `logger`
 - `logread`
 - `lsmod`
@@ -472,6 +474,7 @@ The applets tested there so far:
     cu/iprule.x       ip rule and iprule: the routing rules listed, added and deleted, over netlink
     cu/ipset.x        ip addr add, change, delete and flush, ip link set, add and delete, over netlink and the ioctls
     cu/iptunnel.x     ip tunnel and iptunnel: IPv4 tunnels added, changed, deleted and shown, through the tunnel ioctls
+    cu/klogd.x        klogd: the kernel's messages, read through klogctl, to syslog
     cu/logger.x       logger: a message, or standard input's lines, to the system log through syslog(3)
     cu/logread.x      logread: the messages in syslogd's shared buffer, once or as it grows
     cu/ls.x           ls

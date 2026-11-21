@@ -91,6 +91,7 @@
   ip-req ip-req-bytes ip-rta ip-send-check ip-set ip-str-bytes ip-strtoul
   ip-talk ip-unsigned)
 (import cu/iptunnel cu-iptunnel ip-tunnel)
+(import cu/klogd cu-klogd)
 (import cu/logger cu-logger)
 (import cu/logread cu-logread)
 (import cu/ls cu-ls ls-cell ls-user-cell)

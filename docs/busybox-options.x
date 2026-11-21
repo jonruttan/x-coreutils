@@ -119,6 +119,7 @@
     (list "ipcs" (%letters "iaqsmtcplu"))
     (list "killall" (%letters "lqs"))
     (list "killall5" (%letters "los"))
+    (list "klogd" (%letters "cn"))
     (list "link" ())
     (list "ln" (%letters "sfnbtv"))
     (list "logger" (%letters "pst"))

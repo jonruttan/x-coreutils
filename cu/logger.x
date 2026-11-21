@@ -68,7 +68,7 @@
     (when (< lev 0) (%lg-die (string-append "unknown priority name: " s)))
     (+ (bit-and lev 7) (bit-and fac 1016))))
 
-(def %lg-send (fn (_ pri msg) (cu-ptr-call (cu-libc-sym "syslog") pri (in-percent msg))))
+(def lg-send (fn (_ pri msg) (cu-ptr-call (cu-libc-sym "syslog") pri (in-percent msg))))
 
 ; the next piece fgets would read from TEXT: through its newline or of BUF-1
 ; bytes, or nil when more is needed and AT-END? is false
@@ -86,7 +86,7 @@
   (fn (_ pri stdin-thunk)
     (let go ((acc "") (at-end? #f))
       (let ((p (%lg-piece acc at-end?)))
-        (match ((not (null? p)) (do (unless (string=? p "\n") (%lg-send pri p))
+        (match ((not (null? p)) (do (unless (string=? p "\n") (lg-send pri p))
                               (go (substring acc (byte-len p) (byte-len acc)) at-end?)))
                (at-end? ())
                (#t (let ((r (stdin-thunk (lit chunk))))
@@ -107,7 +107,7 @@
     (def words (Opts operands o))
     (if (null? words)
       (%lg-lines pri stdin-thunk)
-      (%lg-send pri (Str8 join " " words)))
+      (lg-send pri (Str8 join " " words)))
     (cu-ptr-call (cu-libc-sym "closelog"))
     0))
 
@@ -119,4 +119,4 @@
                 (error e)))
       (%lg-main o stdin-thunk))))
 
-(provide cu/logger cu-logger lg-facilities lg-priorities)
+(provide cu/logger cu-logger lg-facilities lg-priorities lg-send)
