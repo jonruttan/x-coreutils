@@ -1552,6 +1552,19 @@
             (%cu-hidden-flags (list "-s"))
             (%cu-hidden-args (list "-t" "-p"))))
         (lit leading)))
+    (pair "dmesg"
+      (list
+        (Opts declare "dmesg" "[-cr] [-n LEVEL] [-s SIZE]"
+          "Print or control the kernel ring buffer"
+          (append
+            (list
+              (Opts text "\t-c\t\tClear ring buffer after printing")
+              (Opts text "\t-n LEVEL\tSet console logging level")
+              (Opts text "\t-s SIZE\t\tBuffer size")
+              (Opts text "\t-r\t\tPrint raw message buffer"))
+            (%cu-hidden-flags (list "-c" "-r"))
+            (%cu-hidden-args (list "-s" "-n"))))
+        (lit leading)))
     (pair "klogd"
       (list
         (Opts declare "klogd" "[-c N] [-n]"
