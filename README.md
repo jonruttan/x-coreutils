@@ -45,6 +45,7 @@ line:
     dhcprelay
     diff
     dirname
+    dmesg
     dnsd
     dnsdomainname
     dos2unix
@@ -381,6 +382,7 @@ The applets tested there so far:
 - `brctl`
 - `chrt`
 - `dhcprelay`
+- `dmesg`
 - `ether-wake`
 - `ifconfig`
 - `ifplugd`
@@ -436,6 +438,7 @@ The applets tested there so far:
     cu/dhcprelay.x    dhcprelay: busybox's DHCP relay, requests to a server and its replies back by xid
     cu/diff-lex.x     which lines diff counts the same under -i -b -w
     cu/diff.x         diff, normal and unified formats (LCS by DP)
+    cu/dmesg.x        dmesg: the kernel's ring, through klogctl, printed or cleared
     cu/dns.x          nslookup: busybox's DNS client, its queries and replies in x
     cu/dnsd.x         dnsd: busybox's small static DNS server, A and PTR from a config file
     cu/dump.x         busybox's dump engine: hexdump's format language, blocks, * lines
