@@ -44,6 +44,7 @@ the work.  Applet parity is the other axis: see the README.
 | `dhcprelay` |  |  |  | - |
 | `diff` | -a -b -B -d -i -N -q -r -T -s -t -w -L -S -U | -a -b -B -d -i -N -q -r -T -s -t -w -U -L -S |  | 100% |
 | `dirname` |  |  |  | - |
+| `dmesg` | -c -s -n -r | -c -r -s -n |  | 100% |
 | `dnsd` | -d -v -s -c -t -p -i | -d -v -s -c -t -p -i |  | 100% |
 | `dnsdomainname` |  | -s -i -d -f -v --domain --fqdn -F --file |  | - |
 | `dos2unix` | -u -d | -u -d |  | 100% |

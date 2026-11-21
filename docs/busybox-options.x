@@ -73,6 +73,7 @@
                      "conv=" "status=" "iflag=" "oflag="))
     (list "df" (%letters "PkmhTaiB"))
     (list "diff" (%letters "abBdiNqrTstwLSU"))
+    (list "dmesg" (%letters "csnr"))
     (list "dirname" ())
     (list "dos2unix" (%letters "ud"))
     (list "du" (%letters "aHLdclsxhmk"))
