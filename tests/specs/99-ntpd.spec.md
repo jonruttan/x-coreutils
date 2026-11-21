@@ -32,7 +32,7 @@ then the server's record or the reply.
           (go (+ nl 1) (pair (substring s i nl) acc)))))))
   (def nt-sh (fn (_ script) (proc-run (list "/bin/sh" "-c" script))))
   (def nt-iota (fn (_ n) (let go ((k (- n 1)) (acc ())) (if (< k 0) acc (go (- k 1) (pair k acc))))))
-  (eval (lit (set! %nt-conf-file "/tmp/x-cu-ntp/ntp.conf")) (module cu/ntpd))
+  (eval (lit (set! %nt-conf-file "/tmp/x-cu-ntp/ntp.conf")) (module coreutils/ntpd))
   (def nt-prep (fn (_ flags args setup port)
     (sys-setenv "NT_FLAGS" flags) (sys-setenv "NT_ARGS" args) (sys-setenv "NT_SETUP" setup) (sys-setenv "NT_PORT" (cu-int->str port))
     (nt-sh (%str-concat (list
@@ -125,7 +125,7 @@ then the server's record or the reply.
                       (append (list (+ (* (wget-digits (cu-nth 2 parts)) 8) (wget-digits (cu-nth 1 parts))))
                               (nt-zeros 39) (list 1 2 3 4 5 6 7 8) (nt-zeros 200))))
     (def port (let ((s (net-udp-open "127.0.0.1" 0 #f))) (let ((p (rest (net-sock-addr s)))) (do (Socket close s) p))))
-    (eval (list (lit set!) (lit %nt-server-port) port) (module cu/ntpd))
+    (eval (list (lit set!) (lit %nt-server-port) port) (module coreutils/ntpd))
     (def argv (append (list "-n" "-l") (nt-prep "" args setup port)))
     (def pid (nt-start argv))
     (sys-usleep 500000)

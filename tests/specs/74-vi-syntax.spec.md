@@ -13,7 +13,7 @@ counts the SGR sequences drawn that are not resets.
 ### a typist for vi
 
 ```cu
-(def vi-state (fn (_ name) (eval name (module cu/vi))))
+(def vi-state (fn (_ name) (eval name (module coreutils/vi))))
 ; the user's theme file is not read: every case draws in the default theme
 (Sys setenv "X_THEME" "")
 (def esc (bytes->str (list 27)))

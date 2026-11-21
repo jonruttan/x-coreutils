@@ -5,7 +5,7 @@ The NUL delimiters: sort -z, shuf -z, env -0, xargs -0, shred -z.
 A NUL is reachable, and only the helpers that ask a C string its length
 say otherwise: `File read` and `File write` take an explicit count and
 carry every byte, `byte-at` reads past as many NULs as there are, and the
-zero bytes themselves come from /dev/zero (cu/prims.x).  A field between
+zero bytes themselves come from /dev/zero (lib/coreutils/prims.x).  A field between
 two delimiters holds no delimiter, so each is an ordinary string once cut
 and the usual helpers work on it -- only the buffer needs the discipline.
 

@@ -53,7 +53,7 @@ each line written to standard output `|`.
     ; and the first processor's power file's b when ACPI
     (def pt-keys! (fn (_ n set acpi)
       (do (def left (list 0))
-          (stand-in! (list (module cu/powertop)) (lit %ptop-key)
+          (stand-in! (list (module coreutils/powertop)) (lit %ptop-key)
             (fn (_ seconds)
               (if (>= (first left) n) (lit quit)
                 (do (pt-sh (string-append (pt-cp (string-append set (if (if (= (first left) 0) #t (str=? set "big")) ".b" ".c")) "interrupts")
@@ -61,7 +61,7 @@ each line written to standard output `|`.
                     (set-first! left (+ (first left) 1))
                     (lit key))))))))
     ; timer_stats as the kernel keeps it: written to, and read back as the fixture's
-    (def pt-kernel-timer! (fn (_) (stand-in! (list (module cu/powertop)) (lit %ptop-timer!) (fn (_ s) #f))))
+    (def pt-kernel-timer! (fn (_) (stand-in! (list (module coreutils/powertop)) (lit %ptop-timer!) (fn (_ s) #f))))
     (display "made"))
 ```
 ---
