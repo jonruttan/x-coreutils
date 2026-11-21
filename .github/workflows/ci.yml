@@ -113,6 +113,13 @@ jobs:
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      # klogctl's read and /proc/kmsg share one position in the kernel's ring,
+      # so a host syslog reading it takes the lines klogd's cases write
+      - name: Free the kernel's ring for klogd
+        run: |
+          sudo fuser -v /proc/kmsg || true
+          sudo systemctl stop rsyslog.service syslog.socket || true
+          sudo fuser -v /proc/kmsg || true
       - name: Run the Linux specs as root
         env:
           ENGINE: docker
