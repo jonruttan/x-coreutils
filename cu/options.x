@@ -1756,6 +1756,16 @@
           "Reset terminal (ESC codes) and termios (signals, buffering, echo)"
           (list))
         (lit none)))
+    (pair "stty"
+      (list
+        (Opts declare "stty" "[-a|g] [-F DEVICE] [SETTING]..."
+          "Without arguments, prints baud rate, line discipline,\nand deviations from stty sane"
+          (list
+            (Opts text "\t-F DEVICE\tOpen device instead of stdin")
+            (Opts text "\t-a\t\tPrint all current settings in human-readable form")
+            (Opts text "\t-g\t\tPrint in stty-readable form")
+            (Opts text "\t[SETTING]\tSee manpage")))
+        (lit none)))
     (pair "tsort"
       (list
         (Opts declare "tsort" "[FILE]"
