@@ -15,7 +15,7 @@ Each run is made in a forked child, with the allocator's guard armed a bound
 above the heap it starts from, as in 47-line-sweeps: a run whose live heap
 ever grows past it is stopped, and the child's status says so.  Each bound
 sits about half again above what the tool holds at its fullest on the release
-lang.xon declares, and under what an unswept walk leaves over the same input:
+bundle.xon declares, and under what an unswept walk leaves over the same input:
 the walks whose bytes cost the least run on 15,997 bytes, the dearer ones on
 3,995.  sum's fullest is x/codec/sum building its compiled engine, which on a
 cold X_ASM_CACHE_DIR is 2.6M objects for sum and 2.5M for sum -s.  tr's runs
@@ -56,7 +56,7 @@ The lines are a number and two words: 941 of them are 15,997 bytes, 470 are
 ### the writes tr makes of 7,990 bytes: a run of 4,096, and the rest
 
 ```cu
-(display (let ((pid (sys-fork))) (if (= pid 0) (let ((runs (list 0)) (put file-write-run)) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (stand-in! (list (module cu/trcut)) (lit file-write-run) (fn (_ fd r) (do (set-first! runs (+ (first runs) 1)) (put fd r)))) (cu-run (list "tr" "a-z" "A-Z") in8k) (sys-exit (first runs)))) (sys-wait pid))))
+(display (let ((pid (sys-fork))) (if (= pid 0) (let ((runs (list 0)) (put file-write-run)) (do (let ((nul (file-open-write "/dev/null"))) (do (sys-dup2 nul 1) (sys-dup2 nul 2))) (stand-in! (list (module coreutils/trcut)) (lit file-write-run) (fn (_ fd r) (do (set-first! runs (+ (first runs) 1)) (put fd r)))) (cu-run (list "tr" "a-z" "A-Z") in8k) (sys-exit (first runs)))) (sys-wait pid))))
 ```
 ---
     2

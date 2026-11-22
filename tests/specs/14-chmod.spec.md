@@ -185,7 +185,7 @@ status 1
 
 ### a directory is reported before its entries
 
-The entries are visited in sorted order (cu/walk.x), where GNU chmod takes the
+The entries are visited in sorted order (lib/coreutils/walk.x), where GNU chmod takes the
 directory's own order.
 
 ```cu

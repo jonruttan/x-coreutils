@@ -463,7 +463,7 @@ xyz
 
 ### the guard and the applet cannot disagree about a flag
 
-Both go through `cu-opts` against the one row in `cu/cli.x`, so a flag
+Both go through `cu-opts` against the one row in `lib/coreutils/cli.x`, so a flag
 the guard admits is a flag the applet reads.  These three spellings
 each broke a DIFFERENT hand-rolled reader before the library: a
 cluster, an attached value, and a value flag read as a flag.

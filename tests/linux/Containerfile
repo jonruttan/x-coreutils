@@ -1,4 +1,4 @@
-# The Linux leg: x built at the release lang.xon declares, beside busybox, in
+# The Linux leg: x built at the release bundle.xon declares, beside busybox, in
 # a container the specs under tests/linux/specs run in as root.  Those are the
 # applets whose work is the kernel's -- dmesg, sysctl, mount, ifconfig and the
 # rest -- which the macOS suite cannot exercise.

@@ -104,7 +104,7 @@ it after 16 MB, or after 30 seconds if they are slower coming, so a yes that
 writes little at a time fails the case rather than holding up the file.  The
 child arms the allocator's guard 900,000 objects above
 the heap it starts from: about half again above what yes holds at its
-fullest on the release lang.xon declares, the leavings of 512 writes between
+fullest on the release bundle.xon declares, the leavings of 512 writes between
 sweeps, and under what it holds with its sweeps turned off over the same
 16 MB.
 

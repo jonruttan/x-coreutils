@@ -131,7 +131,7 @@ shown as LPORT, @Q's as QPORT.
   (def in-run (fn (_ args conf script kind req)
     (def port (in-free-port))
     (def argv (in-prep args conf script req port))
-    (eval (list (lit set!) (lit %in-services-file) (in-f "services")) (module cu/inetd))
+    (eval (list (lit set!) (lit %in-services-file) (in-f "services")) (module coreutils/inetd))
     (def pid (in-start argv))
     (sys-usleep 400000)
     (def out (in-exchange kind port pid (file-read-all (in-f "req"))))

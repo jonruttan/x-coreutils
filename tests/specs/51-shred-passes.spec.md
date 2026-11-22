@@ -13,7 +13,7 @@ in a forked child with the allocator's guard armed a bound above the heap it
 starts from, as in 47-line-sweeps, and a child that raises leaves with status
 3: shred -n 1 over 200,000 bytes, and 128 MB of random bytes and of zeros
 written to /dev/null, 2,048 buffers each.  Each bound sits about half again
-above what the run holds at its fullest on the release lang.xon declares, and
+above what the run holds at its fullest on the release bundle.xon declares, and
 under what it holds with its sweeps taken out, or, for the random pass,
 File's methods looked up on every call.
 
