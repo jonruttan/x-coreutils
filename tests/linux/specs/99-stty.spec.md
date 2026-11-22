@@ -88,7 +88,7 @@ same
 
 ```cu
 (do (Sys setenv "COLUMNS" "40") (lx-f) (lx-f "-a") (Sys setenv "COLUMNS" "200") (lx-f "-a")
-    (Sys unsetenv "COLUMNS"))
+    (Sys unsetenv "COLUMNS") (display ""))
 ```
 ---
 ```output
@@ -166,6 +166,8 @@ same
 ```
 ---
 ```output
+same
+same
 same
 same
 same
