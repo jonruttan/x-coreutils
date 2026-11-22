@@ -73,7 +73,7 @@
         (#t ())))))
 
 ; The applets busybox prints no help text for.
-(def %cu-no-help (list "ascii" "tree" "pipe_progress" "dnsdomainname"))
+(def %cu-no-help (list "ascii" "tree" "pipe_progress" "dnsdomainname" "linux32" "linux64"))
 
 ; An applet's usage text, for the refusals that print it: busybox's, to
 ; standard error, and 1.

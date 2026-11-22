@@ -440,6 +440,16 @@
       (do (set-first! cu-stdin-moved #t)
           (if (< (sys-dup2 3 0) 0) () (sys-close 3))))))
 
+; PROG run in place of this process, as busybox's BB_EXECVP_or_die runs it:
+; where it cannot be, APPLET says so and exits 127 for a name not found, 126
+; for any other refusal
+(def cu-execvp-or-die
+  (fn (_ applet prog)
+    (cu-stdin-to-command!)
+    (def err (sys-exec-or-err (first prog) (rest prog)))
+    (file-write 2 (%str-concat (list applet ": can't execute '" (first prog) "': " (file-err-text err) "\n")))
+    (sys-exit (if (eq? (file-err-sym err) (lit enoent)) 127 126))))
+
 ; The size of the pieces an applet reads as it goes.  A list made from a piece
 ; -- its lines, or its bytes -- is at most this long, and a collect marks a list
 ; one C frame to an element, so one much past 30,000 elements overflows the
@@ -1474,8 +1484,9 @@
 
 (provide coreutils/prims append bit-and bit-or bit-shl bit-shr bit-xor byte-at
   byte-len cal/ char->integer cu% cu& cu* cu+ cu- cu-as-run cu-b->s cu-cstr-at
-  cu-dirname-of cu-dot? cu-err-label cu-fd-fields cu-file-read cu-heap-collect
-  cu-hexs cu-int->ptr cu-int->str cu-last cu-libc-sym cu-lines cu-max-status
+  cu-dirname-of cu-dot? cu-err-label cu-execvp-or-die cu-fd-fields cu-file-read
+  cu-heap-collect cu-hexs cu-int->ptr cu-int->str cu-last cu-libc-sym cu-lines
+  cu-max-status
   cu-member-s? cu-mode-file-type cu-nth cu-nthrest cu-piece-bytes cu-ptr->str
   cu-ptr-call cu-ptr-ref cu-ptr-set! cu-ptr-word cu-rev cu-run-bytes
   cu-run-list cu-run-of cu-sig-ign cu-sighup cu-sigint cu-sigkill cu-sigterm

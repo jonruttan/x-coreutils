@@ -96,6 +96,7 @@
 (import coreutils/smemcap cu-smemcap)
 (import coreutils/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
   cu-ttysize)
+(import coreutils/setarch cu-linux32 cu-linux64 cu-setarch)
 (import coreutils/setpriv cu-setpriv)
 (import coreutils/sha256 cu-sha256sum)
 (import coreutils/sha3 cu-sha3sum)
@@ -287,6 +288,9 @@
     (method fsync (self argv stdin-thunk) (cu-fsync argv stdin-thunk))
     (method flock (self argv stdin-thunk) (cu-flock argv stdin-thunk))
     (method setsid (self argv stdin-thunk) (cu-setsid argv stdin-thunk))
+    (method setarch (self argv stdin-thunk) (cu-setarch argv stdin-thunk))
+    (method linux32 (self argv stdin-thunk) (cu-linux32 argv stdin-thunk))
+    (method linux64 (self argv stdin-thunk) (cu-linux64 argv stdin-thunk))
     (method setpriv (self argv stdin-thunk) (cu-setpriv argv stdin-thunk))
     (method ttysize (self argv stdin-thunk) (cu-ttysize argv stdin-thunk))
     (method nologin (self argv stdin-thunk) (cu-nologin argv stdin-thunk))

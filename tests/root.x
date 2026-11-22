@@ -177,6 +177,7 @@
   sm-space?)
 (import coreutils/session cu-flock cu-fsync cu-nologin cu-pipe-progress cu-setsid
   cu-ttysize hd-daemonize ss-call ss-flock ss-resolve!)
+(import coreutils/setarch cu-linux32 cu-linux64 cu-setarch)
 (import coreutils/setpriv cu-setpriv)
 (import coreutils/sha256 cu-m32 cu-sha256 cu-sha256sum cu-sum-applet)
 (import coreutils/sha3 cu-sha3sum)
