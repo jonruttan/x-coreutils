@@ -22,8 +22,8 @@ same pauses, its output read by a model of the terminal.
 types the bursts, and shows what came of them.
 
 ```cu
-(def vi-state (fn (_ name) (eval name (module cu/vi))))
-(def vi-set! (fn (_ name v) (eval (list (lit set!) name (list (lit lit) v)) (module cu/vi))))
+(def vi-state (fn (_ name) (eval name (module coreutils/vi))))
+(def vi-set! (fn (_ name v) (eval (list (lit set!) name (list (lit lit) v)) (module coreutils/vi))))
 (def vi-keys
   (list (pair (lit esc) (bytes->str (list 27))) (pair (lit cr) (bytes->str (list 13)))
         (pair (lit bs) (bytes->str (list 127))) (pair (lit ctrl-c) (bytes->str (list 3)))

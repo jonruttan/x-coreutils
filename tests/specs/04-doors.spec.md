@@ -4,7 +4,7 @@ The applets that ride a door x-lang opened for this bundle: chmod,
 chown, chgrp, ln, link, readlink, realpath, mkfifo, df, sync, id,
 whoami, logname, groups, uname, arch, nproc, nice and chroot.
 
-These need x-lang NEWER than the release lang.xon pins.  Where the
+These need x-lang NEWER than the release bundle.xon pins.  Where the
 answer is a fact of this machine -- a uid, a processor count, a
 filesystem's size -- the spec asserts STRUCTURE; where it is a fact of
 the POSIX contract, it asserts the value.

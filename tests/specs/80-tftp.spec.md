@@ -102,10 +102,10 @@ lines busybox draws within one.
     (sys-dup2 oo 1) (sys-dup2 ee 2)
     (def tf-clock date-now-unix)
     (def tf-now (date-now-unix))
-    (stand-in! (list (module cu/net)) (lit date-now-unix) (fn (_) tf-now))
+    (stand-in! (list (module coreutils/net)) (lit date-now-unix) (fn (_) tf-now))
     (def st (guard (e (do (file-write 2 (string-append "raised: " (if (Err err? e) (e msg) "?"))) -1))
               (cu-run (pair "tftp" (map (fn (_ a) (tf-arg port a)) args)) "")))
-    (stand-in! (list (module cu/net)) (lit date-now-unix) tf-clock)
+    (stand-in! (list (module coreutils/net)) (lit date-now-unix) tf-clock)
     (sys-dup2 9 1) (sys-dup2 8 2) (file-close oo) (file-close ee)
     (sys-kill pid 9) (sys-wait pid)
     (display (%str-concat (list (file-read-all (string-append tf "/out")) "stderr:\n"

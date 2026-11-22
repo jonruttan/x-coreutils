@@ -48,7 +48,7 @@ to standard output.
 ### a process's ticks since the last scan, none when they fall -- a zombie's times, which Darwin does not give -- and their total
 
 ```cu
-(do (eval (list (lit set!) (lit %top-hist) (list (lit lit) (list (pair 7 31) (pair 8 10) (pair 9 0)))) (module cu/top)) (def rs (top-stats! (list (list 7 1 0 0 501 "Z  " "z" () 0) (list 8 1 0 25 501 "R  " "r" () 0) (list 9 1 0 100 501 "R  " "b" () 0)))) (eval (lit (set! %top-hist ())) (module cu/top)) (list (map (fn (_ e) (cu-nth 8 e)) rs) (eval (lit %top-total-pcpu) (module cu/top))))
+(do (eval (list (lit set!) (lit %top-hist) (list (lit lit) (list (pair 7 31) (pair 8 10) (pair 9 0)))) (module coreutils/top)) (def rs (top-stats! (list (list 7 1 0 0 501 "Z  " "z" () 0) (list 8 1 0 25 501 "R  " "r" () 0) (list 9 1 0 100 501 "R  " "b" () 0)))) (eval (lit (set! %top-hist ())) (module coreutils/top)) (list (map (fn (_ e) (cu-nth 8 e)) rs) (eval (lit %top-total-pcpu) (module coreutils/top))))
 ```
 ---
     ((0 15 100) 115)

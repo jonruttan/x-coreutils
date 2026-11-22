@@ -16,7 +16,7 @@ above the heap the child starts from: a run whose live heap ever grows past
 it is stopped, and the child's status says so.  That is the peak, which is
 what exhausts a machine -- a count taken after a run would miss a loop whose
 leavings a later sweep clears.  Each bound sits about half again above what
-the tool holds at its fullest on the release lang.xon declares, and under
+the tool holds at its fullest on the release bundle.xon declares, and under
 what it holds unswept: a sweep taken out of any of its loops puts it over.
 
 tac also runs on 8,000 short lines, where each line costs little to split and

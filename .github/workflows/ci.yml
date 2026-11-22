@@ -1,7 +1,7 @@
 name: CI
 
 # The matrix runs two x-lang refs: the release this bundle declares in
-# lang.xon (requires-release ...) and current main. The pinned leg proves the
+# bundle.xon (requires-release ...) and current main. The pinned leg proves the
 # bundle still runs on the platform it declares; the main leg is an early
 # warning that x-lang has moved underneath it, and is allowed to fail.
 
@@ -19,7 +19,7 @@ on:
 # took 26 minutes (lint); a hung spec otherwise holds a runner for GitHub's
 # 6-hour default.
 jobs:
-  # The pinned matrix leg is derived from lang.xon, not written here, so there
+  # The pinned matrix leg is derived from bundle.xon, not written here, so there
   # is no second copy to keep in sync.
   prepare:
     runs-on: ubuntu-latest
@@ -28,11 +28,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - id: legs
-        name: Read the declared release from lang.xon
+        name: Read the declared release from bundle.xon
         run: |
-          declared=$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' lang.xon)
+          declared=$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' bundle.xon)
           if [ -z "$declared" ]; then
-            echo "lang.xon declares no (requires-release ...)" >&2
+            echo "bundle.xon declares no (requires-release ...)" >&2
             exit 1
           fi
           echo "legs=[\"$declared\", \"main\"]" >> "$GITHUB_OUTPUT"
@@ -106,7 +106,7 @@ jobs:
 
   # Linux, as root: the applets whose work is the kernel's (tests/linux/specs),
   # in the privileged container tests/linux/run.sh builds at the release
-  # lang.xon declares, each case compared with that container's busybox.
+  # bundle.xon declares, each case compared with that container's busybox.
   linux:
     name: linux leg @ declared release
     runs-on: ubuntu-latest
@@ -171,16 +171,16 @@ jobs:
       - uses: actions/checkout@v4
 
       # The kit ships with the platform, so this job needs x-lang present -- a
-      # shallow checkout of the release lang.xon declares, not a build.
-      - name: Check out the lang kit
+      # shallow checkout of the release bundle.xon declares, not a build.
+      - name: Check out the bundle kit
         run: |
-          declared=$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' lang.xon)
+          declared=$(sed -n 's/^(requires-release "\(.*\)")$/\1/p' bundle.xon)
           git clone --depth 1 --branch "$declared" \
             https://github.com/jonruttan/x-lang.git .x-lang
 
       - name: The declared versions are named once
         env:
-          X_LANG_KIT: ${{ github.workspace }}/.x-lang/tools/lang-kit
+          X_BUNDLE_KIT: ${{ github.workspace }}/.x-lang/tools/bundle-kit
         run: sh tools/check/release-refs.sh
 
       - name: No path literals outside run.x

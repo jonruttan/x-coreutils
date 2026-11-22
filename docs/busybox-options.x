@@ -1,13 +1,13 @@
 ; docs/busybox-options.x -- what busybox's coreutils applets ACCEPT.
 ;
 ; The data half of the option matrix (tools/options-matrix.x renders it
-; against cu/cli.x's live option table).  Transcribed from busybox
+; against lib/coreutils/cli.x's live option table).  Transcribed from busybox
 ; 1.36's usage text; a row here is a claim about busybox, so correct it
 ; against `busybox --help APPLET` rather than against this bundle.
 ; Single-letter flags are spelled as one string per applet; test's
 ; operators and dd's KEY=VALUE operands are listed whole.
 
-(import cu/prims append byte-len reverse string-append substring)
+(import coreutils/prims append byte-len reverse string-append substring)
 
 (def %letters
   (fn (_ s)
