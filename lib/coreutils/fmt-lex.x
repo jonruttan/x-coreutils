@@ -26,7 +26,7 @@
 ;
 ; Width and precision are -1 when the format did not give them, which differs
 ; from 0: "%.0f" asked for no decimals and "%f" did not ask. A lone % at the
-; end is a literal %.
+; end is a directive with no conversion.
 ;
 ; ## THE PLATFORM'S LEXER, ITS STATES COMPILED
 ;
@@ -67,12 +67,10 @@
 ; names the type on the base; a consumer takes every tag but lit and dir as
 ; an escape.  A literal run is every byte but % and the backslash.
 ;
-; THE END TEXT IS A %.  The lexer appends it so the last token meets a
-; delimiter, and a byte in the literal class would be swallowed by a trailing
-; literal run and lost with it; a % ends the run, and alone at the end it is
-; no token, since a directive wants a byte after it.  A format's own trailing
-; % or backslash takes the appended byte and the lexer cuts it back off, so
-; "a%" is the literal a and the directive %, which printf refuses by name.
+; A FORMAT MAY END MID-TOKEN.  The conversion byte is optional, so a % at the
+; end of the format is the directive %, which printf refuses by name; and the
+; byte after a backslash is optional, so a backslash at the end is the escape
+; \, which stands for itself.
 
 (def %cu-fl-escape-rules
   (fn (_ zero?)
@@ -83,7 +81,7 @@
           (list (list "\\" 1 1) (list "01234567" 1 3))))
       (Lexer pattern (lit hex)
         (list (list "\\" 1 1) (list "x" 1 1) (list "0123456789abcdefABCDEF" 1 2)))
-      (Lexer escape (lit esc) 92))))
+      (Lexer pattern (lit esc) (list (list "\\" 1 1) (list #t 0 1))))))
 
 (def %cu-fl-lexer-cell (pair () ()))
 (def %cu-fl-lexer
@@ -94,19 +92,16 @@
            (Lexer make
              (pair
                (Lexer pattern (lit dir)
-                 (list (list "%" 1 1) (list "-0+ #123456789." 0 ()) (list #t 1 1)))
+                 (list (list "%" 1 1) (list "-0+ #123456789." 0 ()) (list #t 0 1)))
                (append (%cu-fl-escape-rules #f)
-                 (list (Lexer run (lit lit) other other))))
-             "%")))
+                 (list (Lexer run (lit lit) other other)))))))
        ; every byte but % (37) and the backslash (92), high bytes either way
        ; the engine hands them over
        (list (pair 0 36) (pair 38 91) (pair 93 255) (pair -128 -1))))
     (first %cu-fl-lexer-cell)))
 
 ; echo -e and %b read the same escapes with the leading 0 their manuals spell
-; (\0NNN), so the octal escape may open with one; and there is no %, so the
-; end text is a backslash, which a literal run ends at and which alone at the
-; end is no token
+; (\0NNN), so the octal escape may open with one; and there is no %
 (def %cu-fl-arg-lexer-cell (pair () ()))
 (def %cu-fl-arg-lexer
   (fn (_)
@@ -115,8 +110,7 @@
          (set-first! %cu-fl-arg-lexer-cell
            (Lexer make
              (append (%cu-fl-escape-rules #t)
-               (list (Lexer run (lit lit) other other)))
-             "\\")))
+               (list (Lexer run (lit lit) other other))))))
        (list (pair 0 91) (pair 93 255) (pair -128 -1))))
     (first %cu-fl-arg-lexer-cell)))
 
