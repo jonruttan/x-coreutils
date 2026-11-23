@@ -188,6 +188,7 @@ line:
     ssl_server
     stat
     strings
+    stty
     sum
     sync
     sysctl
@@ -341,9 +342,8 @@ Self-contained: no `(requires-lang ...)`.
     answered when vi next waits for a key, where busybox's handlers
     answer them at once, so the two differ only while a long command
     runs.
-  - **Not present**: `stty`.
 
-Paired with x-lang v0.60.0 (`bundle.xon` is the checkable row).
+Paired with x-lang v0.61.0 (`bundle.xon` is the checkable row).
 
 ## Try it
 
@@ -411,6 +411,7 @@ The applets tested there so far:
 - `setarch`
 - `setpriv`
 - `smemcap`
+- `stty`
 - `sysctl`
 - `syslogd`
 - `taskset`
@@ -526,6 +527,7 @@ The applets tested there so far:
     lib/coreutils/sslclient.x    ssl_client: standard input and output through a TLS 1.3 session, to HOST, -s FD or -e PROG
     lib/coreutils/sslserver.x    ssl_server: a TLS 1.3 server on the connection inetd or tcpsvd hands it, PROG on the far side
     lib/coreutils/strings.x      strings: printable runs, found by libc's strspn
+    lib/coreutils/stty.x         stty: a terminal's settings, shown and changed through x's Term
     lib/coreutils/sys2.x         true false env printenv sleep which xargs
     lib/coreutils/sysctl.x       sysctl: the kernel's parameters, read and written under /proc/sys
     lib/coreutils/sysinfo.x      hostname, dnsdomainname, hostid, mountpoint, mknod, mesg, renice, ts, through libc
