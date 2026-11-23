@@ -101,6 +101,8 @@ the work.  Applet parity is the other axis: see the README.
 | `killall5` | -l -o -s | -l -o -s |  | 100% |
 | `klogd` | -c -n | -n -c |  | 100% |
 | `link` |  |  |  | - |
+| `linux32` | -R | -R |  | 100% |
+| `linux64` | -R | -R |  | 100% |
 | `ln` | -s -f -n -b -t -v | -s -f -n -b -v -t |  | 100% |
 | `logger` | -p -s -t | -s -t -p |  | 100% |
 | `logread` | -f -F | -f -F |  | 100% |
@@ -167,6 +169,7 @@ the work.  Applet parity is the other axis: see the README.
 | `run-parts` | -a -u --reverse --test --exit-on-error --list | --reverse --test --exit-on-error --list -a -u --arg --umask |  | 100% |
 | `sendmail` | -t -f -o -i -w -H -S -a -v | -t -i -v -f -o -w -H -S -a |  | 100% |
 | `seq` | -w -s | -w -s |  | 100% |
+| `setarch` | -R | -R |  | 100% |
 | `setpriv` | -d --dump --nnp --no-new-privs --inh-caps --ambient-caps | -d --dump --nnp --no-new-privs --inh-caps --ambient-caps |  | 100% |
 | `setsid` | -c | -c |  | 100% |
 | `sha1sum` | -c -s -w | -c -s -w |  | 100% |

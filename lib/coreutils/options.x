@@ -1867,6 +1867,18 @@
           (list
             (Opts flag "-c" "Set controlling terminal to stdin")))
         (lit leading)))
+    (pair "setarch"
+      (list
+        (Opts declare "setarch" "PERSONALITY [-R] PROG ARGS"
+          "PERSONALITY may be:\n\tlinux32\tSet 32bit uname emulation\n\tlinux64\tSet 64bit uname emulation"
+          (append
+            (list (Opts text "\t-R\tDisable address space randomization"))
+            (%cu-hidden-flags (list "-R"))))
+        (lit leading)))
+    (pair "linux32"
+      (list (Opts declare "linux32" "" "" (%cu-hidden-flags (list "-R"))) (lit leading)))
+    (pair "linux64"
+      (list (Opts declare "linux64" "" "" (%cu-hidden-flags (list "-R"))) (lit leading)))
     (pair "setpriv"
       (list
         (Opts declare "setpriv" "[OPTIONS] PROG ARGS"
