@@ -343,7 +343,7 @@ Self-contained: no `(requires-lang ...)`.
     answer them at once, so the two differ only while a long command
     runs.
 
-Paired with x-lang v0.61.0 (`bundle.xon` is the checkable row).
+Paired with x-lang v0.62.0 (`bundle.xon` is the checkable row).
 
 ## Try it
 
