@@ -121,8 +121,7 @@
 ; missing, and a word or any other byte where the addresses end.  A token's
 ; first byte tells its kind, as busybox's get_one_address tells it.  Made at
 ; the first colon command, so an applet that never reads one never pays for
-; its states.  The end text is a newline, which no address reads and an
-; input line never holds, so the addresses end on it.
+; its states.
 (import x/reader/lexer)
 ; the module a first make imports, here so the state image carries it: read
 ; from source at the make it costs ~0.9 s
@@ -144,8 +143,7 @@
                    (Lexer until (lit fwd) "/" "/" (lit take) (lit to-end))
                    (Lexer until (lit back) "?" "?" (lit take) (lit to-end))
                    (Lexer run (lit word) letters letters)
-                   (Lexer any (lit other)))
-             "\n")))
+                   (Lexer any (lit other))))))
        (list (pair #\0 #\9))
        (list (pair #\a #\z) (pair #\A #\Z)))
       ())
