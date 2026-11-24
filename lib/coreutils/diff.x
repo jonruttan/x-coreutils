@@ -38,15 +38,44 @@
 
 (import x/type/path Path)
 
-(def %cu-diff-lcs
+; The lines the two texts share at the start, as a count, and then at the
+; end, up to the lines the start left.  Neither run needs the table: a line
+; both share there is an eq whatever the middle holds, so only the middle is
+; tabled, and a file against its own copy tables nothing.
+(def %cu-diff-prefix
   (fn (_ av bv n m)
-    ; lcs[i][j] = LCS of a[i..], b[j..]; filled bottom-up
-    (def t (vec-make (* (+ n 1) (+ m 1)) 0))
-    (def at (fn (_ i j) (vec-ref t (+ (* i (+ m 1)) j))))
-    (def put (fn (_ i j v) (vec-set! t (+ (* i (+ m 1)) j) v)))
+    (def go
+      (fn (self k)
+        (if (if (< k n) (if (< k m) (string=? (vec-ref av k) (vec-ref bv k)) #f) #f)
+          (self (+ k 1))
+          k)))
+    (go 0)))
+
+(def %cu-diff-suffix
+  (fn (_ av bv n m p)
+    (def go
+      (fn (self k)
+        (if (if (< (+ p k) n)
+              (if (< (+ p k) m)
+                (string=? (vec-ref av (- n (+ k 1))) (vec-ref bv (- m (+ k 1))))
+                #f)
+              #f)
+          (self (+ k 1))
+          k)))
+    (go 0)))
+
+; The table of the middle, lines LO to AHI of a against LO to BHI of b: at
+; (I J) the LCS of a[I..AHI) and b[J..BHI), filled bottom-up, answered as
+; the reader (I J) of it.
+(def %cu-diff-lcs
+  (fn (_ av bv lo ahi bhi)
+    (def w (+ (- bhi lo) 1))
+    (def t (vec-make (* (+ (- ahi lo) 1) w) 0))
+    (def at (fn (_ i j) (vec-ref t (+ (* (- i lo) w) (- j lo)))))
+    (def put (fn (_ i j v) (vec-set! t (+ (* (- i lo) w) (- j lo)) v)))
     (def fill-row
       (fn (self i j)
-        (if (< j 0) ()
+        (if (< j lo) ()
           (do (put i j
                 (if (string=? (vec-ref av i) (vec-ref bv j))
                   (+ 1 (at (+ i 1) (+ j 1)))
@@ -56,9 +85,9 @@
               (self i (- j 1))))))
     (def fill
       (fn (self i)
-        (if (< i 0) ()
-          (do (fill-row i (- m 1)) (self (- i 1))))))
-    (do (fill (- n 1)) t)))
+        (if (< i lo) ()
+          (do (fill-row i (- bhi 1)) (self (- i 1))))))
+    (do (fill (- ahi 1)) at)))
 
 (def %cu-range
   (fn (_ lo hi)
@@ -111,21 +140,29 @@
 ; eq, del or add, with the indices the op consumed -- and the normal and
 ; unified printers both read that, rather than drifting as two walks.
 
+; P lines shared at the start and S at the end are eqs; the middle is walked
+; through AT, the middle's table.
 (def %cu-diff-ops
-  (fn (_ avn bvn n m at)
+  (fn (_ avn bvn n m p s at)
+    (def ahi (- n s))
+    (def bhi (- m s))
+    (def eqs
+      (fn (self i j k acc)
+        (if (= k 0) acc
+          (self (+ i 1) (+ j 1) (- k 1) (pair (list (lit eq) i j) acc)))))
     (def go
       (fn (self i j acc)
         (match
-          ((if (>= i n) (>= j m) #f) (reverse acc))
-          ((if (< i n) (< j m) #f)
+          ((if (>= i ahi) (>= j bhi) #f) (eqs ahi bhi s acc))
+          ((if (< i ahi) (< j bhi) #f)
             (if (string=? (vec-ref avn i) (vec-ref bvn j))
               (self (+ i 1) (+ j 1) (pair (list (lit eq) i j) acc))
               (if (>= (at (+ i 1) j) (at i (+ j 1)))
                 (self (+ i 1) j (pair (list (lit del) i j) acc))
                 (self i (+ j 1) (pair (list (lit add) i j) acc)))))
-          ((< i n) (self (+ i 1) j (pair (list (lit del) i j) acc)))
+          ((< i ahi) (self (+ i 1) j (pair (list (lit del) i j) acc)))
           (#t (self i (+ j 1) (pair (list (lit add) i j) acc))))))
-    (go 0 0 ())))
+    (reverse (go p p (eqs 0 0 p ())))))
 
 (def %cu-diff-label (fn (_ op) (first op)))
 (def %cu-diff-ai  (fn (_ op) (first (rest op))))
@@ -295,9 +332,10 @@
     (load! avn an 0)
     (load! bvn bn 0)
     ; The LCS runs on the normalised copy; the hunks quote the original.
-    (def t (%cu-diff-lcs avn bvn n m))
-    (def at (fn (_ i j) (vec-ref t (+ (* i (+ m 1)) j))))
-    (def ops (%cu-diff-ops avn bvn n m at))
+    (def p (%cu-diff-prefix avn bvn n m))
+    (def s (%cu-diff-suffix avn bvn n m p))
+    (def at (%cu-diff-lcs avn bvn p (- n s) (- m s)))
+    (def ops (%cu-diff-ops avn bvn n m p s at))
     ; -B: a change of nothing but blank lines is not a change.
     ;
     ; Blankness is read from the line as it is, not as -w or -b left it. A line
