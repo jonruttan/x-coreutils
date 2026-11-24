@@ -78,6 +78,28 @@ ALPHA
 1
 ```
 
+### lines shared at both ends: the change between them, and runs that overlap
+
+Only the lines between a shared start and a shared end are compared
+through the table.  Where one file is all shared start and end, the two
+runs meet, and what is left is the other's surplus, as /usr/bin/diff
+reports it.
+
+```cu
+(def d (fn (_ a b)
+  (do (file-write-all "/tmp/x-cu-df-o1" a)
+      (file-write-all "/tmp/x-cu-df-o2" b)
+      (first (cu-diff-str (list "/tmp/x-cu-df-o1" "/tmp/x-cu-df-o2") "")))))
+(display (list
+  (string=? (d "p\nq\nr\ns\n" "p\nQ\nR\ns\n") "2,3c2,3\n< q\n< r\n---\n> Q\n> R\n")
+  (string=? (d "x\nx\n" "x\n") "2d1\n< x\n")
+  (string=? (d "a\nb\na\n" "a\n") "2,3d1\n< b\n< a\n")
+  (string=? (d "a\n" "a\nb\na\n") "1a2,3\n> b\n> a\n")
+  (string=? (d "same\ntext\n" "same\ntext\n") "")))
+```
+---
+    (#t #t #t #t #t)
+
 ## what counts as the same line
 
 ### -i folds case
