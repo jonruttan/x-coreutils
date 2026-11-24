@@ -30,6 +30,7 @@
 (import coreutils/diff-lex cu-dl-lines)
 (import coreutils/fs2 cu-cmp-walk)
 (import coreutils/prims byte-at byte-len cu-int->str cu-last cu-lines cu-nth
+  cu-sweep-at cu-sweep-steps cu-sweep-tick!
   file-dir? file-read-all file-write length map reverse set-first!
   string-append string=? substring vec-make vec-ref vec-set!)
 (import coreutils/text cu-file-pieces cu-first-unopened cu-num-prefix cu-run-nul?
@@ -46,22 +47,24 @@
   (fn (_ av bv n m)
     (def go
       (fn (self k)
-        (if (if (< k n) (if (< k m) (string=? (vec-ref av k) (vec-ref bv k)) #f) #f)
-          (self (+ k 1))
-          k)))
+        (do (cu-sweep-at k cu-sweep-steps)
+          (if (if (< k n) (if (< k m) (string=? (vec-ref av k) (vec-ref bv k)) #f) #f)
+            (self (+ k 1))
+            k))))
     (go 0)))
 
 (def %cu-diff-suffix
   (fn (_ av bv n m p)
     (def go
       (fn (self k)
-        (if (if (< (+ p k) n)
-              (if (< (+ p k) m)
-                (string=? (vec-ref av (- n (+ k 1))) (vec-ref bv (- m (+ k 1))))
+        (do (cu-sweep-at k cu-sweep-steps)
+          (if (if (< (+ p k) n)
+                (if (< (+ p k) m)
+                  (string=? (vec-ref av (- n (+ k 1))) (vec-ref bv (- m (+ k 1))))
+                  #f)
                 #f)
-              #f)
-          (self (+ k 1))
-          k)))
+            (self (+ k 1))
+            k))))
     (go 0)))
 
 ; The table of the middle, lines LO to AHI of a against LO to BHI of b: at
@@ -148,10 +151,12 @@
     (def bhi (- m s))
     (def eqs
       (fn (self i j k acc)
-        (if (= k 0) acc
-          (self (+ i 1) (+ j 1) (- k 1) (pair (list (lit eq) i j) acc)))))
+        (do (cu-sweep-at k cu-sweep-steps)
+          (if (= k 0) acc
+            (self (+ i 1) (+ j 1) (- k 1) (pair (list (lit eq) i j) acc))))))
     (def go
       (fn (self i j acc)
+        (do (cu-sweep-tick! cu-sweep-steps)
         (match
           ((if (>= i ahi) (>= j bhi) #f) (eqs ahi bhi s acc))
           ((if (< i ahi) (< j bhi) #f)
@@ -161,7 +166,7 @@
                 (self (+ i 1) j (pair (list (lit del) i j) acc))
                 (self i (+ j 1) (pair (list (lit add) i j) acc)))))
           ((< i ahi) (self (+ i 1) j (pair (list (lit del) i j) acc)))
-          (#t (self i (+ j 1) (pair (list (lit add) i j) acc))))))
+          (#t (self i (+ j 1) (pair (list (lit add) i j) acc)))))))
     (reverse (go p p (eqs 0 0 p ())))))
 
 (def %cu-diff-label (fn (_ op) (first op)))
@@ -313,9 +318,12 @@
     (def uni (Opts value o "-U"))
     (def a (cu-lines atext))
     (def b (cu-lines btext))
-    ; the SAME text read twice: once as it is, once as diff compares it
-    (def an (cu-dl-lines atext fold? squeeze? strip?))
-    (def bn (cu-dl-lines btext fold? squeeze? strip?))
+    ; the SAME text read twice: once as it is, once as diff compares it.
+    ; With none of -i -b -w the two readings are one: the lexer would build
+    ; every word of the text to give back the lines as they are.
+    (def norm? (if fold? #t (if squeeze? #t strip?)))
+    (def an (if norm? (cu-dl-lines atext fold? squeeze? strip?) a))
+    (def bn (if norm? (cu-dl-lines btext fold? squeeze? strip?) b))
     (def n (length a))
     (def m (length b))
     (def av (vec-make (+ n 1) ""))
@@ -326,6 +334,7 @@
       (fn (self v ls i)
         (if (null? ls) ()
           (do (vec-set! v i (first ls))
+              (cu-sweep-at i cu-sweep-steps)
               (self v (rest ls) (+ i 1))))))
     (load! av a 0)
     (load! bv b 0)
@@ -394,6 +403,7 @@
           (pair (%cu-diff-emit (reverse dels) (reverse adds) hi hj) acc))))
     (def go
       (fn (self l dels adds hi hj acc)
+        (do (cu-sweep-tick! cu-sweep-steps)
         (if (null? l)
           (%str-concat (reverse (flush dels adds hi hj acc)))
           (let ((op (first l)))
@@ -409,7 +419,7 @@
               (#t
                 (self (rest l) dels
                   (pair (vec-ref bv (%cu-diff-bi op)) adds)
-                  hi hj acc)))))))
+                  hi hj acc))))))))
     (go ops () () 1 1 ())))
 
 ; --- the unified header ------------------------------------------------------
