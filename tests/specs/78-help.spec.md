@@ -3003,6 +3003,26 @@ stderr:
 status 0
 ```
 
+### lzma
+
+```cu
+(run (list "lzma" "--help") "")
+```
+---
+```output
+Usage: lzma -d [-cfk] [FILE]...|
+|
+Decompress FILEs (or stdin)|
+|
+	-d	Decompress|
+	-c	Write to stdout|
+	-f	Force|
+	-k	Keep input files|
+	-t	Test integrity|
+stderr:
+status 0
+```
+
 ### bzip2
 
 ```cu

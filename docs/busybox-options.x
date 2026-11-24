@@ -97,6 +97,7 @@
     (list "bzcat" ())
     (list "unlzma" (%letters "cfkt"))
     (list "lzcat" ())
+    (list "lzma" (%letters "dcfkt"))
     (list "bzip2" (%letters "cfkdt123456789"))
     (list "hd" ())
     (list "head" (%letters "ncqv"))

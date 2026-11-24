@@ -112,6 +112,7 @@ line:
     lsmod
     lsof
     lzcat
+    lzma
     makemime
     md5sum
     mesg
@@ -464,7 +465,7 @@ The applets tested there so far:
     lib/coreutils/ftpd.x         ftpd: busybox's FTP server, one connection on stdin, PASV, EPSV or PORT
     lib/coreutils/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
     lib/coreutils/getopt.x       getopt, over musl's getopt_long, and the shell's quoting
-    lib/coreutils/gzip.x         gzip, gunzip, zcat, bzip2, bunzip2, bzcat, unlzma and lzcat, a piece at a time through x-lang's streams
+    lib/coreutils/gzip.x         gzip, gunzip, zcat, bzip2, bunzip2, bzcat, unlzma, lzcat and lzma, a piece at a time through x-lang's streams
     lib/coreutils/hash.x         md5sum sha1sum cksum sum; the digests are x-lang's codecs
     lib/coreutils/hexdump.x      hexdump, hd and xxd over it, and xxd -r
     lib/coreutils/httpd.x        httpd: busybox's web server -- files, httpd.conf, ranges, ETags, inetd mode or a listener

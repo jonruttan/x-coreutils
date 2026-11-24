@@ -1,6 +1,6 @@
 ; # x-coreutils -- the small tools, as applets
 ;
-; ## lib/coreutils/gzip.x -- gzip, gunzip, zcat, bzip2, bunzip2, bzcat, unlzma, lzcat
+; ## lib/coreutils/gzip.x -- gzip, gunzip, zcat, bzip2, bunzip2, bzcat, unlzma, lzcat, lzma
 ;
 ; @author [Jon Ruttan](jonruttan@gmail.com)
 ; @copyright 2026 Jon Ruttan
@@ -23,7 +23,7 @@
 ; keeps the input, -k keeps it, -f replaces an output already there, -t only
 ; checks.  bzcat is bunzip2 -c, and bzip2 -d or -t is bunzip2; zcat is
 ; gunzip -c that takes bzip2 data too, and refuses what is neither; lzcat is
-; unlzma -c.
+; unlzma -c, and lzma is unlzma that needs -d or -t.
 ;
 ; The data goes a piece at a time through x-lang's Deflate, Inflate, Bzip2,
 ; Bunzip2 and Unlzma streams, in x, so no C library is wanted (x-os has
@@ -584,6 +584,16 @@
         (let ((o (cu-opts "lzcat" argv)))
           (%gz-files (%gz-settings "lzcat" o (lit lzma) #t #t #f 0) (Opts operands o) stdin-thunk))))))
 
+; lzma is unlzma that shows its usage unless given -d or -t
+(def cu-lzma
+  (fn (_ argv stdin-thunk)
+    (%gz-run-guarded
+      (fn (_)
+        (let ((o (cu-opts "lzma" argv)))
+          (if (if (Opts on? o "-d") #t (Opts on? o "-t"))
+            (%gz-files (%gz-settings "lzma" o (lit lzma) #t #f #f 0) (Opts operands o) stdin-thunk)
+            (cu-usage "lzma")))))))
+
 (def %gz-on? (fn (_ o a b) (if (Opts on? o a) #t (Opts on? o b))))
 
 ; CAT writes to standard output whatever the options; ZCAT checks the magic;
@@ -842,5 +852,5 @@
                   (if (pair? how) (src (first how))
                     (if (first again) (do (%set-first! again #f) p) (src))))))))))
 
-(provide coreutils/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-lzcat cu-unlzma cu-zcat gz-at gz-copy gz-ends? gz-sink
+(provide coreutils/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-lzcat cu-lzma cu-unlzma cu-zcat gz-at gz-copy gz-ends? gz-sink
   gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)

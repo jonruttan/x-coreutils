@@ -1,6 +1,6 @@
 # @weight 1
 
-busybox's unlzma and lzcat (archival/bbunzip.c's unlzma_main and
+busybox's unlzma, lzcat and lzma (archival/bbunzip.c's unlzma_main and
 libarchive's unpack_lzma_stream).  Every expectation is busybox 1.36.1's own
 output, run in alpine 3.20, less the banner line its usage text starts
 with.  A `|` marks the end of each line written to standard output;
@@ -239,5 +239,125 @@ unlzma: bad lzma header
 status 1
 stderr:
 lzcat: bad lzma header
+status 1
+```
+
+## lzma
+
+### without -d or -t, the usage text, whatever else is given
+
+```cu
+(do (lz-case #t "-" "@" "@" "t" (list "lzma")) (lz-case #t "-" "@" "ls hello*" "t" (list "lzma" "-c" "hello.lzma")))
+```
+---
+```output
+stderr:
+Usage: lzma -d [-cfk] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-d	Decompress
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+stderr:
+Usage: lzma -d [-cfk] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-d	Decompress
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+after:
+hello
+hello.lzma
+```
+
+### -d replaces a file by FILE; -k keeps it; -c writes two to standard output; standard input
+
+```cu
+(do (lz-case #t "-" "rm hello" "ls hello*; cat hello" "t" (list "lzma" "-d" "hello.lzma")) (lz-case #t "-" "rm hello" "ls hello*" "t" (list "lzma" "-dk" "hello.lzma")) (lz-case #t "-" "@" "ls hello*" "t" (list "lzma" "-dc" "hello.lzma" "three.lzma")) (lz-case #t "hello.lzma" "@" "@" "t" (list "lzma" "-d")))
+```
+---
+```output
+stderr:
+status 0
+after:
+hello
+hello
+stderr:
+status 0
+after:
+hello
+hello.lzma
+hello|
+one|
+two|
+three|
+stderr:
+status 0
+after:
+hello
+hello.lzma
+hello|
+stderr:
+status 0
+```
+
+### an output already there is refused, and -f replaces it; a name without .lzma
+
+```cu
+(do (lz-case #t "-" "@" "ls hello*" "t" (list "lzma" "-d" "hello.lzma")) (lz-case #t "-" "@" "ls hello*; cat hello" "t" (list "lzma" "-df" "hello.lzma")) (lz-case #t "-" "@" "ls hello*" "t" (list "lzma" "-d" "hello")))
+```
+---
+```output
+stderr:
+lzma: can't open 'hello': File exists
+status 1
+after:
+hello
+hello.lzma
+stderr:
+status 0
+after:
+hello
+hello
+stderr:
+lzma: hello: unknown suffix - ignored
+status 1
+after:
+hello
+hello.lzma
+```
+
+### -t checks and keeps the file, alone or with -d; text and cut-short data
+
+```cu
+(do (lz-case #t "-" "@" "ls hello*" "t" (list "lzma" "-t" "hello.lzma")) (lz-case #t "-" "@" "ls hello*" "t" (list "lzma" "-dt" "hello.lzma")) (lz-case #t "-" "@" "ls plain*" "t" (list "lzma" "-d" "plain.lzma")) (lz-case #t "-" "@" "@" "t" (list "lzma" "-t" "short.lzma")))
+```
+---
+```output
+stderr:
+status 0
+after:
+hello
+hello.lzma
+stderr:
+status 0
+after:
+hello
+hello.lzma
+stderr:
+lzma: bad lzma header
+status 1
+after:
+plain.lzma
+stderr:
+lzma: unexpected EOF
 status 1
 ```

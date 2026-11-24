@@ -111,6 +111,7 @@ the work.  Applet parity is the other axis: see the README.
 | `lsmod` |  |  |  | - |
 | `lsof` |  |  |  | - |
 | `lzcat` |  | -c -f -k -v -q -d -t |  | - |
+| `lzma` | -d -c -f -k -t | -d -c -f -k -v -q -t |  | 100% |
 | `makemime` | -c -e -o -C -N -a | -c -e -o -C -N -a |  | 100% |
 | `md5sum` | -c -s -w | -c -s -w |  | 100% |
 | `mesg` |  |  |  | - |

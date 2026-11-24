@@ -3740,6 +3740,48 @@ Decompress FILEs (or stdin)
 status 1
 ```
 
+### lzma -~
+
+```cu
+(run (list "lzma" "-~") "")
+```
+---
+```output
+stderr:
+lzma: unrecognized option: ~
+Usage: lzma -d [-cfk] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-d	Decompress
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+```
+
+### lzma --nope
+
+```cu
+(run (list "lzma" "--nope") "")
+```
+---
+```output
+stderr:
+lzma: unrecognized option: nope
+Usage: lzma -d [-cfk] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-d	Decompress
+	-c	Write to stdout
+	-f	Force
+	-k	Keep input files
+	-t	Test integrity
+status 1
+```
+
 ### bzcat -~
 
 ```cu
