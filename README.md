@@ -279,6 +279,9 @@ buffer of bytes, searches it with libc's `memchr`, `strcspn` and
 `memmem`, and sweeps the heap once the objects live have grown a set
 amount, so its memory stays bounded however long it runs; a refresh
 formats the rows again only when what they show can have changed.
+[docs/vi-card.md](docs/vi-card.md) is its card: the keys and colon
+commands in tables, and rows that type keys at vi and show the file they
+leave, which `make vi-card` runs.
 Self-contained: no `(requires-lang ...)`.
 
 ## Known limits
