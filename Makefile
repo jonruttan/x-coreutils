@@ -41,6 +41,11 @@ lint: ## Lint the bundle's own sources -- advisory rules included, and gated
 check: lint ## Lint, then run the suite against tests/contract/known-failures.txt -- what CI gates on
 	X="$(X)" sh tests/spec-gate.sh
 
+.PHONY: card
+card: ## Hold docs/card.md to the card format and run its rows
+	X_BUNDLE_DIR="$${X_BUNDLE_DIR:-$(CURDIR)/..}" BUNDLE=. X="$(X)" \
+		sh "$${CARD_SH:-$$("$(X)" --share-dir)/tools/bundle-kit/card.sh}"
+
 .PHONY: vi-card
 vi-card: ## Hold docs/vi-card.md to the card format and run its rows
 	X_BUNDLE_DIR="$${X_BUNDLE_DIR:-$(CURDIR)/..}" BUNDLE=. X="$(X)" \
