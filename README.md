@@ -360,6 +360,9 @@ Paired with x-lang v0.62.0 (`bundle.xon` is the checkable row).
 
 That last line is a real pipeline of x tools, and it works today.
 
+[docs/card.md](docs/card.md) is the card: the applets by what they do,
+in tables, and rows that run them, which `make card` checks.
+
 ## Options
 
 Applet parity is one axis; OPTION parity is the other.  `docs/options.md`
@@ -374,6 +377,7 @@ the page, so two applets' PRs do not both change one line of it.
 
     make test           # the suite, loud on any failure
     make check          # judged against tests/contract/known-failures.txt
+    make card           # docs/card.md: its format and its rows
     sh tests/linux/run.sh   # the Linux leg, as root in a privileged container
 
 The applets whose work is the kernel's are tested on Linux as root, in a
