@@ -104,6 +104,22 @@ jobs:
           TIMEOUT_UNIT_SECS: 180
         run: X="$GITHUB_WORKSPACE/.x-lang/x.sh" sh tests/spec-gate.sh
 
+      # docs/card.md, as x-lang's bundle workflow checks a bundle's card.  The
+      # card runs from the bundle's root and a checkout's wrapper runs only
+      # from its own, so the platform is installed first; X_BUNDLE_DIR is
+      # where this bundle was checked out.
+      - name: Check the card
+        run: |
+          # An x-lang that pins official bundles installs only once they
+          # are acquired; one from before it had them has no such target.
+          if grep -q '^bundles:' .x-lang/Makefile; then
+            make -C .x-lang bundles
+          fi
+          make -C .x-lang install PREFIX="$RUNNER_TEMP/x"
+          cd x-coreutils
+          X_BUNDLE_DIR="$GITHUB_WORKSPACE" BUNDLE=. X="$RUNNER_TEMP/x/bin/x" \
+            sh "$GITHUB_WORKSPACE/.x-lang/tools/bundle-kit/card.sh"
+
   # Linux, as root: the applets whose work is the kernel's (tests/linux/specs),
   # in the privileged container tests/linux/run.sh builds at the release
   # bundle.xon declares, each case compared with that container's busybox.
