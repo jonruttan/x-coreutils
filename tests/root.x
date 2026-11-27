@@ -14,6 +14,13 @@
 (import coreutils/arping cu-arping)
 (import coreutils/ascii cu-ascii cu-crc32 cu-uuidgen)
 (import coreutils/base32 cu-base32)
+(import coreutils/bc cu-bc)
+(import coreutils/bcnum bn-abs bn-add bn-at bn-big% bn-big* bn-big+ bn-big-
+  bn-big/ bn-big< bn-big= bn-char! bn-cmp bn-col bn-col! bn-cut bn-die
+  bn-digits bn-div bn-divmod bn-emit! bn-flush! bn-int? bn-isqrt bn-line-len
+  bn-max bn-min bn-modexp bn-mul bn-neg? bn-newline! bn-nul! bn-one? bn-parse
+  bn-pow bn-print-in! bn-print-num! bn-print-str! bn-rem bn-sqrt bn-start!
+  bn-sub bn-ten bn-ulong bn-wrap! bn-zero?)
 (import coreutils/brctl cu-brctl)
 (import coreutils/etherwake cu-ether-wake)
 (import coreutils/cal cal-sum cu-cal)

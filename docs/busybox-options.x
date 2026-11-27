@@ -68,6 +68,7 @@
     (list "cryptpw" (%letters "PmS"))
     (list "cut" (%letters "bcfdsn"))
     (list "date" (append (%letters "udDsrRI") (list "+FMT")))
+    (list "bc" (%letters "sqlw"))
     (list "dc" (%letters "xef"))
     (list "dd" (list "if=" "of=" "bs=" "ibs=" "obs=" "count=" "skip=" "seek="
                      "conv=" "status=" "iflag=" "oflag="))
