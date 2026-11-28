@@ -43,6 +43,7 @@
 (import coreutils/fs2 cu-cmp cu-install cu-mktemp cu-pwd cu-touch)
 (import coreutils/fs3 cu-dd cu-du cu-nohup cu-shred cu-stat cu-timeout cu-truncate
   cu-tty cu-unlink cu-usleep)
+(import coreutils/fstrim cu-fstrim)
 (import coreutils/ftp cu-ftpget cu-ftpput)
 (import coreutils/ftpd cu-ftpd)
 (import coreutils/fuser cu-fuser)
@@ -229,6 +230,7 @@
     (method true (self argv stdin-thunk) (cu-true argv stdin-thunk))
     (method false (self argv stdin-thunk) (cu-false argv stdin-thunk))
     (method fallocate (self argv stdin-thunk) (cu-fallocate argv stdin-thunk))
+    (method fstrim (self argv stdin-thunk) (cu-fstrim argv stdin-thunk))
     (method seq (self argv stdin-thunk) (cu-seq argv stdin-thunk))
     (method rev (self argv stdin-thunk) (cu-rev-applet argv stdin-thunk))
     (method tac (self argv stdin-thunk) (cu-tac argv stdin-thunk))

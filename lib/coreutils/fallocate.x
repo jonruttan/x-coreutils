@@ -19,76 +19,22 @@
 (import coreutils/cli cu-opts cu-usage)
 (import coreutils/inet inet-set! inet-zeros)
 (import coreutils/inetd in-call)
-(import coreutils/prims byte-at byte-len cu-err-label cu-libc-sym cu-member-s? cu-ptr-call
-  cu-stat-get cu-str->ptr file-close file-err-text file-fstat-full file-open-err
-  file-truncate file-write libc-strerror substring)
+(import coreutils/prims cu-err-label cu-libc-sym cu-ptr-call
+  cu-stat-get file-close file-err-text file-fstat-full file-open-err
+  file-truncate file-write libc-strerror)
+(import coreutils/xatonum cu-xatoull-kmg)
 
 (def %fa-die
   (fn (_ msg)
     (do (file-write 2 (%str-concat (list "fallocate: " msg "\n")))
         (Err raise (lit fallocate) msg ()))))
 
-; the largest off_t; a count past it is negative to the call, as a C
-; conversion makes it
-(def %fa-off-max 0x7FFFFFFFFFFFFFFF)
-(def %fa-div (fn (_ a b) (/ (- a (% a b)) b)))
-
-; kmg_i_suffixes, libbb/xatonum.c
-(def %fa-suffixes
-  (list (pair (list "KiB" "kiB" "K" "k") 1024)
-        (pair (list "MiB" "miB" "M" "m") 1048576)
-        (pair (list "GiB" "giB" "G" "g") 1073741824)))
-
-(def %fa-scale
-  (fn (_ tail)
-    (if (= (byte-len tail) 0) 1
-      (let go ((ss %fa-suffixes))
-        (match
-          ((null? ss) ())
-          ((cu-member-s? tail (first (first ss))) (rest (first ss)))
-          (#t (go (rest ss))))))))
-
-; digit string A against B of the same length: is A the greater?
-(def %fa-above?
-  (fn (_ a b)
-    (let go ((i 0))
-      (match
-        ((>= i (byte-len a)) #f)
-        ((= (byte-at a i) (byte-at b i)) (go (+ i 1)))
-        (#t (> (byte-at a i) (byte-at b i)))))))
-
-; S's digits without their leading zeros, past an off_t (lit big), or where
-; strtoull would overflow nil
-(def %fa-digits
-  (fn (_ s end)
-    (def from (let go ((i 0)) (if (if (< i (- end 1)) (= (byte-at s i) 48) #f) (go (+ i 1)) i)))
-    (def d (substring s from end))
-    (def n (byte-len d))
-    (match
-      ((> n 20) ())
-      ((if (= n 20) (%fa-above? d "18446744073709551615") #f) ())
-      ((if (= n 20) #t (if (= n 19) (%fa-above? d "9223372036854775807") #f)) (lit big))
-      (#t (let go ((i 0) (acc 0))
-            (if (< i n) (go (+ i 1) (+ (* acc 10) (- (byte-at d i) 48))) acc))))))
-
 ; S as xatoull_sfx reads it, as off_t takes it; a word it refuses is said,
 ; as libbb says it, and the run ends
 (def %fa-number
   (fn (_ s)
-    (def end
-      (let go ((i 0))
-        (if (if (< i (byte-len s)) (if (>= (byte-at s i) 48) (<= (byte-at s i) 57) #f) #f)
-          (go (+ i 1)) i)))
-    (def v (if (= end 0) () (%fa-digits s end)))
-    (def scale (if (null? v) () (%fa-scale (substring s end (byte-len s)))))
-    (def range (fn (_) (%fa-die (%str-concat (list "number " s " is not in 0..18446744073709551615 range")))))
-    (match
-      ((null? scale) (%fa-die (%str-concat (list "invalid number '" s "'"))))
-      ((= scale 1) (if (eq? v (lit big)) -1 v))
-      ((eq? v (lit big)) (range))
-      ((> v (+ (* 2 (%fa-div %fa-off-max scale)) 1)) (range))
-      ((> v (%fa-div %fa-off-max scale)) -1)
-      (#t (* v scale)))))
+    (let ((n (cu-xatoull-kmg s)))
+      (if (Err err? n) (%fa-die (Err text n)) n))))
 
 ; F_PREALLOCATE and its fstore_t, <sys/fcntl.h>: F_ALLOCATEALL from
 ; F_PEOFPOSMODE, then the length set.  A range posix_fallocate refuses is
