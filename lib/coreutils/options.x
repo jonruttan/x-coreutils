@@ -2693,6 +2693,23 @@
             (Opts hidden (Opts flag "-e" ""))
             (Opts hidden (Opts arg "-A" "inet[6]" ""))))
         (lit leading)))
+    (pair "ar"
+      (list
+        (Opts declare "ar" "x|p|t|r [-ov] ARCHIVE [FILE]..."
+          "Extract or list FILEs from an ar archive, or create it"
+          (list
+            (Opts text "\tx\tExtract")
+            (Opts text "\tp\tExtract to stdout")
+            (Opts text "\tt\tList")
+            (Opts text "\tr\tCreate")
+            (Opts flag "-o" "Restore mtime")
+            (Opts flag "-v" "Verbose")
+            (Opts hidden (Opts flag "-x" ""))
+            (Opts hidden (Opts flag "-p" ""))
+            (Opts hidden (Opts flag "-t" ""))
+            (Opts hidden (Opts flag "-r" ""))
+            (Opts hidden (Opts flag "-c" ""))))
+        (lit leading)))
     (pair "arping"
       (list
         (Opts declare "arping" "[-fqbDUA] [-c CNT] [-w TIMEOUT] [-I IFACE] [-s SRC_IP] DST_IP"

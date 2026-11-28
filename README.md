@@ -11,6 +11,7 @@ The aim is every BusyBox applet, each checked against BusyBox 1.36.1,
 with BusyBox's behaviour where it and GNU differ.  The applets, one to a
 line:
 
+    ar
     arch
     arp
     arping
@@ -440,6 +441,7 @@ The applets tested there so far:
     bundle.xon                   what this bundle IS (self-contained)
     lib/                         the import root: lib/coreutils/ holds every module
     lib/coreutils/applets.x      Applets, the class whose statics are the applets, each imported from its module
+    lib/coreutils/ar.x           ar: an ar archive listed, its members made or written out, or written again with FILEs added
     lib/coreutils/arp.x          arp: the ARP cache shown, and entries set and deleted through the kernel's ioctls
     lib/coreutils/arping.x       arping: ARP requests over a packet socket, the replies timed
     lib/coreutils/ascii.x        ascii, crc32 (the zlib CRC-32) and uuidgen
