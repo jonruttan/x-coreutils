@@ -60,6 +60,7 @@ line:
     expr
     factor
     fakeidentd
+    fallocate
     false
     find
     flock
@@ -396,6 +397,7 @@ The applets tested there so far:
 - `dhcprelay`
 - `dmesg`
 - `ether-wake`
+- `fallocate`
 - `ifconfig`
 - `ifplugd`
 - `ionice`
@@ -466,6 +468,7 @@ The applets tested there so far:
     lib/coreutils/etherwake.x    ether-wake: a Wake-On-LAN magic packet sent over a packet socket
     lib/coreutils/expr.x         expr, and the anchored matcher it needs
     lib/coreutils/fakeidentd.x   fakeidentd: the same ident answer for every query, -i, -w or a listener
+    lib/coreutils/fallocate.x    fallocate: LEN bytes set aside for FILE from OFS, posix_fallocate or Darwin's F_PREALLOCATE
     lib/coreutils/find.x         find: the expression grammar, and the walk it drives
     lib/coreutils/fmt-lex.x      one reader for the format strings of printf, date and stat
     lib/coreutils/fs.x           cat cp mv rm mkdir rmdir ln

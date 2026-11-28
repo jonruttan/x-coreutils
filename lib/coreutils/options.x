@@ -1840,6 +1840,13 @@
             (Opts flag "-r" "Reverse (with -p, assumes no offsets in input)")
             (Opts hidden (Opts flag "-a" ""))
             (Opts hidden (Opts flag "-p" ""))))))
+    (pair "fallocate"
+      (list
+        (Opts declare "fallocate" "[-o OFS] -l LEN FILE"
+          "Preallocate space for FILE"
+          (list
+            (Opts arg "-o" "OFS" "Offset of range")
+            (Opts arg "-l" "LEN" "Length of range")))))
     (pair "fsync"
       (list
         (Opts declare "fsync" "[-d] FILE..."
