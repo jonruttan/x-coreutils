@@ -2171,6 +2171,15 @@
             (Opts hidden (Opts flag "-v" ""))
             (Opts hidden (Opts flag "-q" ""))
             (Opts hidden (Opts flag "-t" ""))))))
+    (pair "uncompress"
+      (list
+        (Opts declare "uncompress" "[-cf] [FILE]..."
+          "Decompress FILEs (or stdin)"
+          (list
+            (Opts text "\t-c\tWrite to stdout")
+            (Opts text "\t-f\tOverwrite")
+            (Opts hidden (Opts flag "-c" ""))
+            (Opts hidden (Opts flag "-f" ""))))))
     (pair "bzip2"
       (list
         (Opts declare "bzip2" "[-cfkdt123456789] [FILE]..."

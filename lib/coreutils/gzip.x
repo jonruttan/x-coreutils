@@ -498,10 +498,46 @@
       (do (out (Unlzma feed z hb 0 13)) (go)))
     (%gz-write! fd (vec-ref hold 0) (vec-ref hold 1))))
 
+; SRC's .Z stream decoded to FD, as unpack_Z_stream reads it, through
+; busybox's buffer of 2048 bytes.  A bad magic, a header cut short, more
+; than 16 bits and a code past the next entry are said and the output taken
+; away; a first code that is not a byte, or a string too deep for the
+; stack, is busybox's die, which ends the run and leaves the output.  None
+; writes what the buffer holds.  Data cut short elsewhere is the end.
+(def %z-unpack!
+  (fn (_ name src fd)
+    (import x/codec/uncompress)
+    (def rd (%gz-reader src))
+    (def hold (%lz-hold 2048))
+    (def z (Uncompress stream))
+    (def out (fn (_ r) (%lz-take! hold fd (first r) 0 (first (rest r)))))
+    (def go
+      (fn (self)
+        (unless (Uncompress done? z)
+          (let ((p (%gz-piece rd)))
+            (if (null? p) (out (Uncompress finish z))
+              (let ((at (vec-ref rd 2)))
+                (do (vec-set! rd 2 (rest p))
+                    (out (Uncompress feed z (first p) at (- (rest p) at)))
+                    (cu-sweep-tick! 0)
+                    (self))))))))
+    (guard (e (if (eq? (cu-err-label e) (lit value))
+                (let ((kind (%lz-at (lit compress) (e data))) (o (%lz-at (lit out) (e data))))
+                  (do (if (null? o) () (out o))
+                      (match
+                        ((eq? kind (lit magic)) (%gz-die name "invalid magic"))
+                        ((eq? kind (lit short)) (%gz-die name "short read"))
+                        ((eq? kind (lit bits)) (%gz-die name (substring (e msg) 12 (byte-len (e msg)))))
+                        ((eq? kind (lit undefined)) (%gz-die name "corrupted data"))
+                        (#t (%gz-end name "corrupted data")))))
+                (error e)))
+      (go))
+    (%gz-write! fd (vec-ref hold 0) (vec-ref hold 1))))
+
 ; --- the applets -------------------------------------------------------------------
 
 ; How a run goes, in a vector: the applet's name, unpacking?, -c, -f, -k, -t,
-; zcat's check of the magic, the format (gz, bz2 or lzma), bzip2's block size
+; zcat's check of the magic, the format (gz, bz2, lzma or compress), bzip2's block size
 ; digit.
 (def %gz-name (fn (_ t) (vec-ref t 0)))
 
@@ -594,6 +630,14 @@
             (%gz-files (%gz-settings "lzma" o (lit lzma) #t #f #f 0) (Opts operands o) stdin-thunk)
             (cu-usage "lzma")))))))
 
+; busybox's uncompress_main: bbunpack over the .Z stream, with only -c and -f
+(def cu-uncompress
+  (fn (_ argv stdin-thunk)
+    (%gz-run-guarded
+      (fn (_)
+        (let ((o (cu-opts "uncompress" argv)))
+          (%gz-files (%gz-settings "uncompress" o (lit compress) #t #f #f 0) (Opts operands o) stdin-thunk))))))
+
 (def %gz-on? (fn (_ o a b) (if (Opts on? o a) #t (Opts on? o b))))
 
 ; CAT writes to standard output whatever the options; ZCAT checks the magic;
@@ -622,7 +666,7 @@
     (go (if (null? names) (list "-") names) 0)))
 
 ; FILE.gz or FILE.bz2 for FILE, or FILE for FILE.gz and FILE.tar for
-; FILE.tgz, or FILE for FILE.bz2 or FILE.lzma; nil for another suffix
+; FILE.tgz, or FILE for FILE.bz2, FILE.lzma or FILE.Z; nil for another suffix
 (def %gz-new-name
   (fn (_ t file)
     (if (not (vec-ref t 1))
@@ -633,6 +677,8 @@
             (if (gz-ends? file ".bz2") (substring file 0 (- n 4)) ()))
           ((eq? (vec-ref t 7) (lit lzma))
             (if (gz-ends? file ".lzma") (substring file 0 (- n 5)) ()))
+          ((eq? (vec-ref t 7) (lit compress))
+            (if (gz-ends? file ".Z") (substring file 0 (- n 2)) ()))
           ((gz-ends? file ".gz") (substring file 0 (- n 3)))
           ((gz-ends? file ".tgz") (string-append (substring file 0 (- n 4)) ".tar"))
           (#t ()))))))
@@ -741,6 +787,7 @@
             ((not (vec-ref t 1)) (%gz-pack! src fd))
             ((eq? (vec-ref t 7) (lit bz2)) (%bz-unpack! (%gz-name t) src fd))
             ((eq? (vec-ref t 7) (lit lzma)) (%lz-unpack! (%gz-name t) src fd))
+            ((eq? (vec-ref t 7) (lit compress)) (%z-unpack! (%gz-name t) src fd))
             (#t (%gz-unpack! (%gz-name t) src fd mtime)))
           0))))
 
@@ -852,5 +899,5 @@
                   (if (pair? how) (src (first how))
                     (if (first again) (do (%set-first! again #f) p) (src))))))))))
 
-(provide coreutils/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-lzcat cu-lzma cu-unlzma cu-zcat gz-at gz-copy gz-ends? gz-sink
+(provide coreutils/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-lzcat cu-lzma cu-uncompress cu-unlzma cu-zcat gz-at gz-copy gz-ends? gz-sink
   gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)
