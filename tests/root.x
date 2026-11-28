@@ -49,6 +49,7 @@
 (import coreutils/encode cu-od cu-uudecode cu-uuencode)
 (import coreutils/expr cu-expr)
 (import coreutils/fakeidentd cu-fakeidentd)
+(import coreutils/fallocate cu-fallocate)
 (import coreutils/find cu-find cu-glob-class cu-glob?)
 (import coreutils/fmt-lex cu-esc-at cu-esc-run cu-fmt-conv cu-fmt-dir? cu-fmt-left?
   cu-fmt-parse cu-fmt-raw cu-fmt-width cu-runs-onto cu-write-runs)

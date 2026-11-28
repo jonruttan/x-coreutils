@@ -88,6 +88,7 @@
     (list "flock" (%letters "sxun"))
     (list "fold" (%letters "bsw"))
     (list "free" (%letters "bkmgh"))
+    (list "fallocate" (%letters "lo"))
     (list "fsync" (%letters "d"))
     (list "fuser" (%letters "mks64"))
     (list "getopt" (%letters "onqQsTual"))
