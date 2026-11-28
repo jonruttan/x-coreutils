@@ -65,6 +65,7 @@ the work.  Applet parity is the other axis: see the README.
 | `flock` | -s -x -u -n | -s -x -u -n --shared --exclusive --unlock --nonblock |  | 100% |
 | `fold` | -b -s -w | -b -s -w |  | 100% |
 | `free` | -b -k -m -g -h | -b -k -m -g -h |  | 100% |
+| `fstrim` | -o -l -m -v --offset --length --minimum --verbose | -v --verbose -o -l -m --offset --length --minimum |  | 100% |
 | `fsync` | -d | -d |  | 100% |
 | `ftpd` | -w -A -a -v -S -t -T | -w -A -v -S -a -t -T |  | 100% |
 | `ftpget` | -c -v -u -p -P | -c -v --verbose -u -p -P --continue --username --password --port |  | 100% |

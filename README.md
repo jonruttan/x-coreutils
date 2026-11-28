@@ -66,6 +66,7 @@ line:
     flock
     fold
     free
+    fstrim
     fsync
     ftpd
     ftpget
@@ -398,6 +399,7 @@ The applets tested there so far:
 - `dmesg`
 - `ether-wake`
 - `fallocate`
+- `fstrim`
 - `ifconfig`
 - `ifplugd`
 - `ionice`
@@ -474,6 +476,7 @@ The applets tested there so far:
     lib/coreutils/fs.x           cat cp mv rm mkdir rmdir ln
     lib/coreutils/fs2.x          touch pwd install mktemp cmp
     lib/coreutils/fs3.x          stat du dd truncate unlink shred timeout usleep tty nohup
+    lib/coreutils/fstrim.x       fstrim: FITRIM on MOUNTPOINT over -o -l -m, the bytes discarded under -v
     lib/coreutils/ftp.x          ftpget, ftpput and wget's ftp:// urls: busybox's FTP over a passive data connection
     lib/coreutils/ftpd.x         ftpd: busybox's FTP server, one connection on stdin, PASV, EPSV or PORT
     lib/coreutils/fuser.x        fuser: the processes that hold a file, a file system or a port, over the Host
@@ -582,6 +585,7 @@ The applets tested there so far:
     lib/coreutils/walk.x         the directory walk the recursive applets share
     lib/coreutils/watch.x        watch: a command run every period under a header, through sh -c or exec
     lib/coreutils/who.x          id whoami logname groups uname arch nproc nice chroot, who w users
+    lib/coreutils/xatonum.x      xatoull_sfx with kmg_i_suffixes: a count as libbb reads it, kept as a u64's bits
     lib/coreutils/zcip.x         zcip: a ZeroConf link-local address probed and announced over ARP, then defended
     tests/                       markdown specs + the platform's runner, vendored nowhere
     tests/root.x                 every module's exports bound in the root, where the specs read them

@@ -95,7 +95,11 @@
       ; leading options, a long one named by any prefix that names no other,
       ; as musl's getopt_long reads them
       ((eq? label (lit prefixes))
-        (Opts parse-leading flags values (%cu-long-prefixed flags values argv ())))
+        (Opts parse-leading flags values (%cu-long-prefixed flags values #f argv ())))
+      ; the same, read wherever they stand before a --, as getopt_long
+      ; permutes them
+      ((eq? label (lit prefixes-anywhere))
+        (Opts parse flags values (%cu-long-prefixed flags values #t argv ())))
       ; a first word that is -SIGNAL is the applet's own, read before getopt
       ; as busybox's pkill reads it
       ((eq? label (lit signal))
@@ -162,7 +166,7 @@
 ; ARGV with each leading long option a unique prefix names spelled whole,
 ; its =VALUE kept; the words from the first operand or -- on are as given.
 (def %cu-long-prefixed
-  (fn (self flags values argv acc)
+  (fn (self flags values permute? argv acc)
     (def w (if (null? argv) "" (first argv)))
     (def more (if (null? argv) () (rest argv)))
     (def m (if (if (> (byte-len w) 2) (= (byte-at w 1) #\-) #f) (%cu-long-matches w (append flags values)) ()))
@@ -170,12 +174,14 @@
     (def next? (if (= (length m) 1)
                  (if (cu-member-s? (first m) values) (= (%cu-eq-at w) (byte-len w)) #f) #f))
     (match
-      ((if (< (byte-len w) 2) #t (if (not (= (byte-at w 0) #\-)) #t (string=? w "--")))
-        (append (reverse acc) argv))
+      ((if (null? argv) #t (string=? w "--")) (append (reverse acc) argv))
+      ; an operand ends the options, or under PERMUTE? is passed over
+      ((if (< (byte-len w) 2) #t (not (= (byte-at w 0) #\-)))
+        (if permute? (self flags values #t more (pair w acc)) (append (reverse acc) argv)))
       ((if (= (byte-at w 1) #\-) #f (%cu-cluster-takes-next? w flags values))
-        (if (null? more) (reverse (pair w acc)) (self flags values (rest more) (pair (first more) (pair w acc)))))
-      ((if next? (pair? more) #f) (self flags values (rest more) (pair (first more) (pair full acc))))
-      (#t (self flags values more (pair full acc))))))
+        (if (null? more) (reverse (pair w acc)) (self flags values permute? (rest more) (pair (first more) (pair w acc)))))
+      ((if next? (pair? more) #f) (self flags values permute? (rest more) (pair (first more) (pair full acc))))
+      (#t (self flags values permute? more (pair full acc))))))
 
 ; the letters of the -X spellings among VALUES, the options that take a value
 (def cu-value-letters
@@ -330,7 +336,7 @@
       ((cu-member-s? applet %cu-short-only) "unrecognized option: -")
       ((cu-member-s? tok values)
         (string-append "option requires an argument: " (substring tok 2 end)))
-      ((if (eq? (%cu-label-of applet) (lit prefixes))
+      ((if (let ((l (%cu-label-of applet))) (if (eq? l (lit prefixes)) #t (eq? l (lit prefixes-anywhere))))
          (> (length (%cu-long-matches tok (append flags values))) 1) #f)
         (string-append "option is ambiguous: " (substring tok 2 end)))
       (#t (string-append "unrecognized option: " (substring tok 2 end))))))

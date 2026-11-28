@@ -1847,6 +1847,19 @@
           (list
             (Opts arg "-o" "OFS" "Offset of range")
             (Opts arg "-l" "LEN" "Length of range")))))
+    ; getopt_long's --offset --length --minimum --verbose, each the letter's
+    (pair "fstrim"
+      (list
+        (Opts declare "fstrim" "[OPTIONS] MOUNTPOINT" ()
+          (append
+            (list
+              (Opts text "\t-o OFFSET\tOffset in bytes to discard from")
+              (Opts text "\t-l LEN\t\tBytes to discard")
+              (Opts text "\t-m MIN\t\tMinimum extent length")
+              (Opts text "\t-v\t\tPrint number of discarded bytes"))
+            (%cu-hidden-args (list "-o" "-l" "-m" "--offset" "--length" "--minimum"))
+            (%cu-hidden-flags (list "-v" "--verbose"))))
+        (lit prefixes-anywhere)))
     (pair "fsync"
       (list
         (Opts declare "fsync" "[-d] FILE..."

@@ -89,6 +89,7 @@
     (list "fold" (%letters "bsw"))
     (list "free" (%letters "bkmgh"))
     (list "fallocate" (%letters "lo"))
+    (list "fstrim" (list "-o" "-l" "-m" "-v" "--offset" "--length" "--minimum" "--verbose"))
     (list "fsync" (%letters "d"))
     (list "fuser" (%letters "mks64"))
     (list "getopt" (%letters "onqQsTual"))

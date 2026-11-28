@@ -60,6 +60,7 @@
   cu-du-blocks cu-mode-octal4 cu-nohup cu-perm-places cu-perm-string cu-shred
   cu-stat cu-stat-group cu-stat-user cu-timeout cu-truncate cu-tty cu-unlink
   cu-usleep)
+(import coreutils/fstrim cu-fstrim)
 (import coreutils/ftp cu-ftpget cu-ftpput)
 (import coreutils/ftpd cu-ftpd)
 (import coreutils/fuser cu-fuser)
