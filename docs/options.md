@@ -225,6 +225,7 @@ the work.  Applet parity is the other axis: see the README.
 | `udhcpd` | -f -S -I -v -a | -f -S -v -I -a |  | 100% |
 | `udpsvd` | -h -E -v -c -u -l | -E -h -p -v -c -C -i -x -u -l -b -t |  | 100% |
 | `uname` | -a -m -n -r -s -p -v -i -o | -a -m -n -r -s -p -v -i -o |  | 100% |
+| `uncompress` | -c -f | -c -f |  | 100% |
 | `unexpand` | -f -a -t | -a -f -t |  | 100% |
 | `uniq` | -c -d -u -i -f -s -w | -c -d -u -i -f -s -w |  | 100% |
 | `unix2dos` | -u -d | -u -d |  | 100% |

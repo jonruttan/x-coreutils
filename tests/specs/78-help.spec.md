@@ -3023,6 +3023,23 @@ stderr:
 status 0
 ```
 
+### uncompress
+
+```cu
+(run (list "uncompress" "--help") "")
+```
+---
+```output
+Usage: uncompress [-cf] [FILE]...|
+|
+Decompress FILEs (or stdin)|
+|
+	-c	Write to stdout|
+	-f	Overwrite|
+stderr:
+status 0
+```
+
 ### bzip2
 
 ```cu

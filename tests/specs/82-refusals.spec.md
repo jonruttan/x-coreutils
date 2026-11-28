@@ -3782,6 +3782,42 @@ Decompress FILEs (or stdin)
 status 1
 ```
 
+### uncompress -k
+
+```cu
+(run (list "uncompress" "-k") "")
+```
+---
+```output
+stderr:
+uncompress: unrecognized option: k
+Usage: uncompress [-cf] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-c	Write to stdout
+	-f	Overwrite
+status 1
+```
+
+### uncompress --nope
+
+```cu
+(run (list "uncompress" "--nope") "")
+```
+---
+```output
+stderr:
+uncompress: unrecognized option: nope
+Usage: uncompress [-cf] [FILE]...
+
+Decompress FILEs (or stdin)
+
+	-c	Write to stdout
+	-f	Overwrite
+status 1
+```
+
 ### bzcat -~
 
 ```cu

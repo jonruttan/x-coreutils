@@ -64,7 +64,7 @@
 (import coreutils/ftpd cu-ftpd)
 (import coreutils/fuser cu-fuser)
 (import coreutils/getopt cu-getopt)
-(import coreutils/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-lzcat cu-lzma cu-unlzma cu-zcat gz-at gz-copy gz-ends? gz-sink
+(import coreutils/gzip cu-bunzip2 cu-bzcat cu-bzip2 cu-gunzip cu-gzip cu-lzcat cu-lzma cu-uncompress cu-unlzma cu-zcat gz-at gz-copy gz-ends? gz-sink
   gz-sink-close! gz-sink-write! gz-sniff gz-tar-pieces)
 (import coreutils/hash cu-bytes cu-cksum-applet cu-crypt64 cu-md5 cu-md5-bytes
   cu-md5sum cu-sha1-bytes cu-sha1sum cu-sum)
