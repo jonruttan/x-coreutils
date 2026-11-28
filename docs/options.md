@@ -17,6 +17,7 @@ the work.  Applet parity is the other axis: see the README.
 | `base32` | -d -i -w | -d -i -w |  | 100% |
 | `base64` | -d -w | -d -w |  | 100% |
 | `basename` | -s | -s |  | 100% |
+| `bc` | -s -q -l -w | -w -v -s -q -l -i --warn --version --standard --quiet --mathlib --interactive |  | 100% |
 | `brctl` |  |  |  | - |
 | `bunzip2` | -c -f -k -t | -c -f -k -v -q -d -t |  | 100% |
 | `bzcat` |  | -c -f -k -v -q -d -t |  | - |

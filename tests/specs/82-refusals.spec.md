@@ -4135,6 +4135,28 @@ Usage: ed [-p PROMPT] [-s] [FILE]
 status 1
 ```
 
+### bc -~
+
+```cu
+(run (list "bc" "-~") "")
+```
+---
+```output
+stderr:
+bc: unrecognized option: ~
+Usage: bc [-sqlw] [FILE]...
+
+Arbitrary precision calculator
+
+	-q	Quiet
+	-l	Load standard library
+	-s	Be POSIX compatible
+	-w	Warn if extensions are used
+
+$BC_LINE_LENGTH changes output width
+status 1
+```
+
 ### dc -~
 
 ```cu

@@ -2320,6 +2320,23 @@
           (list
             (Opts hidden (Opts arg "-p" "PROMPT" ""))
             (Opts hidden (Opts flag "-s" ""))))))
+    (pair "bc"
+      (list
+        (Opts declare "bc" "[-sqlw] [FILE]..." "Arbitrary precision calculator"
+          (list
+            (Opts text "\t-q\tQuiet")
+            (Opts text "\t-l\tLoad standard library")
+            (Opts text "\t-s\tBe POSIX compatible")
+            (Opts text "\t-w\tWarn if extensions are used")
+            (Opts text "")
+            (Opts text "$BC_LINE_LENGTH changes output width")
+            (Opts hidden (Opts flag "-w" "--warn" ""))
+            (Opts hidden (Opts flag "-v" "--version" ""))
+            (Opts hidden (Opts flag "-s" "--standard" ""))
+            (Opts hidden (Opts flag "-q" "--quiet" ""))
+            (Opts hidden (Opts flag "-l" "--mathlib" ""))
+            (Opts hidden (Opts flag "-i" "--interactive" ""))))
+        (lit prefixes)))
     (pair "dc"
       (list
         (Opts declare "dc" "[-x] [-eSCRIPT]... [-fFILE]... [FILE]..."

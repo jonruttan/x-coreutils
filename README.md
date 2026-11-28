@@ -17,6 +17,7 @@ line:
     ascii
     base32
     base64
+    bc
     basename
     brctl
     bunzip2
@@ -442,6 +443,8 @@ The applets tested there so far:
     lib/coreutils/ascii.x        ascii, crc32 (the zlib CRC-32) and uuidgen
     lib/coreutils/base.x         the coreutils/base module: loads every applet's module, and hands the entry its names
     lib/coreutils/base32.x       base32: five bytes to eight characters, and back
+    lib/coreutils/bc.x           bc: the arbitrary-precision calculator language, read a statement at a time and run
+    lib/coreutils/bcnum.x        bc's numbers and their printing, which bc and dc share
     lib/coreutils/brctl.x        brctl: bridges made and joined through the SIOCBR ioctls, set and shown through /sys/class/net
     lib/coreutils/cal.x          cal: a month or a year, Julian to 1752
     lib/coreutils/chrt.x         chrt: a process's scheduling policy and priority, shown and set through the kernel's calls

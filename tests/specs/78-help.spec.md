@@ -3133,6 +3133,30 @@ stderr:
 status 0
 ```
 
+### bc
+
+busybox writes this one to standard error, still with status 0; here it is
+on standard output, where every other applet's help goes.
+
+```cu
+(run (list "bc" "--help") "")
+```
+---
+```output
+Usage: bc [-sqlw] [FILE]...|
+|
+Arbitrary precision calculator|
+|
+	-q	Quiet|
+	-l	Load standard library|
+	-s	Be POSIX compatible|
+	-w	Warn if extensions are used|
+|
+$BC_LINE_LENGTH changes output width|
+stderr:
+status 0
+```
+
 ### dc
 
 ```cu

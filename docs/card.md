@@ -95,6 +95,7 @@ x -l coreutils -- expr hello : 'h\(.*\)o' -> ell
 x -l coreutils -- expr length hello -> 5
 x -l coreutils -- factor 360 -> 360: 2 2 2 3 3 5
 echo '2 3 + 4 * p' | x -l coreutils -- dc -> 20
+echo 'scale=3; 1/3' | x -l coreutils -- bc -> .333
 x -l coreutils -- test 3 -gt 2 && echo yes -> yes
 x -l coreutils -- [ -d / ] && echo yes -> yes
 x -l coreutils -- ipcalc -n 192.168.1.77/24 -> NETWORK=192.168.1.0
@@ -105,7 +106,7 @@ x -l coreutils -- cal 11 2026 | sed 1q | xargs -> November 2026
 
 | Applets                                  | Do                             |
 |------------------------------------------|--------------------------------|
-| `expr` `dc` `factor` `seq`               | arithmetic                     |
+| `expr` `bc` `dc` `factor` `seq`          | arithmetic                     |
 | `test` `[` `[[` `true` `false`           | an exit status to branch on    |
 | `date` `cal` `sleep` `usleep` `uptime`   | time                           |
 
