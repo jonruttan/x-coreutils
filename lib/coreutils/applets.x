@@ -13,6 +13,7 @@
 
 (module coreutils/applets)
 
+(import coreutils/ar cu-ar)
 (import coreutils/arp cu-arp)
 (import coreutils/arping cu-arping)
 (import coreutils/ascii cu-ascii cu-crc32 cu-uuidgen)
@@ -351,6 +352,7 @@
     (method syslogd (self argv stdin-thunk) (cu-syslogd argv stdin-thunk))
     (method lsmod (self argv stdin-thunk) (cu-lsmod argv stdin-thunk))
     (method route (self argv stdin-thunk) (cu-route argv stdin-thunk))
+    (method ar (self argv stdin-thunk) (cu-ar argv stdin-thunk))
     (method arp (self argv stdin-thunk) (cu-arp argv stdin-thunk))
     (method arping (self argv stdin-thunk) (cu-arping argv stdin-thunk))
     (method nameif (self argv stdin-thunk) (cu-nameif argv stdin-thunk))

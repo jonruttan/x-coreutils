@@ -21,6 +21,7 @@
 (def busybox-options
   (list
     (list "arch" ())
+    (list "ar" (%letters "xptrov"))
     (list "arp" (%letters "adsvniDApH"))
     (list "arping" (%letters "fqbDUAcwIs"))
     (list "nameif" (%letters "sc"))

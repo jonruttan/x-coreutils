@@ -3732,6 +3732,27 @@ stderr:
 status 0
 ```
 
+### ar
+
+```cu
+(run (list "ar" "--help") "")
+```
+---
+```output
+Usage: ar x|p|t|r [-ov] ARCHIVE [FILE]...|
+|
+Extract or list FILEs from an ar archive, or create it|
+|
+	x	Extract|
+	p	Extract to stdout|
+	t	List|
+	r	Create|
+	-o	Restore mtime|
+	-v	Verbose|
+stderr:
+status 0
+```
+
 ### arp
 
 ```cu

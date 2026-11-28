@@ -8710,6 +8710,50 @@ Show or edit kernel routing tables
 status 1
 ```
 
+### ar -~
+
+```cu
+(run (list "ar" "-~") "")
+```
+---
+```output
+stderr:
+ar: unrecognized option: ~
+Usage: ar x|p|t|r [-ov] ARCHIVE [FILE]...
+
+Extract or list FILEs from an ar archive, or create it
+
+	x	Extract
+	p	Extract to stdout
+	t	List
+	r	Create
+	-o	Restore mtime
+	-v	Verbose
+status 1
+```
+
+### ar --nope
+
+```cu
+(run (list "ar" "--nope") "")
+```
+---
+```output
+stderr:
+ar: unrecognized option: nope
+Usage: ar x|p|t|r [-ov] ARCHIVE [FILE]...
+
+Extract or list FILEs from an ar archive, or create it
+
+	x	Extract
+	p	Extract to stdout
+	t	List
+	r	Create
+	-o	Restore mtime
+	-v	Verbose
+status 1
+```
+
 ### arp -~
 
 ```cu

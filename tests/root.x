@@ -10,6 +10,7 @@
 ; harness includes this beside coreutils/base: one import a module, of its provide.
 
 (import coreutils/applets Applets)
+(import coreutils/ar cu-ar)
 (import coreutils/arp ar-ether cu-arp)
 (import coreutils/arping cu-arping)
 (import coreutils/ascii cu-ascii cu-crc32 cu-uuidgen)

@@ -11,6 +11,7 @@ the work.  Applet parity is the other axis: see the README.
 | `[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `[[` | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t = != -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o ! ( ) | -e -f -d -s -z -n -r -w -x -L -h -b -c -p -S -k -u -g -t -eq -ne -lt -le -gt -ge -nt -ot -ef -a -o = == != ! ( ) |  | 100% |
 | `arch` |  |  |  | - |
+| `ar` | -x -p -t -r -o -v | -o -v -x -p -t -r -c |  | 100% |
 | `arp` | -a -d -s -v -n -i -D -A -p -H | -a -d -s -v -n -D -i -A -p -H -t |  | 100% |
 | `arping` | -f -q -b -D -U -A -c -w -I -s | -f -q -b -D -U -A -c -w -I -s |  | 100% |
 | `ascii` |  |  |  | - |
